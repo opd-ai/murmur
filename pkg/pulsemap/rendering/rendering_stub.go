@@ -56,5 +56,21 @@ func ZoomLevelFromScale(scale float64) ZoomLevel {
 	return ZoomMicro
 }
 
+// computeNodeRadius calculates node size based on connections/resonance.
+// Stub implementation for noebiten builds.
+func computeNodeRadius(style NodeStyle) float32 {
+	const (
+		rBase  = 4.0
+		rScale = 3.0
+	)
+	var metric float64
+	if style.IsSpecter {
+		metric = style.Resonance
+	} else {
+		metric = float64(style.Connections) + style.Activity
+	}
+	return float32(rBase + rScale*math.Log(1+metric))
+}
+
 // Ensure math import is used.
 var _ = math.Log
