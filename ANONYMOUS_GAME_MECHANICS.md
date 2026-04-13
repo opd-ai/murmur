@@ -1,7 +1,7 @@
 # Anonymous Mechanics
 
 **Category:** Core Mechanics — Anonymous Layer Social Features
-**Version:** 0.4
+**Version:** 0.5
 **Status:** Draft
 
 ---
@@ -12,7 +12,9 @@ Anonymous Mechanics are the social features exclusive to or primarily operating 
 
 All Anonymous Mechanics use Specter identity unless otherwise noted. Participation requires Hybrid mode or higher. Several mechanics are gated by Specter Resonance milestones, ensuring that the most powerful anonymous social tools are earned through sustained anonymous participation.
 
-The mechanics described in this document are: Phantom Gifts, Specter Duels, Masked Events, Phantom Councils, Specter Marks, and Whisper Chains.
+The mechanics described in this document are: Phantom Gifts, Cipher Puzzles, Specter Hunts, Territory Drift, Oracle Pools, Sigil Forge, Shadow Play, Masked Events, Phantom Councils, Specter Marks, and Whisper Chains.
+
+Additionally, this document describes mechanics that extend into underserved subsystems: Surface Sparks (Surface Layer), Cartographer's Trail (Discovery/Search), Echo Chains (Echo/Re-broadcast), Pulse Beats (Notifications/Vibrations), and Specter Trophies (Profile/Identity).
 
 ---
 
@@ -54,55 +56,194 @@ When a Specter receives a Phantom Gift from another Specter, the interaction is 
 
 ---
 
-## Specter Duels
+## Cipher Puzzles
 
 ### Concept
 
-Specter Duels are structured, public, anonymous debates between two Specters. A duel is a time-limited exchange of arguments on a declared topic, judged by an anonymous audience vote. Duels are competitive, performative, and social — they are the Anonymous Layer's spectator sport.
+Cipher Puzzles are collaborative and competitive cryptographic challenges that Specters solve together or against each other. A Cipher Puzzle is a time-limited event where the network generates a puzzle — a cryptographic or pattern-based challenge derived from network state — and Specters race to solve it. Puzzles leverage anonymity by making the solver's identity irrelevant; only the solution matters.
 
-Duels exist because anonymity enables a specific kind of intellectual honesty: when your identity is detached from your argument, you are free to argue positions you might not publicly endorse, to steelman opposing views, and to engage with ideas purely on their merits. Duels formalize this dynamic into a structured, entertaining mechanic.
+Cipher Puzzles exist because anonymity enables pure intellectual competition. When identity is stripped from achievement, the focus shifts to the work itself. Puzzles formalize this dynamic into a structured, entertaining mechanic that rewards cryptographic intuition and collaborative problem-solving.
 
-### Initiating a Duel
+### Puzzle Types
 
-A Specter initiates a duel by publishing a Duel Challenge Wave — a special Specter Wave (type 0x04) with metadata key `duel_challenge` set to `true` and additional metadata fields: `duel_topic` (UTF-8 string, the topic or proposition to be debated, max 256 bytes), `duel_stance` (the challenger's declared stance: "for" or "against"), and `duel_duration` (the duration of the duel in minutes, one of: 30, 60, or 120).
+**Fragment Puzzles (Competitive).** A Beacon Wave announces a puzzle containing a cryptographic fragment — a partial hash preimage, a ciphertext with a missing key byte, or a pattern-matching challenge derived from recent network entropy (e.g., "Find a nonce such that SHA-256(puzzle_seed || nonce) starts with 28 zero bits"). The first Specter to publish a valid solution Wave wins. Fragment Puzzles are individual competitions.
 
-The Duel Challenge Wave propagates through the Anonymous Layer like any Specter Wave. Any Specter who sees the challenge can accept it by publishing a Duel Accept Wave: a Specter Wave with metadata key `duel_accept` set to `true`, `duel_challenge_id` containing the Wave ID of the challenge, and `duel_stance` set to the opposing stance.
+**Mosaic Puzzles (Collaborative).** A Beacon Wave announces a puzzle that requires multiple Specters to each contribute a piece. The puzzle is divided into N sub-problems (typically 3–7), each solvable independently. A Specter publishes a Puzzle Contribution Wave containing their sub-solution. When all sub-solutions are collected and combined, the full solution is verified. Mosaic Puzzles reward teamwork and coordination among anonymous participants.
 
-If no Specter accepts within 24 hours, the challenge expires. If multiple Specters attempt to accept, the first valid acceptance (by timestamp) is canonical. The challenger's client validates the acceptance and publishes a Duel Start Wave with metadata confirming both participants and the start time.
+**Cascade Puzzles (Sequential).** A chain of dependent puzzles where each solution unlocks the next. The first Specter to solve stage 1 publishes the solution, which reveals stage 2. Another Specter (or the same one) solves stage 2, revealing stage 3, and so on. Cascade Puzzles create a collaborative relay where the network collectively works through a multi-stage challenge.
 
-### Duel Structure
+### Puzzle Generation
 
-Once a duel starts, the two participants exchange argument Waves within the duel's time window. Duel argument Waves are Specter Waves with metadata key `duel_id` containing the Duel Start Wave's ID and `duel_round` containing the round number (integer, starting from 1).
+Puzzles are generated deterministically from network entropy — the hash of recent Beacon Waves, the current epoch timestamp, and a puzzle-specific seed. Any node can independently verify that a puzzle was correctly generated from the declared inputs. No trusted authority is needed. Puzzle generation is encoded as a Go `PuzzleGenerator` interface:
 
-The duel proceeds in alternating rounds. The challenger publishes round 1. The acceptor publishes round 2. The challenger publishes round 3. And so on. Each participant has a maximum of 5 minutes per round to publish their argument. If a participant fails to publish within the time window, they forfeit the round (the round is displayed as "[Forfeit]" in the duel thread). Three consecutive forfeits end the duel with the other participant declared the winner by default.
+```go
+type PuzzleGenerator interface {
+    Generate(seed []byte, epoch uint64) Puzzle
+    Verify(puzzle Puzzle, solution []byte) bool
+}
+```
 
-The maximum number of rounds is determined by the duel duration: 30-minute duels allow up to 6 rounds (3 per participant), 60-minute duels allow up to 10 rounds (5 per participant), and 120-minute duels allow up to 16 rounds (8 per participant).
+### Initiating a Puzzle
 
-Each argument Wave has the same 2048-byte content limit as any Wave and requires the same PoW stamp. The arguments are public — any Specter following the duel can read the exchange in real time.
+Any Specter with Resonance 50 or higher (Wraith milestone) can initiate a Cipher Puzzle by publishing a Puzzle Beacon Wave (type 0x08) with `beacon_type` set to `puzzle_announce`. The announcement includes `puzzle_id` (random 32-byte identifier), `puzzle_type` (fragment, mosaic, or cascade), `puzzle_seed` (the seed used to generate the puzzle), `puzzle_difficulty` (a difficulty parameter), and `puzzle_duration` (time limit in minutes: 15, 30, or 60).
 
-### Audience and Voting
+### Solving and Rewards
 
-Any Specter can follow an active duel by subscribing to its duel thread (Waves with the matching `duel_id` metadata). Following is passive — audience members read the arguments but do not publish Waves in the duel thread.
+Solutions are published as Specter Waves with metadata `puzzle_id` and `puzzle_solution` containing the solution bytes. Nodes validate solutions locally by running the puzzle's verification function. The first valid solution (by timestamp) wins a Fragment Puzzle. For Mosaic Puzzles, each contributor who provides a valid sub-solution earns a share of the reward.
 
-When the duel ends (all rounds complete, or a participant forfeits), a 15-minute voting window opens. The duel's final argument Wave includes metadata key `duel_voting_open` set to `true` and `duel_voting_deadline` containing the Unix timestamp of the voting deadline.
+The Resonance reward for puzzle participation follows the formula: `puzzle_bonus = 4 * ln(1 + difficulty_factor * participation_count)`. The bonus is temporary, decaying linearly to zero over 14 days. Participation (attempting a puzzle, even without winning) contributes to the Puzzle Activity signal in Specter Resonance.
 
-Audience members vote by publishing a Duel Vote Wave: a Specter Wave with metadata `duel_id`, `duel_vote` (the public key of the participant they judge to have won), and a standard PoW stamp. Each Specter can vote once per duel (duplicate votes from the same Specter public key are rejected by recipients).
+### Puzzle Visibility
 
-### Vote Tallying and Resonance Consequences
+Active puzzles are highlighted on the Anonymous Layer Pulse Map as a glowing, rotating glyph at the approximate network centroid of participating Specters. The glyph pulses with increased intensity as solutions are submitted. Completed puzzles leave a brief celebratory particle burst at the winner's node.
 
-After the voting deadline, each node locally tallies the votes. Votes are weighted by the voter's Specter Resonance as computed by the tallying node. A vote from a Specter with Resonance 100 carries ten times the weight of a vote from a Specter with Resonance 10 (linear weighting).
+---
 
-The weighted vote counts determine the winner. The tallying node generates a local Duel Result containing the winner, the weighted vote margin, and the total number of voters. Because Resonance is locally computed and may vary slightly between observers, different nodes may compute slightly different weighted tallies — but in practice, the winner is consistent across observers except in extremely close duels.
+## Specter Hunts
 
-The winner receives a Specter Resonance bonus based on the vote margin. The bonus formula is `duel_bonus = 3 * ln(1 + weighted_margin / total_weighted_votes * voter_count)`. This rewards decisive victories with larger audiences more than narrow victories with small audiences. The bonus is temporary: it decays linearly to zero over 14 days.
+### Concept
 
-The loser receives no bonus and loses no Resonance. Participation in a duel (win or lose) contributes to the Duel Record signal in the Specter Resonance computation (net wins in the trailing 30 days).
+Specter Hunts are network-wide, time-limited scavenger hunts across the Pulse Map. A Hunt scatters hidden fragments — cryptographic tokens embedded in the network topology — that Specters must discover by exploring the Pulse Map, decoding clues, and reaching specific network locations. Hunts leverage the spatial nature of the Pulse Map and the anonymity of the Anonymous Layer to create an exploration-driven game.
 
-### Duel Visibility
+### Hunt Structure
 
-Active duels are highlighted on the Anonymous Layer Pulse Map. The two dueling Specter nodes are connected by an animated "clash" visual — a jagged, sparking line between them. Audience members' nodes show a faint directional indicator pointing toward the duel, creating a visual sense of attention flowing toward the event.
+A Hunt is initiated by a Specter with Resonance 75 or higher by publishing a Hunt Beacon Wave. The announcement includes `hunt_id`, `hunt_theme` (a short description), `hunt_duration` (30, 60, or 120 minutes), `hunt_fragment_count` (5–20 fragments to find), and a `hunt_seed` used for deterministic fragment placement.
 
-Completed duels are archived as a thread of Waves that remains available for the standard 30-day content window. The Duel Result (including winner, margin, and voter count) is included as metadata in a final Beacon Wave published to the duel thread.
+Fragments are virtual tokens whose locations are determined by hashing the hunt seed with sequential fragment indices: `fragment_location = SHA-256(hunt_seed || fragment_index)`. The resulting hash is mapped to a region of the Pulse Map topology by XOR-distance to existing node Peer IDs. Each fragment is "near" a specific node, and the hunting Specter must navigate to that region of the Pulse Map and publish a Hunt Claim Wave while connected to a peer within 3 hops of the target node.
+
+### Clue System
+
+Each fragment has an associated clue published in the Hunt Beacon Wave's metadata. Clues are cryptographic hints: partial hashes of the target region, XOR-distance ranges, or encoded references to visible Pulse Map features (e.g., "Near the densest cluster on the eastern fringe"). Clues grow more specific over time — every 10 minutes, an additional hint Beacon Wave is published, narrowing the search space.
+
+### Claiming Fragments
+
+A Specter claims a fragment by publishing a Hunt Claim Wave: a Specter Wave with metadata `hunt_id`, `fragment_index`, and a proof-of-proximity — a signed attestation from a peer within 3 hops of the fragment's target node, or a gossip-observable proof that the claiming Specter recently exchanged messages with nodes near the target. The proof-of-proximity is verified locally by observing nodes.
+
+### Rewards
+
+The Specter who claims the most fragments wins the Hunt. The winner receives a Resonance bonus: `hunt_bonus = 5 * ln(1 + fragments_claimed)`. All participants who claim at least one fragment receive a smaller participation bonus: `participation_bonus = 2 * ln(1 + fragments_claimed)`. Bonuses decay over 14 days.
+
+### Hunt Visibility
+
+Active Hunts are shown on the Pulse Map as a constellation of dim, pulsing markers scattered across the topology. As fragments are claimed, their markers brighten and display the claimer's Specter sigil. The Hunt creates a visible wave of exploration activity — Specters navigating to unfamiliar regions of the map, briefly illuminating corners of the network they might never have visited.
+
+---
+
+## Territory Drift
+
+### Concept
+
+Territory Drift is a persistent, ambient game where Specters claim and contest regions of the Pulse Map through sustained activity. The Pulse Map is divided into dynamic territories based on the network's cluster structure. Specters accumulate influence over territories by publishing Waves, forming connections, and participating in mechanics within that region. Territory Drift makes the Anonymous Layer a living, contested landscape.
+
+### Territory Definition
+
+Territories are defined by the Louvain community detection algorithm applied to the Anonymous Layer topology. Each detected cluster constitutes a territory. Territories are dynamic — as the topology evolves, territories shift, merge, and split. Each territory has a centroid (the geometric center of its member nodes on the Pulse Map) and a boundary (the convex hull of its members' positions).
+
+### Claiming Influence
+
+A Specter accumulates influence over a territory by performing activity within it: publishing Waves that are amplified by nodes in the territory, forming connections with members of the territory, and participating in mechanics (puzzles, hunts, events) whose participants overlap with the territory. Influence is computed locally by each observer as: `influence = 8 * ln(1 + waves_amplified_in_territory_30d + connections_in_territory + mechanic_participations_in_territory)`.
+
+### Territory Control
+
+The Specter with the highest influence in a territory is its Controller. Controller status is computed locally and may vary slightly between observers. The Controller's Specter sigil is displayed as a subtle watermark in the territory's background on the Pulse Map. Controller status carries no protocol-level privilege — it is a visible social distinction, a mark of sustained anonymous presence in that region.
+
+### Contest Mechanics
+
+When two Specters have similar influence in a territory (within 20% of each other), the territory enters a Contested state displayed as a shimmering boundary with alternating sigil watermarks. Contested territories attract attention and activity, creating organic hotspots of anonymous competition.
+
+### Resonance Integration
+
+Territory Drift contributes to Specter Resonance through the Territory Influence signal: `territory_score = 3 * ln(1 + territories_controlled + 0.5 * territories_contested)`. Controlling or contesting territories rewards sustained participation in specific network regions. Territory Drift is available at Specter Resonance 25 (Shade milestone) — the mechanic is ambient and accessible early, giving new Specters an immediate sense of place and purpose.
+
+---
+
+## Oracle Pools
+
+### Concept
+
+Oracle Pools are anonymous, stake-free prediction markets where Specters forecast network events and earn Resonance for accuracy. An Oracle Pool poses a question about a future network-observable event, Specters submit predictions, and when the event resolves, accurate predictors earn Resonance rewards. Oracle Pools leverage anonymity to enable honest prediction without social pressure — your prediction is visible but your identity carries no reputational risk from being wrong.
+
+### Pool Creation
+
+A Specter with Resonance 100 or higher (Phantom milestone) creates an Oracle Pool by publishing a Pool Beacon Wave with `pool_id`, `pool_question` (UTF-8, max 256 bytes — the prediction question), `pool_resolution_method` (how the outcome is determined — must be a network-observable metric), `pool_deadline` (Unix timestamp for prediction submission cutoff), and `pool_resolution_time` (when the outcome is evaluated).
+
+Pool questions must reference network-observable events: "Will daily gossip volume on murmur/anonymous/v1 exceed 10,000 messages on April 20?" or "Will a new territory form in the eastern cluster within 7 days?" or "Will Masked Event participation exceed 50 total participants this week?" Resolution is deterministic — any node can independently verify the outcome by observing the specified metric.
+
+### Submitting Predictions
+
+Specters submit predictions by publishing Pool Prediction Waves: Specter Waves with metadata `pool_id` and `pool_prediction` (a numeric value or boolean, depending on the pool type). Predictions are committed using a hash-then-reveal scheme: the Specter first publishes a commitment (SHA-256 hash of prediction + secret nonce), then after the prediction deadline, publishes the reveal (prediction + nonce). This prevents Specters from copying others' predictions.
+
+### Resolution and Rewards
+
+After the resolution time, each node locally evaluates the outcome by querying its own observable data. Predictions are scored by accuracy (exact match or closest to actual value). The top 25% of predictors by accuracy receive a Resonance bonus: `oracle_bonus = 3 * ln(1 + pool_participant_count / rank)`. The bonus decays over 14 days.
+
+### Pool Visibility
+
+Active Oracle Pools are displayed on the Pulse Map as floating question-mark glyphs near the network region relevant to the prediction (if applicable) or near the pool creator's node. Resolved pools display a brief results summary and the winning prediction's Specter sigil.
+
+---
+
+## Sigil Forge
+
+### Concept
+
+Sigil Forge events are timed creative challenges where Specters compete to produce the most compelling content within constraints. A Forge event provides a prompt, a time limit, and a medium (Sigil art, micro-fiction, remix chains), and Specters create and submit entries. The anonymous audience evaluates entries through amplification — the most amplified entry wins.
+
+Sigil Forge exists because anonymity liberates creativity. Without identity attached to output, participants take creative risks they would avoid under their public persona. The Forge formalizes this into a structured event that produces visible creative artifacts.
+
+### Forge Types
+
+**Sigil Art Forge.** Participants create Sigil Waves — procedurally generated visual art seeded from a provided prompt. Entries are evaluated purely on visual appeal as measured by amplification count.
+
+**Micro-Fiction Forge.** Participants publish short-form creative writing (max 2048 bytes) responding to a prompt. Entries are Specter Waves tagged with the forge event ID.
+
+**Remix Chains.** A collaborative creative mechanic: the first participant publishes a seed creation, the next participant remixes it (responding with a derivative work), the next remixes that, and so on. The chain is evaluated as a whole, with all contributors sharing the reward.
+
+### Forge Events
+
+A Specter with Resonance 50 or higher (Wraith milestone) initiates a Sigil Forge by publishing a Forge Beacon Wave with `forge_id`, `forge_type`, `forge_prompt` (the creative prompt, max 256 bytes), `forge_duration` (30 or 60 minutes), and `forge_medium` (sigil_art, micro_fiction, or remix_chain).
+
+### Evaluation and Rewards
+
+Entries are evaluated by amplification. During the forge's duration, audience Specters amplify their favorite entries. After the forge concludes, each node locally tallies amplifications weighted by the amplifier's Resonance. The entry with the highest weighted amplification wins.
+
+The winner receives: `forge_bonus = 4 * ln(1 + weighted_amplifications)`. All participants receive a smaller bonus: `participation_bonus = 2 * ln(1 + own_amplifications_received)`. Bonuses decay over 14 days.
+
+### Forge Visibility
+
+Active Forge events appear on the Pulse Map as a glowing anvil glyph. During a Sigil Art Forge, submitted Sigil Waves orbit the glyph as miniature animated thumbnails, creating a visible gallery in the network topology. The winning entry's Sigil is displayed prominently at the glyph's center for 24 hours after the event.
+
+---
+
+## Shadow Play
+
+### Concept
+
+Shadow Play is a social deduction game that leverages anonymity as its core mechanic. In a Shadow Play round, a small group of Specters are secretly assigned roles, and the group must identify the hidden roles through interaction, observation, and deduction — all while maintaining (or deliberately breaking) their anonymity. Shadow Play is the deepest mini-game mechanic, gated at Resonance 200 (Revenant milestone), and designed to be the Anonymous Layer's most compelling social experience.
+
+### Game Setup
+
+A Specter with Resonance 200 or higher initiates a Shadow Play by publishing a Play Beacon Wave. The announcement includes `play_id`, `play_duration` (30 or 60 minutes), and `play_size` (5–13 participants).
+
+Participants join by publishing Join Waves (similar to Masked Event joining). Once the participant cap is reached, the initiator's client deterministically assigns roles from the play seed: `role_assignment = SHA-256(play_seed || participant_index)`. Each participant's client locally derives their own role from the seed and their position in the join order. Roles are not communicated over the network — each client computes them independently from shared inputs.
+
+### Roles
+
+**Echoes** (majority): Standard participants. Their goal is to identify the Shades through observation and interaction.
+
+**Shades** (minority, typically 1–2): Hidden disruptors. Their goal is to remain undetected while subtly misdirecting the group. Shades know each other's identities (derived from the same seed).
+
+### Gameplay
+
+The game proceeds in rounds. Each round, participants publish Play Waves (Specter Waves tagged with `play_id` and `play_round`) discussing, accusing, and defending. At the end of each round, participants vote to eliminate one player by publishing Vote Waves. The eliminated player's role is revealed (locally computed by each observer from the seed). The game continues until all Shades are eliminated (Echoes win) or Shades equal or outnumber Echoes (Shades win).
+
+### Resonance Rewards
+
+Winners receive: `play_bonus = 5 * ln(1 + participant_count)`. Participants on the losing side receive a smaller bonus: `consolation_bonus = 2 * ln(1 + participant_count)`. Bonuses decay over 14 days.
+
+### Play Visibility
+
+Active Shadow Plays appear on the Pulse Map as a dark, swirling vortex glyph. Spectators outside the game cannot read Play Waves but can see the vortex pulsing with each round's activity. Eliminations cause a brief flash at the eliminated Specter's node. The game's social deduction dynamic — anonymous identities trying to identify other anonymous identities' hidden roles — is uniquely enabled by MURMUR's anonymity architecture.
 
 ---
 
@@ -158,9 +299,9 @@ No participant can prove they authored a specific Masked Wave after the event, b
 
 ### Concept
 
-Phantom Councils are persistent, private, anonymous deliberation groups. A Council is a small group of high-Resonance Specters (minimum 3, maximum 13) who meet regularly to discuss, debate, and vote on matters of shared interest. Councils are the Anonymous Layer's governance and elite-discussion mechanic — they are exclusive, secretive, and powerful in the social dynamics of the network.
+Phantom Councils are persistent, private, anonymous coordination groups. A Council is a small group of high-Resonance Specters (minimum 3, maximum 13) who meet regularly to discuss, coordinate, and vote on matters of shared interest. Councils are the Anonymous Layer's governance and elite-coordination mechanic — they are exclusive, secretive, and powerful in the social dynamics of the network.
 
-Councils are inspired by the idea that some conversations require both anonymity and trust: anonymous participants who have proven their commitment to the network (through high Specter Resonance) convening in a private, persistent group to deliberate on important topics. The combination of anonymity, exclusivity, and persistence creates a unique social dynamic unavailable on either the Surface Layer or the open Anonymous Layer.
+Councils are inspired by the idea that some conversations require both anonymity and trust: anonymous participants who have proven their commitment to the network (through high Specter Resonance) convening in a private, persistent group to coordinate on important topics. The combination of anonymity, exclusivity, and persistence creates a unique social dynamic unavailable on either the Surface Layer or the open Anonymous Layer.
 
 ### Council Creation
 
@@ -186,9 +327,9 @@ Council Waves are a variant of Specter Waves published to the Council's private 
 
 ### Council Voting
 
-Councils have a built-in voting mechanic for internal deliberation. Any Council member can publish a Council Proposal Wave: a Specter Wave on the Council topic with metadata `council_proposal` set to `true` and `proposal_text` containing the proposition. Members vote on proposals by publishing Council Proposal Vote Waves with metadata `council_proposal_id` and `proposal_vote` (values: "for," "against," or "abstain").
+Councils have a built-in voting mechanic for internal coordination. Any Council member can publish a Council Proposal Wave: a Specter Wave on the Council topic with metadata `council_proposal` set to `true` and `proposal_text` containing the proposition. Members vote on proposals by publishing Council Proposal Vote Waves with metadata `council_proposal_id` and `proposal_vote` (values: "for," "against," or "abstain").
 
-Votes are tallied locally by each member's client. The default decision threshold is simple majority of non-abstaining votes. The proposal outcome is not enforced by the protocol — Councils are deliberative bodies, not governance mechanisms with binding power. The vote is a tool for structured decision-making within the group.
+Votes are tallied locally by each member's client. The default decision threshold is simple majority of non-abstaining votes. The proposal outcome is not enforced by the protocol — Councils are coordination bodies, not governance mechanisms with binding power. The vote is a tool for structured consensus-building within the group.
 
 ### Council Visibility
 
@@ -286,17 +427,131 @@ The anonymous mechanics interact with each other and with the broader system in 
 
 Phantom Gifts often serve as social icebreakers on the Anonymous Layer. A Specter sends a gift to another Specter. The recipient views the sender's Specter profile. If both are Hybrid+ mode, the recipient can send a gift back or initiate a Specter connection. This gift-exchange pipeline is the most common pathway to new Specter connections, creating an organic social dynamic where anonymous generosity leads to anonymous friendship.
 
-### Duel → Resonance → Council Pipeline
+### Puzzle → Resonance → Council Pipeline
 
-Specter Duels are a primary vehicle for building Specter Resonance. Winning duels with large audiences generates significant Resonance bonuses. Specters who build high Resonance through duel victories become eligible for Phantom Council membership. This creates a meritocratic pipeline: the Anonymous Layer's most skilled debaters and thinkers rise to its most exclusive deliberative spaces.
+Cipher Puzzles, Specter Hunts, and Sigil Forge events are primary vehicles for building Specter Resonance. Winning puzzles and hunts, and producing acclaimed creative work in Forges, generates significant Resonance bonuses. Specters who build high Resonance through mini-game participation become eligible for Phantom Council membership. This creates a meritocratic pipeline: the Anonymous Layer's most skilled and active participants rise to its most exclusive coordination spaces.
 
 ### Event → Burst → Visibility Pipeline
 
-Masked Events generate Resonance Bursts for active participants. A Specter who receives a large Burst temporarily has elevated Resonance, making them more visible on the Pulse Map (larger node), more influential in duel votes (higher vote weight), and more attractive as a Whisper Chain relay (preferred by chain selection). This temporary visibility spike creates a rhythm of emergence and recession: Specters who perform well in events briefly shine brighter before returning to their baseline Resonance.
+Masked Events generate Resonance Bursts for active participants. A Specter who receives a large Burst temporarily has elevated Resonance, making them more visible on the Pulse Map (larger node), more influential in Oracle Pool outcomes (higher prediction credibility), and more attractive as a Whisper Chain relay (preferred by chain selection). This temporary visibility spike creates a rhythm of emergence and recession: Specters who perform well in events briefly shine brighter before returning to their baseline Resonance.
+
+### Territory → Hunt → Culture Pipeline
+
+Territory Drift creates persistent ownership markers on the Pulse Map. Specter Hunts drive exploration into unfamiliar territories. The combination creates a cycle: Controllers defend their territory influence, Hunters explore contested regions, and the resulting activity reshapes territory boundaries. This dynamic creates a living, evolving anonymous landscape that rewards both sustained presence and bold exploration.
 
 ### Mark → Mystery → Culture Pipeline
 
 Specter Marks create persistent visual artifacts on the Pulse Map that other users observe and interpret. A node accumulating Marks becomes a focal point of anonymous attention. Other users speculate about why the node was marked. The marked user may change their behavior (posting different content, engaging with different communities) in response to the Marks. This dynamic creates a feedback loop between anonymous observation and public behavior — the anonymous world visibly influencing the public world through mysterious, ambiguous signals.
+
+### Shadow Play → Trust → Social Pipeline
+
+Shadow Play creates intense social bonds between anonymous participants. Specters who successfully identify or deceive each other develop a shared experience that drives subsequent interactions — new Specter connections, Whisper Chain conversations, and Council invitations. The social deduction mechanic is a crucible for anonymous trust-building.
+
+---
+
+## Surface Sparks
+
+### Concept
+
+Surface Sparks are lightweight, Surface-Layer-exclusive challenge mechanics that give Open-mode users a taste of gamified interaction without requiring Anonymous Layer participation. Sparks are brief, spontaneous challenges between Surface Layer users that generate visible effects on the Pulse Map.
+
+### Spark Types
+
+**Wave Relay.** A user publishes a Spark Wave with a "relay prompt" — a creative constraint (e.g., "Describe your day in exactly 7 words"). Connected nodes that see the Spark can participate by publishing a Wave matching the constraint within 5 minutes. The Spark and all matching responses are visually linked on the Pulse Map by brief golden arcs.
+
+**Echo Races.** A user initiates an Echo Race by publishing a Spark Wave tagged as a race. The challenge: which connected node can amplify the Wave first? The fastest amplifier's node displays a brief crown glyph. Echo Races are trivial — a few seconds of engagement — but they create visible micro-events that enliven the Surface Layer.
+
+### Requirements
+
+Surface Sparks have no Resonance gate — any Surface Layer user can initiate or participate. They are designed as the entry point to MURMUR's gamified mechanics, available from the first session. Sparks contribute to Surface Layer Resonance through the Wave Output and Amplification signals.
+
+---
+
+## Cartographer's Trail
+
+### Concept
+
+Cartographer's Trail rewards Specters for exploring unfamiliar regions of the Pulse Map. The mechanic maintains a personal exploration log — a set of network regions the Specter has visited and interacted with. Each new region discovered contributes to a Cartographer score, which feeds into Specter Resonance.
+
+### Exploration Mechanics
+
+A Specter "discovers" a territory by publishing a Wave or forming a connection within a previously unvisited cluster (as defined by the Louvain community detection algorithm). The discovery is logged locally by the client. The Cartographer score is: `cartographer_score = 6 * ln(1 + distinct_territories_visited_90d)`.
+
+### Discovery Beacons
+
+When a Specter visits a territory for the first time, their client publishes a Discovery Wave (a Specter Wave with metadata `discovery` set to `true` and `territory_hash` containing the cluster's identifier hash). This Wave is visible to other Specters and creates a brief luminous ping at the Specter's location on the Pulse Map, visible to all Anonymous Layer observers. Discovery Waves signal that someone is exploring, encouraging others to follow.
+
+### Cartographer Milestones
+
+At 5 territories discovered, the Specter earns the "Wanderer" badge (a small compass glyph displayed near their node). At 20 territories, "Pathfinder" (an upgraded compass with animated needle). At 50 territories, "Cartographer" (a detailed map glyph). Badges are visible on the Specter's profile and Pulse Map node.
+
+---
+
+## Echo Chains
+
+### Concept
+
+Echo Chains incentivize meaningful amplification by creating visible, rewarded chains of re-broadcast. When a Wave is amplified through a chain of at least 3 distinct amplifiers, an Echo Chain forms — a visible, luminous thread connecting all amplifiers on the Pulse Map.
+
+### Chain Formation
+
+An Echo Chain forms automatically when a Wave accumulates 3+ sequential amplifications: A publishes, B amplifies, C amplifies from B, D amplifies from C. The chain A→B→C→D is rendered on the Pulse Map as a thin, glowing arc connecting the chain's nodes, persisting for 1 hour.
+
+### Chain Rewards
+
+Each node in an Echo Chain of length N receives a small Resonance bonus: `echo_chain_bonus = 1 * ln(N)`. This rewards Specters who participate in meaningful amplification cascades — content that multiple distinct identities independently chose to propagate. The bonus is modest (preventing gaming) but visible, creating a light incentive to amplify quality content that is already being amplified.
+
+### Chain Visibility
+
+Echo Chains are rendered on the Pulse Map as golden (Surface Layer) or silver (Anonymous Layer) arcs connecting chain participants. Long chains (5+ amplifiers) display a subtle shimmer effect along the arc. The visual makes amplification behavior tangible and social — users can see content flowing through the network in chains of endorsement.
+
+---
+
+## Pulse Beats
+
+### Concept
+
+Pulse Beats are gamified notification events that transform routine network notifications into brief, engaging micro-interactions. Instead of a static notification badge, significant events trigger a Pulse Beat — a small, interactive animation at the edge of the Pulse Map viewport.
+
+### Beat Types
+
+**Gift Beat.** When a Phantom Gift arrives, a small gift-glyph pulses at the viewport edge, trailing particles in the gift's color. Tapping the Beat pans to the gifted node.
+
+**Hunt Beat.** When a Specter Hunt begins in a nearby territory, a compass glyph spins at the viewport edge with a countdown timer.
+
+**Forge Beat.** When a Sigil Forge is active, an anvil glyph glows at the viewport edge, showing the time remaining.
+
+**Chain Beat.** When an Echo Chain passes through the user's node, a chain-link glyph flashes briefly.
+
+**Territory Beat.** When the user's controlled territory is contested, a shield glyph pulses in a warning color at the viewport edge.
+
+### Beat Collection
+
+Pulse Beats are logged in a personal Beat Journal accessible from the Pulse Map's status panel. The journal records all Beats received, creating a personal history of notable network events. Users can review their Beat Journal to see patterns in their engagement — which territories they interact with, how often they receive gifts, how many chains they participate in.
+
+---
+
+## Specter Trophies
+
+### Concept
+
+Specter Trophies are achievements, milestones, and collectibles tied to identity progression on the Anonymous Layer. Trophies are unlocked by completing specific actions or reaching specific thresholds. They are displayed on the Specter's profile and contribute a small, fixed Resonance bonus.
+
+### Trophy Categories
+
+**Milestone Trophies.** Unlocked by reaching Specter Resonance milestones: "First Shade" (Resonance 25), "Wraith Rising" (50), "Phantom Ascendant" (100), "Revenant" (200), "Abyss Walker" (500). Each milestone trophy adds a small glyph to the Specter's profile.
+
+**Activity Trophies.** Unlocked by cumulative actions: "First Gift Sent," "10 Puzzles Solved," "5 Hunts Completed," "3 Forges Won," "First Shadow Play," "First Territory Controlled," "100 Waves Published." Each trophy adds 1 Resonance (flat, non-decaying).
+
+**Rare Trophies.** Unlocked by unusual or difficult achievements: "Cartographer" (50 territories discovered), "Oracle" (10 correct Oracle Pool predictions in a row), "Chain Breaker" (participate in an Echo Chain of length 10+), "Ghost" (maintain Resonance 100+ for 90 consecutive days), "Council Founder" (initiate a Phantom Council). Rare trophies add 3 Resonance each and display an animated glyph.
+
+### Trophy Display
+
+Trophies are visible on the Specter's profile in the Node Detail Panel. A summary count ("12 Trophies") is displayed below the Specter's Resonance score. At micro zoom, trophy glyphs orbit the Specter's node as tiny animated icons, creating a visual halo of achievement visible to other Anonymous Layer participants.
+
+### Implementation Notes
+
+Trophy state is tracked locally by each Specter's client. Trophy unlocks are published as Trophy Waves (Specter Waves with metadata `trophy_id`) for network visibility, but trophy verification relies on the client's local activity log. Trophies are self-reported — like Whisper Chain contributions, they are a weak signal in Resonance computation, weighted accordingly.
 
 ### Whisper → Duel Challenge Pipeline
 

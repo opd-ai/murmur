@@ -1,7 +1,7 @@
 # Resonance System
 
 **Category:** Core Mechanics
-**Version:** 0.4
+**Version:** 0.5
 **Status:** Draft
 
 ---
@@ -76,7 +76,11 @@ Specter Resonance is computed from Anonymous Layer activity using the same local
 
 **Masked Event Participation.** The number of Masked Events the Specter has participated in during the trailing 30 days. `event_score = 4 * ln(1 + events_participated_30d)`.
 
-**Duel Record.** Net duel wins (wins minus losses) in the trailing 30 days, floored at 0. `duel_score = 7 * ln(1 + max(0, net_duel_wins_30d))`.
+**Mini-Game Activity.** Composite score of mini-game participation in the trailing 30 days: Cipher Puzzle solutions, Specter Hunt fragment claims, Sigil Forge entries, Oracle Pool predictions, and Shadow Play rounds. `minigame_score = 7 * ln(1 + puzzle_solutions_30d + hunt_claims_30d + forge_entries_30d + oracle_predictions_30d + shadow_play_rounds_30d)`.
+
+**Territory Influence.** The number of territories where the Specter holds Controller or Contested status. `territory_score = 3 * ln(1 + territories_controlled + 0.5 * territories_contested)`.
+
+**Cartographer Score.** The number of distinct network territories the Specter has visited and interacted with in the trailing 90 days. `cartographer_score = 6 * ln(1 + distinct_territories_visited_90d)`.
 
 **Whisper Chain Contributions.** The number of Whisper Chain hops the Specter has served as an intermediate node or initiator in the trailing 30 days. `chain_score = 5 * ln(1 + chain_contributions_30d)`.
 
@@ -92,7 +96,7 @@ Specter Resonance is computed from Anonymous Layer activity using the same local
 
 ### Computation
 
-`raw_specter_resonance = specter_connection_score + specter_diversity_score + specter_wave_score + specter_amp_received_score + specter_amp_given_score + gift_score + event_score + duel_score + chain_score + zk_score + shroud_score + council_score + specter_age_score + specter_uptime_score`
+`raw_specter_resonance = specter_connection_score + specter_diversity_score + specter_wave_score + specter_amp_received_score + specter_amp_given_score + gift_score + event_score + minigame_score + territory_score + cartographer_score + chain_score + zk_score + shroud_score + council_score + specter_age_score + specter_uptime_score`
 
 The displayed Specter Resonance score is the raw score rounded to the nearest integer.
 
@@ -128,11 +132,13 @@ Resonance milestones are thresholds that unlock cosmetic rewards and social mech
 
 **Specter Resonance 25 — Shade.** Unlocks the ability to send Phantom Gifts. The Specter gains access to a basic set of 5 cosmetic gift effects.
 
-**Specter Resonance 50 — Wraith.** Unlocks an expanded gift set (10 effects) and a personal Specter sigil (procedurally generated from the Specter's public key hash, rendered as a small animated emblem on the Specter node).
+**Specter Resonance 50 — Wraith.** Unlocks an expanded gift set (10 effects) and a personal Specter sigil (procedurally generated from the Specter's public key hash, rendered as a small animated emblem on the Specter node). Unlocks the ability to initiate Cipher Puzzles and Sigil Forge events.
 
-**Specter Resonance 100 — Phantom.** Unlocks the premium gift set (20 effects, including the most visually elaborate cosmetics in the app). Unlocks the ability to place Specter Marks.
+**Specter Resonance 75 — Shade-Wraith.** Unlocks the ability to initiate Specter Hunts.
 
-**Specter Resonance 200 — Revenant.** Unlocks a dense particle field around the Specter node. The Specter is visually prominent in the Anonymous Layer.
+**Specter Resonance 100 — Phantom.** Unlocks the premium gift set (20 effects, including the most visually elaborate cosmetics in the app). Unlocks the ability to place Specter Marks. Unlocks the ability to create Oracle Pools.
+
+**Specter Resonance 200 — Revenant.** Unlocks a dense particle field around the Specter node. The Specter is visually prominent in the Anonymous Layer. Unlocks the ability to initiate Shadow Play rounds.
 
 **Specter Resonance 500 — Abyss.** The highest Specter milestone. Unlocks a unique Kage shader effect on the Specter node: a slowly rotating void-like distortion field. Only Specters who have invested significant time and social effort in the anonymous layer reach this level. These nodes are visually unmistakable and carry enormous implicit social authority.
 
@@ -194,9 +200,9 @@ During a Masked Event, all participants use single-use Masked keypairs that carr
 
 The Resonance Burst leaderboard (anonymous, showing Masked keypair pseudonyms and Burst values) is included in the post-event Summary Wave. This leaderboard is a competitive element that rewards high-quality contributions during events without compromising the event's anonymity.
 
-### Duel Resonance Stakes
+### Mini-Game Resonance Stakes
 
-Specter Duels have Resonance consequences. The winner gains a Resonance bonus proportional to the audience vote margin. The loser gains no bonus but does not lose Resonance. The audience voting mechanism is weighted: each voter's vote is weighted by their own Specter Resonance, so high-Resonance Specters have more influence on duel outcomes. This creates a meritocratic competitive mechanic where anonymous reputation has tangible social consequences.
+Mini-game participation has Resonance consequences. Cipher Puzzle solvers, Specter Hunt winners, Sigil Forge champions, accurate Oracle Pool predictors, and Shadow Play victors all receive temporary Resonance bonuses proportional to participation count and performance. Mini-game evaluation mechanics (e.g., Sigil Forge amplification, Oracle Pool accuracy) are weighted by participants' Specter Resonance, so high-Resonance Specters have more influence on outcomes. This creates a meritocratic competitive ecosystem where anonymous reputation has tangible social consequences across multiple game types.
 
 ### ZK Claims
 
