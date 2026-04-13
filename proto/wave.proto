@@ -1,0 +1,121 @@
+// MURMUR Protocol Buffer Definitions
+// Wave message types for ephemeral content propagation.
+// Per TECHNICAL_IMPLEMENTATION.md §3, all wire-format messages use proto3.
+
+syntax = "proto3";
+
+package murmur;
+
+option go_package = "github.com/opd-ai/murmur/proto;proto";
+
+// MessageType identifies the type of message in a MurmurEnvelope.
+enum MessageType {
+  MESSAGE_TYPE_UNSPECIFIED = 0;
+  MESSAGE_TYPE_WAVE = 1;
+  MESSAGE_TYPE_IDENTITY = 2;
+  MESSAGE_TYPE_SHROUD_AD = 3;
+  MESSAGE_TYPE_HEARTBEAT = 4;
+}
+
+// WaveType identifies the specific type of Wave content.
+// Per WAVES.md, there are 8 Wave types (0x01-0x08).
+enum WaveType {
+  WAVE_TYPE_UNSPECIFIED = 0;
+  WAVE_TYPE_SURFACE = 1;   // Standard Surface Layer Wave
+  WAVE_TYPE_REPLY = 2;     // Reply to another Wave
+  WAVE_TYPE_VEILED = 3;    // Encrypted to specific recipients
+  WAVE_TYPE_SPECTER = 4;   // Anonymous Specter Wave
+  WAVE_TYPE_SIGIL = 5;     // Sigil update announcement
+  WAVE_TYPE_ABYSSAL = 6;   // Deep anonymous content
+  WAVE_TYPE_MASKED = 7;    // Partially revealed identity
+  WAVE_TYPE_BEACON = 8;    // Network coordination signal
+}
+
+// MurmurEnvelope wraps all GossipSub messages.
+// Per TECHNICAL_IMPLEMENTATION.md §3, every message is wrapped in this envelope.
+message MurmurEnvelope {
+  // Protocol version (currently 1).
+  uint32 version = 1;
+  
+  // Message type discriminator.
+  MessageType type = 2;
+  
+  // Serialized inner message (type-specific protobuf).
+  bytes payload = 3;
+  
+  // 32-byte Ed25519 public key (zeroed for anonymous).
+  bytes sender_pubkey = 4;
+  
+  // Ed25519 signature over (version || type || payload).
+  bytes signature = 5;
+  
+  // Sender's Unix timestamp in seconds.
+  int64 timestamp_unix = 6;
+  
+  // 32-byte BLAKE3 hash of payload (deduplication key).
+  bytes message_id = 7;
+}
+
+// Wave represents an ephemeral content message.
+// Per WAVES.md, Waves are ≤2048 bytes with PoW and TTL.
+message Wave {
+  // Wave type discriminator.
+  WaveType wave_type = 1;
+  
+  // Wave content (max 2048 bytes).
+  bytes content = 2;
+  
+  // Author's public key (32 bytes Ed25519).
+  bytes author_pubkey = 3;
+  
+  // Ed25519 signature over (wave_type || content || created_at || ttl).
+  bytes signature = 4;
+  
+  // Creation timestamp (Unix seconds).
+  int64 created_at = 5;
+  
+  // Time-to-live in seconds (default 7 days, max 30 days).
+  int64 ttl_seconds = 6;
+  
+  // Proof of Work nonce.
+  uint64 pow_nonce = 7;
+  
+  // Parent Wave hash for replies (32 bytes BLAKE3, empty if root Wave).
+  bytes parent_hash = 8;
+  
+  // Hop count (incremented by each relay).
+  uint32 hop_count = 9;
+  
+  // Wave ID (BLAKE3 hash of content + metadata).
+  bytes wave_id = 10;
+}
+
+// Reply extends a Wave with threading information.
+message Reply {
+  // The reply content as a Wave.
+  Wave wave = 1;
+  
+  // Quoted content from parent (for context).
+  bytes quoted_content = 2;
+  
+  // Thread root hash (for deep replies).
+  bytes thread_root_hash = 3;
+}
+
+// Amplification records re-broadcast with attribution.
+message Amplification {
+  // Original Wave being amplified.
+  Wave original_wave = 1;
+  
+  // Amplifier's public key.
+  bytes amplifier_pubkey = 2;
+  
+  // Amplification timestamp.
+  int64 amplified_at = 3;
+  
+  // Optional comment (max 280 bytes).
+  bytes comment = 4;
+  
+  // Signature over original_wave.wave_id + comment.
+  bytes signature = 5;
+}

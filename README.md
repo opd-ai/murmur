@@ -21,7 +21,7 @@ The network replaces the infinite scroll with a living map — a force-directed 
 
 Six subsystems: Networking (libp2p, GossipSub, Kademlia DHT), Identity (Ed25519 + Curve25519 keypairs, visual sigils, privacy modes), Content (Waves with PoW and TTL), Anonymous Layer (Specters, Shroud onion routing, Resonance reputation), Pulse Map (force-directed graph visualization), and Onboarding (six-phase guided introduction).
 
-See `docs/unified-design-document.md` for the complete specification.
+See `DESIGN_DOCUMENT.md` for the complete specification.
 
 ---
 
@@ -29,54 +29,48 @@ See `docs/unified-design-document.md` for the complete specification.
 
     murmur/
     ├── README.md
-    ├── docs/
-    │   ├── unified-design-document.md
-    │   ├── networking.md
-    │   ├── identity.md
-    │   ├── content.md
-    │   ├── anonymous-layer.md
-    │   ├── pulse-map.md
-    │   ├── onboarding.md
-    │   └── growth.md
-    ├── src/
+    ├── DESIGN_DOCUMENT.md           # Complete specification
+    ├── TECHNICAL_IMPLEMENTATION.md  # Technical details
+    ├── cmd/murmur/                  # Application entry point
+    ├── proto/                       # Protocol Buffer definitions
+    ├── pkg/
+    │   ├── app/                     # Application lifecycle, event bus
+    │   ├── config/                  # Configuration
     │   ├── networking/
-    │   │   ├── transport/          # Noise/TLS, connection management
-    │   │   ├── gossip/             # GossipSub configuration, topic management
-    │   │   ├── discovery/          # Kademlia DHT, peer discovery, bootstrap
-    │   │   ├── relay/              # NAT traversal, hole punching, relay fallback
-    │   │   └── mesh/               # Peer scoring, mesh health, target 6-12 peers
+    │   │   ├── transport/           # libp2p host, Noise/QUIC/TCP
+    │   │   ├── gossip/              # GossipSub configuration, topics
+    │   │   ├── discovery/           # Kademlia DHT, peer discovery
+    │   │   ├── relay/               # NAT traversal, hole punching
+    │   │   └── mesh/                # Peer scoring, mesh health
     │   ├── identity/
-    │   │   ├── keys/               # Ed25519/Curve25519 generation and storage
-    │   │   ├── sigils/             # Deterministic visual identity generation
-    │   │   ├── declarations/       # Profile declarations, trust anchors
-    │   │   └── modes/              # Open / Hybrid / Fortress privacy modes
+    │   │   ├── keys/                # Ed25519/Curve25519 keypairs
+    │   │   ├── sigils/              # Deterministic visual identity
+    │   │   ├── declarations/        # Profile declarations
+    │   │   └── modes/               # Open/Hybrid/Guarded/Fortress
     │   ├── content/
-    │   │   ├── waves/              # Wave creation, signing, validation
-    │   │   ├── pow/                # SHA-256 Proof of Work (2-5s target)
-    │   │   ├── propagation/        # Gossip relay, hop tracking, TTL enforcement
-    │   │   ├── threads/            # Reply chains, conversation threading
-    │   │   └── storage/            # Local cache, expiration, garbage collection
+    │   │   ├── waves/               # Wave creation, validation
+    │   │   ├── pow/                 # SHA-256 Proof of Work
+    │   │   ├── propagation/         # Gossip relay, hop tracking
+    │   │   ├── threads/             # Reply chains, threading
+    │   │   └── storage/             # Local cache, expiration
     │   ├── anonymous/
-    │   │   ├── specters/           # Specter identity creation, name generation
-    │   │   ├── shroud/             # Three-hop onion circuit construction
-    │   │   ├── resonance/          # Local reputation computation, rank thresholds
-    │   │   └── mechanics/          # Phantom Gifts, Duels, Marks, Events, Councils
+    │   │   ├── specters/            # Specter identity creation
+    │   │   ├── shroud/              # Three-hop onion circuits
+    │   │   ├── resonance/           # Reputation computation
+    │   │   └── mechanics/           # Phantom Gifts, Duels, etc.
+    │   ├── store/                   # Bbolt persistent storage
     │   ├── pulsemap/
-    │   │   ├── layout/             # Force-directed graph engine
-    │   │   ├── rendering/          # Node/edge drawing, ripple effects, ghost layer
-    │   │   ├── interaction/        # Pan, zoom, node selection, navigation
-    │   │   └── overlays/           # Anonymous layer overlay, activity heatmap
+    │   │   ├── layout/              # Force-directed graph engine
+    │   │   ├── rendering/           # Ebitengine visualization
+    │   │   ├── interaction/         # Pan, zoom, navigation
+    │   │   └── overlays/            # Anonymous layer overlay
     │   └── onboarding/
-    │       ├── flow/               # Six-phase sequence controller
-    │       ├── tutorials/          # Guided exploration, contextual hints
-    │       └── bootstrap/          # Initial peer connection, first Wave prompt
-    ├── tests/
-    │   ├── unit/
-    │   ├── integration/
-    │   └── simulation/             # Multi-node network simulations
+    │       ├── flow/                # Six-phase sequence
+    │       ├── tutorials/           # Guided exploration
+    │       └── bootstrap/           # Initial peer connection
     └── assets/
-        ├── wordlists/              # Specter name generation wordlists
-        └── themes/                 # Pulse Map color themes
+        ├── wordlists/               # Specter name wordlists
+        └── themes/                  # Pulse Map themes
 
 ---
 
@@ -89,10 +83,10 @@ See `docs/unified-design-document.md` for the complete specification.
 | **Specter** | Pseudonymous anonymous identity with procedural name and sigil |
 | **Shroud** | Three-hop onion routing network for anonymous traffic |
 | **Resonance** | Anonymous reputation metric; milestones unlock mechanics at 25/50/75/100/200 |
-| **Privacy Modes** | Open (surface only), Hybrid (both layers), Fortress (anonymous only) |
+| **Privacy Modes** | Open (surface only), Hybrid (both layers), Guarded, Fortress (anonymous only) |
 
 ---
 
 ## Status
 
-Pre-implementation. The design document is complete. Everything else is ahead.
+**v0.1 Foundation** — In progress. Go module initialized with package structure. Core identity (Ed25519/Curve25519 keypairs, sigils) and storage (Bbolt) implemented. See ROADMAP.md for full implementation plan.

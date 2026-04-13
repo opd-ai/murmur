@@ -1,0 +1,119 @@
+// MURMUR Protocol Buffer Definitions
+// Resonance reputation system observations and claims.
+// Per RESONANCE_SYSTEM.md, Resonance is locally computed with milestone unlocks.
+
+syntax = "proto3";
+
+package murmur;
+
+option go_package = "github.com/opd-ai/murmur/proto;proto";
+
+// ResonanceMilestone identifies achievement thresholds.
+// Per RESONANCE_SYSTEM.md, milestones unlock at 25/50/75/100/200/500.
+enum ResonanceMilestone {
+  RESONANCE_MILESTONE_UNSPECIFIED = 0;
+  RESONANCE_MILESTONE_SHADE = 1;         // 25 points
+  RESONANCE_MILESTONE_WRAITH = 2;        // 50 points
+  RESONANCE_MILESTONE_SHADE_WRAITH = 3;  // 75 points
+  RESONANCE_MILESTONE_PHANTOM = 4;       // 100 points
+  RESONANCE_MILESTONE_COUNCIL = 5;       // 200 points
+  RESONANCE_MILESTONE_ABYSS = 6;         // 500 points (Fortress only)
+}
+
+// ResonanceObservation records an interaction with a Specter.
+message ResonanceObservation {
+  // Specter's Curve25519 public key hash (anonymized).
+  bytes specter_id_hash = 1;
+  
+  // Type of interaction observed.
+  InteractionType interaction_type = 2;
+  
+  // Observation timestamp.
+  int64 observed_at = 3;
+  
+  // Context identifier (Wave hash, event ID, etc.).
+  bytes context_id = 4;
+  
+  // Quality score (-1.0 to +1.0).
+  float quality = 5;
+}
+
+// InteractionType categorizes Specter interactions.
+enum InteractionType {
+  INTERACTION_TYPE_UNSPECIFIED = 0;
+  INTERACTION_TYPE_WAVE_PUBLISHED = 1;    // Specter published content
+  INTERACTION_TYPE_REPLY_RECEIVED = 2;    // Specter received replies
+  INTERACTION_TYPE_GIFT_SENT = 3;         // Phantom Gift sent
+  INTERACTION_TYPE_GIFT_RECEIVED = 4;     // Phantom Gift received
+  INTERACTION_TYPE_DUEL_WON = 5;          // Won a Specter Duel
+  INTERACTION_TYPE_DUEL_LOST = 6;         // Lost a Specter Duel
+  INTERACTION_TYPE_MARK_PLACED = 7;       // Placed a Specter Mark
+  INTERACTION_TYPE_EVENT_HOSTED = 8;      // Hosted a Ghost Event
+  INTERACTION_TYPE_COUNCIL_VOTE = 9;      // Participated in Council
+  INTERACTION_TYPE_PUZZLE_SOLVED = 10;    // Solved a Cipher Puzzle
+}
+
+// ResonanceScore is the computed reputation for a Specter.
+message ResonanceScore {
+  // Specter's Curve25519 public key hash.
+  bytes specter_id_hash = 1;
+  
+  // Current Resonance score (0 to ∞).
+  float score = 2;
+  
+  // Highest milestone reached.
+  ResonanceMilestone milestone = 3;
+  
+  // Last update timestamp.
+  int64 updated_at = 4;
+  
+  // Score decay rate (per day).
+  float decay_rate = 5;
+  
+  // Number of observations.
+  uint64 observation_count = 6;
+}
+
+// ZKResonanceClaim is a zero-knowledge proof of Resonance threshold.
+// Per SECURITY_PRIVACY.md, claims use Pedersen commitments + Bulletproofs.
+message ZKResonanceClaim {
+  // Specter's Curve25519 public key (ephemeral, unlinkable).
+  bytes ephemeral_pubkey = 1;
+  
+  // Milestone being claimed.
+  ResonanceMilestone claimed_milestone = 2;
+  
+  // Pedersen commitment to Resonance score.
+  bytes commitment = 3;
+  
+  // Bulletproof range proof (score >= threshold).
+  bytes range_proof = 4;
+  
+  // Claim timestamp.
+  int64 claimed_at = 5;
+  
+  // Claim expiry (short-lived to prevent replay).
+  int64 expires_at = 6;
+}
+
+// EchoIndex tracks engagement quality.
+// Per RESONANCE_SYSTEM.md, Echo Index measures contribution quality.
+message EchoIndex {
+  // Specter's identifier hash.
+  bytes specter_id_hash = 1;
+  
+  // Echo score (contribution quality metric).
+  float echo_score = 2;
+  
+  // Waves that generated replies.
+  uint64 engaging_waves = 3;
+  
+  // Total Waves published.
+  uint64 total_waves = 4;
+  
+  // Average reply depth achieved.
+  float avg_reply_depth = 5;
+  
+  // Last calculation timestamp.
+  int64 calculated_at = 6;
+}

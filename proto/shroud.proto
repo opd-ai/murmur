@@ -1,0 +1,147 @@
+// MURMUR Protocol Buffer Definitions
+// Shroud onion circuit construction and relay cells.
+// Per SECURITY_PRIVACY.md, Shroud uses three-hop onion routing.
+
+syntax = "proto3";
+
+package murmur;
+
+option go_package = "github.com/opd-ai/murmur/proto;proto";
+
+// RelayRole indicates how a node participates in Shroud.
+enum RelayRole {
+  RELAY_ROLE_UNSPECIFIED = 0;
+  RELAY_ROLE_ENTRY = 1;   // First hop (entry guard)
+  RELAY_ROLE_MIDDLE = 2;  // Middle relay
+  RELAY_ROLE_EXIT = 3;    // Exit relay
+}
+
+// RelayAdvertisement announces Shroud relay availability.
+message RelayAdvertisement {
+  // Relay's Curve25519 public key for key exchange.
+  bytes curve25519_pubkey = 1;
+  
+  // Relay's Ed25519 public key for identity.
+  bytes ed25519_pubkey = 2;
+  
+  // Relay's listening addresses.
+  repeated string addrs = 3;
+  
+  // Supported relay roles.
+  repeated RelayRole roles = 4;
+  
+  // Available bandwidth (bytes/second).
+  uint64 bandwidth = 5;
+  
+  // Advertisement timestamp.
+  int64 timestamp = 6;
+  
+  // Signature over all fields except signature.
+  bytes signature = 7;
+  
+  // Advertisement expiry (Unix seconds).
+  int64 expires_at = 8;
+}
+
+// CircuitRequest initiates a Shroud circuit hop.
+message CircuitRequest {
+  // Circuit ID (random 16 bytes).
+  bytes circuit_id = 1;
+  
+  // Initiator's ephemeral Curve25519 public key.
+  bytes ephemeral_pubkey = 2;
+  
+  // Next hop address (encrypted, empty if final).
+  bytes next_hop_encrypted = 3;
+  
+  // Hop number in circuit (1, 2, or 3).
+  uint32 hop_number = 4;
+}
+
+// CircuitResponse responds to a circuit request.
+message CircuitResponse {
+  // Circuit ID matching the request.
+  bytes circuit_id = 1;
+  
+  // Responder's ephemeral Curve25519 public key.
+  bytes ephemeral_pubkey = 2;
+  
+  // Success/failure status.
+  bool success = 3;
+  
+  // Error message if failed.
+  string error = 4;
+}
+
+// OnionCell carries data through a Shroud circuit.
+message OnionCell {
+  // Circuit ID.
+  bytes circuit_id = 1;
+  
+  // Cell type.
+  OnionCellType cell_type = 2;
+  
+  // Encrypted payload (XChaCha20-Poly1305 with layer key).
+  bytes encrypted_payload = 3;
+  
+  // Nonce for decryption (24 bytes).
+  bytes nonce = 4;
+}
+
+// OnionCellType identifies the type of onion cell.
+enum OnionCellType {
+  ONION_CELL_TYPE_UNSPECIFIED = 0;
+  ONION_CELL_TYPE_RELAY = 1;     // Relay data through circuit
+  ONION_CELL_TYPE_EXTEND = 2;    // Extend circuit to next hop
+  ONION_CELL_TYPE_TRUNCATE = 3;  // Truncate circuit
+  ONION_CELL_TYPE_DESTROY = 4;   // Destroy circuit
+  ONION_CELL_TYPE_PADDING = 5;   // Traffic padding
+}
+
+// RelayCell is the decrypted inner content of an OnionCell.
+message RelayCell {
+  // Stream ID within circuit.
+  uint32 stream_id = 1;
+  
+  // Data payload.
+  bytes data = 2;
+  
+  // Stream command.
+  RelayCellCommand command = 3;
+}
+
+// RelayCellCommand specifies the relay cell action.
+enum RelayCellCommand {
+  RELAY_CELL_COMMAND_UNSPECIFIED = 0;
+  RELAY_CELL_COMMAND_DATA = 1;        // Stream data
+  RELAY_CELL_COMMAND_BEGIN = 2;       // Begin new stream
+  RELAY_CELL_COMMAND_END = 3;         // End stream
+  RELAY_CELL_COMMAND_CONNECTED = 4;   // Stream connected
+}
+
+// CircuitState tracks local circuit state.
+message CircuitState {
+  // Circuit ID.
+  bytes circuit_id = 1;
+  
+  // Role in this circuit.
+  RelayRole role = 2;
+  
+  // Symmetric key for this hop.
+  bytes layer_key = 3;
+  
+  // Previous hop peer ID (empty if entry).
+  string prev_hop = 4;
+  
+  // Next hop peer ID (empty if exit).
+  string next_hop = 5;
+  
+  // Creation timestamp.
+  int64 created_at = 6;
+  
+  // Last activity timestamp.
+  int64 last_activity = 7;
+  
+  // Bytes relayed through this circuit.
+  uint64 bytes_relayed = 8;
+}

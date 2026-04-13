@@ -38,11 +38,11 @@ All symmetric encryption in MURMUR uses ChaCha20-Poly1305, an authenticated encr
 
 ChaCha20-Poly1305 was chosen over AES-GCM because ChaCha20 performs well in software on platforms without AES hardware acceleration (common on older mobile devices), its implementation is simpler and less susceptible to implementation errors, and it is not vulnerable to the timing attacks that affect some AES implementations.
 
-### SHA-256 and BLAKE2b Hashing
+### SHA-256 and BLAKE3 Hashing
 
-MURMUR uses SHA-256 for Proof of Work stamp computation (the PoW hash function) and for content addressing (message IDs are SHA-256 hashes of the message content). SHA-256 provides 128-bit collision resistance and 256-bit preimage resistance.
+MURMUR uses SHA-256 for Proof of Work stamp computation (the PoW hash function). SHA-256 provides 128-bit collision resistance and 256-bit preimage resistance.
 
-BLAKE2b is used for identity-related hashing: sigil generation, pseudonym derivation, color derivation, and other operations where the hash output is used for non-security-critical purposes (visual identity rather than authentication). BLAKE2b was chosen for these applications because of its speed (faster than SHA-256 on most platforms) and its configurable output length.
+BLAKE3 is used for content addressing (message IDs are BLAKE3 hashes of the message content), identity-related hashing (sigil generation, pseudonym derivation, color derivation), and other operations where the hash output is used for identity and deduplication purposes. BLAKE3 was chosen for these applications because of its speed (significantly faster than SHA-256 and BLAKE2 on most platforms), its parallelizable design, and its fixed 256-bit output optimized for these use cases.
 
 ### Pedersen Commitments and Bulletproofs
 

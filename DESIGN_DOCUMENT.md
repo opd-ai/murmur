@@ -144,13 +144,15 @@ Multi-device simultaneous use is not supported in the current design. The identi
 
 ### 13. Privacy Modes
 
-MURMUR offers three privacy modes, selectable during onboarding and changeable at any time in settings.
+MURMUR offers four privacy modes, selectable during onboarding and changeable at any time in settings. The modes form the Shadow Gradient — a spectrum from most visible (Open) to most anonymous (Fortress). See SHADOW_GRADIENT.md for complete details.
 
 **Open Mode.** The user participates only on the Surface Layer. Their node is visible on the Pulse Map with their display name and sigil. They publish and receive Waves under their main identity. They can see the effects of the Anonymous Layer (Phantom Gifts, Specter Marks, mini-game spectacles) but cannot participate in anonymous mechanics. Open Mode is the simplest experience and is recommended for users who do not need anonymity.
 
 **Hybrid Mode.** The user participates on both layers simultaneously. They have a main identity (visible on the Surface Layer) and a Specter identity (visible on the Anonymous Layer). The two identities are cryptographically unlinkable — they use separate keypairs, separate sigils, and separate communication channels. The user can switch between layers fluidly, publishing Waves under their main identity or Specter identity as they choose.
 
-**Fortress Mode.** The user participates exclusively on the Anonymous Layer. They have no Surface Layer presence. Their node does not appear on the Surface Layer Pulse Map. All communication is routed through the Shroud Network. Fortress Mode provides the strongest privacy guarantees but sacrifices Surface Layer social participation entirely.
+**Guarded Mode.** The user has the same dual-layer capabilities as Hybrid mode, but all Anonymous Layer traffic is routed through the Shroud Network (onion routing via three Shroud Nodes). This routing adds latency but makes timing correlation between Surface and Specter identities significantly harder. Guarded mode requires the Shroud Network to have sufficient online nodes.
+
+**Fortress Mode.** The user participates exclusively on the Anonymous Layer. They have no Surface Layer presence. Their node does not appear on the Surface Layer Pulse Map. All communication is routed through the Shroud Network. Fortress mode users also operate a Shroud Node, contributing to the mix-network infrastructure. Fortress Mode provides the strongest privacy guarantees but sacrifices Surface Layer social participation entirely.
 
 Mode transitions are designed to be safe. Upgrading from Open to Hybrid generates a new Specter keypair with no cryptographic relationship to the main identity. Downgrading from Hybrid to Open destroys the local Specter keypair and the Specter identity becomes orphaned — it continues to exist on the network as an inactive Specter but cannot be controlled. Mode changes are local operations; they are not announced to the network, preventing mode change events from being used for correlation.
 
@@ -410,13 +412,13 @@ The key backup step follows. The application generates a QR code and a Base64 st
 
 ### 39. Phase 3 — Mode Selection
 
-The user is presented with the three privacy modes: Open, Hybrid, and Fortress. Each mode is explained in plain, non-technical language.
+The user is presented with the four privacy modes: Open, Hybrid, Guarded, and Fortress. Each mode is explained in plain, non-technical language.
 
-Open is described as: "You appear on the map under your chosen name. You can see the anonymous world, but you don't participate in it." Hybrid is described as: "You have two identities — your public self and an anonymous alter ego. You choose which to use, moment by moment." Fortress is described as: "You exist only in the anonymous layer. No public name, no visible node. Maximum privacy."
+Open is described as: "You appear on the map under your chosen name. You can see the anonymous world, but you don't participate in it." Hybrid is described as: "You have two identities — your public self and an anonymous alter ego. You choose which to use, moment by moment." Guarded is described as: "Like Hybrid, but your anonymous traffic is routed through the Shroud Network for stronger privacy." Fortress is described as: "You exist only in the anonymous layer. No public name, no visible node. Maximum privacy."
 
 The default selection is Open, with Hybrid highlighted as "recommended for the full experience." The user can change their mode at any time in settings. The choice is not binding and is presented as a low-stakes starting point rather than a permanent commitment.
 
-If the user selects Hybrid or Fortress, the Specter identity creation ceremony runs immediately: a separate keypair is generated, the Specter pseudonym and sigil are revealed with their own animation, and a brief explanation of the dual-identity model is provided.
+If the user selects Hybrid, Guarded, or Fortress, the Specter identity creation ceremony runs immediately: a separate keypair is generated, the Specter pseudonym and sigil are revealed with their own animation, and a brief explanation of the dual-identity model is provided.
 
 ### 40. Phase 4 — Network Bootstrap
 

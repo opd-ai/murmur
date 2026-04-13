@@ -42,7 +42,9 @@ All wire-format messages and persisted records use Protocol Buffers (proto3) via
 
 ## 2. Module Architecture
 
-The application is structured as a set of Go packages under `internal/`, with a thin `cmd/murmur/` entry point that wires them together. No package under `internal/` imports the Ebitengine package except `internal/pulsemap` and `internal/ui`. This boundary ensures that the networking, identity, content, and anonymous subsystems are testable without a graphics context.
+> **Note**: The canonical package structure uses `pkg/` per ROADMAP.md. References to `internal/` in this document are historical; all implementation should use `pkg/` instead.
+
+The application is structured as a set of Go packages under `pkg/`, with a thin `cmd/murmur/` entry point that wires them together. No package under `pkg/` imports the Ebitengine package except `pkg/pulsemap`. This boundary ensures that the networking, identity, content, and anonymous subsystems are testable without a graphics context.
 
 ### 2.1 Package Map
 
@@ -57,7 +59,7 @@ The application is structured as a set of Go packages under `internal/`, with a 
     ├── gossip.proto                # GossipSub envelope wrappers
     └── resonance.proto             # Resonance observation records
 
-    internal/
+    pkg/
     ├── app/
     │   ├── app.go                  # Top-level application struct, lifecycle
     │   └── eventbus.go             # Central event dispatcher (channel fan-out)
@@ -65,74 +67,50 @@ The application is structured as a set of Go packages under `internal/`, with a 
     ├── config/
     │   └── config.go               # Configuration loading, defaults, validation
     │
-    ├── net/
-    │   ├── host.go                 # libp2p host construction, transport config
-    │   ├── gossip.go               # GossipSub setup, topic management, scoring
-    │   ├── discovery.go            # Kademlia DHT bootstrap, peer routing
-    │   ├── relay.go                # Relay reservation, hole punching, fallback
-    │   ├── mesh.go                 # Peer scoring, mesh health, target 6-12 peers
-    │   └── protocol.go             # Custom stream protocol handlers
+    ├── networking/
+    │   ├── transport/              # libp2p host construction, transport config
+    │   ├── gossip/                 # GossipSub setup, topic management, scoring
+    │   ├── discovery/              # Kademlia DHT bootstrap, peer routing
+    │   ├── relay/                  # Relay reservation, hole punching, fallback
+    │   └── mesh/                   # Peer scoring, mesh health, target 6-12 peers
     │
     ├── identity/
-    │   ├── surface.go              # Ed25519 keypair generation, signing, verification
-    │   ├── specter.go              # Curve25519 keypair, pseudonym generation
-    │   ├── sigil.go                # Deterministic visual sigil from public key hash
-    │   ├── declaration.go          # Identity declaration creation and parsing
-    │   └── mode.go                 # Privacy mode state machine (Open/Hybrid/Fortress)
+    │   ├── keys/                   # Ed25519/Curve25519 keypair generation, signing
+    │   ├── sigils/                 # Deterministic visual sigil from public key hash
+    │   ├── declarations/           # Identity declaration creation and parsing
+    │   └── modes/                  # Privacy mode state machine (Open/Hybrid/Guarded/Fortress)
     │
     ├── content/
-    │   ├── wave.go                 # Wave struct, creation, validation
-    │   ├── pow.go                  # SHA-256 Proof of Work (2-5s target, difficulty adjustment)
-    │   ├── propagation.go          # Gossip relay logic, hop counting, deduplication
-    │   ├── thread.go               # Reply chain indexing, conversation reconstruction
-    │   ├── amplify.go              # Amplification (re-broadcast with attribution)
-    │   └── expiry.go               # TTL enforcement, background garbage collection
+    │   ├── waves/                  # Wave struct, creation, validation
+    │   ├── pow/                    # SHA-256 Proof of Work (2-5s target, difficulty 20)
+    │   ├── propagation/            # Gossip relay logic, hop counting, deduplication
+    │   ├── threads/                # Reply chain indexing, conversation reconstruction
+    │   └── storage/                # Local cache, TTL enforcement, garbage collection
     │
     ├── anonymous/
-    │   ├── specter.go              # Specter lifecycle, name wordlist, identity management
-    │   ├── shroud.go               # Onion circuit construction, cell encryption/decryption
-    │   ├── relay.go                # Shroud relay participation, bandwidth accounting
-    │   ├── resonance.go            # Resonance computation, rank thresholds, decay
-    │   └── mechanics.go            # Phantom Gifts, Games, Marks, Events, Councils
+    │   ├── specters/               # Specter lifecycle, name wordlist, identity
+    │   ├── shroud/                 # Onion circuit construction, cell encryption
+    │   ├── resonance/              # Resonance computation, rank thresholds, decay
+    │   └── mechanics/              # Phantom Gifts, Games, Marks, Events, Councils
     │
     ├── store/
     │   ├── db.go                   # Bbolt initialization, bucket creation, shutdown
-    │   ├── waves.go                # Wave CRUD, TTL-indexed queries
-    │   ├── peers.go                # Peer record CRUD, last-seen updates
-    │   ├── identity.go             # Local identity persistence
-    │   └── resonance.go            # Resonance observation persistence
+    │   └── ...                     # Domain-specific CRUD operations
     │
     ├── pulsemap/
-    │   ├── graph.go                # Graph data structure (adjacency list, node/edge metadata)
-    │   ├── layout.go               # Force-directed layout engine (Fruchterman-Reingold)
-    │   ├── renderer.go             # Ebitengine Draw() implementation, camera transforms
-    │   ├── nodes.go                # Node rendering: sigils, halos, size/color encoding
-    │   ├── edges.go                # Edge rendering: thickness, opacity, curvature
-    │   ├── ripple.go               # Wave ripple effect animation
-    │   ├── ghost.go                # Anonymous Layer overlay rendering (spectral effects)
-    │   ├── camera.go               # Pan, zoom, inertial scrolling, focus transitions
-    │   └── shaders/
-    │       ├── glow.kage           # Node activity glow
-    │       ├── ripple.kage         # Expanding ripple wavefront
-    │       └── spectra.kage        # Anonymous layer spectral haze
-    │
-    ├── ui/
-    │   ├── ui.go                   # UI root, input routing, layer compositing
-    │   ├── panel.go                # Immediate-mode panel primitives
-    │   ├── text.go                 # Text rendering, input fields, cursor
-    │   ├── modal.go                # Modal dialog system
-    │   ├── compose.go              # Wave composition interface
-    │   └── thread.go               # Thread/conversation viewer
+    │   ├── layout/                 # Force-directed layout engine (Fruchterman-Reingold)
+    │   ├── rendering/              # Ebitengine Draw(), camera transforms
+    │   ├── interaction/            # Pan, zoom, node selection, navigation
+    │   └── overlays/               # Anonymous layer overlay, activity heatmap
     │
     └── onboarding/
-        ├── flow.go                 # Six-phase sequence state machine
-        ├── identity.go             # Guided key generation and mode selection
-        ├── bootstrap.go            # First peer connection, network join
-        └── tutorial.go             # Pulse Map tutorial, first Wave prompt
+        ├── flow/                   # Six-phase sequence state machine
+        ├── tutorials/              # Guided exploration, contextual hints
+        └── bootstrap/              # First peer connection, network join
 
 ### 2.2 Dependency Flow
 
-The dependency graph is strictly acyclic and flows in one direction. `cmd/murmur` depends on `internal/app`. `internal/app` depends on all subsystem packages and wires them together. `internal/pulsemap` and `internal/ui` depend on Ebitengine and on domain packages (`content`, `identity`, `anonymous`) for data, but never on `internal/net` directly — all network events arrive through the event bus. `internal/net` depends on `internal/identity` (to sign/verify messages), `internal/content` (to validate incoming Waves), and `internal/store` (to persist peer records). `internal/anonymous` depends on `internal/net` for Shroud circuit construction and on `internal/identity` for Specter key management. `internal/store` depends on no other internal package; it operates on protobuf-generated types only.
+The dependency graph is strictly acyclic and flows in one direction. `cmd/murmur` depends on `pkg/app`. `pkg/app` depends on all subsystem packages and wires them together. `pkg/pulsemap` depends on Ebitengine and on domain packages (`content`, `identity`, `anonymous`) for data, but never on `pkg/networking` directly — all network events arrive through the event bus. `pkg/networking` depends on `pkg/identity` (to sign/verify messages), `pkg/content` (to validate incoming Waves), and `pkg/store` (to persist peer records). `pkg/anonymous` depends on `pkg/networking` for Shroud circuit construction and on `pkg/identity` for Specter key management. `pkg/store` depends on no other internal package; it operates on protobuf-generated types only.
 
 This layering means the entire content, identity, and anonymous subsystem can be tested with an in-memory store and mock event bus, with no libp2p host and no Ebitengine window.
 

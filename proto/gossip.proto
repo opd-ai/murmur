@@ -1,0 +1,81 @@
+// MURMUR Protocol Buffer Definitions
+// GossipSub envelope wrappers.
+// Per TECHNICAL_IMPLEMENTATION.md §3, all messages use the MurmurEnvelope.
+
+syntax = "proto3";
+
+package murmur;
+
+option go_package = "github.com/opd-ai/murmur/proto;proto";
+
+import "proto/wave.proto";
+import "proto/identity.proto";
+import "proto/shroud.proto";
+
+// GossipMessage is a union type for all gossip content.
+// The MurmurEnvelope.type field indicates which field is populated.
+message GossipMessage {
+  oneof content {
+    Wave wave = 1;
+    Reply reply = 2;
+    Amplification amplification = 3;
+    IdentityDeclaration identity_declaration = 4;
+    ConnectionAnnouncement connection_announcement = 5;
+    Heartbeat heartbeat = 6;
+    RelayAdvertisement relay_advertisement = 7;
+  }
+}
+
+// TopicSubscription tracks topic membership.
+message TopicSubscription {
+  // Topic name (e.g., "/murmur/waves/1").
+  string topic = 1;
+  
+  // Subscription timestamp.
+  int64 subscribed_at = 2;
+  
+  // Messages received on this topic.
+  uint64 messages_received = 3;
+  
+  // Messages published to this topic.
+  uint64 messages_published = 4;
+}
+
+// PeerScore tracks peer behavior for GossipSub scoring.
+message PeerScore {
+  // Peer ID.
+  string peer_id = 1;
+  
+  // Overall score (-∞ to +∞, negative = misbehaving).
+  double score = 2;
+  
+  // Invalid messages received.
+  uint64 invalid_messages = 3;
+  
+  // Valid messages received.
+  uint64 valid_messages = 4;
+  
+  // Messages delivered first by this peer.
+  uint64 first_deliveries = 5;
+  
+  // IP colocation penalty (0 to 1).
+  double ip_colocation_penalty = 6;
+  
+  // Last score update timestamp.
+  int64 updated_at = 7;
+}
+
+// DeduplicationEntry tracks seen message IDs.
+message DeduplicationEntry {
+  // Message ID (BLAKE3 hash).
+  bytes message_id = 1;
+  
+  // First seen timestamp.
+  int64 first_seen = 2;
+  
+  // Topic where first seen.
+  string topic = 3;
+  
+  // Peer that delivered it first.
+  string first_peer = 4;
+}

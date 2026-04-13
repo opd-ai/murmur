@@ -12,7 +12,7 @@ Onboarding is the sequence of screens, interactions, and processes that a new us
 
 MURMUR is not a conventional social application. It has no server, no account creation form, no email verification, no password. Identity is a keypair. The network is a living mesh of peers. The interface is a spatial map, not a feed. Every one of these properties requires explanation, but the onboarding must not feel like a lecture. The design philosophy is to teach through action — the user learns by doing, with minimal text and maximal interaction. Explanations are layered: the onboarding provides just enough understanding to begin, and deeper comprehension develops through use.
 
-The onboarding flow has five phases: Welcome, Identity Creation, Mode Selection, Network Bootstrap, and Guided Exploration. The entire flow takes approximately 3–5 minutes for a user who reads every screen, or under 2 minutes for a user who skips optional explanations.
+The onboarding flow has six phases: Welcome, Identity Creation, Mode Selection, Network Bootstrap, Guided Exploration, and First Action. The entire flow takes approximately 3–5 minutes for a user who reads every screen, or under 2 minutes for a user who skips optional explanations.
 
 ---
 
@@ -198,7 +198,29 @@ The final onboarding step suggests initial connections. The screen displays a pa
 
 "Explore the Map" dismisses the connection suggestion panel and releases the user into the full Pulse Map, where they can navigate, discover nodes, and send connection requests organically.
 
-After the user selects any option (or dismisses the panel), the onboarding overlay fades out and the user is in the full MURMUR experience. A small "Help" button remains in the viewport controls, which reopens the tutorial tooltips on demand.
+After the user selects any option (or dismisses the panel), the onboarding overlay fades out and the user enters Phase 6.
+
+---
+
+## Phase 6: First Action
+
+The onboarding concludes with a prompt to take a first action: publish a Wave, form a connection, or explore the map freely.
+
+### First Wave Prompt
+
+The screen displays a compose panel titled "Send Your First Wave" with a suggested message: "Hello, MURMUR" pre-filled but fully editable. The user can modify or clear this text.
+
+Tapping "Publish" triggers the Proof of Work computation, accompanied by a brief animation: particles swirling around the compose panel with text "Your message is being sealed..." The PoW typically completes in 2–5 seconds on modern hardware.
+
+Once the PoW completes, the Wave is broadcast to the network. The Pulse Map visualization shows the propagation ripple expanding from the user's node — concentric rings of light spreading outward through the mesh, fading as they reach distant peers. This visual confirms that the user's message is traveling through the network.
+
+### Tutorial Completion
+
+After the first action (publishing a Wave, forming a connection, or explicitly choosing "Explore freely"), the onboarding tutorial overlay fully dismisses and the user has complete control of the interface.
+
+A small, dismissable hint system remains available for the next few sessions, providing contextual tooltips when the user encounters unfamiliar UI elements for the first time. These hints can be permanently disabled in settings.
+
+A "Help" button remains accessible in the viewport controls, allowing the user to reopen tutorial tooltips on demand at any time.
 
 ---
 

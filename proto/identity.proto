@@ -1,0 +1,114 @@
+// MURMUR Protocol Buffer Definitions
+// Identity declarations and peer records.
+// Per TECHNICAL_IMPLEMENTATION.md §3, all wire-format messages use proto3.
+
+syntax = "proto3";
+
+package murmur;
+
+option go_package = "github.com/opd-ai/murmur/proto;proto";
+
+// PrivacyMode represents the user's privacy setting.
+// Per SHADOW_GRADIENT.md, there are four modes.
+enum PrivacyMode {
+  PRIVACY_MODE_UNSPECIFIED = 0;
+  PRIVACY_MODE_OPEN = 1;      // Surface identity only
+  PRIVACY_MODE_HYBRID = 2;    // Both Surface and Specter
+  PRIVACY_MODE_GUARDED = 3;   // Enhanced privacy
+  PRIVACY_MODE_FORTRESS = 4;  // Anonymous only
+}
+
+// IdentityDeclaration announces identity information.
+// Per DESIGN_DOCUMENT.md, declarations are signed and broadcast via GossipSub.
+message IdentityDeclaration {
+  // Ed25519 public key (32 bytes).
+  bytes public_key = 1;
+  
+  // Optional display name.
+  string display_name = 2;
+  
+  // Optional bio/description.
+  string bio = 3;
+  
+  // Creation timestamp (Unix seconds).
+  int64 created_at = 4;
+  
+  // Declaration version (for updates).
+  uint32 version = 5;
+  
+  // Signature over all fields except signature.
+  bytes signature = 6;
+  
+  // 64x64 sigil image (PNG encoded).
+  bytes sigil_png = 7;
+  
+  // Current privacy mode.
+  PrivacyMode privacy_mode = 8;
+}
+
+// PeerRecord stores information about a known peer.
+message PeerRecord {
+  // Peer's libp2p Peer ID (base58 encoded).
+  string peer_id = 1;
+  
+  // Ed25519 public key (32 bytes).
+  bytes public_key = 2;
+  
+  // Known multiaddrs for this peer.
+  repeated string addrs = 3;
+  
+  // Last successful connection timestamp.
+  int64 last_seen = 4;
+  
+  // Local trust score (0.0 to 1.0).
+  float trust_score = 5;
+  
+  // Number of successful message exchanges.
+  uint64 message_count = 6;
+  
+  // Number of invalid messages received.
+  uint64 invalid_count = 7;
+  
+  // Peer's display name if known.
+  string display_name = 8;
+}
+
+// ConnectionAnnouncement signals a new connection.
+message ConnectionAnnouncement {
+  // Peer ID of the connecting node.
+  string peer_id = 1;
+  
+  // Public key of the connecting node.
+  bytes public_key = 2;
+  
+  // Addresses the node is listening on.
+  repeated string listen_addrs = 3;
+  
+  // Protocol version supported.
+  uint32 protocol_version = 4;
+  
+  // Timestamp of announcement.
+  int64 timestamp = 5;
+  
+  // Signature over all fields except signature.
+  bytes signature = 6;
+}
+
+// Heartbeat is a lightweight liveness signal.
+// Per TECHNICAL_IMPLEMENTATION.md, heartbeats are sent every 30 seconds.
+message Heartbeat {
+  // Sender's peer ID.
+  string peer_id = 1;
+  
+  // Sender's public key.
+  bytes public_key = 2;
+  
+  // Current timestamp.
+  int64 timestamp = 3;
+  
+  // Signature over peer_id + timestamp.
+  bytes signature = 4;
+  
+  // Sequence number (monotonically increasing).
+  uint64 sequence = 5;
+}
