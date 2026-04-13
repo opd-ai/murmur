@@ -57,19 +57,16 @@ MURMUR claims to be a **decentralized, peer-to-peer social network with dual-lay
 | **Total Methods** | 826 | Heavy use of receivers |
 | **Total Structs** | 158 | Domain-rich type system |
 | **Total Packages** | 34 | Appropriate subsystem granularity |
-| **Total Files** | 60 (source) + 47 (test) | Strong test coverage |
-| **Clone Pairs** | 6 | Low duplication (0.5%) |
-| **High Complexity (>15 cyclomatic)** | 0 | Clean complexity profile |
-| **Documentation Coverage** | 82.9% | Good overall coverage |
-| **Dead Code** | 0% | No unreachable code |
-| **TODOs** | 3 | Minimal deferred work |
+| **Total Files** | 60 (source) + 46 (test) | Strong test coverage |
+| **High Complexity (>10 cyclomatic)** | 0 | Clean complexity profile |
+| **Documentation Coverage** | 94.6% | Excellent coverage |
 
 ### Annotation Summary
 
 | Category | Count | Notes |
 |----------|-------|-------|
-| TODO | 3 | Bootstrap nodes (blocked), subsystem init order |
-| NOTE | 4 | Design clarifications |
+| TODO | 3 | Bootstrap nodes (blocked), subsystem init order, declarations stub |
+| NOTE | 0 | — |
 | FIXME | 0 | No critical issues |
 | BUG | 0 | No known bugs |
 
@@ -80,15 +77,15 @@ MURMUR claims to be a **decentralized, peer-to-peer social network with dual-lay
 | Stated Goal | Status | Evidence | Gap Description |
 |-------------|--------|----------|-----------------|
 | Decentralized P2P social network | ✅ Achieved | `pkg/networking/`: libp2p host, GossipSub, DHT, relay | Full implementation |
-| Pulse Map force-directed graph UI | ✅ Achieved | `pkg/pulsemap/`: Fruchterman-Reingold, Barnes-Hut, Ebitengine rendering | 60fps @ 500 nodes verified |
-| Ed25519 cryptographic identity | ✅ Achieved | `pkg/identity/keys/`: keypair generation, keystore, backup/restore | Round-trip tests passing |
-| Ephemeral Waves with PoW/TTL | ✅ Achieved | `pkg/content/`: PoW difficulty 20, 8 Wave types, GC sweep | TTL enforcement validated |
-| Anonymous Layer (Specters) | ✅ Achieved | `pkg/anonymous/specters/`: Curve25519 keypairs, procedural names | Cryptographic independence verified |
-| Shroud onion routing | ✅ Achieved | `pkg/anonymous/shroud/`: 3-hop circuits, XChaCha20 layers, relay | 98.99% traffic analysis resistance |
-| Resonance reputation system | ✅ Achieved | `pkg/anonymous/resonance/`: local scoring, decay, milestones, ZK claims | 7-day activity → Resonance 25 |
+| Pulse Map force-directed graph UI | ✅ Achieved | `pkg/pulsemap/layout/`: Fruchterman-Reingold, Barnes-Hut, atomic double-buffer | 60fps @ 500 nodes |
+| Ed25519 cryptographic identity | ✅ Achieved | `pkg/identity/keys/`: keypair generation, keystore, Argon2id encryption | Tests passing |
+| Ephemeral Waves with PoW/TTL | ✅ Achieved | `pkg/content/waves/`: PoW difficulty 20, 8 Wave types, TTL enforcement | Validated |
+| Anonymous Layer (Specters) | ✅ Achieved | `pkg/anonymous/specters/`: Curve25519 keypairs, procedural names | Cryptographic independence |
+| Shroud onion routing | ✅ Achieved | `pkg/anonymous/shroud/`: 3-hop circuits, XChaCha20-Poly1305, padding | Circuit manager implemented |
+| Resonance reputation system | ✅ Achieved | `pkg/anonymous/resonance/`: local scoring, decay, milestones | Tested |
 | Anonymous mini-games | ✅ Achieved | `pkg/anonymous/mechanics/`: 7 game types implemented | Full test coverage |
 | Privacy modes (Shadow Gradient) | ✅ Achieved | `pkg/identity/modes/`: Open/Hybrid/Guarded/Fortress state machine | Mode transitions validated |
-| Six-phase onboarding flow | ✅ Achieved | `pkg/onboarding/`: flow controller, screens, tutorials, bootstrap | <5 minute completion verified |
+| Six-phase onboarding flow | ✅ Achieved | `pkg/onboarding/`: flow controller, screens, tutorials, bootstrap | Complete |
 | libp2p networking stack | ✅ Achieved | `pkg/networking/`: transport, gossip, discovery, relay, mesh | Integration tests passing |
 | No engagement metrics | ✅ Achieved | By design absence | Principle maintained |
 
@@ -118,17 +115,16 @@ MURMUR claims to be a **decentralized, peer-to-peer social network with dual-lay
 
 ### go-libp2p (v0.48.0)
 
-**Status**: Shipyard concluded primary maintenance September 2025. Community stewardship transitioning.
+**Status**: Active community maintenance. v0.48.0 is a stable release.
 
 **Risks**:
-- Reduced velocity in bug fixes and security patches during transition
-- Governance uncertainty as community maintainers establish processes
+- Ecosystem churn as protocols evolve (WebTransport, QUIC updates)
+- Governance changes under community stewardship
 
 **Mitigations**:
 - Pin to stable v0.48.x series
-- Avoid experimental features (WebTransport)
+- Avoid experimental features during initial deployment
 - Monitor community governance decisions
-- Prepare fallback to vendored fork if maintenance lapses
 
 ### Other Dependencies
 
@@ -160,7 +156,7 @@ MURMUR claims to be a **decentralized, peer-to-peer social network with dual-lay
 **Tasks**:
 - [ ] Deploy 3+ bootstrap nodes across different jurisdictions (e.g., EU, US, Asia)
 - [ ] Configure stable public multiaddrs for bootstrap nodes
-- [ ] Update `DefaultBootstrapPeers` in `pkg/config/config.go`
+- [ ] Update `DefaultBootstrapPeers` in `pkg/config/config.go:14`
 - [ ] Establish monitoring and uptime guarantees for bootstrap nodes
 - [ ] Document bootstrap node operation in `docs/BOOTSTRAP_OPERATION.md`
 
@@ -210,40 +206,14 @@ MURMUR claims to be a **decentralized, peer-to-peer social network with dual-lay
 
 ---
 
-### Priority 4: Code Organization Refinements
-
-**Goal**: Address low-priority structural suggestions from go-stats-generator.
-
-**Why Fourth**: These are quality-of-life improvements, not functional gaps.
-
-**Suggested Improvements** (from go-stats-generator):
-- [ ] Move `HeartbeatInterval` from `gossip.go` to `mesh.go` for better cohesion
-- [ ] Move `IncrementHop` from `waves.go` to `propagation.go`
-- [ ] Extract duplicated code block (18 lines) in `councils.go:651` to shared function
-- [ ] Extract duplicated code block (13 lines) in `gifts.go:318` to shared function
-- [ ] Split low-cohesion files (`flow.go`, `modes.go`, `db.go`) per suggestions
-
-**Files with lowest cohesion**:
-| File | Cohesion | Suggested Split |
-|------|----------|-----------------|
-| flow.go | 0.00 | flow_controller.go, flow_state.go, flow_events.go |
-| modes.go | 0.02 | mode_open.go, mode_hybrid.go, mode_guarded.go, mode_fortress.go |
-| db.go | 0.02 | db_identity.go, db_waves.go, db_shroud.go, etc. |
-
-**Validation**: File cohesion scores improve to >0.20 average.
-
-**Effort**: 1-2 weeks (refactoring only, no functional changes)
-
----
-
-### Priority 5: Performance Optimization Pass
+### Priority 4: Performance Optimization Pass
 
 **Goal**: Meet or exceed all specification performance targets.
 
 **Specification Targets** (from TECHNICAL_IMPLEMENTATION.md):
 | Metric | Target | Status |
 |--------|--------|--------|
-| 60fps @ 500 nodes | <16.67ms/frame | ✅ Verified (6.3ms avg) |
+| 60fps @ 500 nodes | <16.67ms/frame | ✅ Verified in simulation |
 | Wave propagation | <500ms / 3 hops | ⚠️ Simulation only |
 | PoW computation | 2-5 seconds | ✅ Verified |
 | Shroud circuit construction | <3 seconds | ⚠️ Simulation only |
@@ -263,11 +233,33 @@ MURMUR claims to be a **decentralized, peer-to-peer social network with dual-lay
 
 ---
 
+### Priority 5: Test Coverage for Rendering Packages
+
+**Goal**: Add tests for packages currently without test files.
+
+**Current gaps** (packages with `[no test files]`):
+- `pkg/onboarding/screens/`
+- `pkg/pulsemap/overlays/`
+- `pkg/pulsemap/rendering/`
+- `pkg/pulsemap/rendering/effects/`
+
+**Tasks**:
+- [ ] Add unit tests for `pkg/onboarding/screens/` screen state machines
+- [ ] Add unit tests for `pkg/pulsemap/overlays/` overlay logic
+- [ ] Add headless rendering tests for `pkg/pulsemap/rendering/`
+- [ ] Add effect configuration tests for `pkg/pulsemap/rendering/effects/`
+
+**Validation**: `go test ./...` shows no `[no test files]` for pkg/ packages.
+
+**Effort**: 1 week
+
+---
+
 ### Priority 6: Security Hardening Audit
 
 **Goal**: Third-party review of cryptographic implementations and threat model.
 
-**Why Last for MVP**: The cryptographic primitives use well-audited libraries (`golang.org/x/crypto`), and internal security review is documented in `pkg/security/audit.go`. External audit is valuable but not blocking for early adopters.
+**Why Last for MVP**: The cryptographic primitives use well-audited libraries (`golang.org/x/crypto`), and internal security review is documented in `pkg/security/`. External audit is valuable but not blocking for early adopters.
 
 **Audit Scope**:
 - [ ] Ed25519 key generation and signing implementation
@@ -275,9 +267,9 @@ MURMUR claims to be a **decentralized, peer-to-peer social network with dual-lay
 - [ ] XChaCha20-Poly1305 Shroud onion layer encryption
 - [ ] Argon2id keystore encryption parameters
 - [ ] Shroud circuit diversity heuristics (hop selection)
-- [ ] Resonance ZK claim construction (Pedersen commitments)
+- [ ] ZK Resonance claim construction (if Pedersen commitments implemented)
 
-**Existing Self-Audit** (`pkg/security/audit.go`):
+**Existing Self-Audit** (`pkg/security/`):
 - Key material zeroing implemented
 - Timing attack mitigations in cryptographic operations
 - Input validation on all protobuf messages
@@ -293,7 +285,7 @@ MURMUR claims to be a **decentralized, peer-to-peer social network with dual-lay
 | Location | Description | Status |
 |----------|-------------|--------|
 | `pkg/config/config.go:14` | Replace with actual bootstrap node addresses | Blocked (Priority 1) |
-| `pkg/networking/discovery/discovery.go:7` | Implement per TECHNICAL_IMPLEMENTATION.md | Documentation reference |
+| `pkg/identity/declarations/declarations.go:7` | Implement per TECHNICAL_IMPLEMENTATION.md | Documentation reference |
 | `pkg/app/app.go:75` | Initialize subsystems in dependency order | Minor cleanup |
 
 ---
@@ -302,18 +294,19 @@ MURMUR claims to be a **decentralized, peer-to-peer social network with dual-lay
 
 | Version | Milestone | Status |
 |---------|-----------|--------|
-| v0.1 | Foundation | ✅ Complete |
-| v0.2 | Identity | ✅ Complete |
-| v0.3 | Content | ✅ Complete |
-| v0.4 | Anonymous | ✅ Complete |
-| v0.5 | Routing | ✅ Complete |
-| v0.6 | Reputation | ✅ Complete |
-| v0.7 | Mechanics | ✅ Complete |
-| v0.8 | Visualization | ✅ Complete |
-| v0.9 | Onboarding | ✅ Complete |
-| v1.0 | MVP | ✅ Complete |
-| v1.1 | Bootstrap Network | 🔄 In Progress (blocked) |
-| v1.2 | Mobile Support | Planned |
+| v0.1 | Foundation (go.mod, pkg structure) | ✅ Complete |
+| v0.2 | Identity (keys, sigils, modes) | ✅ Complete |
+| v0.3 | Content (Waves, PoW, TTL) | ✅ Complete |
+| v0.4 | Anonymous (Specters, Shroud) | ✅ Complete |
+| v0.5 | Networking (libp2p, GossipSub) | ✅ Complete |
+| v0.6 | Reputation (Resonance) | ✅ Complete |
+| v0.7 | Mechanics (mini-games) | ✅ Complete |
+| v0.8 | Visualization (Pulse Map) | ✅ Complete |
+| v0.9 | Onboarding (6-phase flow) | ✅ Complete |
+| v1.0 | MVP (all subsystems integrated) | ✅ Complete |
+| v1.1 | Bootstrap Network | 🔄 Blocked (external) |
+| v1.2 | Real-World Testing | Planned |
+| v1.3 | Mobile Support | Planned |
 | v2.0 | Production Release | Planned |
 
 ---
@@ -323,8 +316,8 @@ MURMUR claims to be a **decentralized, peer-to-peer social network with dual-lay
 MURMUR has achieved **all 12 stated goals** from its specification documents. The codebase is:
 
 - **Complete**: 8,480 LOC across 60 source files implementing all subsystems
-- **Tested**: 47 test files with race detection, unit tests, integration tests, and simulation tests
-- **Clean**: No high-complexity functions, 0.5% duplication, 82.9% doc coverage
+- **Tested**: 46 test files with race detection, unit tests, and integration tests
+- **Clean**: No high-complexity functions, 94.6% doc coverage, zero `go vet` warnings
 - **CI-validated**: Build, test, vet, and formatting checks pass
 
 **Primary remaining work**:
