@@ -1,6 +1,6 @@
 # MURMUR — Unified Design Document
 
-**Version:** 1.0
+**Version:** 1.1
 **Status:** Draft Specification
 **Date:** April 2026
 
@@ -14,7 +14,7 @@ MURMUR is a decentralized, peer-to-peer social network with a dual-layer identit
 
 The network presents itself through a spatial visualization called the Pulse Map: a force-directed graph where every user is a glowing node, every relationship is a visible edge, and every piece of content propagates outward through the mesh like a ripple through water. Users do not scroll feeds. They navigate a living map of human connection.
 
-Beneath the visible social surface lies an Anonymous Layer — a parallel world of pseudonymous identities called Specters, routed through onion-style circuits to prevent traffic analysis. Users can participate on the Surface Layer under their chosen display name, on the Anonymous Layer under a cryptographic pseudonym, or on both simultaneously. The two layers interact through carefully designed cross-layer mechanics — anonymous gifts, marks, duels, and events — that create social dynamics impossible on any conventional platform.
+Beneath the visible social surface lies an Anonymous Layer — a parallel world of pseudonymous identities called Specters, routed through onion-style circuits to prevent traffic analysis. Users can participate on the Surface Layer under their chosen display name, on the Anonymous Layer under a cryptographic pseudonym, or on both simultaneously. The two layers interact through carefully designed cross-layer mechanics — anonymous gifts, marks, mini-games, and events — that create social dynamics impossible on any conventional platform.
 
 MURMUR is not a product. It is a protocol, a set of applications implementing that protocol, and the community of people who run those applications. It has no revenue model, no investor obligations, and no growth targets imposed by external stakeholders. Its only measure of success is whether people choose to use it and choose to stay.
 
@@ -30,7 +30,7 @@ Seven principles govern every design decision in MURMUR. When principles conflic
 
 **The network is the interface.** MURMUR does not hide its network topology behind an abstraction layer. The network's structure — who is connected to whom, how information flows, where clusters form — is the primary interface. The Pulse Map is not a visualization of metadata; it is the social space itself.
 
-**Anonymity is a first-class feature, not a loophole.** The Anonymous Layer is not a workaround or an afterthought. It is a designed, supported, celebrated part of the system. Anonymous participation is not second-class participation — it has its own mechanics (Resonance, Duels, Councils, Gifts, Marks) that create social value visible to the entire network.
+**Anonymity is a first-class feature, not a loophole.** The Anonymous Layer is not a workaround or an afterthought. It is a designed, supported, celebrated part of the system. Anonymous participation is not second-class participation — it has its own mechanics (Resonance, Mini-Games, Councils, Gifts, Marks) that create social value visible to the entire network.
 
 **Growth must be organic.** MURMUR has no mechanism for paid user acquisition, algorithmic engagement optimization, or attention capture. Growth comes from the network's value to its participants and their desire to share that value with others. If the network is not worth using, it should not grow. If it is worth using, it will.
 
@@ -46,7 +46,7 @@ The **Identity System** manages cryptographic identities for both the Surface La
 
 The **Content System** defines Waves — the atomic content unit — and their propagation, storage, and expiration mechanics. Waves are signed, timestamped, and size-limited (2,048 bytes). They propagate through the gossip mesh, are cached by peers for up to 30 days, and expire automatically. The system supports replies, amplifications (re-broadcasts), and content-addressed references.
 
-The **Anonymous Layer** encompasses the Specter identity system, the Shroud Network (onion-routed relay infrastructure), the Resonance reputation system, and the anonymous social mechanics: Phantom Gifts, Specter Marks, Specter Duels, Masked Events, and Phantom Councils.
+The **Anonymous Layer** encompasses the Specter identity system, the Shroud Network (onion-routed relay infrastructure), the Resonance reputation system, and the anonymous social mechanics: Phantom Gifts, Specter Marks, Cipher Puzzles, Specter Hunts, Territory Drift, Oracle Pools, Sigil Forge, Shadow Play, Masked Events, and Phantom Councils.
 
 The **Pulse Map** is the primary visual interface — a real-time, force-directed graph visualization of the network's social topology. It renders nodes, edges, Wave propagation animations, anonymous effects, and environmental details in a spatial layout that users navigate by panning, zooming, and tapping.
 
@@ -84,9 +84,9 @@ Connection quality is monitored continuously. Ping-pong heartbeat messages are e
 
 ### 7. Message Propagation
 
-All MURMUR content — Waves, identity declarations, anonymous broadcasts, duel records — propagates through GossipSub, a pubsub protocol designed for decentralized networks. GossipSub maintains a full-message mesh (a subset of connected peers to whom messages are forwarded in full) and a metadata-only mesh (a larger set of peers to whom only message hashes are sent). When a peer on the metadata mesh reports a hash that the local node has not seen, the node requests the full message, ensuring reliable delivery even when the full-message mesh has gaps.
+All MURMUR content — Waves, identity declarations, anonymous broadcasts, mini-game records — propagates through GossipSub, a pubsub protocol designed for decentralized networks. GossipSub maintains a full-message mesh (a subset of connected peers to whom messages are forwarded in full) and a metadata-only mesh (a larger set of peers to whom only message hashes are sent). When a peer on the metadata mesh reports a hash that the local node has not seen, the node requests the full message, ensuring reliable delivery even when the full-message mesh has gaps.
 
-Messages are organized into topics. The primary topics are: `murmur/waves/v1` for standard content, `murmur/identity/v1` for identity declarations and connection announcements, `murmur/beacon/v1` for high-priority network-wide broadcasts (Shroud Node announcements, Masked Event invitations), and `murmur/anonymous/v1` for Anonymous Layer content (Specter Waves, Duel records, Council actions).
+Messages are organized into topics. The primary topics are: `murmur/waves/v1` for standard content, `murmur/identity/v1` for identity declarations and connection announcements, `murmur/beacon/v1` for high-priority network-wide broadcasts (Shroud Node announcements, Masked Event invitations), and `murmur/anonymous/v1` for Anonymous Layer content (Specter Waves, mini-game records, Council actions).
 
 Each message carries a signature from its author (or a Specter signature for anonymous content). Peers validate signatures before forwarding — a message with an invalid signature is dropped and the sending peer's reputation is decremented. This prevents message injection and modification during propagation.
 
@@ -146,7 +146,7 @@ Multi-device simultaneous use is not supported in the current design. The identi
 
 MURMUR offers three privacy modes, selectable during onboarding and changeable at any time in settings.
 
-**Open Mode.** The user participates only on the Surface Layer. Their node is visible on the Pulse Map with their display name and sigil. They publish and receive Waves under their main identity. They can see the effects of the Anonymous Layer (Phantom Gifts, Specter Marks, Duel sparks) but cannot participate in anonymous mechanics. Open Mode is the simplest experience and is recommended for users who do not need anonymity.
+**Open Mode.** The user participates only on the Surface Layer. Their node is visible on the Pulse Map with their display name and sigil. They publish and receive Waves under their main identity. They can see the effects of the Anonymous Layer (Phantom Gifts, Specter Marks, mini-game spectacles) but cannot participate in anonymous mechanics. Open Mode is the simplest experience and is recommended for users who do not need anonymity.
 
 **Hybrid Mode.** The user participates on both layers simultaneously. They have a main identity (visible on the Surface Layer) and a Specter identity (visible on the Anonymous Layer). The two identities are cryptographically unlinkable — they use separate keypairs, separate sigils, and separate communication channels. The user can switch between layers fluidly, publishing Waves under their main identity or Specter identity as they choose.
 
@@ -204,7 +204,7 @@ A Specter is a pseudonymous identity on the Anonymous Layer. It is defined by a 
 
 The Specter identity is stored in a separate encrypted keystore partition from the main identity. The two keystores use independent encryption keys derived from separate passphrase inputs (or the same passphrase, at the user's discretion — but the key derivation salt differs, so the same passphrase produces different encryption keys). This separation ensures that compromise of one keystore does not compromise the other.
 
-A Specter publishes Waves, participates in Duels, sends Phantom Gifts, places Specter Marks, attends Masked Events, and joins Phantom Councils — all under its pseudonymous identity, routed through the Shroud Network so that traffic analysis cannot link the Specter's actions to a specific network address.
+A Specter publishes Waves, participates in mini-games (Cipher Puzzles, Specter Hunts, Sigil Forge, Shadow Play), sends Phantom Gifts, places Specter Marks, attends Masked Events, and joins Phantom Councils — all under its pseudonymous identity, routed through the Shroud Network so that traffic analysis cannot link the Specter's actions to a specific network address.
 
 ### 20. The Shroud Network
 
@@ -226,7 +226,7 @@ Resonance increases through four signal categories.
 
 **Wave Publication Consistency.** A Specter that publishes Waves regularly (daily or near-daily) receives a steady Resonance increase. The signal rewards consistency, not volume — publishing 10 Waves in one day and then going silent for a week scores lower than publishing 1–2 Waves per day for seven days.
 
-**Duel Participation Quality.** A Specter that participates in Specter Duels and receives favorable audience evaluations gains Resonance from each duel. The gain is proportional to the audience size and the evaluation score. Dueling regularly against strong opponents builds Resonance faster than dueling occasionally against weak opponents.
+**Mini-Game Participation Quality.** A Specter that participates in mini-game events (Cipher Puzzles, Specter Hunts, Sigil Forge, Oracle Pools, Shadow Play) and performs well gains Resonance from each event. The gain is proportional to the participant count and performance quality. Participating regularly across diverse mini-games builds Resonance faster than occasional participation in a single type.
 
 **Phantom Gift Activity.** A Specter that sends Phantom Gifts to Surface Layer users gains a small amount of Resonance per gift. This signal rewards cross-layer engagement — Specters who contribute to the visible social fabric of the Surface Layer are valued more highly than Specters who participate only within the Anonymous Layer.
 
@@ -240,13 +240,13 @@ Resonance milestones unlock new capabilities at defined thresholds, creating a p
 
 At Resonance 25, the Specter achieves the rank of **Shade** and unlocks the ability to send Phantom Gifts. Phantom Gifts are visual effects applied to a Surface Layer user's node — glowing auras, particle trails, subtle animations. The recipient sees the gift and the Specter's pseudonym but cannot identify the Specter's main identity. Gifts are one-way: the recipient cannot respond directly to the Specter.
 
-At Resonance 50, the Specter achieves the rank of **Wraith** and unlocks the ability to initiate Specter Duels. A duel is a structured public debate between two Specters on a topic proposed by the initiator. The duel is visible to any node that subscribes to the Anonymous Layer topic. An audience gathers and votes on the exchange. Duel records are published as Waves and persist for the standard TTL.
+At Resonance 50, the Specter achieves the rank of **Wraith** and unlocks the ability to initiate Cipher Puzzles and Sigil Forge events. A Cipher Puzzle is a cryptographic or pattern-based challenge that Specters solve competitively or collaboratively. A Sigil Forge is a timed creative challenge where Specters produce content under constraints, evaluated by audience amplification. These mini-games are visible to any node that subscribes to the Anonymous Layer topic. Records are published as Waves and persist for the standard TTL.
 
-At Resonance 75, the Specter achieves the rank of **Shade-Wraith** and unlocks the ability to place Specter Marks on Surface Layer nodes. A Specter Mark is a small, persistent sigil attached to a node's visual representation on the Pulse Map — a visible sign that an anonymous entity has noticed and evaluated this user. Marks are accumulative: a node can carry multiple Marks from different Specters, creating a visible mosaic of anonymous attention.
+At Resonance 75, the Specter achieves the rank of **Shade-Wraith** and unlocks the ability to initiate Specter Hunts — network-wide scavenger hunts across the Pulse Map where Specters race to find hidden cryptographic fragments. The Specter also unlocks the ability to place Specter Marks on Surface Layer nodes. A Specter Mark is a small, persistent sigil attached to a node's visual representation on the Pulse Map — a visible sign that an anonymous entity has noticed and evaluated this user. Marks are accumulative: a node can carry multiple Marks from different Specters, creating a visible mosaic of anonymous attention.
 
-At Resonance 100, the Specter achieves the rank of **Phantom** and unlocks the ability to create and host Masked Events. Masked Events are temporary social spaces where all participants — even Specters — shed their pseudonyms and participate as completely anonymous entities. Inside a Masked Event, there are no names, no sigils, no Resonance scores. Every participant is a blank node. The event runs for a fixed duration (typically 1–4 hours) and then dissolves, leaving no record of individual participation.
+At Resonance 100, the Specter achieves the rank of **Phantom** and unlocks the ability to create and host Masked Events and Oracle Pools. Masked Events are temporary social spaces where all participants — even Specters — shed their pseudonyms and participate as completely anonymous entities. Oracle Pools are anonymous prediction markets on network-observable events, rewarding accurate forecasts with Resonance.
 
-At Resonance 200, the Specter achieves the rank of **Council-Eligible** and can be invited to join or form a Phantom Council. A Phantom Council is a permanent, secret deliberative body of 5–13 Specters who collaborate on governance, coordination, and community stewardship within the Anonymous Layer. Council discussions are encrypted to council member keys and are invisible to non-members. Council decisions — which take the form of collective Marks, coordinated Gifts, or published position statements — emerge from the council as if from a single entity, preserving the anonymity of individual council deliberations.
+At Resonance 200, the Specter achieves the rank of **Council-Eligible** and can be invited to join or form a Phantom Council. The Specter also unlocks Shadow Play — a social deduction game leveraging anonymity where participants are secretly assigned roles and must identify hidden infiltrators through observation and interaction. A Phantom Council is a permanent, secret coordination body of 5–13 Specters who collaborate on governance, coordination, and community stewardship within the Anonymous Layer. Council discussions are encrypted to council member keys and are invisible to non-members. Council decisions — which take the form of collective Marks, coordinated Gifts, or published position statements — emerge from the council as if from a single entity, preserving the anonymity of individual council coordination.
 
 ### 23. Phantom Gifts
 
@@ -264,15 +264,23 @@ A node that accumulates Marks from multiple high-Resonance Specters becomes visu
 
 Marks can be removed by their placing Specter at any time. They also decay if the placing Specter's Resonance drops below the required threshold (75). This ensures that Marks represent active, engaged anonymous participation rather than historical artifacts.
 
-### 25. Specter Duels
+### 25. Anonymous Mini-Games
 
-A Specter Duel is a structured public debate between two Specters. The initiator proposes a topic (a question or thesis, maximum 256 characters), selects a duel format (timed rounds, open exchange, or single statement), and issues a challenge to either a specific Specter (by pseudonym) or an open challenge to any willing opponent.
+The Anonymous Layer hosts a diverse ecosystem of mini-games that leverage anonymity as a core mechanic. These games are lightweight, interactive, and designed to be compelling social experiences that no conventional platform can replicate.
 
-When a challenge is accepted, the duel begins. In the timed-rounds format, each Specter publishes alternating statements of up to 1,024 bytes, with a 3-minute window per round, for a fixed number of rounds (typically 3–5). In the open-exchange format, both Specters publish freely for a fixed duration (typically 15–30 minutes). In the single-statement format, each Specter publishes a single statement of up to 2,048 bytes, and the audience evaluates based on the two statements alone.
+**Cipher Puzzles** (unlocked at Wraith, Resonance 50) are competitive and collaborative cryptographic challenges. Fragment Puzzles are individual races to solve a hash-based challenge. Mosaic Puzzles require multiple Specters to each contribute a piece of a larger solution. Cascade Puzzles are sequential challenges where each solution unlocks the next stage. Puzzles are generated deterministically from network entropy, requiring no trusted authority.
 
-The audience consists of any nodes that observe the duel Waves on the `murmur/anonymous/v1` topic. Audience members vote by publishing signed evaluation Waves indicating which Specter they found more persuasive. Votes are weighted by the voter's own Specter Resonance (if the voter is a Specter) or counted equally (if the voter is a Surface Layer observer). The duel outcome — a tally of weighted votes — is computed locally by each observing node and displayed on the duel's record.
+**Specter Hunts** (unlocked at Shade-Wraith, Resonance 75) are network-wide scavenger hunts across the Pulse Map. Cryptographic fragments are scattered across the topology, and Specters race to locate them by navigating to specific network regions and claiming fragments with proof-of-proximity. Hunts drive exploration of unfamiliar corners of the network.
 
-Duels serve a social function beyond their content. They are spectacles — visible events on the Pulse Map that draw attention, generate conversation, and create social surplus moments. A well-attended duel on a provocative topic is a community event, and the duel record (published as a Wave) persists as a reference point for future discussions.
+**Territory Drift** (unlocked at Shade, Resonance 25) is a persistent, ambient game where Specters accumulate influence over Pulse Map territories through sustained activity. The Specter with the highest influence in a territory becomes its Controller, with their sigil displayed as a watermark in the territory's background. Contested territories create visible hotspots of competition.
+
+**Oracle Pools** (unlocked at Phantom, Resonance 100) are anonymous, stake-free prediction markets on network-observable events. Specters submit commit-then-reveal predictions and earn Resonance for accuracy. Pool questions must reference verifiable network metrics, ensuring decentralized resolution without a trusted authority.
+
+**Sigil Forge** (unlocked at Wraith, Resonance 50) events are timed creative challenges: Sigil Art competitions, micro-fiction writing under prompts, and collaborative remix chains. Entries are evaluated by audience amplification, and the most-amplified entry wins.
+
+**Shadow Play** (unlocked at Revenant, Resonance 200) is a social deduction game where participants are secretly assigned roles (Echoes and Shades) and must identify or conceal the hidden Shades through rounds of interaction and voting. Shadow Play is the deepest mini-game mechanic, uniquely enabled by MURMUR's anonymity architecture.
+
+All mini-games contribute to Specter Resonance through the Mini-Game Activity signal. They are compatible with the Shadow Gradient principle: deeper anonymity tiers unlock more compelling game types. All games operate in a decentralized P2P context with deterministic generation and local verification.
 
 ### 26. Masked Events
 
@@ -286,11 +294,11 @@ Masked Events serve as MURMUR's most radical anonymity feature — a space where
 
 ### 27. Phantom Councils
 
-A Phantom Council is a persistent, secret deliberative body. Formation requires a minimum of 5 and maximum of 13 Council-Eligible Specters (Resonance 200+) who agree to form a council and perform a multi-party key generation ceremony. The ceremony produces a shared council keypair: the council's public key is published to the network (making the council's existence known), while the private key is threshold-shared among members (requiring a configurable quorum — typically 3 of 5, or 5 of 9 — to produce a valid signature).
+A Phantom Council is a persistent, secret coordination body. Formation requires a minimum of 5 and maximum of 13 Council-Eligible Specters (Resonance 200+) who agree to form a council and perform a multi-party key generation ceremony. The ceremony produces a shared council keypair: the council's public key is published to the network (making the council's existence known), while the private key is threshold-shared among members (requiring a configurable quorum — typically 3 of 5, or 5 of 9 — to produce a valid signature).
 
 Council internal communications are encrypted to the council's public key and are readable only by members who hold a key share. Council decisions (Marks, Gifts, position statements) are signed with the council key, identifying them as council actions without revealing which members participated in the decision.
 
-Council membership is anonymous even to other council members. Each member interacts with the council through their Specter identity, and the multi-party cryptography ensures that no member can determine which Specter identities the other members control (beyond the pseudonyms they chose to reveal during formation). This double anonymity — anonymous to the public, and partially anonymous to each other — creates a unique deliberative dynamic.
+Council membership is anonymous even to other council members. Each member interacts with the council through their Specter identity, and the multi-party cryptography ensures that no member can determine which Specter identities the other members control (beyond the pseudonyms they chose to reveal during formation). This double anonymity — anonymous to the public, and partially anonymous to each other — creates a unique coordination dynamic.
 
 Councils serve a proto-governance function. In a network without formal moderation, councils provide a mechanism for community stewardship: a council can collectively Mark nodes that consistently contribute valuable content, collectively Gift nodes that appear to be new and struggling, or publish position statements that influence community norms. A council's influence is proportional to its members' collective Resonance and the respect the community accords to its actions.
 
@@ -356,7 +364,7 @@ Specters appear on the Anonymous Layer as ghostly nodes, drifting on paths influ
 
 Users in Hybrid Mode see both layers simultaneously, with the ability to adjust the visual prominence of each layer via a slider. At one extreme, the Surface Layer is fully visible and the Anonymous Layer is a faint, ghostly overlay. At the other extreme, the Anonymous Layer is prominent and the Surface Layer fades to a dim background. This layered rendering creates the visual impression of two social worlds coexisting in the same space — a visible world of named identities and a shadow world of anonymous specters.
 
-Duel events are rendered as sparking connections between two Specter nodes — a visible electric arc that draws attention and signals active debate. Masked Events appear as enclosed domes on the Anonymous Layer — visible from outside as shimmering hemispheres but opaque to non-participants. Council formations are rendered as constellation-like patterns: the council's member nodes (anonymized) connected by faint, shimmering lines forming a geometric shape.
+Mini-game events are rendered as glowing event markers on the Anonymous Layer — visible icons that draw attention and signal active mini-game participation. Masked Events appear as enclosed domes on the Anonymous Layer — visible from outside as shimmering hemispheres but opaque to non-participants. Council formations are rendered as constellation-like patterns: the council's member nodes (anonymized) connected by faint, shimmering lines forming a geometric shape.
 
 ### 34. Navigation and Interaction
 
@@ -444,7 +452,7 @@ The loop's velocity depends on time to value — how quickly a new user reaches 
 
 ### 44. Social Surplus Triggers
 
-The system is designed to generate shareable moments frequently. Phantom Gifts from anonymous Specters create stories ("Someone anonymous just sent me this glowing thing"). Specter Duels are spectacles that generate curiosity in observers. Masked Events create intense post-event feelings ("I just had this incredible conversation with people I'll never identify"). The Pulse Map's visual beauty generates "what is this?" reactions when screenshotted or screen-recorded. Specter Marks create mystery and conversation. Each of these moments is a potential invitation trigger.
+The system is designed to generate shareable moments frequently. Phantom Gifts from anonymous Specters create stories ("Someone anonymous just sent me this glowing thing"). Mini-game events — Cipher Puzzles, Specter Hunts, Sigil Forges — are spectacles that generate curiosity in observers. Masked Events create intense post-event feelings ("I just had this incredible conversation with people I'll never identify"). The Pulse Map's visual beauty generates "what is this?" reactions when screenshotted or screen-recorded. Specter Marks create mystery and conversation. Each of these moments is a potential invitation trigger.
 
 ### 45. Invitation Mechanics
 
@@ -532,13 +540,13 @@ The protocol defines the following message types, all propagated via GossipSub.
 
 **Specter Mark.** Published on `murmur/anonymous/v1`. Contains the mark category, the target node's Peer ID, the marking Specter's public key, a timestamp, and a Specter signature. Places a persistent visual annotation on the target's node.
 
-**Duel Challenge.** Published on `murmur/anonymous/v1`. Contains the topic, format, challenged Specter's pseudonym (or "open"), the challenger Specter's public key, a timestamp, and a Specter signature.
+**Mini-Game Event.** Published on `murmur/anonymous/v1`. Contains the game type (cipher_puzzle, specter_hunt, territory_drift, oracle_pool, sigil_forge, shadow_play), event parameters (duration, max participants, game-specific configuration), the hosting Specter's public key, a timestamp, and a Specter signature.
 
-**Duel Acceptance.** Published on `murmur/anonymous/v1`. Contains the challenge reference, the accepting Specter's public key, a timestamp, and a Specter signature.
+**Mini-Game Join.** Published on `murmur/anonymous/v1`. Contains the event reference, the joining Specter's public key, a timestamp, and a Specter signature.
 
-**Duel Statement.** Published on `murmur/anonymous/v1`. Contains the duel reference, the statement content, the authoring Specter's public key, round number, timestamp, and a Specter signature.
+**Mini-Game Action.** Published on `murmur/anonymous/v1`. Contains the event reference, the action type (submit_solution, claim_fragment, cast_prediction, submit_entry, cast_vote), action payload, the acting Specter's public key, round number (if applicable), timestamp, and a Specter signature.
 
-**Duel Vote.** Published on `murmur/anonymous/v1`. Contains the duel reference, the voted-for Specter's public key, the voter's public key (main or Specter), a timestamp, and a signature.
+**Mini-Game Result.** Published on `murmur/anonymous/v1`. Contains the event reference, the outcome data (winner pseudonym, scores, resolution), the hosting Specter's public key, a timestamp, and a Specter signature. Results are deterministically verifiable by any observer.
 
 **Event Announcement.** Published on `murmur/beacon/v1`. Contains the event topic, duration, participant cap, the hosting Specter's public key, start time, and a Specter signature.
 
@@ -652,7 +660,7 @@ The design of this alternative interface is identified as critical future work. 
 
 **Specter.** A pseudonymous identity on the Anonymous Layer, defined by a Curve25519 keypair.
 
-**Specter Duel.** A structured public debate between two Specters, judged by audience vote.
+**Mini-Game.** A lightweight interactive game played on the Anonymous Layer (Cipher Puzzles, Specter Hunts, Territory Drift, Oracle Pools, Sigil Forge, Shadow Play).
 
 **Specter Mark.** A persistent anonymous annotation placed on a Surface Layer node by a high-Resonance Specter.
 
