@@ -153,6 +153,16 @@ func (m *Manager) TriggerHint(id HintID) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	if !m.canShowHint(id) {
+		return false
+	}
+
+	m.activateHint(id)
+	return true
+}
+
+// canShowHint checks if a hint is eligible to be shown.
+func (m *Manager) canShowHint(id HintID) bool {
 	if !m.enabled {
 		return false
 	}
@@ -163,30 +173,39 @@ func (m *Manager) TriggerHint(id HintID) bool {
 	}
 
 	state := m.states[id]
-
-	// Check show-once constraint
-	if hint.ShowOnce && state.Shown {
+	if !m.passesShowOnceConstraint(hint, state) {
 		return false
 	}
-
-	// Check cooldown
-	if hint.Cooldown > 0 && !state.LastShownAt.IsZero() {
-		if time.Since(state.LastShownAt) < hint.Cooldown {
-			return false
-		}
+	if !m.passesCooldownConstraint(hint, state) {
+		return false
 	}
+	return true
+}
 
-	// Show the hint
+// passesShowOnceConstraint checks the show-once constraint.
+func (m *Manager) passesShowOnceConstraint(hint *Hint, state *HintState) bool {
+	return !hint.ShowOnce || !state.Shown
+}
+
+// passesCooldownConstraint checks the cooldown constraint.
+func (m *Manager) passesCooldownConstraint(hint *Hint, state *HintState) bool {
+	if hint.Cooldown <= 0 || state.LastShownAt.IsZero() {
+		return true
+	}
+	return time.Since(state.LastShownAt) >= hint.Cooldown
+}
+
+// activateHint marks the hint as active and notifies.
+func (m *Manager) activateHint(id HintID) {
+	state := m.states[id]
 	state.Shown = true
 	state.ShowCount++
 	state.LastShownAt = time.Now()
 	m.activeHint = &id
 
 	if m.callbacks.OnShow != nil {
-		go m.callbacks.OnShow(hint)
+		go m.callbacks.OnShow(m.hints[id])
 	}
-
-	return true
 }
 
 // DismissHint dismisses the currently active hint.
@@ -264,156 +283,184 @@ func (m *Manager) GetAllHints() []*Hint {
 
 // registerDefaultHints adds the standard onboarding hints.
 func (m *Manager) registerDefaultHints() {
-	hints := []*Hint{
-		{
-			ID:       HintPulseMapPan,
-			Title:    "Navigate the Map",
-			Content:  "Click and drag to pan around the Pulse Map.",
-			Position: HintPosition{Anchor: AnchorBottomCenter},
-			Trigger: TriggerCondition{
-				Type: TriggerOnEnter,
-			},
-			ShowOnce:    true,
-			Priority:    100,
-			Dismissible: true,
-		},
-		{
-			ID:       HintPulseMapZoom,
-			Title:    "Zoom In and Out",
-			Content:  "Use the mouse wheel to zoom in for detail or out for overview.",
-			Position: HintPosition{Anchor: AnchorBottomCenter},
-			Trigger: TriggerCondition{
-				Type: TriggerOnFirstAction,
-			},
-			ShowOnce:    true,
-			Priority:    99,
-			Dismissible: true,
-		},
-		{
-			ID:       HintPulseMapNodeClick,
-			Title:    "Select a Node",
-			Content:  "Click on any node to view their profile and recent Waves.",
-			Position: HintPosition{Anchor: AnchorCenterRight},
-			Trigger: TriggerCondition{
-				Type: TriggerOnIdle,
-			},
-			ShowOnce:    true,
-			Priority:    98,
-			Dismissible: true,
-		},
-		{
-			ID:       HintPulseMapEdges,
-			Title:    "Connection Lines",
-			Content:  "Lines between nodes show connections. Brighter lines mean more recent activity.",
-			Position: HintPosition{Anchor: AnchorCenter},
-			Trigger: TriggerCondition{
-				Type: TriggerOnIdle,
-			},
-			ShowOnce:    true,
-			Priority:    97,
-			Dismissible: true,
-		},
-		{
-			ID:       HintWaveCreate,
-			Title:    "Create a Wave",
-			Content:  "Press W or tap the Wave button to compose your first message.",
-			Position: HintPosition{Anchor: AnchorBottomRight, TargetID: "wave_button"},
-			Trigger: TriggerCondition{
-				Type: TriggerOnEnter,
-			},
-			ShowOnce:    true,
-			Priority:    90,
-			Dismissible: true,
-		},
-		{
-			ID:       HintWaveReply,
-			Title:    "Reply to a Wave",
-			Content:  "Click the reply icon to respond to someone's Wave.",
-			Position: HintPosition{Anchor: AnchorCenterRight},
-			Trigger: TriggerCondition{
-				Type: TriggerOnFirstAction,
-			},
-			ShowOnce:    true,
-			Priority:    89,
-			Dismissible: true,
-		},
-		{
-			ID:       HintWaveAmplify,
-			Title:    "Amplify a Wave",
-			Content:  "Amplifying shares a Wave with your connections, extending its reach.",
-			Position: HintPosition{Anchor: AnchorCenterRight},
-			Trigger: TriggerCondition{
-				Type: TriggerOnFirstAction,
-			},
-			ShowOnce:    true,
-			Priority:    88,
-			Dismissible: true,
-		},
-		{
-			ID:       HintIdentitySigil,
-			Title:    "Your Sigil",
-			Content:  "This unique visual pattern represents your identity on the network.",
-			Position: HintPosition{Anchor: AnchorTopRight, TargetID: "sigil_display"},
-			Trigger: TriggerCondition{
-				Type: TriggerOnEnter,
-			},
-			ShowOnce:    true,
-			Priority:    80,
-			Dismissible: true,
-		},
-		{
-			ID:       HintIdentityMode,
-			Title:    "Privacy Modes",
-			Content:  "Switch between Open, Hybrid, Guarded, and Fortress modes to control your visibility.",
-			Position: HintPosition{Anchor: AnchorTopRight, TargetID: "mode_selector"},
-			Trigger: TriggerCondition{
-				Type: TriggerOnFirstAction,
-			},
-			ShowOnce:    true,
-			Priority:    79,
-			Dismissible: true,
-		},
-		{
-			ID:       HintSpecterCreate,
-			Title:    "Create a Specter",
-			Content:  "Specters are anonymous identities for participating without revealing yourself.",
-			Position: HintPosition{Anchor: AnchorBottomLeft},
-			Trigger: TriggerCondition{
-				Type: TriggerOnEnter,
-			},
-			ShowOnce:    true,
-			Priority:    70,
-			Dismissible: true,
-		},
-		{
-			ID:       HintSpecterSwitch,
-			Title:    "Switch Identities",
-			Content:  "Toggle between your Surface identity and Specter identities anytime.",
-			Position: HintPosition{Anchor: AnchorTopCenter},
-			Trigger: TriggerCondition{
-				Type: TriggerOnFirstAction,
-			},
-			ShowOnce:    true,
-			Priority:    69,
-			Dismissible: true,
-		},
-		{
-			ID:       HintResonance,
-			Title:    "Your Resonance",
-			Content:  "Resonance reflects how your Specter's contributions are valued by the community.",
-			Position: HintPosition{Anchor: AnchorCenterLeft},
-			Trigger: TriggerCondition{
-				Type: TriggerOnEnter,
-			},
-			ShowOnce:    true,
-			Priority:    60,
-			Dismissible: true,
-		},
-	}
-
+	hints := buildDefaultHints()
 	for _, hint := range hints {
 		m.hints[hint.ID] = hint
 		m.states[hint.ID] = &HintState{}
+	}
+}
+
+// buildDefaultHints constructs the standard hint collection.
+func buildDefaultHints() []*Hint {
+	return []*Hint{
+		buildPulseMapPanHint(),
+		buildPulseMapZoomHint(),
+		buildPulseMapNodeClickHint(),
+		buildPulseMapEdgesHint(),
+		buildWaveCreateHint(),
+		buildWaveReplyHint(),
+		buildWaveAmplifyHint(),
+		buildIdentitySigilHint(),
+		buildIdentityModeHint(),
+		buildSpecterCreateHint(),
+		buildSpecterSwitchHint(),
+		buildResonanceHint(),
+	}
+}
+
+func buildPulseMapPanHint() *Hint {
+	return &Hint{
+		ID:          HintPulseMapPan,
+		Title:       "Navigate the Map",
+		Content:     "Click and drag to pan around the Pulse Map.",
+		Position:    HintPosition{Anchor: AnchorBottomCenter},
+		Trigger:     TriggerCondition{Type: TriggerOnEnter},
+		ShowOnce:    true,
+		Priority:    100,
+		Dismissible: true,
+	}
+}
+
+func buildPulseMapZoomHint() *Hint {
+	return &Hint{
+		ID:          HintPulseMapZoom,
+		Title:       "Zoom In and Out",
+		Content:     "Use the mouse wheel to zoom in for detail or out for overview.",
+		Position:    HintPosition{Anchor: AnchorBottomCenter},
+		Trigger:     TriggerCondition{Type: TriggerOnFirstAction},
+		ShowOnce:    true,
+		Priority:    99,
+		Dismissible: true,
+	}
+}
+
+func buildPulseMapNodeClickHint() *Hint {
+	return &Hint{
+		ID:          HintPulseMapNodeClick,
+		Title:       "Select a Node",
+		Content:     "Click on any node to view their profile and recent Waves.",
+		Position:    HintPosition{Anchor: AnchorCenterRight},
+		Trigger:     TriggerCondition{Type: TriggerOnIdle},
+		ShowOnce:    true,
+		Priority:    98,
+		Dismissible: true,
+	}
+}
+
+func buildPulseMapEdgesHint() *Hint {
+	return &Hint{
+		ID:          HintPulseMapEdges,
+		Title:       "Connection Lines",
+		Content:     "Lines between nodes show connections. Brighter lines mean more recent activity.",
+		Position:    HintPosition{Anchor: AnchorCenter},
+		Trigger:     TriggerCondition{Type: TriggerOnIdle},
+		ShowOnce:    true,
+		Priority:    97,
+		Dismissible: true,
+	}
+}
+
+func buildWaveCreateHint() *Hint {
+	return &Hint{
+		ID:          HintWaveCreate,
+		Title:       "Create a Wave",
+		Content:     "Press W or tap the Wave button to compose your first message.",
+		Position:    HintPosition{Anchor: AnchorBottomRight, TargetID: "wave_button"},
+		Trigger:     TriggerCondition{Type: TriggerOnEnter},
+		ShowOnce:    true,
+		Priority:    90,
+		Dismissible: true,
+	}
+}
+
+func buildWaveReplyHint() *Hint {
+	return &Hint{
+		ID:          HintWaveReply,
+		Title:       "Reply to a Wave",
+		Content:     "Click the reply icon to respond to someone's Wave.",
+		Position:    HintPosition{Anchor: AnchorCenterRight},
+		Trigger:     TriggerCondition{Type: TriggerOnFirstAction},
+		ShowOnce:    true,
+		Priority:    89,
+		Dismissible: true,
+	}
+}
+
+func buildWaveAmplifyHint() *Hint {
+	return &Hint{
+		ID:          HintWaveAmplify,
+		Title:       "Amplify a Wave",
+		Content:     "Amplifying shares a Wave with your connections, extending its reach.",
+		Position:    HintPosition{Anchor: AnchorCenterRight},
+		Trigger:     TriggerCondition{Type: TriggerOnFirstAction},
+		ShowOnce:    true,
+		Priority:    88,
+		Dismissible: true,
+	}
+}
+
+func buildIdentitySigilHint() *Hint {
+	return &Hint{
+		ID:          HintIdentitySigil,
+		Title:       "Your Sigil",
+		Content:     "This unique visual pattern represents your identity on the network.",
+		Position:    HintPosition{Anchor: AnchorTopRight, TargetID: "sigil_display"},
+		Trigger:     TriggerCondition{Type: TriggerOnEnter},
+		ShowOnce:    true,
+		Priority:    80,
+		Dismissible: true,
+	}
+}
+
+func buildIdentityModeHint() *Hint {
+	return &Hint{
+		ID:          HintIdentityMode,
+		Title:       "Privacy Modes",
+		Content:     "Switch between Open, Hybrid, Guarded, and Fortress modes to control your visibility.",
+		Position:    HintPosition{Anchor: AnchorTopRight, TargetID: "mode_selector"},
+		Trigger:     TriggerCondition{Type: TriggerOnFirstAction},
+		ShowOnce:    true,
+		Priority:    79,
+		Dismissible: true,
+	}
+}
+
+func buildSpecterCreateHint() *Hint {
+	return &Hint{
+		ID:          HintSpecterCreate,
+		Title:       "Create a Specter",
+		Content:     "Specters are anonymous identities for participating without revealing yourself.",
+		Position:    HintPosition{Anchor: AnchorBottomLeft},
+		Trigger:     TriggerCondition{Type: TriggerOnEnter},
+		ShowOnce:    true,
+		Priority:    70,
+		Dismissible: true,
+	}
+}
+
+func buildSpecterSwitchHint() *Hint {
+	return &Hint{
+		ID:          HintSpecterSwitch,
+		Title:       "Switch Identities",
+		Content:     "Toggle between your Surface identity and Specter identities anytime.",
+		Position:    HintPosition{Anchor: AnchorTopCenter},
+		Trigger:     TriggerCondition{Type: TriggerOnFirstAction},
+		ShowOnce:    true,
+		Priority:    69,
+		Dismissible: true,
+	}
+}
+
+func buildResonanceHint() *Hint {
+	return &Hint{
+		ID:          HintResonance,
+		Title:       "Your Resonance",
+		Content:     "Resonance reflects how your Specter's contributions are valued by the community.",
+		Position:    HintPosition{Anchor: AnchorCenterLeft},
+		Trigger:     TriggerCondition{Type: TriggerOnEnter},
+		ShowOnce:    true,
+		Priority:    60,
+		Dismissible: true,
 	}
 }
 

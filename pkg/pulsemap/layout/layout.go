@@ -179,20 +179,33 @@ func (e *Engine) Tick() {
 		return
 	}
 
-	// Compute forces
+	forces := e.initializeForces()
+	e.computeRepulsionForces(forces)
+	e.applyCenterGravity(forces)
+	e.updateNodePositions(forces)
+	e.swapPositionBuffer()
+}
+
+// initializeForces creates and returns a zeroed force map for all nodes.
+func (e *Engine) initializeForces() map[string][2]float64 {
 	forces := make(map[string][2]float64)
 	for id := range e.nodes {
 		forces[id] = [2]float64{0, 0}
 	}
+	return forces
+}
 
-	// Use Barnes-Hut for large graphs
-	if len(e.nodes) > BarnesHutThreshold {
+// computeRepulsionForces calculates repulsion using appropriate algorithm.
+func (e *Engine) computeRepulsionForces(forces map[string][2]float64) {
+	if len(e.nodes) >= BarnesHutThreshold {
 		e.computeForcesBarnesHut(forces)
 	} else {
 		e.computeForcesNaive(forces)
 	}
+}
 
-	// Apply center gravity
+// applyCenterGravity applies gravitational pull toward center.
+func (e *Engine) applyCenterGravity(forces map[string][2]float64) {
 	for id := range e.nodes {
 		pos := e.positions[id]
 		dx := e.centerX - pos.X
@@ -202,32 +215,38 @@ func (e *Engine) Tick() {
 			forces[id][1] + dy*e.params.GravityConstant,
 		}
 	}
+}
 
-	// Update velocities and positions
+// updateNodePositions updates velocities and positions based on forces.
+func (e *Engine) updateNodePositions(forces map[string][2]float64) {
 	for id := range e.nodes {
 		pos := e.positions[id]
 		f := forces[id]
 
-		// Update velocity
 		pos.VX = (pos.VX + f[0]) * e.params.DampingCoefficient
 		pos.VY = (pos.VY + f[1]) * e.params.DampingCoefficient
 
-		// Clamp velocity to prevent instability
-		maxVel := 50.0
-		speed := math.Sqrt(pos.VX*pos.VX + pos.VY*pos.VY)
-		if speed > maxVel {
-			pos.VX = pos.VX / speed * maxVel
-			pos.VY = pos.VY / speed * maxVel
-		}
+		clampVelocity(&pos)
 
-		// Update position
 		pos.X += pos.VX
 		pos.Y += pos.VY
 
 		e.positions[id] = pos
 	}
+}
 
-	// Swap to front buffer
+// clampVelocity limits velocity magnitude to prevent instability.
+func clampVelocity(pos *Position) {
+	const maxVel = 50.0
+	speed := math.Sqrt(pos.VX*pos.VX + pos.VY*pos.VY)
+	if speed > maxVel {
+		pos.VX = pos.VX / speed * maxVel
+		pos.VY = pos.VY / speed * maxVel
+	}
+}
+
+// swapPositionBuffer copies positions to the front buffer atomically.
+func (e *Engine) swapPositionBuffer() {
 	newPositions := make(map[string]Position, len(e.positions))
 	for id, pos := range e.positions {
 		newPositions[id] = pos

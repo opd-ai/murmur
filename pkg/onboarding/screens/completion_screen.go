@@ -251,37 +251,50 @@ func (s *CompletionScreen) HandleClick(x, y int) {
 
 	switch s.state {
 	case CompletionStateSummary:
-		buttonY := s.height - 100
-		// Invite Friends button
-		if s.isClickOnButton(x, y, centerX-100, buttonY) {
-			s.state = CompletionStateInvite
-		}
-		// Enter MURMUR button
-		if s.isClickOnButton(x, y, centerX+100, buttonY) {
-			s.finish()
-		}
-
+		s.handleSummaryClick(x, y, centerX)
 	case CompletionStateInvite:
-		codeY := s.height/2 - 30
-		// Generate/Copy button
-		if s.isClickOnButton(x, y, centerX, codeY+100) {
-			if s.inviteCode == "" {
-				s.generateInvite()
-			} else {
-				// Copy to clipboard - would need OS integration
-			}
-		}
-		// Continue button
-		buttonY := s.height - 100
-		if s.isClickOnButton(x, y, centerX, buttonY) {
-			s.state = CompletionStateDone
-		}
-
+		s.handleInviteClick(x, y, centerX)
 	case CompletionStateDone:
-		buttonY := s.height - 100
-		if s.isClickOnButton(x, y, centerX, buttonY) {
-			s.finish()
-		}
+		s.handleDoneClick(x, y, centerX)
+	}
+}
+
+// handleSummaryClick processes clicks in the summary state.
+func (s *CompletionScreen) handleSummaryClick(x, y, centerX int) {
+	buttonY := s.height - 100
+	if s.isClickOnButton(x, y, centerX-100, buttonY) {
+		s.state = CompletionStateInvite
+	}
+	if s.isClickOnButton(x, y, centerX+100, buttonY) {
+		s.finish()
+	}
+}
+
+// handleInviteClick processes clicks in the invite state.
+func (s *CompletionScreen) handleInviteClick(x, y, centerX int) {
+	codeY := s.height/2 - 30
+	if s.isClickOnButton(x, y, centerX, codeY+100) {
+		s.handleInviteCodeClick()
+	}
+	buttonY := s.height - 100
+	if s.isClickOnButton(x, y, centerX, buttonY) {
+		s.state = CompletionStateDone
+	}
+}
+
+// handleInviteCodeClick handles the generate/copy invite code button.
+func (s *CompletionScreen) handleInviteCodeClick() {
+	if s.inviteCode == "" {
+		s.generateInvite()
+	}
+	// Copy to clipboard would need OS integration
+}
+
+// handleDoneClick processes clicks in the done state.
+func (s *CompletionScreen) handleDoneClick(x, y, centerX int) {
+	buttonY := s.height - 100
+	if s.isClickOnButton(x, y, centerX, buttonY) {
+		s.finish()
 	}
 }
 

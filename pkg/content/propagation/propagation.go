@@ -82,41 +82,47 @@ func NewRelayWithConfig(cfg RelayConfig) *Relay {
 // Returns the Wave with incremented hop count if it should be relayed,
 // or an error if the Wave should be dropped.
 func (r *Relay) Receive(wave *pb.Wave) (*pb.Wave, error) {
-	if wave == nil {
-		return nil, ErrInvalidWave
+	if err := r.validateIncomingWave(wave); err != nil {
+		return nil, err
 	}
 
-	// Check if we've already seen this Wave.
 	waveID := string(wave.WaveId)
-	if r.hasSeen(waveID) {
-		return nil, ErrDuplicateWave
-	}
-
-	// Check hop count.
-	if wave.HopCount >= r.maxHops {
-		return nil, ErrMaxHopsExceeded
-	}
-
-	// Check expiration.
-	if waves.IsExpired(wave) {
-		return nil, ErrExpiredWave
-	}
-
-	// Validate the Wave.
-	if err := waves.Validate(wave, DefaultDifficulty); err != nil {
-		return nil, ErrInvalidWave
-	}
-
-	// Mark as seen.
 	r.markSeen(waveID)
+	r.notifyHandler(wave)
 
-	// Call handler if set.
+	return waves.IncrementHop(wave), nil
+}
+
+// validateIncomingWave checks all constraints for an incoming wave.
+func (r *Relay) validateIncomingWave(wave *pb.Wave) error {
+	if wave == nil {
+		return ErrInvalidWave
+	}
+
+	if r.hasSeen(string(wave.WaveId)) {
+		return ErrDuplicateWave
+	}
+
+	if wave.HopCount >= r.maxHops {
+		return ErrMaxHopsExceeded
+	}
+
+	if waves.IsExpired(wave) {
+		return ErrExpiredWave
+	}
+
+	if err := waves.Validate(wave, DefaultDifficulty); err != nil {
+		return ErrInvalidWave
+	}
+
+	return nil
+}
+
+// notifyHandler calls the handler callback if set.
+func (r *Relay) notifyHandler(wave *pb.Wave) {
 	if r.Handler != nil {
 		r.Handler(wave)
 	}
-
-	// Increment hop count for relay.
-	return waves.IncrementHop(wave), nil
 }
 
 // hasSeen checks if a Wave ID has been seen recently.

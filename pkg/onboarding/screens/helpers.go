@@ -81,58 +81,100 @@ func DrawIdentityCard(screen *ebiten.Image, x, y float32, label, name string, si
 	cardX := x - style.CardWidth/2
 	cardY := y - style.CardHeight/2
 
-	// Optional glow effect
-	if style.GlowEnabled {
-		glowRadius := float32(3 + 2*math.Sin(style.GlowPhase*2*math.Pi))
-		glowColor := color.RGBA{80, 100, 200, 30}
-		if !isSpecter {
-			glowColor = color.RGBA{200, 160, 80, 30}
-		}
-		vector.DrawFilledRect(screen, cardX-glowRadius, cardY-glowRadius, style.CardWidth+2*glowRadius, style.CardHeight+2*glowRadius, glowColor, true)
-	}
+	drawCardGlow(screen, cardX, cardY, style, isSpecter)
+	drawCardBackground(screen, cardX, cardY, style, isSpecter)
+	drawCardLabel(screen, x, cardY, label, style, isSpecter)
+	drawCardSigil(screen, x, cardY, sigil)
+	drawCardName(screen, x, cardY, name, style, isSpecter)
+}
 
-	// Card background
-	bgColor := color.RGBA{30, 35, 50, 255}
-	if isSpecter {
-		bgColor = color.RGBA{25, 30, 55, 255}
+// drawCardGlow renders the optional glow effect around the card.
+func drawCardGlow(screen *ebiten.Image, cardX, cardY float32, style IdentityCardStyle, isSpecter bool) {
+	if !style.GlowEnabled {
+		return
 	}
+	glowRadius := float32(3 + 2*math.Sin(style.GlowPhase*2*math.Pi))
+	glowColor := selectGlowColor(isSpecter)
+	vector.DrawFilledRect(screen, cardX-glowRadius, cardY-glowRadius, style.CardWidth+2*glowRadius, style.CardHeight+2*glowRadius, glowColor, true)
+}
+
+// selectGlowColor returns the glow color based on identity type.
+func selectGlowColor(isSpecter bool) color.RGBA {
+	if isSpecter {
+		return color.RGBA{80, 100, 200, 30}
+	}
+	return color.RGBA{200, 160, 80, 30}
+}
+
+// drawCardBackground renders the card background and border.
+func drawCardBackground(screen *ebiten.Image, cardX, cardY float32, style IdentityCardStyle, isSpecter bool) {
+	bgColor := selectBackgroundColor(isSpecter)
 	vector.DrawFilledRect(screen, cardX, cardY, style.CardWidth, style.CardHeight, bgColor, true)
 
-	// Border
-	borderColor := color.RGBA{70, 80, 120, 255}
-	if isSpecter {
-		borderColor = color.RGBA{80, 100, 180, 255}
-	}
+	borderColor := selectBorderColor(isSpecter)
 	vector.StrokeRect(screen, cardX, cardY, style.CardWidth, style.CardHeight, 1.5, borderColor, true)
+}
 
-	// Label
+// selectBackgroundColor returns the card background color based on identity type.
+func selectBackgroundColor(isSpecter bool) color.RGBA {
+	if isSpecter {
+		return color.RGBA{25, 30, 55, 255}
+	}
+	return color.RGBA{30, 35, 50, 255}
+}
+
+// selectBorderColor returns the card border color based on identity type.
+func selectBorderColor(isSpecter bool) color.RGBA {
+	if isSpecter {
+		return color.RGBA{80, 100, 180, 255}
+	}
+	return color.RGBA{70, 80, 120, 255}
+}
+
+// drawCardLabel renders the card label text.
+func drawCardLabel(screen *ebiten.Image, x, cardY float32, label string, style IdentityCardStyle, isSpecter bool) {
 	labelY := cardY + 20
-	labelColor := color.RGBA{150, 150, 160, 255}
-	if isSpecter {
-		labelColor = color.RGBA{120, 150, 200, 255}
-	}
+	labelColor := selectLabelColor(isSpecter)
 	DrawCenteredText(screen, label, x, labelY, style.LabelSize, labelColor)
+}
 
-	// Sigil
-	if sigil != nil {
-		sigilOpts := &ebiten.DrawImageOptions{}
-		sigilX := x - float32(sigil.Bounds().Dx())/2
-		sigilY := cardY + 40
-		sigilOpts.GeoM.Translate(float64(sigilX), float64(sigilY))
-		screen.DrawImage(sigil, sigilOpts)
-	}
-
-	// Name
-	nameY := cardY + style.CardHeight - style.NameYOffset
-	nameColor := color.RGBA{200, 200, 210, 255}
+// selectLabelColor returns the label color based on identity type.
+func selectLabelColor(isSpecter bool) color.RGBA {
 	if isSpecter {
-		nameColor = color.RGBA{140, 170, 230, 255}
+		return color.RGBA{120, 150, 200, 255}
 	}
+	return color.RGBA{150, 150, 160, 255}
+}
+
+// drawCardSigil renders the sigil image on the card.
+func drawCardSigil(screen *ebiten.Image, x, cardY float32, sigil *ebiten.Image) {
+	if sigil == nil {
+		return
+	}
+	sigilOpts := &ebiten.DrawImageOptions{}
+	sigilX := x - float32(sigil.Bounds().Dx())/2
+	sigilY := cardY + 40
+	sigilOpts.GeoM.Translate(float64(sigilX), float64(sigilY))
+	screen.DrawImage(sigil, sigilOpts)
+}
+
+// drawCardName renders the identity name on the card.
+func drawCardName(screen *ebiten.Image, x, cardY float32, name string, style IdentityCardStyle, isSpecter bool) {
+	nameY := cardY + style.CardHeight - style.NameYOffset
+	nameColor := selectNameColor(isSpecter)
 	displayName := name
 	if displayName == "" {
 		displayName = style.EmptyNameStr
 	}
 	DrawCenteredText(screen, displayName, x, nameY, style.NameSize, nameColor)
+}
+
+// selectNameColor returns the name color based on identity type.
+func selectNameColor(isSpecter bool) color.RGBA {
+	if isSpecter {
+		return color.RGBA{140, 170, 230, 255}
+	}
+	return color.RGBA{200, 200, 210, 255}
 }
 
 // ButtonStyle defines visual parameters for buttons.

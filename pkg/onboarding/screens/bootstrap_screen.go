@@ -111,60 +111,101 @@ func (s *BootstrapScreen) drawConnecting(screen *ebiten.Image) {
 	centerX := float32(s.width) / 2
 	centerY := float32(s.height)/2 - 50
 
-	// Title
+	s.drawConnectingTitle(screen, centerX)
+	s.drawUserNode(screen, centerX, centerY)
+	s.drawPeerNodes(screen, centerX, centerY)
+	s.drawDiscoveryParticles(screen, centerX, centerY)
+	s.drawConnectionProgress(screen, centerX, centerY)
+	s.drawConnectingButton(screen, centerX)
+}
+
+// drawConnectingTitle renders the title text.
+func (s *BootstrapScreen) drawConnectingTitle(screen *ebiten.Image, centerX float32) {
 	titleY := float32(60)
 	s.drawCenteredText(screen, "Joining the Network", centerX, titleY, 22, color.RGBA{220, 220, 225, 255})
+}
 
-	// Central node (user)
+// drawUserNode renders the central user node with pulse effect.
+func (s *BootstrapScreen) drawUserNode(screen *ebiten.Image, centerX, centerY float32) {
 	userRadius := float32(20)
 	userPulse := float32(0.3 + 0.2*math.Sin(s.animPhase*2*math.Pi))
 	userColor := color.RGBA{230, 180, 100, 255}
 	vector.DrawFilledCircle(screen, centerX, centerY, userRadius+userPulse*5, userColor, true)
+}
 
-	// Peer nodes orbiting in
-	peerCount := s.peersFound
-	for i := 0; i < peerCount; i++ {
-		baseAngle := float64(i) * 2 * math.Pi / float64(s.targetPeers)
-		angle := baseAngle + s.animPhase*0.5*math.Pi
-		radius := float32(100)
-		px := centerX + radius*float32(math.Cos(angle))
-		py := centerY + radius*float32(math.Sin(angle))
-
-		peerColor := color.RGBA{100, 150, 230, 200}
-		vector.DrawFilledCircle(screen, px, py, 10, peerColor, true)
-
-		// Connection line
-		lineColor := color.RGBA{80, 120, 180, 100}
-		vector.StrokeLine(screen, centerX, centerY, px, py, 1, lineColor, true)
+// drawPeerNodes renders orbiting peer nodes and their connections.
+func (s *BootstrapScreen) drawPeerNodes(screen *ebiten.Image, centerX, centerY float32) {
+	for i := 0; i < s.peersFound; i++ {
+		px, py := s.computePeerPosition(centerX, centerY, i)
+		s.drawPeerConnection(screen, centerX, centerY, px, py)
+		s.drawPeerCircle(screen, px, py)
 	}
+}
 
-	// Particles for discovery animation
-	if !s.discoveryDone {
-		for i := 0; i < 12; i++ {
-			angle := float64(i)*math.Pi/6 + s.animPhase*4*math.Pi
-			progress := math.Mod(s.animPhase*3+float64(i)*0.1, 1)
-			radius := float32(150 * (1 - progress))
-			px := centerX + radius*float32(math.Cos(angle))
-			py := centerY + radius*float32(math.Sin(angle))
-			alpha := uint8(255 * (1 - progress))
-			particleColor := color.RGBA{100, 100, 200, alpha}
-			vector.DrawFilledCircle(screen, px, py, 3, particleColor, true)
-		}
+// computePeerPosition calculates the position of an orbiting peer.
+func (s *BootstrapScreen) computePeerPosition(centerX, centerY float32, index int) (float32, float32) {
+	baseAngle := float64(index) * 2 * math.Pi / float64(s.targetPeers)
+	angle := baseAngle + s.animPhase*0.5*math.Pi
+	radius := float32(100)
+	px := centerX + radius*float32(math.Cos(angle))
+	py := centerY + radius*float32(math.Sin(angle))
+	return px, py
+}
+
+// drawPeerConnection renders the connection line to a peer.
+func (s *BootstrapScreen) drawPeerConnection(screen *ebiten.Image, cx, cy, px, py float32) {
+	lineColor := color.RGBA{80, 120, 180, 100}
+	vector.StrokeLine(screen, cx, cy, px, py, 1, lineColor, true)
+}
+
+// drawPeerCircle renders a single peer node circle.
+func (s *BootstrapScreen) drawPeerCircle(screen *ebiten.Image, px, py float32) {
+	peerColor := color.RGBA{100, 150, 230, 200}
+	vector.DrawFilledCircle(screen, px, py, 10, peerColor, true)
+}
+
+// drawDiscoveryParticles renders animated search particles.
+func (s *BootstrapScreen) drawDiscoveryParticles(screen *ebiten.Image, centerX, centerY float32) {
+	if s.discoveryDone {
+		return
 	}
+	for i := 0; i < 12; i++ {
+		s.drawSingleParticle(screen, centerX, centerY, i)
+	}
+}
 
-	// Progress text
+// drawSingleParticle renders one discovery particle.
+func (s *BootstrapScreen) drawSingleParticle(screen *ebiten.Image, centerX, centerY float32, index int) {
+	angle := float64(index)*math.Pi/6 + s.animPhase*4*math.Pi
+	progress := math.Mod(s.animPhase*3+float64(index)*0.1, 1)
+	radius := float32(150 * (1 - progress))
+	px := centerX + radius*float32(math.Cos(angle))
+	py := centerY + radius*float32(math.Sin(angle))
+	alpha := uint8(255 * (1 - progress))
+	particleColor := color.RGBA{100, 100, 200, alpha}
+	vector.DrawFilledCircle(screen, px, py, 3, particleColor, true)
+}
+
+// drawConnectionProgress renders the progress text.
+func (s *BootstrapScreen) drawConnectionProgress(screen *ebiten.Image, centerX, centerY float32) {
 	progressY := centerY + 150
-	progressText := ""
-	if s.peersFound == 0 {
-		progressText = "Searching for peers..."
-	} else if s.peersFound < s.targetPeers {
-		progressText = "Connected to " + itoa(s.peersFound) + " peers..."
-	} else {
-		progressText = "Connected to " + itoa(s.peersFound) + " peers ✓"
-	}
+	progressText := s.getProgressText()
 	s.drawCenteredText(screen, progressText, centerX, progressY, 14, color.RGBA{150, 150, 160, 255})
+}
 
-	// Continue button (appears when done)
+// getProgressText returns the appropriate progress message.
+func (s *BootstrapScreen) getProgressText() string {
+	if s.peersFound == 0 {
+		return "Searching for peers..."
+	}
+	if s.peersFound < s.targetPeers {
+		return "Connected to " + itoa(s.peersFound) + " peers..."
+	}
+	return "Connected to " + itoa(s.peersFound) + " peers ✓"
+}
+
+// drawConnectingButton renders the continue button when discovery is complete.
+func (s *BootstrapScreen) drawConnectingButton(screen *ebiten.Image, centerX float32) {
 	if s.discoveryDone {
 		buttonY := float32(s.height) - 100
 		s.drawButton(screen, "Continue", centerX, buttonY, 0)

@@ -141,42 +141,71 @@ func NewManager(cfg Config, connector NetworkConnector, cb Callbacks) *Manager {
 
 // Start begins the bootstrap process.
 func (m *Manager) Start(ctx context.Context) error {
-	m.mu.Lock()
-	if m.status != StatusIdle && m.status != StatusFailed {
-		m.mu.Unlock()
+	if !m.tryStartBootstrap() {
 		return nil // Already running or complete
 	}
 
 	ctx, m.cancel = context.WithTimeout(ctx, m.config.Timeout)
+	m.initializeBootstrap()
+	m.notifyStatusChange(StatusConnecting)
+
+	if err := m.runBootstrapSequence(ctx); err != nil {
+		return err
+	}
+
+	m.completeBootstrap()
+	return nil
+}
+
+// tryStartBootstrap attempts to transition to bootstrap state. Returns false if already running.
+func (m *Manager) tryStartBootstrap() bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.status != StatusIdle && m.status != StatusFailed {
+		return false
+	}
+	return true
+}
+
+// initializeBootstrap sets up initial bootstrap state.
+func (m *Manager) initializeBootstrap() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.startTime = time.Now()
 	m.status = StatusConnecting
 	m.errors = nil
-	m.mu.Unlock()
+}
 
-	m.notifyStatusChange(StatusConnecting)
-
-	// Connect to bootstrap peers
+// runBootstrapSequence executes the bootstrap phases.
+func (m *Manager) runBootstrapSequence(ctx context.Context) error {
 	connectedCount := m.connectToBootstrapPeers(ctx)
-
 	if connectedCount == 0 {
 		m.setStatus(StatusFailed)
 		return ErrNoBootstrapPeers
 	}
 
-	// Start peer discovery
 	m.setStatus(StatusDiscovering)
-	if m.connector != nil {
-		if err := m.connector.StartDiscovery(ctx); err != nil {
-			m.recordError(err)
-		}
-	}
+	m.startPeerDiscovery(ctx)
 
-	// Wait for minimum peers
 	if err := m.waitForMinPeers(ctx); err != nil {
 		m.setStatus(StatusFailed)
 		return err
 	}
+	return nil
+}
 
+// startPeerDiscovery initiates DHT peer discovery.
+func (m *Manager) startPeerDiscovery(ctx context.Context) {
+	if m.connector == nil {
+		return
+	}
+	if err := m.connector.StartDiscovery(ctx); err != nil {
+		m.recordError(err)
+	}
+}
+
+// completeBootstrap finalizes successful bootstrap.
+func (m *Manager) completeBootstrap() {
 	m.setStatus(StatusComplete)
 	if m.callbacks.OnComplete != nil {
 		peerCount := 0
@@ -185,8 +214,6 @@ func (m *Manager) Start(ctx context.Context) error {
 		}
 		m.callbacks.OnComplete(peerCount)
 	}
-
-	return nil
 }
 
 // Stop cancels an in-progress bootstrap.
