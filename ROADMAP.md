@@ -193,8 +193,8 @@ MURMUR claims to be a **decentralized, peer-to-peer social network with dual-lay
 **Why Third**: Social networks require mobile access. Ebitengine supports mobile, but platform-specific work is needed.
 
 **Tasks**:
-- [ ] Configure gomobile build pipeline for iOS and Android
-- [ ] Adapt touch input handling in `pkg/pulsemap/interaction/`
+- [x] Configure gomobile build pipeline for iOS and Android — `scripts/build-mobile.sh` added (2026-04-14)
+- [x] Adapt touch input handling in `pkg/pulsemap/interaction/` — `touch.go` added with TouchState (2026-04-14)
 - [ ] Implement mobile-specific UI scaling and layout adjustments
 - [ ] Test on representative device range (low-end to flagship)
 - [ ] Address mobile-specific power and bandwidth constraints
@@ -202,7 +202,7 @@ MURMUR claims to be a **decentralized, peer-to-peer social network with dual-lay
 
 **Validation**: Pulse Map renders at 30fps on mid-range 2023 mobile devices.
 
-**Effort**: 4-6 weeks
+**Effort**: 4-6 weeks (2 of 6 tasks complete)
 
 ---
 

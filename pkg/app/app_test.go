@@ -1,13 +1,22 @@
 package app
 
 import (
+	"context"
+	"os"
 	"testing"
 	"time"
 )
 
 func TestNew(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "murmur-test-*")
+	if err != nil {
+		t.Fatalf("creating temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
 	app, err := New(Config{
 		Version: "0.0.0-test",
+		DataDir: tmpDir,
 	})
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
@@ -20,7 +29,13 @@ func TestNew(t *testing.T) {
 }
 
 func TestAppContext(t *testing.T) {
-	application, err := New(Config{})
+	tmpDir, err := os.MkdirTemp("", "murmur-test-*")
+	if err != nil {
+		t.Fatalf("creating temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	application, err := New(Config{DataDir: tmpDir})
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
@@ -53,7 +68,13 @@ func TestAppContext(t *testing.T) {
 }
 
 func TestAppDoubleRun(t *testing.T) {
-	app, err := New(Config{})
+	tmpDir, err := os.MkdirTemp("", "murmur-test-*")
+	if err != nil {
+		t.Fatalf("creating temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	app, err := New(Config{DataDir: tmpDir})
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
@@ -65,8 +86,12 @@ func TestAppDoubleRun(t *testing.T) {
 		done <- app.Run()
 	}()
 
-	// Give it time to start.
-	time.Sleep(10 * time.Millisecond)
+	// Wait for initialization to complete.
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := app.WaitReady(ctx); err != nil {
+		t.Fatalf("WaitReady() error = %v", err)
+	}
 
 	// Second Run() should fail.
 	err = app.Run()
@@ -77,4 +102,135 @@ func TestAppDoubleRun(t *testing.T) {
 	// Clean up.
 	app.Close()
 	<-done
+}
+
+func TestAppSubsystemsInit(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "murmur-test-*")
+	if err != nil {
+		t.Fatalf("creating temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	app, err := New(Config{
+		Version: "0.0.0-test",
+		DataDir: tmpDir,
+	})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	defer app.Close()
+
+	// Start the app in a goroutine.
+	runErr := make(chan error, 1)
+	go func() {
+		runErr <- app.Run()
+	}()
+
+	// Wait for initialization to complete.
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := app.WaitReady(ctx); err != nil {
+		t.Fatalf("WaitReady() error = %v", err)
+	}
+
+	// Verify subsystems are initialized.
+	subs := app.Subsystems()
+	if subs == nil {
+		t.Fatal("Subsystems() returned nil")
+	}
+	if subs.Storage == nil {
+		t.Error("Storage subsystem not initialized")
+	}
+	if subs.Identity == nil {
+		t.Error("Identity subsystem not initialized")
+	}
+	if subs.Host == nil {
+		t.Error("Host subsystem not initialized")
+	}
+	if subs.PubSub == nil {
+		t.Error("PubSub subsystem not initialized")
+	}
+
+	// First run should be detected.
+	if !app.IsFirstRun() {
+		t.Error("IsFirstRun() should be true on new database")
+	}
+
+	// Clean up.
+	app.Close()
+	<-runErr
+}
+
+func TestAppSubsystemsPersistence(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "murmur-test-*")
+	if err != nil {
+		t.Fatalf("creating temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// First run - create identity.
+	var firstPeerID string
+	{
+		app, err := New(Config{DataDir: tmpDir})
+		if err != nil {
+			t.Fatalf("New() error = %v", err)
+		}
+
+		runErr := make(chan error, 1)
+		go func() {
+			runErr <- app.Run()
+		}()
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := app.WaitReady(ctx); err != nil {
+			t.Fatalf("WaitReady() error = %v", err)
+		}
+
+		if !app.IsFirstRun() {
+			t.Error("First app instance should be first run")
+		}
+
+		subs := app.Subsystems()
+		if subs.Host != nil {
+			firstPeerID = subs.Host.PeerID().String()
+		}
+
+		app.Close()
+		<-runErr
+	}
+
+	// Second run - load existing identity.
+	{
+		app, err := New(Config{DataDir: tmpDir})
+		if err != nil {
+			t.Fatalf("New() error = %v", err)
+		}
+
+		runErr := make(chan error, 1)
+		go func() {
+			runErr <- app.Run()
+		}()
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := app.WaitReady(ctx); err != nil {
+			t.Fatalf("WaitReady() error = %v", err)
+		}
+
+		if app.IsFirstRun() {
+			t.Error("Second app instance should NOT be first run")
+		}
+
+		subs := app.Subsystems()
+		if subs.Host != nil {
+			secondPeerID := subs.Host.PeerID().String()
+			if firstPeerID != "" && secondPeerID != firstPeerID {
+				t.Errorf("Peer ID changed: %s -> %s", firstPeerID, secondPeerID)
+			}
+		}
+
+		app.Close()
+		<-runErr
+	}
 }

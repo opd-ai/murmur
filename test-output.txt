@@ -1,1 +1,43 @@
-xvfb-run: error: Xvfb failed to start
+ok  	github.com/opd-ai/murmur/cmd/murmur	1.243s
+ok  	github.com/opd-ai/murmur/pkg/anonymous/mechanics	1.047s
+ok  	github.com/opd-ai/murmur/pkg/anonymous/resonance	1.129s
+ok  	github.com/opd-ai/murmur/pkg/anonymous/shroud	4.352s
+ok  	github.com/opd-ai/murmur/pkg/anonymous/specters	1.175s
+ok  	github.com/opd-ai/murmur/pkg/app	1.285s
+ok  	github.com/opd-ai/murmur/pkg/config	1.024s
+ok  	github.com/opd-ai/murmur/pkg/content/pow	1.055s
+ok  	github.com/opd-ai/murmur/pkg/content/propagation	1.401s
+ok  	github.com/opd-ai/murmur/pkg/content/storage	1.217s
+ok  	github.com/opd-ai/murmur/pkg/content/threads	1.077s
+ok  	github.com/opd-ai/murmur/pkg/content/waves	1.091s
+ok  	github.com/opd-ai/murmur/pkg/errors	1.036s
+ok  	github.com/opd-ai/murmur/pkg/identity/declarations	1.072s
+ok  	github.com/opd-ai/murmur/pkg/identity/keys	1.740s
+ok  	github.com/opd-ai/murmur/pkg/identity/modes	1.213s
+ok  	github.com/opd-ai/murmur/pkg/identity/sigils	1.058s
+ok  	github.com/opd-ai/murmur/pkg/networking	2.216s
+ok  	github.com/opd-ai/murmur/pkg/networking/discovery	1.351s
+ok  	github.com/opd-ai/murmur/pkg/networking/gossip	1.833s
+ok  	github.com/opd-ai/murmur/pkg/networking/mesh	1.841s
+ok  	github.com/opd-ai/murmur/pkg/networking/relay	1.164s
+ok  	github.com/opd-ai/murmur/pkg/networking/transport	1.257s
+ok  	github.com/opd-ai/murmur/pkg/onboarding/bootstrap	5.412s
+ok  	github.com/opd-ai/murmur/pkg/onboarding/flow	1.173s
+?   	github.com/opd-ai/murmur/pkg/onboarding/screens	[no test files]
+ok  	github.com/opd-ai/murmur/pkg/onboarding/tutorials	1.248s
+ok  	github.com/opd-ai/murmur/pkg/pulsemap/interaction	1.031s
+ok  	github.com/opd-ai/murmur/pkg/pulsemap/layout	1.129s
+?   	github.com/opd-ai/murmur/pkg/pulsemap/overlays	[no test files]
+glfw: X11: The DISPLAY environment variable is missing: a platform-specific error occurred
+panic: glfw: The GLFW library is not initialized: the GLFW library is not initialized
+
+goroutine 1 [running]:
+github.com/hajimehoshi/ebiten/v2/internal/ui.init.0()
+	/home/user/go/pkg/mod/github.com/hajimehoshi/ebiten/v2@v2.9.9/internal/ui/ui.go:101 +0x9b
+FAIL	github.com/opd-ai/murmur/pkg/pulsemap/rendering	0.105s
+?   	github.com/opd-ai/murmur/pkg/pulsemap/rendering/effects	[no test files]
+ok  	github.com/opd-ai/murmur/pkg/resources	1.120s
+ok  	github.com/opd-ai/murmur/pkg/security	1.029s
+ok  	github.com/opd-ai/murmur/pkg/store	1.021s
+ok  	github.com/opd-ai/murmur/proto	1.019s
+FAIL

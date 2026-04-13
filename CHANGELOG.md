@@ -7,7 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **2026-04-14**: Added mobile platform build support
+  - `scripts/build-mobile.sh`: Gomobile build script for Android APK and iOS xcframework
+  - `pkg/pulsemap/interaction/touch.go`: TouchState with pan, pinch-to-zoom, and tap gestures
+  - `pkg/pulsemap/interaction/touch_test.go`: 11 tests covering all touch gesture scenarios
+  - Supports single-touch pan, two-finger pinch-to-zoom, and tap detection
+
+- **2026-04-14**: Added test files for rendering packages
+  - `pkg/onboarding/screens/names_test.go`: 5 tests for GenerateSpecterName determinism, edge cases, distribution
+  - `pkg/pulsemap/overlays/overlays_logic_test.go`: Tests for LayerBlend, ParticleEmitter, MiniGameVisualization
+  - `pkg/pulsemap/rendering/colors_test.go`: Tests for ColorFromHash, hslToRGB, NodeStyle, computeNodeRadius
+  - All packages now pass tests with no `[no test files]` warnings
+
 ### Refactored
+
+- **2026-04-14**: Split oversized source files to improve maintainability
+  - Extracted `CouncilStore` from `councils.go` to `councils_store.go` (councils.go: 1044 → 949 lines)
+  - Extracted `ShadowPlayStore` from `shadowplay.go` to `shadowplay_store.go` (shadowplay.go: 789 → 677 lines)
+  - Store classes are separate responsibilities per single-responsibility principle
+
+- **2026-04-14**: Reduced code duplication in Wave signing/key derivation
+  - Extracted `deriveAbyssalKeypairFromNonce()` helper in `pkg/content/waves/abyssal.go` to share SHA-256 seed derivation logic
+  - Created `Signer` interface in `pkg/content/waves/waves.go` for unified Wave signing
+  - Created `signWaveAndComputePoW()` shared implementation used by both Surface and Abyssal Waves
+  - Renamed type-specific wrappers: `signAndComputeWavePoW()` and `signAndComputeAbyssalPoW()`
+  - Clone pairs reduced from 6 to 4 (33% reduction)
 
 - **2026-04-13**: Reduced code duplication across the codebase
   - Extracted `GenerateSpecterName` to shared `names.go` (eliminates 21-line duplicate in mode_screen.go and mode_screen_stub.go)

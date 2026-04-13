@@ -207,6 +207,7 @@ func (p *PubSub) TopicPeers(topicName string) []peer.ID {
 }
 
 // Close closes all subscriptions and topics.
+// Context cancellation errors during shutdown are ignored as they are expected.
 func (p *PubSub) Close() error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -218,7 +219,10 @@ func (p *PubSub) Close() error {
 
 	for _, topic := range p.topics {
 		if err := topic.Close(); err != nil {
-			return fmt.Errorf("failed to close topic: %w", err)
+			// Ignore context.Canceled errors during shutdown - this is expected.
+			if err != context.Canceled {
+				return fmt.Errorf("failed to close topic: %w", err)
+			}
 		}
 	}
 	p.topics = make(map[string]*pubsub.Topic)

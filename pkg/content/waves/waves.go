@@ -40,6 +40,11 @@ const MaxTTL = 30 * 24 * time.Hour
 // DefaultDifficulty is the default PoW difficulty for Waves.
 const DefaultDifficulty = pow.DefaultDifficulty
 
+// Signer is an interface for signing data. Both keys.KeyPair and AbyssalKeyPair implement this.
+type Signer interface {
+	Sign(data []byte) []byte
+}
+
 // Errors for Wave operations.
 var (
 	ErrContentTooLarge = errors.New("content exceeds maximum size")
@@ -115,9 +120,16 @@ func buildWave(waveType WaveType, content []byte, kp *keys.KeyPair, opts CreateO
 }
 
 // signAndComputeWavePoW signs the wave and computes proof of work.
+// This is a convenience wrapper that calls signWaveAndComputePoW with a keys.KeyPair.
 func signAndComputeWavePoW(wave *pb.Wave, kp *keys.KeyPair, difficulty uint8) error {
+	return signWaveAndComputePoW(wave, kp, difficulty)
+}
+
+// signWaveAndComputePoW signs the wave using the provided signer and computes proof of work.
+// This is the shared implementation used by both Surface and Abyssal Waves.
+func signWaveAndComputePoW(wave *pb.Wave, signer Signer, difficulty uint8) error {
 	sigData := signatureData(wave)
-	wave.Signature = kp.Sign(sigData)
+	wave.Signature = signer.Sign(sigData)
 
 	powInput := powData(wave)
 	work, err := pow.Compute(powInput, difficulty)

@@ -1,72 +1,127 @@
-# Implementation Gaps — 2026-04-13 (Updated)
+# Implementation Gaps — 2026-04-13
 
 This document identifies gaps between MURMUR's stated goals (as documented in README.md, DESIGN_DOCUMENT.md, TECHNICAL_IMPLEMENTATION.md, and related specification files) and the current implementation state.
 
 ---
 
-## Status: All Implementation Gaps Closed ✅
+## Gap 1: Bootstrap Node Infrastructure
 
-As of 2026-04-13, all 15 implementation gaps identified in the original audit have been resolved. The codebase now contains:
-
-- **100+ Go source files** across all subsystem packages
-- **Comprehensive test coverage** including unit tests, integration tests, and simulation tests
-- **CI pipeline** with build, test, and vet validation
-- **Full documentation** spanning deployment guides, operation manuals, and specification docs
-
-See ROADMAP.md for the complete implementation status.
-
----
-
-## Remaining Infrastructure Gap
-
-### Bootstrap Nodes (BLOCKED)
-
-- **Stated Goal**: Hardcoded bootstrap nodes for initial network join.
-- **Current State**: Code infrastructure is complete (`pkg/config/config.go`, `pkg/networking/discovery/discovery.go`) with proper placeholders and TODO comments.
-- **Why Blocked**: This cannot be resolved through code changes alone. It requires:
-  1. Deploying community-operated bootstrap node infrastructure
-  2. Configuring multi-jurisdiction servers
-  3. Adding their multiaddrs to `DefaultBootstrapPeers`
-- **Impact**: New nodes cannot discover the network without manual peer configuration.
+- **Stated Goal**: Per NETWORK_ARCHITECTURE.md, new nodes should be able to join the network using hardcoded bootstrap node addresses without manual configuration.
+- **Current State**: `pkg/config/config.go:14-17` contains `DefaultBootstrapPeers` as an empty slice with a TODO comment: "Replace with actual bootstrap node addresses once infrastructure is established."
+- **Impact**: New users cannot discover the network. The application will start but remain isolated without manually configured peer addresses. This is a **blocking gap** for any user adoption.
+- **Closing the Gap**:
+  1. Deploy 3+ community-operated bootstrap nodes across different jurisdictions (EU, US, Asia)
+  2. Configure stable public multiaddrs for each bootstrap node
+  3. Update `DefaultBootstrapPeers` in `pkg/config/config.go` with the deployed addresses
+  4. Establish monitoring and uptime guarantees (target: 99.9% availability)
+  5. Document bootstrap node operation in `docs/BOOTSTRAP_OPERATION.md`
+  6. **Validation**: New node joins network within 30 seconds using only default configuration
 
 ---
 
-## Historical Gap Summary (All Resolved)
+## Gap 2: Application Subsystem Wiring
 
-| Gap | Subsystem | Status |
-|-----|-----------|--------|
-| Gap 1: Complete Codebase | Foundation | ✅ RESOLVED |
-| Gap 2: Pulse Map Visualization | UI | ✅ RESOLVED |
-| Gap 3: Cryptographic Identity | Identity | ✅ RESOLVED |
-| Gap 4: Wave Content System | Content | ✅ RESOLVED |
-| Gap 5: Anonymous Layer (Specters) | Anonymous | ✅ RESOLVED |
-| Gap 6: Shroud Onion Routing | Anonymous | ✅ RESOLVED |
-| Gap 7: Resonance Reputation | Anonymous | ✅ RESOLVED |
-| Gap 8: Anonymous Mini-Games | Anonymous | ✅ RESOLVED |
-| Gap 9: Privacy Modes | Anonymous | ✅ RESOLVED |
-| Gap 10: Six-Phase Onboarding | UI | ✅ RESOLVED |
-| Gap 11: libp2p Networking | Networking | ✅ RESOLVED |
-| Gap 12: Protobuf Wire Format | Content | ✅ RESOLVED |
-| Gap 13: Storage Layer (Bbolt) | Storage | ✅ RESOLVED |
-| Gap 14: CI/CD Pipeline | Infrastructure | ✅ RESOLVED |
-| Gap 15: Sigil Generation | Identity | ✅ RESOLVED |
+- **Stated Goal**: Per TECHNICAL_IMPLEMENTATION.md §8, the application should initialize ~8 persistent goroutines (main/Ebitengine, network/libp2p, layout/force-directed, expiry/GC, heartbeat, Shroud maintenance, event bus, DHT refresh) with a central event bus for coordination.
+- **Current State**: `pkg/app/app.go:66-90` contains a `Run()` method with a TODO listing 7 subsystems but only prints a version string and blocks on context. Subsystems exist in `pkg/` but are not instantiated or wired together at startup.
+- **Impact**: Running `go run ./cmd/murmur` starts an application that does nothing — no network connection, no UI, no storage initialization. The individual subsystems are implemented but never used.
+- **Closing the Gap**:
+  1. Add subsystem dependencies to `App` struct (store, identity, networking, content, anonymous, pulsemap, onboarding)
+  2. Implement initialization in dependency order: Storage → Identity → Networking → Content → Anonymous → Pulse Map → Onboarding
+  3. Start event bus goroutine for fan-out communication
+  4. Wire GossipSub message handlers to content/propagation
+  5. Start Ebitengine game loop with Pulse Map renderer
+  6. **Validation**: `go run ./cmd/murmur` opens Pulse Map window and connects to network
 
 ---
 
-## Documentation Inconsistencies (All Resolved)
+## Gap 3: Identity Declaration Implementation
 
-| Inconsistency | Resolution |
-|---------------|------------|
-| `internal/` vs `pkg/` | Use `pkg/` per ROADMAP.md ✅ |
-| `src/` vs `pkg/` | Use `pkg/` per ROADMAP.md ✅ |
-| `docs/unified-design-document.md` | Reference `DESIGN_DOCUMENT.md` ✅ |
-| 3 vs 4 privacy modes | Use 4 modes per SHADOW_GRADIENT.md ✅ |
-| 5 vs 6 onboarding phases | Reconciled to 6 phases ✅ |
-| BLAKE2b vs BLAKE3 | Use BLAKE3 per TECHNICAL_IMPLEMENTATION.md ✅ |
+- **Stated Goal**: Per TECHNICAL_IMPLEMENTATION.md §2.1, identity declarations are signed announcements broadcast via GossipSub on `/murmur/identity/1` topic, containing public key, display name, timestamp, and signature.
+- **Current State**: `pkg/identity/declarations/declarations.go:7-20` contains only a `Declaration` struct with basic fields and a TODO comment: "Implement per TECHNICAL_IMPLEMENTATION.md §2.1." No methods for signing, validation, serialization, or broadcast exist.
+- **Impact**: Users cannot announce their identity to the network. Profile information cannot be shared. The identity declaration message type defined in `proto/identity.proto` has no implementation.
+- **Closing the Gap**:
+  1. Implement `NewDeclaration(kp *keys.KeyPair, displayName string) *Declaration`
+  2. Implement `Sign(kp *keys.KeyPair) error` using Ed25519
+  3. Implement `Verify() error` for signature validation
+  4. Implement `Marshal() ([]byte, error)` using protobuf
+  5. Add broadcast method using `pkg/networking/gossip` on `TopicIdentity`
+  6. **Validation**: `go test ./pkg/identity/declarations/... -v` passes with sign/verify round-trip tests
 
 ---
 
-*Gaps analysis updated: 2026-04-13*
-*Status: All code gaps closed; bootstrap nodes require infrastructure deployment*
+## Gap 4: Test Coverage for Rendering Packages
 
+- **Stated Goal**: Per ROADMAP.md, target test coverage is >80% for core packages. All packages should have test files.
+- **Current State**: `go test ./...` reports `[no test files]` for:
+  - `github.com/opd-ai/murmur/cmd/murmur`
+  - `github.com/opd-ai/murmur/pkg/onboarding/screens` (partial)
+  - `github.com/opd-ai/murmur/pkg/pulsemap/overlays` (partial)
+  - `github.com/opd-ai/murmur/pkg/pulsemap/rendering` (partial)
+  - `github.com/opd-ai/murmur/pkg/pulsemap/rendering/effects` (partial)
+- **Impact**: Rendering and UI logic changes cannot be validated automatically. Regressions may go undetected. CI cannot verify visual correctness.
+- **Closing the Gap**:
+  1. Add `cmd/murmur/main_test.go` with tests for `run()` error paths
+  2. Add unit tests for screen state machines (independent of Ebitengine)
+  3. Add headless rendering tests using Ebitengine's headless mode
+  4. Add effect configuration tests for shader parameter validation
+  5. **Validation**: `go test ./... | grep -c "\[no test files\]"` returns 0
 
+---
+
+## Gap 5: Real-World Network Validation
+
+- **Stated Goal**: Per TECHNICAL_IMPLEMENTATION.md §7, performance targets include <500ms Wave propagation across 3 hops, <3s Shroud circuit construction, 60fps @ 500 nodes, memory <256 MiB.
+- **Current State**: All testing uses in-memory transports and controlled simulation environments. Actual network latency, packet loss, and NAT complexity are not validated. Cold start time is not measured.
+- **Impact**: Performance may not meet targets under real network conditions. NAT traversal success rate is unknown. Users on residential networks may experience degraded performance.
+- **Closing the Gap**:
+  1. Deploy 10-node test network across residential and cloud environments
+  2. Measure actual Wave propagation latency (target: <500ms)
+  3. Validate NAT traversal success rate (target: >80% with DCUtR)
+  4. Test Shroud circuit construction over real network (target: <3s)
+  5. Measure cold start time (target: <5s) and memory usage (target: <256 MiB)
+  6. Document results in `docs/PERFORMANCE_VALIDATION.md`
+  7. **Validation**: 10 nodes maintain stable mesh for 72 hours with <1% message loss
+
+---
+
+## Gap 6: Mobile Platform Support
+
+- **Stated Goal**: Per ROADMAP.md Priority 3, mobile platform support via Ebitengine's gomobile integration is planned for iOS and Android.
+- **Current State**: No gomobile build configuration exists. No touch input adaptations in `pkg/pulsemap/interaction/`. No mobile-specific UI scaling.
+- **Impact**: Social networks require mobile access. Desktop-only availability limits user adoption significantly.
+- **Closing the Gap**:
+  1. Configure gomobile build pipeline (`scripts/build-mobile.sh`)
+  2. Adapt touch input handling in `pkg/pulsemap/interaction/input.go`
+  3. Implement mobile-specific UI scaling and layout adjustments
+  4. Test on representative device range (low-end to flagship)
+  5. Address mobile-specific power and bandwidth constraints
+  6. **Validation**: Pulse Map renders at 30fps on mid-range 2023 mobile devices
+
+---
+
+## Summary Table
+
+| Gap | Severity | Blocker? | Effort |
+|-----|----------|----------|--------|
+| Gap 1: Bootstrap nodes | HIGH | Yes | External infrastructure |
+| Gap 2: Subsystem wiring | HIGH | Yes | 1-2 weeks |
+| Gap 3: Declaration impl | HIGH | Yes | 2-3 days |
+| Gap 4: Rendering tests | MEDIUM | No | 1 week |
+| Gap 5: Network validation | MEDIUM | No | 1-2 weeks |
+| Gap 6: Mobile support | LOW | No | 4-6 weeks |
+
+---
+
+## Recommended Priority Order
+
+1. **Gap 3** (Declaration impl) — Enables identity announcements; quick win
+2. **Gap 2** (Subsystem wiring) — Makes the application functional
+3. **Gap 1** (Bootstrap nodes) — Enables network growth (requires external resources)
+4. **Gap 4** (Rendering tests) — Improves CI reliability
+5. **Gap 5** (Network validation) — Validates performance claims
+6. **Gap 6** (Mobile support) — Expands user base
+
+---
+
+*Gaps analysis generated: 2026-04-13*
+*Status: 3 blocking gaps (bootstrap nodes, subsystem wiring, declarations)*

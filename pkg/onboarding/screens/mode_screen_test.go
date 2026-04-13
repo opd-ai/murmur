@@ -170,8 +170,8 @@ func TestModeScreenPhaseCompletion(t *testing.T) {
 func TestSpecterNameGeneration(t *testing.T) {
 	// Test that Specter names are deterministic
 	pubKey := []byte{0x00, 0x00, 0x01, 0x02}
-	name1 := generateSpecterName(pubKey)
-	name2 := generateSpecterName(pubKey)
+	name1 := GenerateSpecterName(pubKey)
+	name2 := GenerateSpecterName(pubKey)
 
 	if name1 != name2 {
 		t.Errorf("Expected deterministic names, got %s and %s", name1, name2)
@@ -179,7 +179,7 @@ func TestSpecterNameGeneration(t *testing.T) {
 
 	// Test different keys produce different names
 	pubKey2 := []byte{0x05, 0x10, 0x01, 0x02}
-	name3 := generateSpecterName(pubKey2)
+	name3 := GenerateSpecterName(pubKey2)
 
 	if name1 == name3 {
 		t.Error("Expected different keys to produce different names")
@@ -188,7 +188,7 @@ func TestSpecterNameGeneration(t *testing.T) {
 
 func TestSpecterNameWithShortKey(t *testing.T) {
 	shortKey := []byte{0x00}
-	name := generateSpecterName(shortKey)
+	name := GenerateSpecterName(shortKey)
 
 	if name != "Unknown Specter" {
 		t.Errorf("Expected 'Unknown Specter' for short key, got %s", name)

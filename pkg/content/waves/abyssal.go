@@ -12,7 +12,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/opd-ai/murmur/pkg/content/pow"
 	pb "github.com/opd-ai/murmur/proto"
 	"github.com/zeebo/blake3"
 )
@@ -53,6 +52,20 @@ type AbyssalKeyPair struct {
 	SpecterPubKey []byte
 }
 
+// deriveAbyssalKeypairFromNonce derives an Ed25519 keypair from a Specter private key and nonce.
+// This is the core derivation: Ed25519_keygen(SHA-256(specter_private_key || abyssal_nonce))
+func deriveAbyssalKeypairFromNonce(specterPrivateKey []byte, nonce [32]byte) (ed25519.PublicKey, ed25519.PrivateKey) {
+	h := sha256.New()
+	h.Write(specterPrivateKey)
+	h.Write(nonce[:])
+	seed := h.Sum(nil)
+
+	privateKey := ed25519.NewKeyFromSeed(seed)
+	publicKey := privateKey.Public().(ed25519.PublicKey)
+
+	return publicKey, privateKey
+}
+
 // DeriveAbyssalKeyPair derives a one-time keypair for an Abyssal Wave.
 // Per WAVES.md: abyssal_key = Ed25519_keygen(SHA-256(specter_private_key || abyssal_nonce))
 func DeriveAbyssalKeyPair(specterPrivateKey []byte) (*AbyssalKeyPair, error) {
@@ -66,15 +79,7 @@ func DeriveAbyssalKeyPair(specterPrivateKey []byte) (*AbyssalKeyPair, error) {
 		return nil, err
 	}
 
-	// Derive seed: SHA-256(specter_private_key || abyssal_nonce)
-	h := sha256.New()
-	h.Write(specterPrivateKey)
-	h.Write(nonce[:])
-	seed := h.Sum(nil)
-
-	// Generate Ed25519 keypair from seed.
-	privateKey := ed25519.NewKeyFromSeed(seed)
-	publicKey := privateKey.Public().(ed25519.PublicKey)
+	publicKey, privateKey := deriveAbyssalKeypairFromNonce(specterPrivateKey, nonce)
 
 	// Extract parent Specter public key from private key.
 	specterPubKey := specterPrivateKey[32:]
@@ -143,7 +148,7 @@ func CreateAbyssal(
 	}
 
 	wave := buildAbyssalWave(content, keyPair, opts)
-	if err := signAndComputePoW(wave, keyPair, opts.Difficulty); err != nil {
+	if err := signAndComputeAbyssalPoW(wave, keyPair, opts.Difficulty); err != nil {
 		return nil, err
 	}
 
@@ -184,18 +189,10 @@ func buildAbyssalWave(content []byte, keyPair *AbyssalKeyPair, opts CreateAbyssa
 	return wave
 }
 
-// signAndComputePoW signs the wave and computes proof of work.
-func signAndComputePoW(wave *pb.Wave, keyPair *AbyssalKeyPair, difficulty uint8) error {
-	sigData := signatureData(wave)
-	wave.Signature = keyPair.Sign(sigData)
-
-	powInput := powData(wave)
-	work, err := pow.Compute(powInput, difficulty)
-	if err != nil {
-		return err
-	}
-	wave.PowNonce = work.Nonce
-	return nil
+// signAndComputeAbyssalPoW signs the wave and computes proof of work for Abyssal Waves.
+// This delegates to the shared signWaveAndComputePoW function.
+func signAndComputeAbyssalPoW(wave *pb.Wave, keyPair *AbyssalKeyPair, difficulty uint8) error {
+	return signWaveAndComputePoW(wave, keyPair, difficulty)
 }
 
 // ValidateAbyssal validates an Abyssal Wave.
@@ -232,14 +229,8 @@ func CanProveAuthorship(
 		return false
 	}
 
-	// Re-derive the key.
-	h := sha256.New()
-	h.Write(specterPrivateKey)
-	h.Write(nonce[:])
-	seed := h.Sum(nil)
-
-	privateKey := ed25519.NewKeyFromSeed(seed)
-	publicKey := privateKey.Public().(ed25519.PublicKey)
+	// Re-derive the key using the shared derivation function.
+	publicKey, _ := deriveAbyssalKeypairFromNonce(specterPrivateKey, nonce)
 
 	// Check if derived public key matches Wave author.
 	if len(wave.AuthorPubkey) != len(publicKey) {
