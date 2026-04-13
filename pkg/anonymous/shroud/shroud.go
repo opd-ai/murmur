@@ -152,6 +152,19 @@ func (b *Beacon) PublicKey() [32]byte {
 	return b.publicKey
 }
 
+// SecretKey returns the beacon's Curve25519 secret key.
+// Used for signing advertisements.
+func (b *Beacon) SecretKey() [32]byte {
+	return b.secretKey
+}
+
+// SelfInfo returns this node's relay info if it is a relay.
+func (b *Beacon) SelfInfo() *RelayInfo {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	return b.selfInfo
+}
+
 // Circuit represents a three-hop onion circuit.
 type Circuit struct {
 	mu         sync.RWMutex

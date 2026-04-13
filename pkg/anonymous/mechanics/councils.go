@@ -304,7 +304,12 @@ func NewPhantomCouncil(
 	name, purpose string,
 	minResonance float64,
 	maxMembers int,
+	creatorResonance int,
 ) (*PhantomCouncil, error) {
+	// Validate creator resonance per RESONANCE_SYSTEM.md.
+	if creatorResonance < CouncilMinResonance {
+		return nil, ErrCouncilInsufficientResonance
+	}
 	if err := validateCouncilParams(name, purpose, minResonance, maxMembers); err != nil {
 		return nil, err
 	}

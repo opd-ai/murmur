@@ -209,7 +209,13 @@ func NewSigilForge(
 	prompt string,
 	initiator [32]byte,
 	duration time.Duration,
+	initiatorResonance int,
 ) (*SigilForge, error) {
+	// Validate initiator resonance per RESONANCE_SYSTEM.md.
+	if initiatorResonance < ForgeMinResonance {
+		return nil, ErrForgeInsufficientResonance
+	}
+
 	// Validate forge type.
 	if forgeType < ForgeSigilArt || forgeType > ForgeRemixChain {
 		return nil, ErrForgeInvalidType

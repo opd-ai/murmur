@@ -96,7 +96,12 @@ func NewHunt(
 	initiatorKey [32]byte,
 	duration time.Duration,
 	fragmentCount int,
+	initiatorResonance int,
 ) (*Hunt, error) {
+	// Validate initiator resonance per RESONANCE_SYSTEM.md.
+	if initiatorResonance < HuntMinResonance {
+		return nil, ErrHuntInsufficientRes
+	}
 	if err := validateHuntDuration(duration); err != nil {
 		return nil, err
 	}

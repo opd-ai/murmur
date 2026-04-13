@@ -11,12 +11,15 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
+	"github.com/opd-ai/murmur/pkg/anonymous/shroud"
 	"github.com/opd-ai/murmur/pkg/content/storage"
 	"github.com/opd-ai/murmur/pkg/identity/keys"
 	"github.com/opd-ai/murmur/pkg/networking/gossip"
 	"github.com/opd-ai/murmur/pkg/networking/transport"
 	"github.com/opd-ai/murmur/pkg/store"
+	pb "github.com/opd-ai/murmur/proto"
 )
 
 // Config holds application configuration options.
@@ -39,6 +42,14 @@ type Config struct {
 	// SkipUI controls whether the Pulse Map UI is started.
 	// Set true for headless operation or testing.
 	SkipUI bool
+
+	// EnableRelay enables this node as a Shroud relay.
+	// Relays help route anonymous traffic for others.
+	EnableRelay bool
+
+	// RelayBandwidth is the advertised bandwidth for relay operations (bytes/sec).
+	// Only relevant if EnableRelay is true. Defaults to 10 MiB/s.
+	RelayBandwidth uint64
 }
 
 // Subsystems holds references to all initialized subsystems.
@@ -61,6 +72,17 @@ type Subsystems struct {
 
 	// WaveCache stores received Waves.
 	WaveCache *storage.Cache
+
+	// EventBus is the central event dispatcher.
+	EventBus *EventBus
+
+	// Beacon manages Shroud relay discovery and circuit construction.
+	// Nil if this node is not acting as a relay.
+	Beacon *shroud.Beacon
+
+	// CircuitManager manages Shroud circuit lifecycle and rotation.
+	// Nil if Anonymous Layer is not initialized.
+	CircuitManager *shroud.CircuitManager
 }
 
 // App is the top-level MURMUR application.
@@ -136,6 +158,10 @@ func (a *App) Run() error {
 
 	fmt.Printf("MURMUR %s starting...\n", a.config.Version)
 
+	// Initialize event bus first (other subsystems may emit events).
+	a.initEventBus()
+	fmt.Println("  [0/7] Event bus started")
+
 	// Initialize subsystems in dependency order.
 	if err := a.initStorage(); err != nil {
 		return fmt.Errorf("initializing storage: %w", err)
@@ -158,9 +184,19 @@ func (a *App) Run() error {
 	}
 	fmt.Println("  [4/7] Content initialized")
 
-	// Anonymous, Pulse Map, and Onboarding subsystems are initialized
+	// Initialize Shroud beacon and circuit manager.
+	if err := a.initBeacon(); err != nil {
+		return fmt.Errorf("initializing beacon: %w", err)
+	}
+	if a.config.EnableRelay {
+		fmt.Println("  [5/7] Shroud initialized (relay mode)")
+	} else {
+		fmt.Println("  [5/7] Shroud initialized (client mode)")
+	}
+
+	// Pulse Map and Onboarding subsystems are initialized
 	// by their respective packages when messages arrive or UI events occur.
-	fmt.Println("  [5-7] Anonymous/PulseMap/Onboarding: ready for lazy init")
+	fmt.Println("  [6-7] PulseMap/Onboarding: ready for lazy init")
 
 	fmt.Printf("MURMUR listening on %v\n", a.subsystems.Host.Addrs())
 	fmt.Printf("Peer ID: %s\n", a.subsystems.Host.PeerID())
@@ -176,6 +212,18 @@ func (a *App) Run() error {
 	<-a.ctx.Done()
 
 	return nil
+}
+
+// initEventBus creates and starts the event bus goroutine.
+// Per TECHNICAL_IMPLEMENTATION.md §8, this is one of the ~8 persistent goroutines.
+func (a *App) initEventBus() {
+	a.subsystems.EventBus = NewEventBus(EventBusConfig{BufferSize: 256})
+
+	a.wg.Add(1)
+	go func() {
+		defer a.wg.Done()
+		a.subsystems.EventBus.Start(a.ctx)
+	}()
 }
 
 // initStorage initializes the Bbolt database.
@@ -312,6 +360,121 @@ func (a *App) initContent() error {
 	}()
 
 	return nil
+}
+
+// initBeacon initializes the Shroud beacon and circuit manager.
+// Per SHADOW_GRADIENT.md, all nodes can use Shroud circuits; only relays advertise.
+func (a *App) initBeacon() error {
+	// Always create a beacon for relay discovery (receiving ads from others).
+	beacon, err := shroud.NewBeacon()
+	if err != nil {
+		return fmt.Errorf("creating beacon: %w", err)
+	}
+	a.subsystems.Beacon = beacon
+
+	// Enable relay mode if configured.
+	if a.config.EnableRelay {
+		bandwidth := a.config.RelayBandwidth
+		if bandwidth == 0 {
+			bandwidth = 10 * 1024 * 1024 // Default 10 MiB/s.
+		}
+		peerID := a.subsystems.Host.PeerID().String()
+		beacon.EnableRelay(peerID, bandwidth)
+
+		// Start periodic advertisement broadcasting.
+		a.wg.Add(1)
+		go func() {
+			defer a.wg.Done()
+			a.runBeaconLoop()
+		}()
+	}
+
+	// Wire up relay advertisement handler to process incoming advertisements.
+	a.subsystems.Handlers.SetRelayAdCallback(func(ad *pb.RelayAdvertisement) {
+		// Extract peer ID from advertisement addrs if possible.
+		relayPeerID := ""
+		if len(ad.Addrs) > 0 {
+			relayPeerID = ad.Addrs[0] // Simplified: use first addr as identifier.
+		}
+		beacon.ProcessAdvertisement(ad, relayPeerID)
+
+		// Emit event for relay discovery.
+		if a.subsystems.EventBus != nil {
+			a.subsystems.EventBus.Emit(Event{
+				Type: EventShroudRelayDiscovered,
+				Payload: ShroudEvent{
+					RelayPeerID: relayPeerID,
+				},
+			})
+		}
+	})
+
+	// Start periodic relay pruning.
+	a.wg.Add(1)
+	go func() {
+		defer a.wg.Done()
+		a.runRelayPruneLoop()
+	}()
+
+	// Create circuit manager for building Shroud circuits.
+	// Exclude our own peer ID from relay selection.
+	selfPeerID := a.subsystems.Host.PeerID().String()
+	a.subsystems.CircuitManager = shroud.NewCircuitManager(beacon, []string{selfPeerID})
+
+	// Start circuit rotation timer per TECHNICAL_IMPLEMENTATION.md §8.
+	// This is one of the ~8 persistent goroutines.
+	a.wg.Add(1)
+	go func() {
+		defer a.wg.Done()
+		a.subsystems.CircuitManager.StartRotation(a.ctx)
+	}()
+
+	return nil
+}
+
+// runBeaconLoop broadcasts relay advertisements periodically.
+// Per shroud.BeaconInterval (5 minutes), relays advertise their availability.
+func (a *App) runBeaconLoop() {
+	ticker := time.NewTicker(shroud.BeaconInterval)
+	defer ticker.Stop()
+
+	// Broadcast immediately on startup.
+	if err := a.BroadcastRelayAdvertisement(a.ctx); err != nil && err != ErrNotRelay {
+		// Log error but continue.
+	}
+
+	for {
+		select {
+		case <-a.ctx.Done():
+			return
+		case <-ticker.C:
+			if err := a.BroadcastRelayAdvertisement(a.ctx); err != nil && err != ErrNotRelay {
+				// Log error but continue.
+			}
+		}
+	}
+}
+
+// runRelayPruneLoop periodically removes expired relays.
+// Per SHADOW_GRADIENT.md, relays not seen for 2x advertisement TTL are pruned.
+func (a *App) runRelayPruneLoop() {
+	ticker := time.NewTicker(shroud.AdvertisementTTL)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-a.ctx.Done():
+			return
+		case <-ticker.C:
+			a.mu.RLock()
+			beacon := a.subsystems.Beacon
+			a.mu.RUnlock()
+
+			if beacon != nil {
+				beacon.PruneExpiredRelays(2 * shroud.AdvertisementTTL)
+			}
+		}
+	}
 }
 
 // Close shuts down the application gracefully.

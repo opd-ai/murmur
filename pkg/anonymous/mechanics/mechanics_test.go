@@ -666,7 +666,7 @@ func TestNewHunt(t *testing.T) {
 	rand.Read(seed[:])
 	rand.Read(initiator[:])
 
-	hunt, err := NewHunt("Test Hunt", seed, initiator, HuntDuration60Min, 10)
+	hunt, err := NewHunt("Test Hunt", seed, initiator, HuntDuration60Min, 10, HuntMinResonance)
 	if err != nil {
 		t.Fatalf("NewHunt failed: %v", err)
 	}
@@ -689,7 +689,7 @@ func TestHuntInvalidDuration(t *testing.T) {
 	rand.Read(seed[:])
 	rand.Read(initiator[:])
 
-	_, err := NewHunt("Test", seed, initiator, 45*time.Minute, 10)
+	_, err := NewHunt("Test", seed, initiator, 45*time.Minute, 10, HuntMinResonance)
 	if err != ErrInvalidHuntDuration {
 		t.Errorf("Expected ErrInvalidHuntDuration, got %v", err)
 	}
@@ -700,12 +700,12 @@ func TestHuntInvalidFragmentCount(t *testing.T) {
 	rand.Read(seed[:])
 	rand.Read(initiator[:])
 
-	_, err := NewHunt("Test", seed, initiator, HuntDuration60Min, 3) // Below minimum of 5.
+	_, err := NewHunt("Test", seed, initiator, HuntDuration60Min, 3, HuntMinResonance) // Below minimum of 5.
 	if err != ErrInvalidFragmentCount {
 		t.Errorf("Expected ErrInvalidFragmentCount, got %v", err)
 	}
 
-	_, err = NewHunt("Test", seed, initiator, HuntDuration60Min, 25) // Above maximum of 20.
+	_, err = NewHunt("Test", seed, initiator, HuntDuration60Min, 25, HuntMinResonance) // Above maximum of 20.
 	if err != ErrInvalidFragmentCount {
 		t.Errorf("Expected ErrInvalidFragmentCount, got %v", err)
 	}
@@ -717,7 +717,7 @@ func TestHuntFragmentGeneration(t *testing.T) {
 	rand.Read(seed[:])
 	rand.Read(initiator[:])
 
-	hunt, _ := NewHunt("Test Hunt", seed, initiator, HuntDuration30Min, 5)
+	hunt, _ := NewHunt("Test Hunt", seed, initiator, HuntDuration30Min, 5, HuntMinResonance)
 
 	// Verify all fragments have unique location hashes.
 	locations := make(map[[32]byte]bool)
@@ -740,7 +740,7 @@ func TestHuntClaimFragment(t *testing.T) {
 	rand.Read(initiator[:])
 	rand.Read(claimer[:])
 
-	hunt, _ := NewHunt("Test Hunt", seed, initiator, HuntDuration60Min, 5)
+	hunt, _ := NewHunt("Test Hunt", seed, initiator, HuntDuration60Min, 5, HuntMinResonance)
 
 	// Create a valid proximity proof.
 	proof := ProximityProof{
@@ -771,7 +771,7 @@ func TestHuntClaimAlreadyClaimed(t *testing.T) {
 	rand.Read(claimer1[:])
 	rand.Read(claimer2[:])
 
-	hunt, _ := NewHunt("Test", seed, initiator, HuntDuration60Min, 5)
+	hunt, _ := NewHunt("Test", seed, initiator, HuntDuration60Min, 5, HuntMinResonance)
 
 	proof := ProximityProof{HopDistances: []int{1}}
 
@@ -791,7 +791,7 @@ func TestHuntNotInProximity(t *testing.T) {
 	rand.Read(initiator[:])
 	rand.Read(claimer[:])
 
-	hunt, _ := NewHunt("Test", seed, initiator, HuntDuration60Min, 5)
+	hunt, _ := NewHunt("Test", seed, initiator, HuntDuration60Min, 5, HuntMinResonance)
 
 	// Proof with too many hops.
 	proof := ProximityProof{HopDistances: []int{5}} // More than 3 hops.
@@ -807,7 +807,7 @@ func TestHuntCompletion(t *testing.T) {
 	rand.Read(seed[:])
 	rand.Read(initiator[:])
 
-	hunt, _ := NewHunt("Test", seed, initiator, HuntDuration60Min, 5)
+	hunt, _ := NewHunt("Test", seed, initiator, HuntDuration60Min, 5, HuntMinResonance)
 
 	proof := ProximityProof{HopDistances: []int{1}}
 
@@ -852,7 +852,7 @@ func TestHuntRevealClues(t *testing.T) {
 	rand.Read(initiator[:])
 
 	// Create a hunt that started 25 minutes ago.
-	hunt, _ := NewHunt("Test", seed, initiator, HuntDuration60Min, 5)
+	hunt, _ := NewHunt("Test", seed, initiator, HuntDuration60Min, 5, HuntMinResonance)
 	hunt.CreatedAt = time.Now().Add(-25 * time.Minute)
 
 	hunt.RevealClues()
@@ -869,7 +869,7 @@ func TestHuntLeaderboard(t *testing.T) {
 	rand.Read(seed[:])
 	rand.Read(initiator[:])
 
-	hunt, _ := NewHunt("Test", seed, initiator, HuntDuration60Min, 5)
+	hunt, _ := NewHunt("Test", seed, initiator, HuntDuration60Min, 5, HuntMinResonance)
 
 	var claimer1, claimer2 [32]byte
 	rand.Read(claimer1[:])
@@ -922,7 +922,7 @@ func TestHuntStore(t *testing.T) {
 	rand.Read(seed[:])
 	rand.Read(initiator[:])
 
-	hunt, _ := NewHunt("Test Hunt", seed, initiator, HuntDuration60Min, 5)
+	hunt, _ := NewHunt("Test Hunt", seed, initiator, HuntDuration60Min, 5, HuntMinResonance)
 	store.AddHunt(hunt)
 
 	if store.Count() != 1 {
@@ -1312,7 +1312,7 @@ func TestNewSigilForge(t *testing.T) {
 		ForgeSigilArt,
 		"Create a sigil representing hope",
 		initiator,
-		ForgeDuration30Min,
+		ForgeDuration30Min, ForgeMinResonance,
 	)
 	if err != nil {
 		t.Fatalf("NewSigilForge failed: %v", err)
@@ -1340,6 +1340,7 @@ func TestForgeInvalidType(t *testing.T) {
 		"Invalid forge",
 		initiator,
 		ForgeDuration30Min,
+		ForgeMinResonance,
 	)
 	if err != ErrForgeInvalidType {
 		t.Errorf("Expected ErrForgeInvalidType, got %v", err)
@@ -1360,6 +1361,7 @@ func TestForgePromptTooLong(t *testing.T) {
 		string(longPrompt),
 		initiator,
 		ForgeDuration30Min,
+		ForgeMinResonance,
 	)
 	if err != ErrForgePromptTooLong {
 		t.Errorf("Expected ErrForgePromptTooLong, got %v", err)
@@ -1375,6 +1377,7 @@ func TestForgeInvalidDuration(t *testing.T) {
 		"Test",
 		initiator,
 		15*time.Minute, // Invalid duration.
+		ForgeMinResonance,
 	)
 	if err != ErrForgeInvalidDuration {
 		t.Errorf("Expected ErrForgeInvalidDuration, got %v", err)
@@ -1390,7 +1393,7 @@ func TestForgeSubmitEntry(t *testing.T) {
 		ForgeMicroFiction,
 		"Write a story about shadows",
 		initiator,
-		ForgeDuration60Min,
+		ForgeDuration60Min, ForgeMinResonance,
 	)
 
 	content := []byte("In the darkness, a shadow found its light...")
@@ -1417,7 +1420,7 @@ func TestForgeDuplicateEntry(t *testing.T) {
 		ForgeSigilArt,
 		"Test",
 		initiator,
-		ForgeDuration30Min,
+		ForgeDuration30Min, ForgeMinResonance,
 	)
 
 	forge.SubmitEntry(specter, []byte("First entry"), [32]byte{})
@@ -1437,7 +1440,7 @@ func TestForgeEntryTooLarge(t *testing.T) {
 		ForgeMicroFiction,
 		"Test",
 		initiator,
-		ForgeDuration30Min,
+		ForgeDuration30Min, ForgeMinResonance,
 	)
 
 	largeContent := make([]byte, ForgeMaxEntrySize+1)
@@ -1458,7 +1461,7 @@ func TestForgeAmplification(t *testing.T) {
 		ForgeSigilArt,
 		"Test",
 		initiator,
-		ForgeDuration30Min,
+		ForgeDuration30Min, ForgeMinResonance,
 	)
 
 	entry1, _ := forge.SubmitEntry(specter1, []byte("Art 1"), [32]byte{})
@@ -1492,7 +1495,7 @@ func TestForgeEvaluation(t *testing.T) {
 		ForgeSigilArt,
 		"Test",
 		initiator,
-		ForgeDuration30Min,
+		ForgeDuration30Min, ForgeMinResonance,
 	)
 
 	// Add entries with different amplifications.
@@ -1543,7 +1546,7 @@ func TestForgeRemixChain(t *testing.T) {
 		ForgeRemixChain,
 		"Create a remix chain",
 		initiator,
-		ForgeDuration60Min,
+		ForgeDuration60Min, ForgeMinResonance,
 	)
 
 	// First entry (root).
@@ -1584,7 +1587,7 @@ func TestForgeNoEntries(t *testing.T) {
 		ForgeSigilArt,
 		"Test",
 		initiator,
-		ForgeDuration30Min,
+		ForgeDuration30Min, ForgeMinResonance,
 	)
 
 	forge.State = ForgeEvaluating
@@ -1623,7 +1626,7 @@ func TestForgeStore(t *testing.T) {
 		ForgeSigilArt,
 		"Test",
 		initiator,
-		ForgeDuration30Min,
+		ForgeDuration30Min, ForgeMinResonance,
 	)
 
 	store.AddForge(forge)
@@ -1656,7 +1659,7 @@ func TestForgeStateUpdate(t *testing.T) {
 		ForgeSigilArt,
 		"Test",
 		initiator,
-		ForgeDuration30Min,
+		ForgeDuration30Min, ForgeMinResonance,
 	)
 
 	// Set deadline to past.
@@ -2044,6 +2047,7 @@ func TestNewPhantomCouncil(t *testing.T) {
 		"Discussion of governance matters",
 		200.0,
 		7,
+		CouncilMinResonance,
 	)
 	if err != nil {
 		t.Fatalf("NewPhantomCouncil failed: %v", err)
@@ -2069,13 +2073,13 @@ func TestCouncilInvalidSize(t *testing.T) {
 	rand.Read(creator[:])
 
 	// Too few max members.
-	_, err := NewPhantomCouncil(creator, "Test", "Test", 200.0, 2)
+	_, err := NewPhantomCouncil(creator, "Test", "Test", 200.0, 2, CouncilMinResonance)
 	if err != ErrCouncilInvalidSize {
 		t.Errorf("Expected ErrCouncilInvalidSize, got %v", err)
 	}
 
 	// Too many max members.
-	_, err = NewPhantomCouncil(creator, "Test", "Test", 200.0, 20)
+	_, err = NewPhantomCouncil(creator, "Test", "Test", 200.0, 20, CouncilMinResonance)
 	if err != ErrCouncilInvalidSize {
 		t.Errorf("Expected ErrCouncilInvalidSize, got %v", err)
 	}
@@ -2085,7 +2089,7 @@ func TestCouncilInvalidResonance(t *testing.T) {
 	var creator [32]byte
 	rand.Read(creator[:])
 
-	_, err := NewPhantomCouncil(creator, "Test", "Test", 100.0, 5)
+	_, err := NewPhantomCouncil(creator, "Test", "Test", 100.0, 5, CouncilMinResonance)
 	if err != ErrCouncilInvalidMinResonance {
 		t.Errorf("Expected ErrCouncilInvalidMinResonance, got %v", err)
 	}
@@ -2100,7 +2104,7 @@ func TestCouncilNameTooLong(t *testing.T) {
 		longName[i] = 'a'
 	}
 
-	_, err := NewPhantomCouncil(creator, string(longName), "Test", 200.0, 5)
+	_, err := NewPhantomCouncil(creator, string(longName), "Test", 200.0, 5, CouncilMinResonance)
 	if err != ErrCouncilNameTooLong {
 		t.Errorf("Expected ErrCouncilNameTooLong, got %v", err)
 	}
@@ -2111,7 +2115,7 @@ func TestCouncilApplication(t *testing.T) {
 	rand.Read(creator[:])
 	rand.Read(applicant[:])
 
-	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5)
+	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance)
 
 	err := council.Apply(applicant, []byte("zk_proof_placeholder"))
 	if err != nil {
@@ -2130,7 +2134,7 @@ func TestCouncilAdmission(t *testing.T) {
 	rand.Read(applicant1[:])
 	rand.Read(applicant2[:])
 
-	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5)
+	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance)
 
 	// Apply and admit first applicant.
 	council.Apply(applicant1, nil)
@@ -2164,7 +2168,7 @@ func TestCouncilRejection(t *testing.T) {
 	rand.Read(creator[:])
 	rand.Read(applicant[:])
 
-	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5)
+	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance)
 
 	council.Apply(applicant, nil)
 	council.VoteOnApplication(creator, applicant, VoteAgainst)
@@ -2186,7 +2190,7 @@ func TestCouncilExpulsion(t *testing.T) {
 	rand.Read(member1[:])
 	rand.Read(member2[:])
 
-	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5)
+	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance)
 
 	// Admit two members.
 	council.Apply(member1, nil)
@@ -2216,7 +2220,7 @@ func TestCouncilLeave(t *testing.T) {
 	rand.Read(creator[:])
 	rand.Read(member1[:])
 
-	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5)
+	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance)
 
 	council.Apply(member1, nil)
 	council.VoteOnApplication(creator, member1, VoteFor)
@@ -2237,7 +2241,7 @@ func TestCouncilProposal(t *testing.T) {
 	rand.Read(member1[:])
 	rand.Read(member2[:])
 
-	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5)
+	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance)
 
 	// Build council with 3 members.
 	council.Apply(member1, nil)
@@ -2272,7 +2276,7 @@ func TestCouncilProposalFail(t *testing.T) {
 	rand.Read(member1[:])
 	rand.Read(member2[:])
 
-	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5)
+	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance)
 
 	// Build council.
 	council.Apply(member1, nil)
@@ -2302,7 +2306,7 @@ func TestCouncilStore(t *testing.T) {
 	var creator [32]byte
 	rand.Read(creator[:])
 
-	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5)
+	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance)
 	store.AddCouncil(council)
 
 	if store.Count() != 1 {

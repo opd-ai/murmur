@@ -19,10 +19,12 @@ import (
 
 // Broadcast errors.
 var (
-	ErrNotInitialized = errors.New("application not initialized")
-	ErrNilWave        = errors.New("wave is nil")
-	ErrNilDeclaration = errors.New("declaration is nil")
-	ErrNilHeartbeat   = errors.New("heartbeat is nil")
+	ErrNotInitialized   = errors.New("application not initialized")
+	ErrNilWave          = errors.New("wave is nil")
+	ErrNilDeclaration   = errors.New("declaration is nil")
+	ErrNilHeartbeat     = errors.New("heartbeat is nil")
+	ErrNilAdvertisement = errors.New("advertisement is nil")
+	ErrNotRelay         = errors.New("node is not configured as relay")
 )
 
 // BroadcastWave publishes a Wave to the network via GossipSub.
@@ -173,6 +175,63 @@ func (a *App) BroadcastHeartbeat(ctx context.Context) error {
 
 	// Publish to network.
 	return ps.Publish(ctx, gossip.TopicPulse, data)
+}
+
+// BroadcastRelayAdvertisement publishes a relay advertisement to the network.
+// Per SHADOW_GRADIENT.md, relays advertise availability on /murmur/shroud/1.
+// Returns ErrNotRelay if this node is not configured as a relay.
+func (a *App) BroadcastRelayAdvertisement(ctx context.Context) error {
+	a.mu.RLock()
+	if !a.running || a.subsystems == nil || a.subsystems.PubSub == nil || a.subsystems.Host == nil {
+		a.mu.RUnlock()
+		return ErrNotInitialized
+	}
+	if a.subsystems.Beacon == nil {
+		a.mu.RUnlock()
+		return ErrNotRelay
+	}
+	identity := a.subsystems.Identity
+	ps := a.subsystems.PubSub
+	host := a.subsystems.Host
+	beacon := a.subsystems.Beacon
+	a.mu.RUnlock()
+
+	// Get node addresses.
+	var addrs []string
+	for _, addr := range host.Addrs() {
+		addrs = append(addrs, addr.String())
+	}
+
+	// Generate advertisement.
+	ad := beacon.GenerateAdvertisement(identity.PublicKey, identity.PrivateKey, addrs)
+	if ad == nil {
+		return ErrNotRelay
+	}
+
+	// Serialize the advertisement.
+	payload, err := proto.Marshal(ad)
+	if err != nil {
+		return err
+	}
+
+	// Create and sign the envelope.
+	envelope, err := createSignedEnvelope(
+		pb.MessageType_MESSAGE_TYPE_SHROUD_AD,
+		payload,
+		identity,
+	)
+	if err != nil {
+		return err
+	}
+
+	// Serialize the envelope.
+	data, err := proto.Marshal(envelope)
+	if err != nil {
+		return err
+	}
+
+	// Publish to network.
+	return ps.Publish(ctx, gossip.TopicShroud, data)
 }
 
 // CreateWave creates a new Wave with the application's identity and broadcasts it.
