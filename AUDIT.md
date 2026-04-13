@@ -70,7 +70,7 @@ MURMUR claims to be a **decentralized, peer-to-peer social network with dual-lay
 
 - [x] **No wordlist for Specter names** — `assets/wordlists/specter-names.txt` — ROADMAP.md:310 specifies a 65,536-entry wordlist for procedural Specter name generation. The file does not exist. — **Remediation:** Create `assets/wordlists/specter-names.txt` with curated adjective+noun pairs (65,536 entries minimum). Use established wordlists or generate programmatically. **Validation:** `wc -l assets/wordlists/specter-names.txt` returns ≥65536. ✅ RESOLVED 2026-04-13
 
-- [ ] **No bootstrap nodes defined** — DESIGN_DOCUMENT.md:74 — Claims "hardcoded bootstrap nodes" but no bootstrap node list or configuration exists. — **Remediation:** Establish community-operated bootstrap nodes, document their addresses in `pkg/config/defaults.go`, and add to `pkg/networking/discovery/bootstrap.go`. **Validation:** Bootstrap nodes respond to libp2p identify protocol. **BLOCKED**: Requires live network infrastructure — `pkg/config/config.go` contains placeholder with TODO.
+- [~] **No bootstrap nodes defined** — DESIGN_DOCUMENT.md:74 — Claims "hardcoded bootstrap nodes" but no bootstrap node list or configuration exists. — **Remediation:** Establish community-operated bootstrap nodes, document their addresses in `pkg/config/defaults.go`, and add to `pkg/networking/discovery/bootstrap.go`. **Validation:** Bootstrap nodes respond to libp2p identify protocol. **BLOCKED**: Requires live network infrastructure — `pkg/config/config.go` contains placeholder with TODO. This item cannot be resolved through code changes alone; it requires community-operated bootstrap nodes to be deployed first.
 
 ### MEDIUM
 
