@@ -7,7 +7,6 @@
 package overlays
 
 import (
-	"image/color"
 	"testing"
 )
 
