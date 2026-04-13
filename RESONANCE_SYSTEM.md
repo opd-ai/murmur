@@ -262,7 +262,7 @@ The Ignition bonus rewards in-person network building, which is inherently Sybil
 
 ### Ignition Counter and ZK Claims
 
-The user's Ignition count (total number of Proximity Ignitions completed) is tracked locally and can be used to generate a ZK Claim: "This Specter has completed more than N Proximity Ignitions." This is a powerful claim because it proves in-person social activity without revealing who the person met or linking the Specter to a main identity. Specter Duels and Phantom Councils may use Ignition count ZK Claims as additional entry requirements.
+The user's Ignition count (total number of Proximity Ignitions completed) is tracked locally and can be used to generate a ZK Claim: "This Specter has completed more than N Proximity Ignitions." This is a powerful claim because it proves in-person social activity without revealing who the person met or linking the Specter to a main identity. Mini-games and Phantom Councils may use Ignition count ZK Claims as additional entry requirements.
 
 ### Visual Treatment
 

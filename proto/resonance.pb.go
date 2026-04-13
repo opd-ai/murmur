@@ -97,8 +97,8 @@ const (
 	InteractionType_INTERACTION_TYPE_REPLY_RECEIVED InteractionType = 2  // Specter received replies
 	InteractionType_INTERACTION_TYPE_GIFT_SENT      InteractionType = 3  // Phantom Gift sent
 	InteractionType_INTERACTION_TYPE_GIFT_RECEIVED  InteractionType = 4  // Phantom Gift received
-	InteractionType_INTERACTION_TYPE_DUEL_WON       InteractionType = 5  // Won a Specter Duel
-	InteractionType_INTERACTION_TYPE_DUEL_LOST      InteractionType = 6  // Lost a Specter Duel
+	InteractionType_INTERACTION_TYPE_MINIGAME_WON   InteractionType = 5  // Won a mini-game
+	InteractionType_INTERACTION_TYPE_MINIGAME_LOST  InteractionType = 6  // Lost a mini-game
 	InteractionType_INTERACTION_TYPE_MARK_PLACED    InteractionType = 7  // Placed a Specter Mark
 	InteractionType_INTERACTION_TYPE_EVENT_HOSTED   InteractionType = 8  // Hosted a Ghost Event
 	InteractionType_INTERACTION_TYPE_COUNCIL_VOTE   InteractionType = 9  // Participated in Council
@@ -113,8 +113,8 @@ var (
 		2:  "INTERACTION_TYPE_REPLY_RECEIVED",
 		3:  "INTERACTION_TYPE_GIFT_SENT",
 		4:  "INTERACTION_TYPE_GIFT_RECEIVED",
-		5:  "INTERACTION_TYPE_DUEL_WON",
-		6:  "INTERACTION_TYPE_DUEL_LOST",
+		5:  "INTERACTION_TYPE_MINIGAME_WON",
+		6:  "INTERACTION_TYPE_MINIGAME_LOST",
 		7:  "INTERACTION_TYPE_MARK_PLACED",
 		8:  "INTERACTION_TYPE_EVENT_HOSTED",
 		9:  "INTERACTION_TYPE_COUNCIL_VOTE",
@@ -126,8 +126,8 @@ var (
 		"INTERACTION_TYPE_REPLY_RECEIVED": 2,
 		"INTERACTION_TYPE_GIFT_SENT":      3,
 		"INTERACTION_TYPE_GIFT_RECEIVED":  4,
-		"INTERACTION_TYPE_DUEL_WON":       5,
-		"INTERACTION_TYPE_DUEL_LOST":      6,
+		"INTERACTION_TYPE_MINIGAME_WON":   5,
+		"INTERACTION_TYPE_MINIGAME_LOST":  6,
 		"INTERACTION_TYPE_MARK_PLACED":    7,
 		"INTERACTION_TYPE_EVENT_HOSTED":   8,
 		"INTERACTION_TYPE_COUNCIL_VOTE":   9,

@@ -642,7 +642,7 @@ The design of this alternative interface is identified as critical future work. 
 
 **Open Mode.** Privacy mode where the user participates only on the Surface Layer.
 
-**Phantom Council.** A persistent, secret deliberative body of 5–13 high-Resonance Specters who collaborate on anonymous governance and community stewardship.
+**Phantom Council.** A persistent, secret coordination body of 5–13 high-Resonance Specters who collaborate on anonymous governance and community stewardship.
 
 **Phantom Gift.** A visual effect applied to a Surface Layer node by an anonymous Specter, visible to all users.
 

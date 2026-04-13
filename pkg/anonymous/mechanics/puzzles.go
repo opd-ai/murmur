@@ -185,34 +185,15 @@ func NewPuzzle(
 	duration time.Duration,
 	initiatorKey [32]byte,
 ) (*Puzzle, error) {
-	// Validate puzzle type.
-	if puzzleType < PuzzleFragment || puzzleType > PuzzleCascade {
-		return nil, ErrInvalidPuzzleType
+	if err := validatePuzzleParams(puzzleType, duration); err != nil {
+		return nil, err
 	}
 
-	// Validate duration.
-	if duration != PuzzleDuration15Min &&
-		duration != PuzzleDuration30Min &&
-		duration != PuzzleDuration60Min {
-		return nil, ErrInvalidPuzzleDuration
-	}
-
-	if difficulty == 0 {
-		difficulty = DefaultPuzzleDifficulty
-	}
-
+	difficulty = normalizeDifficulty(difficulty)
 	now := time.Now()
 
-	// Generate puzzle ID.
-	var puzzleID [32]byte
-	h := blake3.New()
-	h.Write(seed[:])
-	h.Write(initiatorKey[:])
-	binary.Write(h, binary.BigEndian, now.Unix())
-	copy(puzzleID[:], h.Sum(nil))
-
 	puzzle := &Puzzle{
-		ID:           puzzleID,
+		ID:           computePuzzleID(seed, initiatorKey, now),
 		Type:         puzzleType,
 		Seed:         seed,
 		Difficulty:   difficulty,
@@ -223,18 +204,58 @@ func NewPuzzle(
 		InitiatorKey: initiatorKey,
 	}
 
-	// Initialize type-specific fields.
+	initPuzzleTypeFields(puzzle, puzzleType)
+	return puzzle, nil
+}
+
+// validatePuzzleParams validates puzzle type and duration.
+func validatePuzzleParams(puzzleType PuzzleType, duration time.Duration) error {
+	if puzzleType < PuzzleFragment || puzzleType > PuzzleCascade {
+		return ErrInvalidPuzzleType
+	}
+	if !isValidDuration(duration) {
+		return ErrInvalidPuzzleDuration
+	}
+	return nil
+}
+
+// isValidDuration checks if duration is one of the allowed values.
+func isValidDuration(duration time.Duration) bool {
+	return duration == PuzzleDuration15Min ||
+		duration == PuzzleDuration30Min ||
+		duration == PuzzleDuration60Min
+}
+
+// normalizeDifficulty returns default difficulty if zero.
+func normalizeDifficulty(difficulty uint8) uint8 {
+	if difficulty == 0 {
+		return DefaultPuzzleDifficulty
+	}
+	return difficulty
+}
+
+// computePuzzleID generates a BLAKE3 hash for the puzzle.
+func computePuzzleID(seed, initiatorKey [32]byte, createdAt time.Time) [32]byte {
+	h := blake3.New()
+	h.Write(seed[:])
+	h.Write(initiatorKey[:])
+	binary.Write(h, binary.BigEndian, createdAt.Unix())
+	var id [32]byte
+	copy(id[:], h.Sum(nil))
+	return id
+}
+
+// initPuzzleTypeFields initializes type-specific puzzle fields.
+func initPuzzleTypeFields(puzzle *Puzzle, puzzleType PuzzleType) {
 	switch puzzleType {
 	case PuzzleMosaic:
-		puzzle.Fragments = 5 // Default 5 sub-problems.
+		puzzle.Fragments = 5
 	case PuzzleCascade:
-		puzzle.Stages = 3 // Default 3 stages.
+		puzzle.Stages = 3
 		puzzle.CurrentStage = 0
 		puzzle.StageSolutions = make([][]byte, 3)
 		puzzle.StageSolvers = make([][32]byte, 3)
 	}
-
-	return puzzle, nil
 }
 
 // IsExpired returns true if the puzzle has passed its time limit.

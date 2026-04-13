@@ -98,7 +98,7 @@ Labels are visible only at meso and micro zoom levels. At macro zoom, labels are
 
 ### Node Selection and Interaction
 
-Tapping or clicking a node selects it, triggering a selection animation (a brief scale-up pulse and a persistent highlight ring). Selecting a node opens the Node Detail Panel, a slide-in panel displaying the node's profile information, recent Waves, connections, and available interaction options (send Wave, send Phantom Gift, place Specter Mark, initiate Whisper Chain, challenge to duel, etc.). The available options depend on the observer's mode and the target node's layer.
+Tapping or clicking a node selects it, triggering a selection animation (a brief scale-up pulse and a persistent highlight ring). Selecting a node opens the Node Detail Panel, a slide-in panel displaying the node's profile information, recent Waves, connections, and available interaction options (send Wave, send Phantom Gift, place Specter Mark, initiate Whisper Chain, join mini-game, etc.). The available options depend on the observer's mode and the target node's layer.
 
 Long-pressing or right-clicking a node opens a quick-action radial menu with the most common interactions. The radial menu items are context-sensitive: different options appear for Surface Layer nodes vs. Specter nodes, for connected vs. unconnected nodes, and for the user's own node vs. others.
 
@@ -136,7 +136,7 @@ At the widest zoom, the entire network (or a large portion of it) is visible. No
 
 The macro view is useful for understanding the network's overall structure: identifying major clusters, peripheral regions, and the relative positions of communities. Users navigate the macro view to find regions of interest before zooming in.
 
-Active Masked Events, Specter Duels, and Phantom Councils are visible at macro scale as special overlay icons — small animated glyphs positioned at the centroid of their participants' nodes. These icons serve as beacons, drawing users' attention to active social events they might want to explore.
+Active Masked Events, mini-games, and Phantom Councils are visible at macro scale as special overlay icons — small animated glyphs positioned at the centroid of their participants' nodes. These icons serve as beacons, drawing users' attention to active social events they might want to explore.
 
 ### Meso View
 
@@ -190,13 +190,23 @@ The particle emission rate scales with Specter Resonance. Low-Resonance Specters
 
 When the user's traffic is being routed through Shroud Nodes (in Hybrid+ or Fortress mode), the Pulse Map displays a subtle routing indicator: a faint, animated path from the user's node through 3 relay icons (represented as small shield glyphs) to the network. The path pulses gently to indicate active routing. This visualization reassures the user that their traffic is being anonymized without revealing the actual relay nodes' identities (the shield glyphs are generic, not specific to any node).
 
-### Duel Visualization
+### Mini-Game Visualization
 
-Active Specter Duels are rendered as a dramatic visual event on the Pulse Map. The two dueling Specters' nodes are connected by a jagged, sparking line — a zigzag path with animated electric-arc effects in contrasting colors (one color per duelist, derived from their respective node colors). The duel line pulses with increased intensity each time a new argument Wave is published in the duel thread.
+Active mini-games are rendered as distinctive visual events on the Pulse Map, each with a unique visual signature.
 
-Audience members' nodes show faint directional indicators — thin lines pointing from the audience node toward the midpoint of the duel line. At meso zoom, these audience lines create a visual convergence pattern: many faint lines from surrounding nodes converging on the duel, like spectators gathering around a match.
+**Cipher Puzzles** appear as a pulsing glyph — a rotating cryptographic symbol at the centroid of the participants' nodes. The glyph brightens each time a participant submits a solution attempt. Mosaic Puzzles show multiple smaller glyphs converging toward a central point as contributors add pieces.
 
-During the voting phase, the duel line's electric-arc effect changes: it splits into two parallel streams, one per duelist, with the stream width proportional to the current vote tally. As votes come in, the streams shift in relative width, providing real-time visual feedback on the vote's progress.
+**Specter Hunts** manifest as scattered glowing fragments across the relevant Pulse Map region. Claimed fragments fade from bright gold to dim embers. A faint trail connects claimed fragments to the claiming Specter's recent path, creating a visible treasure-hunt narrative.
+
+**Territory Drift** is rendered as translucent watermarks — the controlling Specter's sigil faintly visible in the territory's background. Contested territories show overlapping, flickering watermarks from competing Specters. Territory boundaries are drawn as soft, shifting gradient lines.
+
+**Oracle Pools** appear as a swirling vortex icon at the centroid of participants. The vortex color shifts as predictions accumulate, and resolves into a bright flash when the outcome is determined.
+
+**Sigil Forge** events display a small anvil-and-flame icon that pulses with each new entry submission. When voting begins, the entries orbit the icon as small thumbnails visible at meso zoom.
+
+**Shadow Play** sessions appear as a dark, shimmering dome (similar to Masked Events but with a distinctive purple-black palette and subtle lightning effects), indicating an active social deduction game.
+
+At macro zoom, all active mini-games are collapsed into small animated type-specific icons, providing an at-a-glance view of where game activity is happening across the network.
 
 ### Masked Event Visualization
 
@@ -290,7 +300,7 @@ A bookmarks feature allows users to save nodes for quick navigation. Bookmarked 
 
 ### Filters
 
-Users can apply visual filters to the Pulse Map to focus on specific aspects of the network. Available filters include activity filters (show only nodes active in the last hour, day, or week), connection filters (show only the user's direct connections, 2-hop neighborhood, or full network), layer filters (show only Surface Layer, only Anonymous Layer, or both), and mechanic filters (highlight nodes with active Marks, active Phantom Gifts, or active Duel participation).
+Users can apply visual filters to the Pulse Map to focus on specific aspects of the network. Available filters include activity filters (show only nodes active in the last hour, day, or week), connection filters (show only the user's direct connections, 2-hop neighborhood, or full network), layer filters (show only Surface Layer, only Anonymous Layer, or both), and mechanic filters (highlight nodes with active Marks, active Phantom Gifts, or active mini-game participation).
 
 Filters are applied as visual adjustments — filtered-out nodes are dimmed to very low opacity (5%) rather than hidden entirely, maintaining spatial context while directing attention to the filtered subset. Active filters are displayed as pill-shaped indicators below the search bar.
 
@@ -308,7 +318,7 @@ A screen-reader mode replaces the visual map with a navigable list interface. No
 
 Significant events are surfaced as Pulse Notifications — brief, non-intrusive visual indicators on the Pulse Map. A Pulse Notification appears as a small animated icon at the edge of the viewport, pointing in the direction of the event's location on the map. Tapping or clicking the notification pans the viewport to the event's location.
 
-Events that trigger Pulse Notifications include: a new Wave from a connected node, a new amplification on the user's Wave, a new Phantom Gift received, a new Specter Mark placed on the user's node, a new Specter Duel challenge from a connected Specter, a new Masked Event announced by a connected Specter, and a new Whisper Chain message received.
+Events that trigger Pulse Notifications include: a new Wave from a connected node, a new amplification on the user's Wave, a new Phantom Gift received, a new Specter Mark placed on the user's node, a new mini-game event from a connected Specter, a new Masked Event announced by a connected Specter, and a new Whisper Chain message received.
 
 ### Notification Priority
 
@@ -356,10 +366,10 @@ The Pulse Map's visual language is designed to be learnable through observation 
 
 **Phantom Gift effects** encode anonymous generosity: visible cosmetic effects indicate that the node has been gifted by an anonymous benefactor.
 
-**Duel lines** encode competition: jagged, sparking lines between nodes indicate an active intellectual contest.
+**Mini-game glyphs** encode competition: animated type-specific icons between or around nodes indicate active mini-game events.
 
 **Event domes** encode gathering: translucent bubbles on the map indicate anonymous social events in progress.
 
-**Council constellations** encode deliberation: glowing thread patterns connecting nodes indicate a persistent anonymous group.
+**Council constellations** encode coordination: glowing thread patterns connecting nodes indicate a persistent anonymous group.
 
 Together, these visual mappings create a rich, legible visual language that communicates the network's social state without requiring users to read text or consult documentation. The Pulse Map is designed to be understood intuitively — users learn what the visual elements mean by observing how they correlate with social activity over time.

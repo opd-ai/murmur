@@ -335,13 +335,13 @@ Votes are tallied locally by each member's client. The default decision threshol
 
 Council existence is public — the Council Formation Wave is visible on the Anonymous Layer. Council membership is partially public — Council Application Waves and admission votes are visible, so observers know which Specters are members. Council communication is private — the encrypted Council topic is unreadable by non-members.
 
-This design creates a visible power structure on the Anonymous Layer: observers can see that Councils exist, who is in them, and when they are active (by observing gossip traffic patterns on Council topics), but cannot read the content of Council deliberations.
+This design creates a visible power structure on the Anonymous Layer: observers can see that Councils exist, who is in them, and when they are active (by observing gossip traffic patterns on Council topics), but cannot read the content of Council coordination.
 
 ### Council Persistence
 
 Councils persist as long as they have at least 3 members. If membership drops below 3 (through expulsions or voluntary departures), the Council enters a dormant state: the private topic remains encrypted and accessible to remaining members, but no new proposals or votes can be conducted. If membership recovers to 3+ (through new admissions), the Council reactivates.
 
-Council Waves follow the same 30-day content window as all other Waves. Council deliberation history older than 30 days is garbage collected by member nodes.
+Council Waves follow the same 30-day content window as all other Waves. Council coordination history older than 30 days is garbage collected by member nodes.
 
 ---
 
@@ -553,9 +553,9 @@ Trophies are visible on the Specter's profile in the Node Detail Panel. A summar
 
 Trophy state is tracked locally by each Specter's client. Trophy unlocks are published as Trophy Waves (Specter Waves with metadata `trophy_id`) for network visibility, but trophy verification relies on the client's local activity log. Trophies are self-reported — like Whisper Chain contributions, they are a weak signal in Resonance computation, weighted accordingly.
 
-### Whisper → Duel Challenge Pipeline
+### Whisper → Mini-Game Coordination Pipeline
 
-Whisper Chains enable private negotiation before public duels. A Specter who wants to challenge another Specter to a duel can first send a Whisper Chain message to discuss terms, topics, and timing. This private negotiation channel makes duels more deliberate and less impulsive, improving the quality of public debate.
+Whisper Chains enable private coordination before public mini-games. A Specter who wants to organize a Cipher Puzzle, Specter Hunt, or Shadow Play session can first send Whisper Chain messages to potential participants to discuss timing, rules, and team composition. This private coordination channel makes mini-game events more organized and socially meaningful.
 
 ---
 
@@ -565,7 +565,7 @@ Each anonymous mechanic has been designed with abuse potential in mind.
 
 Phantom Gifts are limited to 3 per day and are purely cosmetic. The worst-case abuse scenario is unwanted cosmetic effects on a target's node, which the target can mitigate by muting the gifting Specter (hiding the gift in their local view).
 
-Specter Duels are voluntary — both participants must consent to the duel. Audience voting is weighted by Resonance, making vote manipulation expensive (an attacker needs many high-Resonance Specters to sway a vote). Duel arguments are public and subject to the same PoW and content window constraints as all Waves.
+Mini-games are voluntary — all participants must consent to join. Outcome verification is deterministic and locally computable, making manipulation expensive (an attacker needs sustained high-quality participation across multiple game types). Mini-game records are public and subject to the same PoW and content window constraints as all Waves.
 
 Masked Events are ephemeral and require PoW for participation. The participant cap (max 100) prevents mass-scale abuse within a single event. Masked keypairs are destroyed after the event, preventing persistent harassment from Masked identities.
 

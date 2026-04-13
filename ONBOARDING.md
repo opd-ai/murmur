@@ -186,7 +186,7 @@ A brief tooltip sequence previews the key anonymous mechanics without requiring 
 
 A tooltip near the user's Specter node reads: "As you participate, your Specter earns Resonance — a measure of your anonymous presence. Higher Resonance unlocks new abilities." A small Resonance meter is highlighted in the Specter node's detail panel, currently showing Resonance 0.
 
-A second tooltip reads: "You will unlock Phantom Gifts, Specter Duels, Masked Events, and more as your Resonance grows. Explore the Anonymous Layer to begin."
+A second tooltip reads: "You will unlock Phantom Gifts, mini-games, Masked Events, and more as your Resonance grows. Explore the Anonymous Layer to begin."
 
 ### Connection Suggestion
 

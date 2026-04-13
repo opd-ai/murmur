@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Refactored
 
+- **2026-04-13**: Reduced code duplication across the codebase
+  - Extracted `GenerateSpecterName` to shared `names.go` (eliminates 21-line duplicate in mode_screen.go and mode_screen_stub.go)
+  - Extracted `DrawSuccessAnimation` to helpers.go (consolidates success circle + checkmark from bootstrap_screen.go and completion_screen.go)
+  - Added `int64ToBytes` helper function in waves.go (eliminates repeated 8-byte timestamp conversions)
+  - Fixed duplicate comment on HandleClick in mode_screen.go
+  - Duplication metrics improved: clone pairs 9→6, duplicated lines 154→93 (-40%)
+
 - **2026-04-13**: Refactored 5 functions exceeding complexity thresholds
   - `PlaceMark` (marks.go): 8.3 → 5.7 overall (-31%), extracted `createMark`, `signMark`, `storeMark`
   - `drawModeIntro` (mode_screen.go): 7.5 → 5.7 overall (-24%), extracted `drawSurfaceLayerNode`, `drawAnonymousLayerNode`, `drawAnonParticles`, `drawIntroExplanationText`

@@ -121,18 +121,18 @@ func TestAddPuzzleSolved(t *testing.T) {
 	}
 }
 
-func TestAddDuelResult(t *testing.T) {
+func TestAddGameResult(t *testing.T) {
 	s := NewScore()
 
-	s.AddDuelResult(true)
-	s.AddDuelResult(true)
-	s.AddDuelResult(false)
+	s.AddGameResult(true)
+	s.AddGameResult(true)
+	s.AddGameResult(false)
 
-	if s.DuelsWon != 2 {
-		t.Errorf("DuelsWon = %d, want 2", s.DuelsWon)
+	if s.GamesWon != 2 {
+		t.Errorf("GamesWon = %d, want 2", s.GamesWon)
 	}
-	if s.DuelsLost != 1 {
-		t.Errorf("DuelsLost = %d, want 1", s.DuelsLost)
+	if s.GamesLost != 1 {
+		t.Errorf("GamesLost = %d, want 1", s.GamesLost)
 	}
 }
 

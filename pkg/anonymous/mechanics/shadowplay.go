@@ -306,32 +306,47 @@ func (s *ShadowPlay) Start() error {
 // assignRoles assigns Echo and Shade roles based on seed.
 // Number of Shades: 1 for 5-7 players, 2 for 8-13 players.
 func (s *ShadowPlay) assignRoles() {
-	numShades := 1
+	numShades := s.calculateShadeCount()
+	shadeIndices := s.computeShadeIndices(numShades)
+	s.applyRoles(shadeIndices)
+}
+
+// calculateShadeCount returns the number of Shades based on player count.
+func (s *ShadowPlay) calculateShadeCount() int {
 	if len(s.Players) >= 8 {
-		numShades = 2
+		return 2
 	}
+	return 1
+}
 
-	// Determine which player indices are Shades.
+// computeShadeIndices determines which player indices are Shades.
+func (s *ShadowPlay) computeShadeIndices(numShades int) map[int]bool {
 	shadeIndices := make(map[int]bool)
+	playerCount := uint64(len(s.Players))
+
 	for i := 0; i < numShades; i++ {
-		// Deterministic: SHA-256(seed || "shade" || i) mod playerCount
-		var hashInput []byte
-		hashInput = append(hashInput, s.Seed[:]...)
-		hashInput = append(hashInput, []byte("shade")...)
-		hashInput = append(hashInput, byte(i))
-		hash := sha256.Sum256(hashInput)
-
-		// Convert first 8 bytes to index.
-		index := binary.BigEndian.Uint64(hash[:8]) % uint64(len(s.Players))
-
-		// Handle collision by incrementing.
-		for shadeIndices[int(index)] {
-			index = (index + 1) % uint64(len(s.Players))
-		}
+		index := s.deriveShadeIndex(i, playerCount, shadeIndices)
 		shadeIndices[int(index)] = true
 	}
+	return shadeIndices
+}
 
-	// Assign roles.
+// deriveShadeIndex computes the index for a Shade, handling collisions.
+func (s *ShadowPlay) deriveShadeIndex(shadeNum int, playerCount uint64, existing map[int]bool) uint64 {
+	// Deterministic: SHA-256(seed || "shade" || i) mod playerCount
+	hashInput := append(s.Seed[:], []byte("shade")...)
+	hashInput = append(hashInput, byte(shadeNum))
+	hash := sha256.Sum256(hashInput)
+
+	index := binary.BigEndian.Uint64(hash[:8]) % playerCount
+	for existing[int(index)] {
+		index = (index + 1) % playerCount
+	}
+	return index
+}
+
+// applyRoles assigns roles to all players based on Shade indices.
+func (s *ShadowPlay) applyRoles(shadeIndices map[int]bool) {
 	for i, player := range s.Players {
 		if shadeIndices[i] {
 			player.Role = RoleShade
@@ -509,29 +524,35 @@ func (s *ShadowPlay) advanceToNextRound() {
 // Echoes win: all Shades eliminated.
 // Shades win: Shades equal or outnumber Echoes.
 func (s *ShadowPlay) checkWinConditions() bool {
-	var activeEchoes, activeShades int
+	activeEchoes, activeShades := s.countActivePlayers()
+	return s.evaluateWinState(activeEchoes, activeShades)
+}
 
+// countActivePlayers returns counts of active Echoes and Shades.
+func (s *ShadowPlay) countActivePlayers() (echoes, shades int) {
 	for _, player := range s.Players {
 		if player.IsEliminated {
 			continue
 		}
 		if player.Role == RoleEcho {
-			activeEchoes++
+			echoes++
 		} else {
-			activeShades++
+			shades++
 		}
 	}
+	return echoes, shades
+}
 
+// evaluateWinState checks win conditions and updates state if game ended.
+func (s *ShadowPlay) evaluateWinState(activeEchoes, activeShades int) bool {
 	if activeShades == 0 {
 		s.State = ShadowPlayEchoesWin
 		return true
 	}
-
 	if activeShades >= activeEchoes {
 		s.State = ShadowPlayShadesWin
 		return true
 	}
-
 	return false
 }
 

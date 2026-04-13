@@ -36,7 +36,7 @@ MURMUR uses libp2p's protocol multiplexing to run multiple application protocols
 
 The Surface Layer gossip protocol, identified as `/murmur/surface/1.0`, handles propagation of Surface Layer data: Waves, identity announcements, connection declarations, and cross-layer bridge injections.
 
-The Anonymous Layer gossip protocol, identified as `/murmur/anonymous/1.0`, handles propagation of Anonymous Layer data: Specter Waves, Beacon Waves, anonymous mechanic data (duels, events, councils, gifts, marks), and Specter identity announcements.
+The Anonymous Layer gossip protocol, identified as `/murmur/anonymous/1.0`, handles propagation of Anonymous Layer data: Specter Waves, Beacon Waves, anonymous mechanic data (mini-games, events, councils, gifts, marks), and Specter identity announcements.
 
 The Shroud relay protocol, identified as `/murmur/shroud/1.0`, handles encrypted relay traffic for Shroud Network circuits. This protocol carries onion-encrypted blobs between Shroud Nodes and between Shroud Nodes and endpoint clients.
 
@@ -160,7 +160,7 @@ MURMUR's gossip is organized into topics. Each topic is a named channel that nod
 
 **`murmur/anonymous/waves/1.0`** carries all Anonymous Layer Waves (Specter Waves type 0x02, Masked Waves type 0x07) and their associated metadata. This is the highest-traffic topic on the Anonymous Layer.
 
-**`murmur/anonymous/mechanics/1.0`** carries Anonymous Layer mechanic data: Phantom Gift declarations, Specter Mark placements, Duel Challenge/Accept/Start/Vote Waves, Masked Event announcements and join records, and Phantom Council formation/application/vote records.
+**`murmur/anonymous/mechanics/1.0`** carries Anonymous Layer mechanic data: Phantom Gift declarations, Specter Mark placements, Mini-Game Event/Join/Action/Result Waves, Masked Event announcements and join records, and Phantom Council formation/application/vote records.
 
 **`murmur/anonymous/beacons/1.0`** carries Beacon Waves (type 0x08) — high-effort, high-visibility broadcasts on the Anonymous Layer.
 
@@ -174,7 +174,7 @@ Every message published on a MURMUR gossip topic is validated by receiving nodes
 
 The baseline validation checks are as follows. The message must contain a valid Ed25519 signature from the declared publisher's public key. The message's PoW stamp must meet the minimum difficulty threshold for its type (16 leading zero bits for standard Waves, 24 for Beacon Waves). The message's timestamp must be within a 5-minute window of the receiving node's local clock (to prevent replay attacks while accommodating clock drift). The message must not be a duplicate of a previously received message (checked against a message ID cache that stores IDs for the trailing 60 minutes).
 
-Topic-specific validation adds further checks. Waves are validated for correct format and content size limits. Duel Waves are validated for correct round sequencing and participant identity. Masked Event Waves are validated for membership in the event's registered participant set. Council Waves are validated for council membership (though content is encrypted and cannot be validated by non-members, the signature must belong to a known council member).
+Topic-specific validation adds further checks. Waves are validated for correct format and content size limits. Mini-game Waves are validated for correct event reference, action sequencing, and participant identity. Masked Event Waves are validated for membership in the event's registered participant set. Council Waves are validated for council membership (though content is encrypted and cannot be validated by non-members, the signature must belong to a known council member).
 
 Messages that fail validation are dropped and not forwarded. The publishing peer is scored negatively in GossipSub's peer scoring system (described in the Spam Resistance section).
 
@@ -334,7 +334,7 @@ MURMUR does not attempt to guarantee content availability. It accepts the inhere
 
 Every message on every MURMUR gossip topic carries a PoW stamp. Nodes validate the PoW stamp as part of message validation before forwarding. Messages with invalid or insufficient PoW are dropped. This ensures that every message in the network has consumed a minimum computational cost, making large-scale spam economically expensive.
 
-The PoW difficulty thresholds are: 16 leading zero bits for standard Waves (approximately 0.5 seconds of computation on a modern CPU), 24 leading zero bits for Beacon Waves (approximately 30 seconds), and 16 leading zero bits for all mechanic-specific messages (duels, events, councils, gifts, marks, votes).
+The PoW difficulty thresholds are: 16 leading zero bits for standard Waves (approximately 0.5 seconds of computation on a modern CPU), 24 leading zero bits for Beacon Waves (approximately 30 seconds), and 16 leading zero bits for all mechanic-specific messages (mini-games, events, councils, gifts, marks, votes).
 
 ### GossipSub Peer Scoring
 

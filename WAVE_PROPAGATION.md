@@ -34,7 +34,7 @@ Every Wave contains the following fields.
 
 **Proof-of-Work Nonce.** A nonce satisfying the PoW difficulty requirement for the Wave type and layer. PoW is computed by the author at composition time.
 
-**Wave Type.** Enum indicating the Wave variant: Standard, Veiled, Abyssal, Sigil, Council, Summary, Whisper Artifact, or Duel Transcript.
+**Wave Type.** Enum indicating the Wave variant: Standard, Veiled, Abyssal, Sigil, Council, Summary, Whisper Artifact, or Mini-Game Record.
 
 **Encryption Envelope.** Present only for encrypted Wave types (Veiled, Abyssal, Council). Contains the encrypted payload and key derivation metadata. Structure varies by type.
 
@@ -156,13 +156,13 @@ Council Waves are Waves published by Phantom Councils — anonymous groups of Fo
 
 ### Summary Waves
 
-Summary Waves are special Waves published after the conclusion of time-limited anonymous events (Masked Events, completed Whisper Chains, concluded Duels). They bridge to the Surface Layer with full readability and serve as post-event artifacts.
+Summary Waves are special Waves published after the conclusion of time-limited anonymous events (Masked Events, completed Whisper Chains, concluded mini-games). They bridge to the Surface Layer with full readability and serve as post-event artifacts.
 
 **Masked Event Summaries.** Contains: event topic, duration, participant count (anonymous), top-Resonance contributions (anonymous, attributed to Masked keypairs which are now expired), and the Resonance Burst leaderboard.
 
 **Whisper Chain Artifacts.** Contains: the completed collaborative content, chain length (number of hops), and a visual thread representation.
 
-**Duel Transcripts.** Contains: the Duel topic, round-by-round Wave excerpts from both Specters, audience vote tallies per round, and the final outcome.
+**Mini-Game Records.** Contains: the game type, participant count (anonymous), performance highlights, winner pseudonym (if applicable), and outcome summary.
 
 Summary Waves propagate through the Surface Layer topology like Standard Waves. They are designed to be compelling standalone content — each one tells a story of something that happened in the anonymous layer and is shareable outside the app.
 
@@ -256,4 +256,4 @@ The following table describes how each Wave type appears on each layer.
 
 **Whisper Chain Artifact.** Surface Layer: full readable completed chain content. Anonymous Layer: full content.
 
-**Duel Transcript.** Surface Layer: full readable transcript with vote tallies. Anonymous Layer: full content.
+**Mini-Game Record.** Surface Layer: full readable record with outcome summary. Anonymous Layer: full content.

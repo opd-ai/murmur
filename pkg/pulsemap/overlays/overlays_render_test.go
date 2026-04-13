@@ -32,12 +32,12 @@ func TestShroudIndicator(t *testing.T) {
 	ShroudIndicator(img, 50, 50, false, 0.5)
 }
 
-func TestDuelVisualizationRender(t *testing.T) {
-	d := &DuelVisualization{
-		Duelist1X: 20,
-		Duelist1Y: 20,
-		Duelist2X: 80,
-		Duelist2Y: 80,
+func TestMiniGameVisualizationRender(t *testing.T) {
+	d := &MiniGameVisualization{
+		Player1X:  20,
+		Player1Y:  20,
+		Player2X:  80,
+		Player2Y:  80,
 		Color1:    color.RGBA{255, 0, 0, 255},
 		Color2:    color.RGBA{0, 0, 255, 255},
 		Intensity: 0.8,

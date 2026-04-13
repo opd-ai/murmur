@@ -122,7 +122,7 @@ func (s *ModeScreen) SimulateSpecterGeneration() error {
 	}
 
 	s.specterKeypair = kp
-	s.specterName = generateSpecterName(kp.PublicKey[:])
+	s.specterName = GenerateSpecterName(kp.PublicKey[:])
 
 	if s.callbacks.OnSpecterGenerated != nil {
 		s.callbacks.OnSpecterGenerated(kp, s.specterName)
@@ -138,29 +138,4 @@ func (s *ModeScreen) SimulateConfirmation() {
 	if s.callbacks.OnPhaseComplete != nil {
 		s.callbacks.OnPhaseComplete(flow.PhaseModeSelection)
 	}
-}
-
-// generateSpecterName creates a two-word pseudonym from public key bytes.
-func generateSpecterName(pubKey []byte) string {
-	adjectives := []string{
-		"Silent", "Hollow", "Spectral", "Veiled", "Shadow",
-		"Whispered", "Hidden", "Faded", "Drifting", "Phantom",
-		"Ethereal", "Misted", "Shrouded", "Obscured", "Wandering",
-		"Fleeting", "Echoing", "Elusive", "Distant", "Cloaked",
-	}
-	nouns := []string{
-		"Beacon", "Cipher", "Shade", "Wraith", "Echo",
-		"Drift", "Veil", "Murmur", "Whisper", "Fog",
-		"Mist", "Ghost", "Specter", "Phantom", "Shadow",
-		"Presence", "Trace", "Remnant", "Glimmer", "Void",
-	}
-
-	if len(pubKey) < 2 {
-		return "Unknown Specter"
-	}
-
-	adjIdx := int(pubKey[0]) % len(adjectives)
-	nounIdx := int(pubKey[1]) % len(nouns)
-
-	return adjectives[adjIdx] + " " + nouns[nounIdx]
 }

@@ -242,55 +242,61 @@ func (s *BootstrapScreen) drawPulseMapIntro(screen *ebiten.Image) {
 
 // drawPulseMapPreview renders a simplified Pulse Map.
 func (s *BootstrapScreen) drawPulseMapPreview(screen *ebiten.Image, centerX, centerY float32) {
-	// Background area
-	previewWidth := float32(400)
-	previewHeight := float32(200)
+	s.drawPreviewBackground(screen, centerX, centerY)
+	s.drawPreviewUserNode(screen, centerX, centerY)
+	peerPositions := s.getPreviewPeerPositions(centerX, centerY)
+	s.drawPreviewPeers(screen, centerX, centerY, peerPositions)
+	s.drawPreviewHighlight(screen, centerX, centerY, peerPositions)
+}
+
+// drawPreviewBackground renders the preview area background and border.
+func (s *BootstrapScreen) drawPreviewBackground(screen *ebiten.Image, centerX, centerY float32) {
+	previewWidth, previewHeight := float32(400), float32(200)
 	previewX := centerX - previewWidth/2
 	previewY := centerY - previewHeight/2
+	vector.DrawFilledRect(screen, previewX, previewY, previewWidth, previewHeight, color.RGBA{20, 25, 35, 255}, true)
+	vector.StrokeRect(screen, previewX, previewY, previewWidth, previewHeight, 1, color.RGBA{50, 60, 80, 255}, true)
+}
 
-	bgColor := color.RGBA{20, 25, 35, 255}
-	vector.DrawFilledRect(screen, previewX, previewY, previewWidth, previewHeight, bgColor, true)
-	borderColor := color.RGBA{50, 60, 80, 255}
-	vector.StrokeRect(screen, previewX, previewY, previewWidth, previewHeight, 1, borderColor, true)
-
-	// Central user node
-	userColor := color.RGBA{230, 180, 100, 255}
+// drawPreviewUserNode renders the central user node with pulse effect.
+func (s *BootstrapScreen) drawPreviewUserNode(screen *ebiten.Image, centerX, centerY float32) {
 	userPulse := float32(1 + 0.1*math.Sin(s.animPhase*2*math.Pi))
-	vector.DrawFilledCircle(screen, centerX, centerY, 15*userPulse, userColor, true)
+	vector.DrawFilledCircle(screen, centerX, centerY, 15*userPulse, color.RGBA{230, 180, 100, 255}, true)
+}
 
-	// Connected peers
-	peerPositions := []struct{ x, y float32 }{
+// getPreviewPeerPositions returns static peer positions for the preview.
+func (s *BootstrapScreen) getPreviewPeerPositions(centerX, centerY float32) []struct{ x, y float32 } {
+	return []struct{ x, y float32 }{
 		{centerX - 60, centerY - 40},
 		{centerX + 70, centerY - 30},
 		{centerX - 50, centerY + 50},
 		{centerX + 65, centerY + 45},
 		{centerX + 120, centerY - 10},
 	}
+}
 
+// drawPreviewPeers renders peer nodes and their connections.
+func (s *BootstrapScreen) drawPreviewPeers(screen *ebiten.Image, centerX, centerY float32, positions []struct{ x, y float32 }) {
 	peerColor := color.RGBA{100, 150, 230, 200}
 	lineColor := color.RGBA{60, 90, 140, 100}
-
-	for _, pos := range peerPositions {
-		// Draw connection line
+	for _, pos := range positions {
 		vector.StrokeLine(screen, centerX, centerY, pos.x, pos.y, 1, lineColor, true)
-		// Draw peer node
 		vector.DrawFilledCircle(screen, pos.x, pos.y, 8, peerColor, true)
 	}
+}
 
-	// Highlight based on tutorial step
+// drawPreviewHighlight renders tutorial step highlights.
+func (s *BootstrapScreen) drawPreviewHighlight(screen *ebiten.Image, centerX, centerY float32, positions []struct{ x, y float32 }) {
 	switch s.tutorialStep {
-	case 0: // "You are here"
-		highlightColor := color.RGBA{255, 220, 100, 100}
-		vector.StrokeCircle(screen, centerX, centerY, 25, 2, highlightColor, true)
-	case 1: // "Connections"
-		highlightColor := color.RGBA{100, 200, 255, 100}
-		for _, pos := range peerPositions {
-			vector.StrokeLine(screen, centerX, centerY, pos.x, pos.y, 3, highlightColor, true)
+	case 0:
+		vector.StrokeCircle(screen, centerX, centerY, 25, 2, color.RGBA{255, 220, 100, 100}, true)
+	case 1:
+		for _, pos := range positions {
+			vector.StrokeLine(screen, centerX, centerY, pos.x, pos.y, 3, color.RGBA{100, 200, 255, 100}, true)
 		}
-	case 2: // "Other participants"
-		highlightColor := color.RGBA{100, 200, 255, 100}
-		for _, pos := range peerPositions {
-			vector.StrokeCircle(screen, pos.x, pos.y, 15, 2, highlightColor, true)
+	case 2:
+		for _, pos := range positions {
+			vector.StrokeCircle(screen, pos.x, pos.y, 15, 2, color.RGBA{100, 200, 255, 100}, true)
 		}
 	}
 }
@@ -357,15 +363,8 @@ func (s *BootstrapScreen) drawComplete(screen *ebiten.Image) {
 	titleY := float32(60)
 	s.drawCenteredText(screen, "You're Connected!", centerX, titleY, 22, color.RGBA{220, 220, 225, 255})
 
-	// Success animation
-	pulse := float32(1 + 0.1*math.Sin(s.animPhase*2*math.Pi))
-	successColor := color.RGBA{100, 200, 130, 255}
-	vector.DrawFilledCircle(screen, centerX, centerY, 40*pulse, successColor, true)
-
-	// Checkmark (simplified)
-	checkColor := color.RGBA{240, 240, 245, 255}
-	vector.StrokeLine(screen, centerX-15, centerY, centerX-5, centerY+12, 3, checkColor, true)
-	vector.StrokeLine(screen, centerX-5, centerY+12, centerX+15, centerY-10, 3, checkColor, true)
+	// Success animation using shared helper
+	DrawSuccessAnimation(screen, centerX, centerY, s.animPhase, DefaultSuccessStyle())
 
 	// Stats
 	statsY := centerY + 80

@@ -40,11 +40,11 @@ A social surplus moment occurs when a user experiences something they want to sh
 
 **Phantom Gifts from strangers.** When a user receives a Phantom Gift — a mysterious cosmetic effect on their node from an anonymous Specter — the experience is novel, flattering, and unexplainable to someone not on the platform. The user naturally wants to tell a friend: "Someone anonymous just sent me this glowing thing on my profile and I have no idea who they are." This is a story that demands context — the friend needs to see MURMUR to understand it, which creates an invitation opportunity.
 
-**Specter Duel spectacles.** A well-attended Specter Duel — two anonymous debaters sparring on a provocative topic while an audience votes — is inherently shareable. The duel transcript is public and can be screenshotted or described in conversation. The combination of intellectual contest and complete anonymity is a novel social format that generates curiosity in people who have not experienced it.
+**Mini-game spectacles.** Active mini-games — Cipher Puzzle races, Specter Hunts across the Pulse Map, Territory Drift competitions, Sigil Forge showcases — are inherently shareable. The game results are public and can be screenshotted or described in conversation. The combination of interactive competition and complete anonymity is a novel social format that generates curiosity in people who have not experienced it.
 
 **Masked Event afterglow.** Participating in a Masked Event — a temporary space where even Specter-level anonymity is shed and everyone is truly unknown — is an intense social experience. The post-event feeling ("I just had this incredible conversation and I have no idea who any of those people were") is a powerful social surplus moment.
 
-**Pulse Map beauty.** The Pulse Map is designed to be visually striking. A dense, active network with glowing nodes, pulsing connections, drifting particles, duel sparks, event domes, and council constellations is a spectacle. Screenshots and screen recordings of the Pulse Map are inherently eye-catching and generate "what is this?" curiosity in viewers who have not seen MURMUR.
+**Pulse Map beauty.** The Pulse Map is designed to be visually striking. A dense, active network with glowing nodes, pulsing connections, drifting particles, mini-game glyphs, event domes, and council constellations is a spectacle. Screenshots and screen recordings of the Pulse Map are inherently eye-catching and generate "what is this?" curiosity in viewers who have not seen MURMUR.
 
 **Specter Marks as mystery.** When a user's node accumulates Specter Marks — small anonymous sigils placed by high-Resonance Specters — the effect is visually distinctive and socially mysterious. A Surface Layer user who sees anonymous marks on their node is compelled to explore: who are these people, and why did they notice me? This curiosity can drive the user to explore Hybrid mode and also creates a conversation piece for external sharing.
 
@@ -102,7 +102,7 @@ Every new user who joins and forms connections increases the visual density for 
 
 ### Anonymous Layer as Curiosity Engine
 
-The Anonymous Layer serves a specific growth function beyond its privacy utility: it generates curiosity. Open-mode users can see the effects of the Anonymous Layer — Phantom Gifts appearing on their nodes, Specter Marks accumulating on popular nodes, duel sparks flickering in the distance — without being able to fully interact with the anonymous world. These visible-but-unexplained phenomena create a persistent pull toward upgrading to Hybrid mode.
+The Anonymous Layer serves a specific growth function beyond its privacy utility: it generates curiosity. Open-mode users can see the effects of the Anonymous Layer — Phantom Gifts appearing on their nodes, Specter Marks accumulating on popular nodes, mini-game glyphs flickering in the distance — without being able to fully interact with the anonymous world. These visible-but-unexplained phenomena create a persistent pull toward upgrading to Hybrid mode.
 
 The upgrade from Open to Hybrid is itself a growth event. When a user upgrades to Hybrid mode, they generate a Specter identity and begin participating on the Anonymous Layer. Their node gains a Specter counterpart on the Anonymous Layer map. Their participation increases Anonymous Layer activity, which increases the visible anonymous phenomena that Open-mode users observe, which increases the curiosity pull for other Open-mode users. The Anonymous Layer is a curiosity flywheel: the more people participate, the more curious non-participants become, which drives more participation.
 
@@ -128,7 +128,7 @@ When a Surface Layer node accumulates Specter Marks from multiple high-Resonance
 
 ### The Cold Start Problem
 
-The Seeding phase is the most challenging growth period. The network has few users, little content, sparse connections, and an empty Pulse Map. The core growth loop cannot function because the social surplus moments require a minimum level of network activity to occur. A user who joins and sees three dots on an empty map does not experience the wonder of the Pulse Map, does not receive Phantom Gifts (there are few Specters to send them), and does not witness Specter Duels (there are not enough Specters to duel or watch).
+The Seeding phase is the most challenging growth period. The network has few users, little content, sparse connections, and an empty Pulse Map. The core growth loop cannot function because the social surplus moments require a minimum level of network activity to occur. A user who joins and sees three dots on an empty map does not experience the wonder of the Pulse Map, does not receive Phantom Gifts (there are few Specters to send them), and does not witness mini-game events (there are not enough Specters to participate or watch).
 
 MURMUR's cold start strategy relies on three pillars: founder seeding, community bootstrapping, and intrinsic first-experience value.
 
@@ -156,7 +156,7 @@ The onboarding's guided exploration phase includes adaptive language for sparse 
 
 ### Network Effect Activation
 
-At approximately 1,000 active nodes, the network reaches a threshold where organic social dynamics begin to function. The Pulse Map has enough nodes to form visible clusters. Gossip propagation reaches enough people for Waves to generate replies and amplifications. The Anonymous Layer has enough Specters for Phantom Gifts, Specter Duels, and Masked Events to occur regularly. The core growth loop activates: users experience social surplus moments and generate invitations.
+At approximately 1,000 active nodes, the network reaches a threshold where organic social dynamics begin to function. The Pulse Map has enough nodes to form visible clusters. Gossip propagation reaches enough people for Waves to generate replies and amplifications. The Anonymous Layer has enough Specters for Phantom Gifts, mini-games, and Masked Events to occur regularly. The core growth loop activates: users experience social surplus moments and generate invitations.
 
 During the Expansion phase, the growth strategy shifts from active seeding to organic amplification. The focus is on maximizing the virality coefficient — ensuring that each user generates more than one successful invitation — through the mechanisms described in the Invitation Mechanics and Network Effect Amplifiers sections.
 
@@ -174,7 +174,7 @@ During the Expansion phase, organic communities begin to form as clusters of den
 
 MURMUR does not have explicit group or community features (no named groups, no community pages, no moderation tools). Communities are emergent — they form organically from connection patterns and shared activity. This emergent quality is intentional: it prevents the platform from being dominated by a small number of large, officially designated communities (as happens on platforms with formal group features) and instead fosters a diverse, fluid ecosystem of overlapping social clusters.
 
-Phantom Councils serve as a proto-governance mechanism for emerging communities. A cluster of Specters with shared interests may form a Council to deliberate on community norms, coordinate events, or discuss shared concerns. Councils are not representative of their broader community (they are self-selected, exclusive, and secretive), but they provide a deliberative infrastructure that can influence community culture through the Marks, Gifts, and Duels their members conduct.
+Phantom Councils serve as a proto-governance mechanism for emerging communities. A cluster of Specters with shared interests may form a Council to coordinate on community norms, organize events, or discuss shared concerns. Councils are not representative of their broader community (they are self-selected, exclusive, and secretive), but they provide a coordination infrastructure that can influence community culture through the Marks, Gifts, and mini-games their members conduct.
 
 ### Geographic and Linguistic Diversity
 
@@ -202,7 +202,7 @@ These scaling mechanisms are not implemented in the current specification but ar
 
 ### Retention Through Depth
 
-Long-term retention — keeping users engaged over months and years — requires depth of experience. MURMUR provides depth through the Resonance progression system (which provides long-term goals and milestone unlocks), the evolving social dynamics of the Anonymous Layer (Duels, Events, and Councils provide ongoing novel experiences), the Pulse Map's visual evolution (a user's neighborhood changes over time as connections form and dissolve, clusters grow and shift, and anonymous mechanics create visual events), and the inherent unpredictability of a decentralized social space (without algorithmic curation, the network's social dynamics are organic and surprising in ways that curated feeds are not).
+Long-term retention — keeping users engaged over months and years — requires depth of experience. MURMUR provides depth through the Resonance progression system (which provides long-term goals and milestone unlocks), the evolving social dynamics of the Anonymous Layer (mini-games, Events, and Councils provide ongoing novel experiences), the Pulse Map's visual evolution (a user's neighborhood changes over time as connections form and dissolve, clusters grow and shift, and anonymous mechanics create visual events), and the inherent unpredictability of a decentralized social space (without algorithmic curation, the network's social dynamics are organic and surprising in ways that curated feeds are not).
 
 The Resonance system's higher-tier unlocks (Council eligibility at Resonance 200) provide aspirational goals for long-term users. A user who has reached Phantom (Resonance 100) and exhausted the basic anonymous mechanics can aspire to Council membership — a qualitatively different social experience that requires sustained, high-quality anonymous participation. This aspirational layer prevents the "endgame plateau" that afflicts progression systems without sufficient depth.
 
@@ -230,7 +230,7 @@ These metrics are computed locally by any interested node. Community members can
 
 ### Community-Driven Growth Assessment
 
-In the absence of centralized analytics, growth assessment is a community activity. Community members discuss network health in Waves, in Specter Duels (debating whether the network is growing or stagnating), and in Phantom Councils (deliberating on growth strategies). This community-driven approach to growth management is consistent with MURMUR's decentralized philosophy: the network's participants collectively observe, assess, and guide its growth, rather than delegating this function to a centralized operator.
+In the absence of centralized analytics, growth assessment is a community activity. Community members discuss network health in Waves, in mini-game events (competing on topics like whether the network is growing or stagnating), and in Phantom Councils (coordinating on growth strategies). This community-driven approach to growth management is consistent with MURMUR's decentralized philosophy: the network's participants collectively observe, assess, and guide its growth, rather than delegating this function to a centralized operator.
 
 ---
 
@@ -280,7 +280,7 @@ The suggested first-Wave text ("Hello, MURMUR") is deliberately generic rather t
 
 When an Open-mode user upgrades to Hybrid mode, the upgrade process recapitulates the Anonymous Layer portions of onboarding: Specter keypair generation, Specter sigil and pseudonym reveal, Anonymous Layer tutorial tooltips, and Shroud circuit establishment. This upgrade experience is designed to recreate the sense of discovery and novelty that the initial onboarding provided, generating a new social surplus moment that can trigger a new round of invitations.
 
-The upgrade prompt is never pushed aggressively. The Anonymous Layer's curiosity engine (visible Phantom Gifts, Specter Marks, duel sparks) provides a persistent, ambient pull toward upgrading. When the user is ready, the upgrade is available in settings with a single tap. The timing is organic — the user upgrades when their curiosity exceeds their inertia, not when the application demands it.
+The upgrade prompt is never pushed aggressively. The Anonymous Layer's curiosity engine (visible Phantom Gifts, Specter Marks, mini-game glyphs) provides a persistent, ambient pull toward upgrading. When the user is ready, the upgrade is available in settings with a single tap. The timing is organic — the user upgrades when their curiosity exceeds their inertia, not when the application demands it.
 
 ---
 
@@ -290,15 +290,15 @@ The upgrade prompt is never pushed aggressively. The Anonymous Layer's curiosity
 
 In the absence of centralized analytics, the following indicators — observable by any participant — signal healthy growth.
 
-The DHT peer count estimate increases steadily over time. Daily gossip volume on the Wave topics increases. The ratio of Beacon Waves to standard Waves remains stable (indicating that Anonymous Layer engagement depth is keeping pace with overall activity growth). New Connection Declaration frequency increases. The Pulse Map's visual density in the user's neighborhood increases over time. Masked Events and Specter Duels occur with increasing frequency.
+The DHT peer count estimate increases steadily over time. Daily gossip volume on the Wave topics increases. The ratio of Beacon Waves to standard Waves remains stable (indicating that Anonymous Layer engagement depth is keeping pace with overall activity growth). New Connection Declaration frequency increases. The Pulse Map's visual density in the user's neighborhood increases over time. Masked Events and mini-games occur with increasing frequency.
 
 ### Growth Failure Indicators
 
 The following indicators signal growth problems.
 
-The DHT peer count estimate stagnates or declines. Daily gossip volume declines. The user's Pulse Map neighborhood becomes sparser over time (connections going offline and not being replaced). Masked Events and Specter Duels become rare. The user stops receiving Phantom Gifts (indicating that Anonymous Layer activity has declined). Sync requests return increasingly sparse results (indicating that fewer peers are retaining content).
+The DHT peer count estimate stagnates or declines. Daily gossip volume declines. The user's Pulse Map neighborhood becomes sparser over time (connections going offline and not being replaced). Masked Events and mini-games become rare. The user stops receiving Phantom Gifts (indicating that Anonymous Layer activity has declined). Sync requests return increasingly sparse results (indicating that fewer peers are retaining content).
 
-These indicators do not require centralized monitoring. Each user can observe them in their own experience. A user who notices growth failure indicators can respond by increasing their own activity (publishing more Waves, sending more Phantom Gifts, organizing Masked Events), by inviting new users from their external social network, or by discussing the network's health in Waves and Duels to mobilize community action.
+These indicators do not require centralized monitoring. Each user can observe them in their own experience. A user who notices growth failure indicators can respond by increasing their own activity (publishing more Waves, sending more Phantom Gifts, organizing Masked Events), by inviting new users from their external social network, or by discussing the network's health in Waves and mini-games to mobilize community action.
 
 ### Long-Term Vision
 

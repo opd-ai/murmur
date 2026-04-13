@@ -20,7 +20,7 @@ An amplification is a public endorsement of a Wave by a node other than the Wave
 
 ### Anonymous Layer
 
-The Anonymous Layer is one of MURMUR's two social layers. It is a parallel social space where participants interact through pseudonymous Specter identities that are cryptographically unlinked to their main identities. The Anonymous Layer has its own gossip topics, its own connection graph, its own visual aesthetic (cool blue-purple tones, translucent nodes, particle effects), and its own exclusive social mechanics (Phantom Gifts, Specter Duels, Masked Events, Phantom Councils, Specter Marks, Whisper Chains). The Anonymous Layer is accessible to users in Hybrid mode and Fortress mode. Open-mode users cannot see or interact with the Anonymous Layer.
+The Anonymous Layer is one of MURMUR's two social layers. It is a parallel social space where participants interact through pseudonymous Specter identities that are cryptographically unlinked to their main identities. The Anonymous Layer has its own gossip topics, its own connection graph, its own visual aesthetic (cool blue-purple tones, translucent nodes, particle effects), and its own exclusive social mechanics (Phantom Gifts, mini-games, Masked Events, Phantom Councils, Specter Marks, Whisper Chains). The Anonymous Layer is accessible to users in Hybrid mode and Fortress mode. Open-mode users cannot see or interact with the Anonymous Layer.
 
 ### AutoNAT
 
@@ -74,9 +74,9 @@ A display name is an optional, user-chosen label (1–64 UTF-8 characters) that 
 
 The distributed hash table is a decentralized key-value store used for peer discovery and peer routing in MURMUR. MURMUR uses the Kademlia DHT implementation provided by libp2p. The DHT allows any node to find the network address of any other node given its Peer ID, without requiring a central directory. It is also used for content routing — finding nodes that hold specific publishers' Waves.
 
-### Duel
+### Mini-Game
 
-See Specter Duel.
+See Anonymous Mini-Games (Cipher Puzzles, Specter Hunts, Territory Drift, Oracle Pools, Sigil Forge, Shadow Play).
 
 ### Echo
 
@@ -152,7 +152,7 @@ libp2p is the open-source modular peer-to-peer networking stack that provides MU
 
 ### Macro View
 
-The macro view is the widest zoom level on the Pulse Map, showing the entire network or a large portion of it. Nodes are rendered as small colored dots without sigils, labels, or halos. Connections are sparse. Cluster structure is visible as bright clouds of dots. Active Masked Events, Specter Duels, and Phantom Councils are shown as overlay icons. The macro view is useful for understanding overall network structure before zooming in.
+The macro view is the widest zoom level on the Pulse Map, showing the entire network or a large portion of it. Nodes are rendered as small colored dots without sigils, labels, or halos. Connections are sparse. Cluster structure is visible as bright clouds of dots. Active Masked Events, mini-games, and Phantom Councils are shown as overlay icons. The macro view is useful for understanding overall network structure before zooming in.
 
 ### Main Identity
 
@@ -214,7 +214,7 @@ In the networking context, a node is a single instance of the MURMUR application
 
 ### Node Detail Panel
 
-The Node Detail Panel is a slide-in interface panel that appears when a user selects a node on the Pulse Map. It displays the node's profile information (display name, sigil, fingerprint, or Specter pseudonym), recent Waves, connection list, Specter Resonance (for Anonymous Layer nodes), and available interaction options (send Wave, send Phantom Gift, place Specter Mark, initiate Whisper Chain, challenge to duel, etc.).
+The Node Detail Panel is a slide-in interface panel that appears when a user selects a node on the Pulse Map. It displays the node's profile information (display name, sigil, fingerprint, or Specter pseudonym), recent Waves, connection list, Specter Resonance (for Anonymous Layer nodes), and available interaction options (send Wave, send Phantom Gift, place Specter Mark, initiate Whisper Chain, join mini-game, etc.).
 
 ### Noise Protocol Framework
 
@@ -246,7 +246,7 @@ A Peer ID is a node's network-layer identifier in the libp2p framework. It is de
 
 ### Phantom Council
 
-A Phantom Council is a persistent, private, anonymous deliberation group on the Anonymous Layer. A Council consists of 3–13 high-Resonance Specters who meet on an encrypted private gossip topic. Councils have structured voting mechanics for internal deliberation. Council creation requires Fortress mode. Council membership requires a minimum Specter Resonance of 200 and unanimous approval from existing members. Council existence and membership are publicly visible, but Council communications are encrypted and private.
+A Phantom Council is a persistent, private, anonymous coordination group on the Anonymous Layer. A Council consists of 3–13 high-Resonance Specters who meet on an encrypted private gossip topic. Councils have structured voting mechanics for internal coordination. Council creation requires Fortress mode. Council membership requires a minimum Specter Resonance of 200 and unanimous approval from existing members. Council existence and membership are publicly visible, but Council communications are encrypted and private.
 
 ### Phantom Gift
 
@@ -270,7 +270,7 @@ The Pulse Map is MURMUR's primary user interface — a real-time, interactive, t
 
 ### Pulse Notification
 
-A Pulse Notification is a brief, non-intrusive visual indicator at the edge of the Pulse Map viewport that alerts the user to a significant event (new Wave from a connection, Phantom Gift received, Specter Mark placed, duel challenge, Whisper Chain message, etc.). Tapping a notification pans the viewport to the event's location. Notifications are prioritized (high, medium, low) to prevent overload.
+A Pulse Notification is a brief, non-intrusive visual indicator at the edge of the Pulse Map viewport that alerts the user to a significant event (new Wave from a connection, Phantom Gift received, Specter Mark placed, mini-game event, Whisper Chain message, etc.). Tapping a notification pans the viewport to the event's location. Notifications are prioritized (high, medium, low) to prevent overload.
 
 ### QUIC
 
@@ -332,9 +332,9 @@ A Specter is an anonymous identity on the Anonymous Layer. Each Specter is an in
 
 A Specter connection is a mutual social bond between two Specter identities on the Anonymous Layer. Like Surface Layer connections, Specter connections are formed through signed mutual declarations. Specter connections influence Anonymous Layer Pulse Map topology and contribute to the Connection Diversity signal in Specter Resonance.
 
-### Specter Duel
+### Anonymous Mini-Games
 
-A Specter Duel is a structured, public, anonymous debate between two Specters on the Anonymous Layer. A duel is initiated by a Duel Challenge Wave declaring a topic and stance, accepted by another Specter taking the opposing stance, and conducted as a series of alternating argument Waves within a time limit (30, 60, or 120 minutes). Audience Specters vote on the winner after the duel concludes, with votes weighted by the voter's Specter Resonance. The winner receives a temporary Resonance bonus. On the Pulse Map, active duels appear as jagged, sparking lines between the participants' nodes.
+Anonymous mini-games are a diverse ecosystem of lightweight interactive games played on the Anonymous Layer that leverage anonymity as a core mechanic. The six primary mini-game types are: **Cipher Puzzles** (collaborative and competitive cryptographic challenges, unlocked at Wraith/Resonance 50), **Specter Hunts** (timed scavenger hunts across Pulse Map topology, unlocked at Shade-Wraith/Resonance 75), **Territory Drift** (persistent ambient territory claim game, unlocked at Shade/Resonance 25), **Oracle Pools** (anonymous prediction markets on network events, unlocked at Phantom/Resonance 100), **Sigil Forge** (timed creative challenges, unlocked at Wraith/Resonance 50), and **Shadow Play** (social deduction game, unlocked at Revenant/Resonance 200). All mini-games contribute to Specter Resonance through the Mini-Game Activity signal. On the Pulse Map, active mini-games appear as distinctive visual events with type-specific icons and effects.
 
 ### Specter Mark
 
@@ -346,7 +346,7 @@ A Specter pseudonym is a two-word identifier derived from a Specter public key h
 
 ### Specter Resonance
 
-Specter Resonance is a composite metric representing a Specter's standing, influence, and contribution on the Anonymous Layer. Resonance is computed locally by each observing node from publicly observable signals: Wave Publication Consistency, Amplification Reception, Connection Diversity, Duel Record, Shroud Node Uptime, Whisper Chain Contributions, and Event Participation. Resonance determines a Specter node's visual size on the Pulse Map, unlocks anonymous mechanics at milestones (25, 50, 100, 200), weights duel votes, and qualifies Specters for Phantom Council membership. Because Resonance is computed locally, different observers may compute slightly different values for the same Specter.
+Specter Resonance is a composite metric representing a Specter's standing, influence, and contribution on the Anonymous Layer. Resonance is computed locally by each observing node from publicly observable signals: Wave Publication Consistency, Amplification Reception, Connection Diversity, Mini-Game Record, Shroud Node Uptime, Whisper Chain Contributions, and Event Participation. Resonance determines a Specter node's visual size on the Pulse Map, unlocks anonymous mechanics at milestones (25, 50, 75, 100, 200), weights mini-game outcomes, and qualifies Specters for Phantom Council membership. Because Resonance is computed locally, different observers may compute slightly different values for the same Specter.
 
 ### Specter Wave
 
@@ -370,7 +370,7 @@ A transport keypair is a dedicated Ed25519 keypair used by Fortress-mode nodes f
 
 ### Wave
 
-A Wave is the fundamental unit of content in MURMUR. A Wave is a signed, timestamped message with a maximum content size of 2,048 bytes, published on a gossip topic and propagated through the network. Every Wave carries a Proof of Work stamp. Waves are typed: Standard Waves (0x01) on the Surface Layer, Specter Waves (0x02) on the Anonymous Layer, Amplification Waves (0x03), Duel Waves (0x04), Echo Waves (0x05), Reply Waves (0x06), Masked Waves (0x07), and Beacon Waves (0x08). Waves are retained for 30 days (7 days for Masked Waves) before being garbage collected.
+A Wave is the fundamental unit of content in MURMUR. A Wave is a signed, timestamped message with a maximum content size of 2,048 bytes, published on a gossip topic and propagated through the network. Every Wave carries a Proof of Work stamp. Waves are typed: Standard Waves (0x01) on the Surface Layer, Specter Waves (0x02) on the Anonymous Layer, Amplification Waves (0x03), Mini-Game Waves (0x04), Echo Waves (0x05), Reply Waves (0x06), Masked Waves (0x07), and Beacon Waves (0x08). Waves are retained for 30 days (7 days for Masked Waves) before being garbage collected.
 
 ### Wave ID
 

@@ -39,10 +39,10 @@ type NodeStyle struct {
 
 // EdgeStyle contains visual properties for an edge.
 type EdgeStyle struct {
-	Color  color.RGBA
-	Age    float64
-	Active bool
-	IsDuel bool
+	Color      color.RGBA
+	Age        float64
+	Active     bool
+	IsMiniGame bool
 }
 
 // ZoomLevelFromScale determines the zoom level from a scale factor.

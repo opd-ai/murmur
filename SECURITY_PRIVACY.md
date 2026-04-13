@@ -82,13 +82,13 @@ Residual risk: if the adversary controls a Shroud Node that is selected as part 
 
 ### Class 3: Sybil Attacker
 
-A Sybil attacker generates a large number of MURMUR identities (both main identities and Specter identities) to gain disproportionate influence over the network. The attacker's goals may include manipulating Specter Resonance rankings, swaying Specter Duel votes, overwhelming Masked Events with controlled participants, gaining admission to Phantom Councils, or operating enough Shroud Nodes to frequently capture both entry and exit positions in circuits.
+A Sybil attacker generates a large number of MURMUR identities (both main identities and Specter identities) to gain disproportionate influence over the network. The attacker's goals may include manipulating Specter Resonance rankings, swaying mini-game outcomes, overwhelming Masked Events with controlled participants, gaining admission to Phantom Councils, or operating enough Shroud Nodes to frequently capture both entry and exit positions in circuits.
 
 Against this adversary, MURMUR's primary defense is Proof of Work. Every identity requires PoW to register (main identity PoW cost is approximately 0.5 seconds of CPU time). Every Wave requires PoW to publish. Operating a Shroud Node requires elevated PoW (24 leading zero bits, approximately 30 seconds per announcement). Creating thousands of identities and maintaining active participation across all of them requires sustained computational investment proportional to the number of identities.
 
-Specter Resonance provides a secondary defense. Resonance is earned through sustained, quality participation over time. A Sybil attacker can create many Specters, but each Specter starts at Resonance 0 and must independently earn Resonance through Wave publication, amplification, duel participation, event participation, relay service, and connection formation. Building high Resonance across many Specters requires extensive, ongoing effort that cannot be shortcut.
+Specter Resonance provides a secondary defense. Resonance is earned through sustained, quality participation over time. A Sybil attacker can create many Specters, but each Specter starts at Resonance 0 and must independently earn Resonance through Wave publication, amplification, mini-game participation, event participation, relay service, and connection formation. Building high Resonance across many Specters requires extensive, ongoing effort that cannot be shortcut.
 
-Residual risk: PoW costs scale linearly with Sybil count, not exponentially. A well-resourced attacker (with access to cloud computing or specialized hardware) can generate thousands of identities at manageable cost. Resonance gating mitigates the impact of low-Resonance Sybils (they cannot vote in duel elections, join councils, or place marks), but the attacker can still use Sybils for gossip-layer disruption, DHT pollution, and traffic analysis.
+Residual risk: PoW costs scale linearly with Sybil count, not exponentially. A well-resourced attacker (with access to cloud computing or specialized hardware) can generate thousands of identities at manageable cost. Resonance gating mitigates the impact of low-Resonance Sybils (they cannot participate in gated mini-games, join councils, or place marks), but the attacker can still use Sybils for gossip-layer disruption, DHT pollution, and traffic analysis.
 
 ### Class 4: Global Passive Adversary
 
@@ -212,7 +212,7 @@ The Resonance signals and their manipulation resistance are as follows.
 
 **Connection Diversity** is based on the number and diversity of a Specter's connections to other Specters. This signal rewards Specters with connections to many distinct, high-Resonance Specters. Sybil manipulation requires creating many fake Specters with independent high Resonance, which is expensive (see above).
 
-**Duel Record** is based on net wins in Specter Duels over 30 days. This signal is resistant to manipulation because duel outcomes are determined by audience votes weighted by Resonance. An attacker would need to control a large Resonance-weighted voting bloc to guarantee duel victories.
+**Mini-Game Record** is based on participation and performance across mini-games (Cipher Puzzles, Specter Hunts, Territory Drift, Oracle Pools, Sigil Forge, Shadow Play) over 30 days. This signal is resistant to manipulation because game outcomes are determined by verifiable cryptographic challenges, network-observable events, or audience amplification weighted by Resonance. An attacker would need sustained, high-quality participation across multiple game types to inflate this signal.
 
 **Shroud Node Uptime** is based on the Specter's availability and reliability as a Shroud Node. This signal requires the Specter to actually operate a Shroud Node and relay traffic successfully, which imposes ongoing resource costs (bandwidth, availability).
 
@@ -258,7 +258,7 @@ MURMUR provides no protection against self-censorship (a user's choice not to pu
 
 ### Zero Trust Architecture
 
-MURMUR operates on a zero-trust model. No node trusts any other node. Every message is independently verified (signature, PoW, format, timestamp). Every computation is independently performed (Resonance scores, duel tallies, event summaries). Every claim is independently checked (ZK Claims are verified against local Resonance computations). The protocol is designed so that a node's security does not degrade even if all of its peers are adversarial — the node can verify all critical properties from the message data alone.
+MURMUR operates on a zero-trust model. No node trusts any other node. Every message is independently verified (signature, PoW, format, timestamp). Every computation is independently performed (Resonance scores, mini-game tallies, event summaries). Every claim is independently checked (ZK Claims are verified against local Resonance computations). The protocol is designed so that a node's security does not degrade even if all of its peers are adversarial — the node can verify all critical properties from the message data alone.
 
 The one exception to this zero-trust model is the Whisper Chain Contributions signal in Resonance computation, which is self-reported and unverifiable. This signal is weighted minimally (at most 5% of total Resonance) to limit the impact of false reporting.
 

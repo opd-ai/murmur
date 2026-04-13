@@ -236,113 +236,123 @@ func (s *Screen) drawKeypairGen(screen *ebiten.Image) {
 	centerX := float32(s.width) / 2
 	centerY := float32(s.height)/2 - 50
 
-	// Title
 	titleY := float32(80)
 	s.drawCenteredText(screen, "Creating Your Identity", centerX, titleY, 24, color.RGBA{220, 220, 225, 255})
 
 	if s.keypair == nil {
-		// Animation: particles swirling toward center
-		progress := math.Min(1, time.Since(s.phaseStart).Seconds()/2.5)
-
-		numParticles := 24
-		for i := 0; i < numParticles; i++ {
-			angle := float64(i)*2*math.Pi/float64(numParticles) + s.animPhase*4*math.Pi
-			// Particles spiral inward as progress increases
-			radius := float32(100 * (1 - progress*0.9))
-			px := centerX + radius*float32(math.Cos(angle))
-			py := centerY + radius*float32(math.Sin(angle))
-
-			// Particle size decreases as they approach center
-			pSize := float32(3 + 2*(1-progress))
-			pAlpha := uint8(100 + 155*progress)
-
-			pColor := color.RGBA{180, 200, 255, pAlpha}
-			vector.DrawFilledCircle(screen, px, py, pSize, pColor, true)
-		}
-
-		// Central core grows as particles converge
-		coreRadius := float32(5 + 15*progress)
-		coreColor := color.RGBA{220, 235, 255, uint8(150 + 105*progress)}
-		vector.DrawFilledCircle(screen, centerX, centerY, coreRadius, coreColor, true)
-
-		// Trigger generation after animation
-		if progress >= 1 {
-			go s.generateKeypair()
-		}
+		s.drawKeypairAnimation(screen, centerX, centerY)
 	} else {
-		// Show completed identity: sigil + fingerprint
-		if s.sigil != nil {
-			sigilOpts := &ebiten.DrawImageOptions{}
-			sigilX := centerX - float32(s.sigil.Bounds().Dx())/2
-			sigilY := centerY - float32(s.sigil.Bounds().Dy())/2
-			sigilOpts.GeoM.Translate(float64(sigilX), float64(sigilY))
-			screen.DrawImage(s.sigil, sigilOpts)
-		}
-
-		// Fingerprint
-		fingerprint := formatFingerprint(s.keypair.PublicKey[:8])
-		fpY := centerY + 80
-		s.drawCenteredText(screen, fingerprint, centerX, fpY, 14, color.RGBA{140, 140, 150, 255})
-
-		// Continue button
-		buttonY := float32(s.height) - 120
-		s.drawButton(screen, "Continue", centerX, buttonY, 0)
+		s.drawKeypairComplete(screen, centerX, centerY)
 	}
+}
+
+// drawKeypairAnimation renders the particle convergence animation.
+func (s *Screen) drawKeypairAnimation(screen *ebiten.Image, centerX, centerY float32) {
+	progress := math.Min(1, time.Since(s.phaseStart).Seconds()/2.5)
+	s.drawConvergingParticles(screen, centerX, centerY, progress)
+	s.drawGrowingCore(screen, centerX, centerY, progress)
+
+	if progress >= 1 {
+		go s.generateKeypair()
+	}
+}
+
+// drawConvergingParticles renders particles spiraling toward center.
+func (s *Screen) drawConvergingParticles(screen *ebiten.Image, centerX, centerY float32, progress float64) {
+	numParticles := 24
+	for i := 0; i < numParticles; i++ {
+		angle := float64(i)*2*math.Pi/float64(numParticles) + s.animPhase*4*math.Pi
+		radius := float32(100 * (1 - progress*0.9))
+		px := centerX + radius*float32(math.Cos(angle))
+		py := centerY + radius*float32(math.Sin(angle))
+		pSize := float32(3 + 2*(1-progress))
+		pAlpha := uint8(100 + 155*progress)
+		vector.DrawFilledCircle(screen, px, py, pSize, color.RGBA{180, 200, 255, pAlpha}, true)
+	}
+}
+
+// drawGrowingCore renders the central core that grows as particles converge.
+func (s *Screen) drawGrowingCore(screen *ebiten.Image, centerX, centerY float32, progress float64) {
+	coreRadius := float32(5 + 15*progress)
+	coreColor := color.RGBA{220, 235, 255, uint8(150 + 105*progress)}
+	vector.DrawFilledCircle(screen, centerX, centerY, coreRadius, coreColor, true)
+}
+
+// drawKeypairComplete renders the completed identity with sigil and fingerprint.
+func (s *Screen) drawKeypairComplete(screen *ebiten.Image, centerX, centerY float32) {
+	if s.sigil != nil {
+		sigilOpts := &ebiten.DrawImageOptions{}
+		sigilX := centerX - float32(s.sigil.Bounds().Dx())/2
+		sigilY := centerY - float32(s.sigil.Bounds().Dy())/2
+		sigilOpts.GeoM.Translate(float64(sigilX), float64(sigilY))
+		screen.DrawImage(s.sigil, sigilOpts)
+	}
+
+	fingerprint := formatFingerprint(s.keypair.PublicKey[:8])
+	fpY := centerY + 80
+	s.drawCenteredText(screen, fingerprint, centerX, fpY, 14, color.RGBA{140, 140, 150, 255})
+
+	buttonY := float32(s.height) - 120
+	s.drawButton(screen, "Continue", centerX, buttonY, 0)
 }
 
 // drawDisplayName renders the display name input screen.
 func (s *Screen) drawDisplayName(screen *ebiten.Image) {
 	centerX := float32(s.width) / 2
 
-	// Title
 	titleY := float32(80)
 	s.drawCenteredText(screen, "Choose a name others will see", centerX, titleY, 20, color.RGBA{220, 220, 225, 255})
 
-	// Sigil preview
-	sigilY := float32(140)
-	if s.sigil != nil {
-		sigilOpts := &ebiten.DrawImageOptions{}
-		sigilX := centerX - float32(s.sigil.Bounds().Dx())/2
-		sigilOpts.GeoM.Translate(float64(sigilX), float64(sigilY))
-		screen.DrawImage(s.sigil, sigilOpts)
-	}
+	s.drawSigilPreview(screen, centerX, float32(140))
+	s.drawNameInputField(screen, centerX)
 
-	// Input field
+	buttonY := float32(s.height) - 120
+	s.drawButton(screen, "Continue", centerX, buttonY, 0)
+}
+
+// drawSigilPreview renders the sigil preview image.
+func (s *Screen) drawSigilPreview(screen *ebiten.Image, centerX, sigilY float32) {
+	if s.sigil == nil {
+		return
+	}
+	sigilOpts := &ebiten.DrawImageOptions{}
+	sigilX := centerX - float32(s.sigil.Bounds().Dx())/2
+	sigilOpts.GeoM.Translate(float64(sigilX), float64(sigilY))
+	screen.DrawImage(s.sigil, sigilOpts)
+}
+
+// drawNameInputField renders the input field with placeholder and cursor.
+func (s *Screen) drawNameInputField(screen *ebiten.Image, centerX float32) {
 	inputY := float32(s.height)/2 + 20
-	inputWidth := float32(300)
-	inputHeight := float32(40)
+	inputWidth, inputHeight := float32(300), float32(40)
 	inputX := centerX - inputWidth/2
 
-	// Input background
-	inputBg := color.RGBA{30, 30, 40, 255}
-	vector.DrawFilledRect(screen, inputX, inputY, inputWidth, inputHeight, inputBg, true)
+	vector.DrawFilledRect(screen, inputX, inputY, inputWidth, inputHeight, color.RGBA{30, 30, 40, 255}, true)
 
-	// Input border
 	borderColor := color.RGBA{80, 80, 100, 255}
 	if s.inputFocused {
 		borderColor = color.RGBA{120, 140, 200, 255}
 	}
 	vector.StrokeRect(screen, inputX, inputY, inputWidth, inputHeight, 1.5, borderColor, true)
 
-	// Input text
 	textY := inputY + inputHeight/2 + 6
-	if s.displayName == "" && !s.inputFocused {
-		s.drawCenteredText(screen, "Optional display name", centerX, textY, 14, color.RGBA{80, 80, 90, 255})
-	} else {
-		displayText := s.displayName
-		if s.inputFocused && s.cursorBlink < 0.5 {
-			displayText += "|"
-		}
-		s.drawCenteredText(screen, displayText, centerX, textY, 14, color.RGBA{200, 200, 210, 255})
-	}
+	s.drawNameInputText(screen, centerX, textY)
 
-	// Note
 	noteY := inputY + inputHeight + 30
 	s.drawCenteredText(screen, "You can change this anytime. Your sigil and fingerprint are permanent.", centerX, noteY, 12, color.RGBA{100, 100, 110, 255})
+}
 
-	// Continue button
-	buttonY := float32(s.height) - 120
-	s.drawButton(screen, "Continue", centerX, buttonY, 0)
+// drawNameInputText renders the input text or placeholder.
+func (s *Screen) drawNameInputText(screen *ebiten.Image, centerX, textY float32) {
+	if s.displayName == "" && !s.inputFocused {
+		s.drawCenteredText(screen, "Optional display name", centerX, textY, 14, color.RGBA{80, 80, 90, 255})
+		return
+	}
+	displayText := s.displayName
+	if s.inputFocused && s.cursorBlink < 0.5 {
+		displayText += "|"
+	}
+	s.drawCenteredText(screen, displayText, centerX, textY, 14, color.RGBA{200, 200, 210, 255})
 }
 
 // drawBackupPrompt renders the backup options screen.

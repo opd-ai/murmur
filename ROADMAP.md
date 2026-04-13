@@ -375,7 +375,7 @@ MURMUR positions itself against existing decentralized social platforms:
   - Local scoring algorithm per RESONANCE_SYSTEM.md spec
   - Four signal categories:
     - Publication consistency (regular Specter activity)
-    - Mini-game quality (puzzle solutions, duel outcomes)
+    - Mini-game quality (puzzle solutions, game outcomes)
     - Gift activity (given and received)
     - Community endorsement (marks from high-Resonance Specters)
 - [x] Implement `pkg/anonymous/resonance/decay.go`:

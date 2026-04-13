@@ -57,7 +57,7 @@ See `DESIGN_DOCUMENT.md` for the complete specification.
     │   │   ├── specters/            # Specter identity creation
     │   │   ├── shroud/              # Three-hop onion circuits
     │   │   ├── resonance/           # Reputation computation
-    │   │   └── mechanics/           # Phantom Gifts, Duels, etc.
+    │   │   └── mechanics/           # Phantom Gifts, Mini-Games, etc.
     │   ├── store/                   # Bbolt persistent storage
     │   ├── pulsemap/
     │   │   ├── layout/              # Force-directed graph engine

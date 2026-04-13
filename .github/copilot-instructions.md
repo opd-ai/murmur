@@ -48,7 +48,7 @@ The primary technology stack is **Go 1.22+** (goroutines and channels for concur
    │   ├── specters/                # Specter identity creation, name generation
    │   ├── shroud/                  # Three-hop onion circuit construction, cell encryption
    │   ├── resonance/               # Local reputation computation, rank thresholds, decay
-   │   └── mechanics/               # Phantom Gifts, Duels, Marks, Events, Councils
+   │   └── mechanics/               # Phantom Gifts, Mini-Games, Marks, Events, Councils
    ├── store/                       # Bbolt initialization, bucket CRUD per domain
    ├── pulsemap/
    │   ├── layout/                  # Force-directed graph engine (Fruchterman-Reingold, Barnes-Hut)

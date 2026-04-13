@@ -518,29 +518,41 @@ type voteCounts struct {
 func (c *PhantomCouncil) countVotes(votes map[string]VoteValue, excludeKey *[32]byte) voteCounts {
 	var counts voteCounts
 	for _, m := range c.Members {
-		if m.Status != MemberActive {
-			continue
-		}
-		if excludeKey != nil && m.SpecterKey == *excludeKey {
+		if !c.isEligibleVoter(m, excludeKey) {
 			continue
 		}
 		counts.eligible++
-
-		vote, voted := votes[keyToHex(m.SpecterKey[:])]
-		if !voted {
-			continue
-		}
-		counts.voted++
-		switch vote {
-		case VoteFor:
-			counts.forVote++
-		case VoteAgainst:
-			counts.against++
-		case VoteAbstain:
-			counts.abstain++
-		}
+		c.tallyMemberVote(m, votes, &counts)
 	}
 	return counts
+}
+
+// isEligibleVoter returns true if the member can vote (active and not excluded).
+func (c *PhantomCouncil) isEligibleVoter(m *CouncilMember, excludeKey *[32]byte) bool {
+	if m.Status != MemberActive {
+		return false
+	}
+	if excludeKey != nil && m.SpecterKey == *excludeKey {
+		return false
+	}
+	return true
+}
+
+// tallyMemberVote records a member's vote if they have voted.
+func (c *PhantomCouncil) tallyMemberVote(m *CouncilMember, votes map[string]VoteValue, counts *voteCounts) {
+	vote, voted := votes[keyToHex(m.SpecterKey[:])]
+	if !voted {
+		return
+	}
+	counts.voted++
+	switch vote {
+	case VoteFor:
+		counts.forVote++
+	case VoteAgainst:
+		counts.against++
+	case VoteAbstain:
+		counts.abstain++
+	}
 }
 
 // checkApplicationVotes evaluates if application voting is complete.
@@ -639,34 +651,48 @@ func (c *PhantomCouncil) VoteOnExpulsion(
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	// Verify voter is a member.
-	if !c.isMemberLocked(voter) {
-		return ErrCouncilNotMember
+	if err := c.validateVoter(voter); err != nil {
+		return err
 	}
 
-	// Find expulsion vote.
-	var ev *ExpulsionVote
-	for _, e := range c.ExpulsionVotes {
-		if e.TargetKey == target && !e.Resolved {
-			ev = e
-			break
-		}
-	}
+	ev := c.findPendingExpulsion(target)
 	if ev == nil {
 		return ErrCouncilVoteNotFound
 	}
 
-	// Check for duplicate vote.
-	voterHex := keyToHex(voter[:])
-	if _, exists := ev.Votes[voterHex]; exists {
-		return ErrCouncilAlreadyVoted
+	if err := c.recordVote(ev.Votes, voter, vote); err != nil {
+		return err
 	}
 
-	ev.Votes[voterHex] = vote
-
-	// Check if voting is complete.
 	c.checkExpulsionVotes(ev)
+	return nil
+}
 
+// validateVoter ensures the voter is a council member.
+func (c *PhantomCouncil) validateVoter(voter [32]byte) error {
+	if !c.isMemberLocked(voter) {
+		return ErrCouncilNotMember
+	}
+	return nil
+}
+
+// findPendingExpulsion locates an unresolved expulsion vote for the target.
+func (c *PhantomCouncil) findPendingExpulsion(target [32]byte) *ExpulsionVote {
+	for _, e := range c.ExpulsionVotes {
+		if e.TargetKey == target && !e.Resolved {
+			return e
+		}
+	}
+	return nil
+}
+
+// recordVote adds a vote to the vote map if not already voted.
+func (c *PhantomCouncil) recordVote(votes map[string]VoteValue, voter [32]byte, vote VoteValue) error {
+	voterHex := keyToHex(voter[:])
+	if _, exists := votes[voterHex]; exists {
+		return ErrCouncilAlreadyVoted
+	}
+	votes[voterHex] = vote
 	return nil
 }
 
@@ -828,34 +854,30 @@ func (c *PhantomCouncil) VoteOnProposal(
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	// Verify voter is a member.
-	if !c.isMemberLocked(voter) {
-		return ErrCouncilNotMember
+	if err := c.validateVoter(voter); err != nil {
+		return err
 	}
 
-	// Find proposal.
-	var proposal *CouncilProposal
-	for _, p := range c.Proposals {
-		if p.ID == proposalID && !p.Resolved {
-			proposal = p
-			break
-		}
-	}
+	proposal := c.findPendingProposal(proposalID)
 	if proposal == nil {
 		return ErrCouncilProposalNotFound
 	}
 
-	// Check for duplicate vote.
-	voterHex := keyToHex(voter[:])
-	if _, exists := proposal.Votes[voterHex]; exists {
-		return ErrCouncilAlreadyVoted
+	if err := c.recordVote(proposal.Votes, voter, vote); err != nil {
+		return err
 	}
 
-	proposal.Votes[voterHex] = vote
-
-	// Check if voting is complete.
 	c.checkProposalVotes(proposal)
+	return nil
+}
 
+// findPendingProposal locates an unresolved proposal by ID.
+func (c *PhantomCouncil) findPendingProposal(proposalID [32]byte) *CouncilProposal {
+	for _, p := range c.Proposals {
+		if p.ID == proposalID && !p.Resolved {
+			return p
+		}
+	}
 	return nil
 }
 

@@ -169,22 +169,22 @@ func ShroudIndicator(dst *ebiten.Image, nodeX, nodeY float32, active bool, phase
 	}
 }
 
-// DuelVisualization renders an active Specter Duel connection.
-// Per PULSE_MAP.md, duels show a jagged, sparking line between duelists.
-type DuelVisualization struct {
-	Duelist1X, Duelist1Y float32
-	Duelist2X, Duelist2Y float32
-	Color1, Color2       color.RGBA
-	Intensity            float32 // 0-1, increases with argument waves
-	Phase                float32 // Animation phase
+// MiniGameVisualization renders an active mini-game event.
+// Per PULSE_MAP.md, mini-games show type-specific animated icons.
+type MiniGameVisualization struct {
+	Player1X, Player1Y float32
+	Player2X, Player2Y float32
+	Color1, Color2     color.RGBA
+	Intensity          float32 // 0-1, increases with game activity
+	Phase              float32 // Animation phase
 }
 
-// Render draws the duel visualization.
-func (d *DuelVisualization) Render(dst *ebiten.Image, cameraX, cameraY, scale float32) {
-	x1 := (d.Duelist1X-cameraX)*scale + float32(dst.Bounds().Dx())/2
-	y1 := (d.Duelist1Y-cameraY)*scale + float32(dst.Bounds().Dy())/2
-	x2 := (d.Duelist2X-cameraX)*scale + float32(dst.Bounds().Dx())/2
-	y2 := (d.Duelist2Y-cameraY)*scale + float32(dst.Bounds().Dy())/2
+// Render draws the mini-game visualization.
+func (d *MiniGameVisualization) Render(dst *ebiten.Image, cameraX, cameraY, scale float32) {
+	x1 := (d.Player1X-cameraX)*scale + float32(dst.Bounds().Dx())/2
+	y1 := (d.Player1Y-cameraY)*scale + float32(dst.Bounds().Dy())/2
+	x2 := (d.Player2X-cameraX)*scale + float32(dst.Bounds().Dx())/2
+	y2 := (d.Player2Y-cameraY)*scale + float32(dst.Bounds().Dy())/2
 
 	// Draw jagged electric-arc line
 	segments := 8

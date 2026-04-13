@@ -111,6 +111,7 @@ func LeadingZeros(hash []byte) int {
 // Error types for PoW operations.
 type Error string
 
+// Error implements the error interface for PoW error types.
 func (e Error) Error() string { return string(e) }
 
 const (

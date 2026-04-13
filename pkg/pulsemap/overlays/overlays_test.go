@@ -106,15 +106,15 @@ func TestParticleEmitterUpdate(t *testing.T) {
 }
 
 // NOTE: Tests that require Ebitengine rendering (ParticleEmitter.Render,
-// ShroudIndicator, DuelVisualization.Render) are in overlays_render_test.go
+// ShroudIndicator, MiniGameVisualization.Render) are in overlays_render_test.go
 // behind the "ebitentest" build tag per TECHNICAL_IMPLEMENTATION.md.
 
-func TestDuelVisualizationInit(t *testing.T) {
-	d := &DuelVisualization{
-		Duelist1X: 20,
-		Duelist1Y: 20,
-		Duelist2X: 80,
-		Duelist2Y: 80,
+func TestMiniGameVisualizationInit(t *testing.T) {
+	d := &MiniGameVisualization{
+		Player1X:  20,
+		Player1Y:  20,
+		Player2X:  80,
+		Player2Y:  80,
 		Color1:    color.RGBA{255, 0, 0, 255},
 		Color2:    color.RGBA{0, 0, 255, 255},
 		Intensity: 0.8,
@@ -122,11 +122,11 @@ func TestDuelVisualizationInit(t *testing.T) {
 	}
 
 	// Verify struct initialization
-	if d.Duelist1X != 20 || d.Duelist1Y != 20 {
-		t.Error("expected duelist 1 at (20, 20)")
+	if d.Player1X != 20 || d.Player1Y != 20 {
+		t.Error("expected player 1 at (20, 20)")
 	}
-	if d.Duelist2X != 80 || d.Duelist2Y != 80 {
-		t.Error("expected duelist 2 at (80, 80)")
+	if d.Player2X != 80 || d.Player2Y != 80 {
+		t.Error("expected player 2 at (80, 80)")
 	}
 	if d.Intensity != 0.8 {
 		t.Errorf("expected Intensity 0.8, got %f", d.Intensity)

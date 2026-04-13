@@ -36,7 +36,7 @@ Hybrid is the first step into the anonymous world. A Hybrid-mode user maintains 
 
 The Specter is generated locally on the user's device. It consists of a new Ed25519 keypair with no mathematical relationship to the user's main identity keypair. The Specter's public key is hashed to produce a procedurally generated pseudonym (two words from a curated wordlist, producing combinations like "Veiled Lantern" or "Hollow Tide") and a procedurally generated sigil (a small geometric emblem derived from the key hash). The pseudonym and sigil are the Specter's identity on the Anonymous Layer.
 
-Hybrid-mode users can participate in all Anonymous Layer mechanics: anonymous Waves, Specter connections, Phantom Gifts, Specter Duels, and Masked Events. They accumulate Specter Resonance independently of their Surface Layer Resonance.
+Hybrid-mode users can participate in all Anonymous Layer mechanics: anonymous Waves, Specter connections, Phantom Gifts, mini-games, and Masked Events. They accumulate Specter Resonance independently of their Surface Layer Resonance.
 
 Hybrid-mode users also serve as bridge nodes in the cross-layer topology. Their device maintains connections to both Surface Layer peers and Anonymous Layer peers, and they route anonymous traffic between the layers. This bridge function is automatic and does not reveal any information about the user's own Specter identity — the user's node routes traffic for many Specters, making it impossible for an observer to determine which Specter belongs to the bridge node's operator. Bridge Activity contributes to Surface Layer Resonance as documented in the Resonance System specification.
 
@@ -114,7 +114,7 @@ The sigil is a procedurally generated geometric emblem: a small SVG composed of 
 
 ### Rotation
 
-A user can rotate their Specter at any time. Rotation destroys the current Specter (its keypair is securely deleted) and creates a new one with a fresh keypair, pseudonym, and sigil. All Specter connections, Specter Resonance, ZK Claims, Phantom Gifts received, Specter Marks, duel history, and other Anonymous Layer state are irrevocably lost.
+A user can rotate their Specter at any time. Rotation destroys the current Specter (its keypair is securely deleted) and creates a new one with a fresh keypair, pseudonym, and sigil. All Specter connections, Specter Resonance, ZK Claims, Phantom Gifts received, Specter Marks, mini-game history, and other Anonymous Layer state are irrevocably lost.
 
 Rotation is a drastic action, equivalent to abandoning an anonymous identity and starting over. It is provided as an escape hatch for users who believe their Specter identity has been compromised, correlated with their main identity, or otherwise rendered unsafe. The UI requires double confirmation and displays a warning about the permanent loss of all Specter state.
 
@@ -262,7 +262,7 @@ Users are informed in the security settings screen that Shroud routing provides 
 
 The health of the Anonymous Layer depends on sufficient participation at each gradient level. The network needs bridge nodes (Hybrid+) to route anonymous traffic and Shroud Nodes (Fortress) to provide mix-network anonymization.
 
-The system includes soft incentives at each level. Hybrid mode is incentivized by the social appeal of anonymous participation (Phantom Gifts, Masked Events, Specter Duels) and the Resonance bonus for Bridge Activity. Guarded mode is incentivized by the security improvement for privacy-conscious users. Fortress mode is incentivized by the high Shroud Node Resonance bonus, exclusive access to Phantom Councils and Abyssal Waves, and the social prestige of operating critical infrastructure.
+The system includes soft incentives at each level. Hybrid mode is incentivized by the social appeal of anonymous participation (Phantom Gifts, Masked Events, mini-games) and the Resonance bonus for Bridge Activity. Guarded mode is incentivized by the security improvement for privacy-conscious users. Fortress mode is incentivized by the high Shroud Node Resonance bonus, exclusive access to Phantom Councils and Abyssal Waves, and the social prestige of operating critical infrastructure.
 
 The target mode distribution for a healthy network is approximately 30% Open, 40% Hybrid, 20% Guarded, and 10% Fortress. These are design targets, not enforced quotas. If the actual distribution deviates significantly (e.g., too few Fortress nodes to sustain the Shroud Network), the app may display informational prompts encouraging users to consider upgrading their mode — but never forces or coerces mode changes.
 

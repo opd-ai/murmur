@@ -208,3 +208,52 @@ func DrawButton(screen *ebiten.Image, label string, x, y float32, style ButtonSt
 
 	DrawCenteredText(screen, label, x, y+6, style.TextSize, style.TextColor)
 }
+
+// SuccessAnimationStyle defines parameters for the success checkmark animation.
+type SuccessAnimationStyle struct {
+	BaseRadius  float32 // Base circle radius
+	PulseAmount float32 // Amount to pulse (multiplied by sin(phase))
+	CheckOffset float32 // Offset for checkmark positioning
+	StrokeWidth float32 // Width of checkmark strokes
+	CircleColor color.RGBA
+	CheckColor  color.RGBA
+}
+
+// DefaultSuccessStyle returns the standard success animation style (smaller).
+func DefaultSuccessStyle() SuccessAnimationStyle {
+	return SuccessAnimationStyle{
+		BaseRadius:  40,
+		PulseAmount: 0.1,
+		CheckOffset: 15,
+		StrokeWidth: 3,
+		CircleColor: color.RGBA{100, 200, 130, 255},
+		CheckColor:  color.RGBA{240, 240, 245, 255},
+	}
+}
+
+// LargeSuccessStyle returns a larger success animation style.
+func LargeSuccessStyle() SuccessAnimationStyle {
+	return SuccessAnimationStyle{
+		BaseRadius:  50,
+		PulseAmount: 0.1,
+		CheckOffset: 20,
+		StrokeWidth: 4,
+		CircleColor: color.RGBA{100, 200, 130, 255},
+		CheckColor:  color.RGBA{240, 240, 245, 255},
+	}
+}
+
+// DrawSuccessAnimation renders an animated success circle with checkmark.
+// The animPhase parameter (0-1) controls the pulse cycle.
+func DrawSuccessAnimation(screen *ebiten.Image, x, y float32, animPhase float64, style SuccessAnimationStyle) {
+	pulse := float32(1 + float64(style.PulseAmount)*math.Sin(animPhase*2*math.Pi))
+	radius := style.BaseRadius * pulse
+
+	// Success circle
+	vector.DrawFilledCircle(screen, x, y, radius, style.CircleColor, true)
+
+	// Checkmark - two strokes forming a check shape
+	off := style.CheckOffset
+	vector.StrokeLine(screen, x-off, y, x-off/3, y+off*0.8, style.StrokeWidth, style.CheckColor, true)
+	vector.StrokeLine(screen, x-off/3, y+off*0.8, x+off, y-off*0.67, style.StrokeWidth, style.CheckColor, true)
+}

@@ -111,10 +111,10 @@ func renderNodeSelection(dst *ebiten.Image, x, y, radius float32, style NodeStyl
 
 // EdgeStyle contains visual properties for an edge.
 type EdgeStyle struct {
-	Color  color.RGBA
-	Age    float64 // Connection age in days
-	Active bool    // Recent wave propagation
-	IsDuel bool    // Specter duel connection
+	Color      color.RGBA
+	Age        float64 // Connection age in days
+	Active     bool    // Recent wave propagation
+	IsMiniGame bool    // Active mini-game connection
 }
 
 // RenderEdge draws a connection edge between two nodes.

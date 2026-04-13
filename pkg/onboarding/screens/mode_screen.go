@@ -295,55 +295,65 @@ func (s *ModeScreen) drawSpecterGeneration(screen *ebiten.Image) {
 	centerX := float32(s.width) / 2
 	centerY := float32(s.height)/2 - 40
 
-	// Title
 	titleY := float32(60)
 	s.drawCenteredText(screen, "Creating Your Specter", centerX, titleY, 22, color.RGBA{220, 220, 225, 255})
 
 	if s.specterKeypair == nil {
-		// Animation: dark particles coalescing
-		progress := math.Min(1, time.Since(s.startTime).Seconds()/2.5)
-
-		for i := 0; i < 20; i++ {
-			angle := float64(i)*2*math.Pi/20 + s.animPhase*3*math.Pi
-			radius := float32(80 * (1 - progress*0.9))
-			px := centerX + radius*float32(math.Cos(angle))
-			py := centerY + radius*float32(math.Sin(angle))
-
-			pColor := color.RGBA{80, 100, 200, uint8(150 + 105*progress)}
-			vector.DrawFilledCircle(screen, px, py, float32(3+2*(1-progress)), pColor, true)
-		}
-
-		// Central specter core
-		coreRadius := float32(5 + 15*progress)
-		coreColor := color.RGBA{100, 140, 230, uint8(180 + 75*progress)}
-		vector.DrawFilledCircle(screen, centerX, centerY, coreRadius, coreColor, true)
-
-		if progress >= 1 {
-			go s.generateSpecter()
-		}
+		s.drawSpecterAnimation(screen, centerX, centerY)
 	} else {
-		// Show Specter identity
-		if s.specterSigil != nil {
-			sigilOpts := &ebiten.DrawImageOptions{}
-			sigilX := centerX - float32(s.specterSigil.Bounds().Dx())/2
-			sigilY := centerY - float32(s.specterSigil.Bounds().Dy())/2
-			sigilOpts.GeoM.Translate(float64(sigilX), float64(sigilY))
-			screen.DrawImage(s.specterSigil, sigilOpts)
-		}
-
-		// Pseudonym
-		nameY := centerY + 80
-		s.drawCenteredText(screen, s.specterName, centerX, nameY, 18, color.RGBA{140, 170, 230, 255})
-
-		// Explanation
-		explainY := nameY + 40
-		s.drawCenteredText(screen, "This is your Specter — your anonymous identity", centerX, explainY, 14, color.RGBA{150, 150, 160, 255})
-		s.drawCenteredText(screen, "on the Anonymous Layer.", centerX, explainY+20, 14, color.RGBA{150, 150, 160, 255})
-
-		// Continue button
-		buttonY := float32(s.height) - 100
-		s.drawButton(screen, "Continue", centerX, buttonY, 0)
+		s.drawSpecterComplete(screen, centerX, centerY)
 	}
+}
+
+// drawSpecterAnimation renders the dark particle coalescence animation.
+func (s *ModeScreen) drawSpecterAnimation(screen *ebiten.Image, centerX, centerY float32) {
+	progress := math.Min(1, time.Since(s.startTime).Seconds()/2.5)
+	s.drawCoalescingParticles(screen, centerX, centerY, progress)
+	s.drawSpecterCore(screen, centerX, centerY, progress)
+
+	if progress >= 1 {
+		go s.generateSpecter()
+	}
+}
+
+// drawCoalescingParticles renders dark particles converging.
+func (s *ModeScreen) drawCoalescingParticles(screen *ebiten.Image, centerX, centerY float32, progress float64) {
+	for i := 0; i < 20; i++ {
+		angle := float64(i)*2*math.Pi/20 + s.animPhase*3*math.Pi
+		radius := float32(80 * (1 - progress*0.9))
+		px := centerX + radius*float32(math.Cos(angle))
+		py := centerY + radius*float32(math.Sin(angle))
+		pColor := color.RGBA{80, 100, 200, uint8(150 + 105*progress)}
+		vector.DrawFilledCircle(screen, px, py, float32(3+2*(1-progress)), pColor, true)
+	}
+}
+
+// drawSpecterCore renders the growing specter core.
+func (s *ModeScreen) drawSpecterCore(screen *ebiten.Image, centerX, centerY float32, progress float64) {
+	coreRadius := float32(5 + 15*progress)
+	coreColor := color.RGBA{100, 140, 230, uint8(180 + 75*progress)}
+	vector.DrawFilledCircle(screen, centerX, centerY, coreRadius, coreColor, true)
+}
+
+// drawSpecterComplete renders the completed Specter identity.
+func (s *ModeScreen) drawSpecterComplete(screen *ebiten.Image, centerX, centerY float32) {
+	if s.specterSigil != nil {
+		sigilOpts := &ebiten.DrawImageOptions{}
+		sigilX := centerX - float32(s.specterSigil.Bounds().Dx())/2
+		sigilY := centerY - float32(s.specterSigil.Bounds().Dy())/2
+		sigilOpts.GeoM.Translate(float64(sigilX), float64(sigilY))
+		screen.DrawImage(s.specterSigil, sigilOpts)
+	}
+
+	nameY := centerY + 80
+	s.drawCenteredText(screen, s.specterName, centerX, nameY, 18, color.RGBA{140, 170, 230, 255})
+
+	explainY := nameY + 40
+	s.drawCenteredText(screen, "This is your Specter — your anonymous identity", centerX, explainY, 14, color.RGBA{150, 150, 160, 255})
+	s.drawCenteredText(screen, "on the Anonymous Layer.", centerX, explainY+20, 14, color.RGBA{150, 150, 160, 255})
+
+	buttonY := float32(s.height) - 100
+	s.drawButton(screen, "Continue", centerX, buttonY, 0)
 }
 
 // drawConfirmation renders the mode confirmation screen.
@@ -394,37 +404,12 @@ func (s *ModeScreen) generateSpecter() {
 	sigilData := sigils.GenerateSpecter(kp.PublicKey[:])
 	s.specterSigil = ebiten.NewImageFromImage(sigilData.Image)
 
-	// Generate Specter name (simplified - would use wordlist in production)
-	s.specterName = generateSpecterName(kp.PublicKey[:])
+	// Generate Specter name using shared name generator
+	s.specterName = GenerateSpecterName(kp.PublicKey[:])
 
 	if s.callbacks.OnSpecterGenerated != nil {
 		s.callbacks.OnSpecterGenerated(kp, s.specterName)
 	}
-}
-
-// generateSpecterName creates a two-word pseudonym from public key bytes.
-func generateSpecterName(pubKey []byte) string {
-	adjectives := []string{
-		"Silent", "Hollow", "Spectral", "Veiled", "Shadow",
-		"Whispered", "Hidden", "Faded", "Drifting", "Phantom",
-		"Ethereal", "Misted", "Shrouded", "Obscured", "Wandering",
-		"Fleeting", "Echoing", "Elusive", "Distant", "Cloaked",
-	}
-	nouns := []string{
-		"Beacon", "Cipher", "Shade", "Wraith", "Echo",
-		"Drift", "Veil", "Murmur", "Whisper", "Fog",
-		"Mist", "Ghost", "Specter", "Phantom", "Shadow",
-		"Presence", "Trace", "Remnant", "Glimmer", "Void",
-	}
-
-	if len(pubKey) < 2 {
-		return "Unknown Specter"
-	}
-
-	adjIdx := int(pubKey[0]) % len(adjectives)
-	nounIdx := int(pubKey[1]) % len(nouns)
-
-	return adjectives[adjIdx] + " " + nouns[nounIdx]
 }
 
 func getModeDescription(mode modes.Mode) string {
@@ -466,7 +451,6 @@ func getModeGuidance(mode modes.Mode) string {
 	}
 }
 
-// HandleClick processes clicks on the mode selection screen.
 // HandleClick processes clicks on the mode selection screen.
 func (s *ModeScreen) HandleClick(x, y int) {
 	switch s.state {

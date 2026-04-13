@@ -9,7 +9,6 @@ package screens
 
 import (
 	"image/color"
-	"math"
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -211,15 +210,8 @@ func (s *CompletionScreen) drawDone(screen *ebiten.Image) {
 	titleY := float32(60)
 	s.drawCenteredText(screen, "Welcome to MURMUR", centerX, titleY, 26, color.RGBA{220, 220, 225, 255})
 
-	// Animated success circle
-	pulse := float32(1 + 0.1*math.Sin(s.animPhase*2*math.Pi))
-	successColor := color.RGBA{100, 200, 130, 255}
-	vector.DrawFilledCircle(screen, centerX, centerY, 50*pulse, successColor, true)
-
-	// Checkmark
-	checkColor := color.RGBA{240, 240, 245, 255}
-	vector.StrokeLine(screen, centerX-20, centerY, centerX-5, centerY+20, 4, checkColor, true)
-	vector.StrokeLine(screen, centerX-5, centerY+20, centerX+25, centerY-15, 4, checkColor, true)
+	// Animated success circle with checkmark using shared helper
+	DrawSuccessAnimation(screen, centerX, centerY, s.animPhase, LargeSuccessStyle())
 
 	// Completion message
 	msgY := centerY + 100

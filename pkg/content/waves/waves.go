@@ -69,24 +69,38 @@ func DefaultCreateOptions() CreateOptions {
 
 // Create creates a new signed Wave with PoW.
 func Create(waveType WaveType, content []byte, kp *keys.KeyPair, opts CreateOptions) (*pb.Wave, error) {
+	if err := validateCreateParams(kp, content, opts); err != nil {
+		return nil, err
+	}
+
+	wave := buildWave(waveType, content, kp, opts)
+	if err := signAndComputeWavePoW(wave, kp, opts.Difficulty); err != nil {
+		return nil, err
+	}
+
+	return wave, nil
+}
+
+// validateCreateParams checks prerequisites for Wave creation.
+func validateCreateParams(kp *keys.KeyPair, content []byte, opts CreateOptions) error {
 	if kp == nil {
-		return nil, ErrNilKeyPair
+		return ErrNilKeyPair
 	}
-
 	if len(content) > MaxContentSize {
-		return nil, ErrContentTooLarge
+		return ErrContentTooLarge
 	}
-
 	if opts.TTL <= 0 {
-		return nil, ErrInvalidTTL
+		return ErrInvalidTTL
 	}
-
 	if opts.TTL > MaxTTL {
-		return nil, ErrTTLTooLong
+		return ErrTTLTooLong
 	}
+	return nil
+}
 
+// buildWave constructs the protobuf Wave with ID computed.
+func buildWave(waveType WaveType, content []byte, kp *keys.KeyPair, opts CreateOptions) *pb.Wave {
 	now := time.Now()
-
 	wave := &pb.Wave{
 		WaveType:     pb.WaveType(waveType),
 		Content:      content,
@@ -96,23 +110,22 @@ func Create(waveType WaveType, content []byte, kp *keys.KeyPair, opts CreateOpti
 		ParentHash:   opts.ParentHash,
 		HopCount:     0,
 	}
-
-	// Compute Wave ID (BLAKE3 hash of content + metadata).
 	wave.WaveId = computeWaveID(wave)
+	return wave
+}
 
-	// Sign the Wave.
+// signAndComputeWavePoW signs the wave and computes proof of work.
+func signAndComputeWavePoW(wave *pb.Wave, kp *keys.KeyPair, difficulty uint8) error {
 	sigData := signatureData(wave)
 	wave.Signature = kp.Sign(sigData)
 
-	// Compute PoW.
-	powData := powData(wave)
-	work, err := pow.Compute(powData, opts.Difficulty)
+	powInput := powData(wave)
+	work, err := pow.Compute(powInput, difficulty)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	wave.PowNonce = work.Nonce
-
-	return wave, nil
+	return nil
 }
 
 // CreateSurface creates a standard Surface Layer Wave.
@@ -218,6 +231,20 @@ func IncrementHop(wave *pb.Wave) *pb.Wave {
 	}
 }
 
+// int64ToBytes converts an int64 to an 8-byte big-endian array.
+func int64ToBytes(v int64) [8]byte {
+	var b [8]byte
+	b[0] = byte(v >> 56)
+	b[1] = byte(v >> 48)
+	b[2] = byte(v >> 40)
+	b[3] = byte(v >> 32)
+	b[4] = byte(v >> 24)
+	b[5] = byte(v >> 16)
+	b[6] = byte(v >> 8)
+	b[7] = byte(v)
+	return b
+}
+
 // computeWaveID generates a BLAKE3 hash of the Wave content and metadata.
 func computeWaveID(wave *pb.Wave) []byte {
 	h := blake3.New()
@@ -228,15 +255,7 @@ func computeWaveID(wave *pb.Wave) []byte {
 	h.Write(wave.AuthorPubkey)
 
 	// Include creation time as bytes.
-	var ts [8]byte
-	ts[0] = byte(wave.CreatedAt >> 56)
-	ts[1] = byte(wave.CreatedAt >> 48)
-	ts[2] = byte(wave.CreatedAt >> 40)
-	ts[3] = byte(wave.CreatedAt >> 32)
-	ts[4] = byte(wave.CreatedAt >> 24)
-	ts[5] = byte(wave.CreatedAt >> 16)
-	ts[6] = byte(wave.CreatedAt >> 8)
-	ts[7] = byte(wave.CreatedAt)
+	ts := int64ToBytes(wave.CreatedAt)
 	h.Write(ts[:])
 
 	// Include parent hash if present.
@@ -255,26 +274,10 @@ func signatureData(wave *pb.Wave) []byte {
 	data = append(data, byte(wave.WaveType))
 	data = append(data, wave.Content...)
 
-	var ts [8]byte
-	ts[0] = byte(wave.CreatedAt >> 56)
-	ts[1] = byte(wave.CreatedAt >> 48)
-	ts[2] = byte(wave.CreatedAt >> 40)
-	ts[3] = byte(wave.CreatedAt >> 32)
-	ts[4] = byte(wave.CreatedAt >> 24)
-	ts[5] = byte(wave.CreatedAt >> 16)
-	ts[6] = byte(wave.CreatedAt >> 8)
-	ts[7] = byte(wave.CreatedAt)
+	ts := int64ToBytes(wave.CreatedAt)
 	data = append(data, ts[:]...)
 
-	var ttl [8]byte
-	ttl[0] = byte(wave.TtlSeconds >> 56)
-	ttl[1] = byte(wave.TtlSeconds >> 48)
-	ttl[2] = byte(wave.TtlSeconds >> 40)
-	ttl[3] = byte(wave.TtlSeconds >> 32)
-	ttl[4] = byte(wave.TtlSeconds >> 24)
-	ttl[5] = byte(wave.TtlSeconds >> 16)
-	ttl[6] = byte(wave.TtlSeconds >> 8)
-	ttl[7] = byte(wave.TtlSeconds)
+	ttl := int64ToBytes(wave.TtlSeconds)
 	data = append(data, ttl[:]...)
 
 	return data

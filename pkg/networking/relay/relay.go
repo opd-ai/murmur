@@ -43,6 +43,7 @@ const (
 	NATTypeSymmetric
 )
 
+// String returns the string representation of the NAT type.
 func (n NATType) String() string {
 	switch n {
 	case NATTypePublic:

@@ -117,50 +117,60 @@ type GiftCatalog struct{}
 func (c *GiftCatalog) AvailableEffects(resonance int) []EffectType {
 	var effects []EffectType
 
-	// Basic effects (Resonance 25+).
 	if resonance >= GiftTierBasic {
-		effects = append(effects,
-			EffectSoftGlowPulse,
-			EffectFaintHaloRing,
-			EffectGentleParticleDrift,
-			EffectShimmerOverlay,
-			EffectWarmthTintShift,
-		)
+		effects = append(effects, basicEffects()...)
 	}
-
-	// Expanded effects (Resonance 50+).
 	if resonance >= GiftTierExpanded {
-		effects = append(effects,
-			EffectOrbitingGeometric,
-			EffectAuroraColorShift,
-			EffectCrystallineFracture,
-			EffectEmberTrails,
-			EffectRippleDistortion,
-			EffectStarlightSparkle,
-			EffectVoidRipple,
-			EffectPrismShard,
-			EffectIceFormation,
-			EffectMistVeil,
-		)
+		effects = append(effects, expandedEffects()...)
 	}
-
-	// Premium effects (Resonance 100+).
 	if resonance >= GiftTierPremium {
-		effects = append(effects,
-			EffectMultiParticleSystem,
-			EffectFluidSimulation,
-			EffectGeometricMandala,
-			EffectVoidGravitation,
-			EffectPrismaticRefraction,
-			EffectNebulaeCloud,
-			EffectElectricArc,
-			EffectCrystalGrowth,
-			EffectPhoenixFlame,
-			EffectShadowWraith,
-		)
+		effects = append(effects, premiumEffects()...)
 	}
 
 	return effects
+}
+
+// basicEffects returns effects unlocked at Resonance 25+.
+func basicEffects() []EffectType {
+	return []EffectType{
+		EffectSoftGlowPulse,
+		EffectFaintHaloRing,
+		EffectGentleParticleDrift,
+		EffectShimmerOverlay,
+		EffectWarmthTintShift,
+	}
+}
+
+// expandedEffects returns effects unlocked at Resonance 50+.
+func expandedEffects() []EffectType {
+	return []EffectType{
+		EffectOrbitingGeometric,
+		EffectAuroraColorShift,
+		EffectCrystallineFracture,
+		EffectEmberTrails,
+		EffectRippleDistortion,
+		EffectStarlightSparkle,
+		EffectVoidRipple,
+		EffectPrismShard,
+		EffectIceFormation,
+		EffectMistVeil,
+	}
+}
+
+// premiumEffects returns effects unlocked at Resonance 100+.
+func premiumEffects() []EffectType {
+	return []EffectType{
+		EffectMultiParticleSystem,
+		EffectFluidSimulation,
+		EffectGeometricMandala,
+		EffectVoidGravitation,
+		EffectPrismaticRefraction,
+		EffectNebulaeCloud,
+		EffectElectricArc,
+		EffectCrystalGrowth,
+		EffectPhoenixFlame,
+		EffectShadowWraith,
+	}
 }
 
 // GiftStore manages Phantom Gift storage and rate limiting.
@@ -225,22 +235,33 @@ func (s *GiftStore) CreateGift(
 	resonance int,
 	signingKey ed25519.PrivateKey,
 ) (*Gift, error) {
-	// Check resonance requirement.
-	required := RequiredResonance(effect)
-	if resonance < required {
-		return nil, ErrInsufficientResonance
+	if err := s.validateGiftCreation(senderKey, recipientKey, effect, resonance); err != nil {
+		return nil, err
 	}
 
-	// Check daily limit.
+	gift := s.buildGift(senderKey, recipientKey, effect)
+	s.signGift(gift, signingKey)
+	s.storeGift(gift, senderKey, recipientKey)
+
+	return gift, nil
+}
+
+// validateGiftCreation checks prerequisites for creating a gift.
+func (s *GiftStore) validateGiftCreation(senderKey [32]byte, recipientKey []byte, effect EffectType, resonance int) error {
+	if resonance < RequiredResonance(effect) {
+		return ErrInsufficientResonance
+	}
 	if !s.CanSendGift(senderKey) {
-		return nil, ErrDailyLimitExceeded
+		return ErrDailyLimitExceeded
 	}
-
-	// Validate recipient.
 	if len(recipientKey) == 0 {
-		return nil, ErrInvalidRecipient
+		return ErrInvalidRecipient
 	}
+	return nil
+}
 
+// buildGift constructs a gift with computed ID.
+func (s *GiftStore) buildGift(senderKey [32]byte, recipientKey []byte, effect EffectType) *Gift {
 	now := time.Now()
 	gift := &Gift{
 		SenderPubKey: senderKey,
@@ -249,25 +270,36 @@ func (s *GiftStore) CreateGift(
 		CreatedAt:    now,
 		ExpiresAt:    now.Add(GiftDuration),
 	}
+	gift.ID = computeGiftID(senderKey, recipientKey, effect, now)
+	return gift
+}
 
-	// Generate gift ID as BLAKE3 hash of content.
+// computeGiftID generates a BLAKE3 hash for the gift.
+func computeGiftID(senderKey [32]byte, recipientKey []byte, effect EffectType, createdAt time.Time) [32]byte {
 	h := blake3.New()
 	h.Write(senderKey[:])
 	h.Write(recipientKey)
 	h.Write([]byte{byte(effect)})
 	var timestamp [8]byte
-	now.UnmarshalBinary(timestamp[:])
+	createdAt.UnmarshalBinary(timestamp[:])
 	h.Write(timestamp[:])
-	copy(gift.ID[:], h.Sum(nil))
+	var id [32]byte
+	copy(id[:], h.Sum(nil))
+	return id
+}
 
-	// Sign the gift.
-	if signingKey != nil {
-		signData := append(gift.ID[:], gift.RecipientKey...)
-		signData = append(signData, byte(effect))
-		gift.Signature = ed25519.Sign(signingKey, signData)
+// signGift applies an Ed25519 signature to the gift.
+func (s *GiftStore) signGift(gift *Gift, signingKey ed25519.PrivateKey) {
+	if signingKey == nil {
+		return
 	}
+	signData := append(gift.ID[:], gift.RecipientKey...)
+	signData = append(signData, byte(gift.Effect))
+	gift.Signature = ed25519.Sign(signingKey, signData)
+}
 
-	// Store the gift.
+// storeGift persists the gift and updates indexes.
+func (s *GiftStore) storeGift(gift *Gift, senderKey [32]byte, recipientKey []byte) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -275,12 +307,10 @@ func (s *GiftStore) CreateGift(
 
 	senderHex := keyToHex(senderKey[:])
 	s.bySender[senderHex] = append(s.bySender[senderHex], gift)
-	s.dailyLimits[senderHex] = append(s.dailyLimits[senderHex], now)
+	s.dailyLimits[senderHex] = append(s.dailyLimits[senderHex], gift.CreatedAt)
 
 	recipientHex := keyToHex(recipientKey)
 	s.byRecipient[recipientHex] = append(s.byRecipient[recipientHex], gift)
-
-	return gift, nil
 }
 
 // GetGift retrieves a gift by ID.
@@ -431,65 +461,44 @@ func GenerateGiftID() ([32]byte, error) {
 	return id, err
 }
 
+// effectNames maps effect types to human-readable names.
+var effectNames = map[EffectType]string{
+	// Basic effects.
+	EffectSoftGlowPulse:       "Soft Glow Pulse",
+	EffectFaintHaloRing:       "Faint Halo Ring",
+	EffectGentleParticleDrift: "Gentle Particle Drift",
+	EffectShimmerOverlay:      "Shimmer Overlay",
+	EffectWarmthTintShift:     "Warmth Tint Shift",
+	// Expanded effects.
+	EffectOrbitingGeometric:   "Orbiting Geometric",
+	EffectAuroraColorShift:    "Aurora Color Shift",
+	EffectCrystallineFracture: "Crystalline Fracture",
+	EffectEmberTrails:         "Ember Trails",
+	EffectRippleDistortion:    "Ripple Distortion",
+	EffectStarlightSparkle:    "Starlight Sparkle",
+	EffectVoidRipple:          "Void Ripple",
+	EffectPrismShard:          "Prism Shard",
+	EffectIceFormation:        "Ice Formation",
+	EffectMistVeil:            "Mist Veil",
+	// Premium effects.
+	EffectMultiParticleSystem: "Multi-Particle System",
+	EffectFluidSimulation:     "Fluid Simulation",
+	EffectGeometricMandala:    "Geometric Mandala",
+	EffectVoidGravitation:     "Void Gravitation",
+	EffectPrismaticRefraction: "Prismatic Refraction",
+	EffectNebulaeCloud:        "Nebulae Cloud",
+	EffectElectricArc:         "Electric Arc",
+	EffectCrystalGrowth:       "Crystal Growth",
+	EffectPhoenixFlame:        "Phoenix Flame",
+	EffectShadowWraith:        "Shadow Wraith",
+}
+
 // EffectName returns the human-readable name of an effect.
 func EffectName(effect EffectType) string {
-	switch effect {
-	// Basic effects.
-	case EffectSoftGlowPulse:
-		return "Soft Glow Pulse"
-	case EffectFaintHaloRing:
-		return "Faint Halo Ring"
-	case EffectGentleParticleDrift:
-		return "Gentle Particle Drift"
-	case EffectShimmerOverlay:
-		return "Shimmer Overlay"
-	case EffectWarmthTintShift:
-		return "Warmth Tint Shift"
-	// Expanded effects.
-	case EffectOrbitingGeometric:
-		return "Orbiting Geometric"
-	case EffectAuroraColorShift:
-		return "Aurora Color Shift"
-	case EffectCrystallineFracture:
-		return "Crystalline Fracture"
-	case EffectEmberTrails:
-		return "Ember Trails"
-	case EffectRippleDistortion:
-		return "Ripple Distortion"
-	case EffectStarlightSparkle:
-		return "Starlight Sparkle"
-	case EffectVoidRipple:
-		return "Void Ripple"
-	case EffectPrismShard:
-		return "Prism Shard"
-	case EffectIceFormation:
-		return "Ice Formation"
-	case EffectMistVeil:
-		return "Mist Veil"
-	// Premium effects.
-	case EffectMultiParticleSystem:
-		return "Multi-Particle System"
-	case EffectFluidSimulation:
-		return "Fluid Simulation"
-	case EffectGeometricMandala:
-		return "Geometric Mandala"
-	case EffectVoidGravitation:
-		return "Void Gravitation"
-	case EffectPrismaticRefraction:
-		return "Prismatic Refraction"
-	case EffectNebulaeCloud:
-		return "Nebulae Cloud"
-	case EffectElectricArc:
-		return "Electric Arc"
-	case EffectCrystalGrowth:
-		return "Crystal Growth"
-	case EffectPhoenixFlame:
-		return "Phoenix Flame"
-	case EffectShadowWraith:
-		return "Shadow Wraith"
-	default:
-		return "Unknown Effect"
+	if name, ok := effectNames[effect]; ok {
+		return name
 	}
+	return "Unknown Effect"
 }
 
 // EffectDescription returns a description of the visual effect.

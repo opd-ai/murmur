@@ -118,11 +118,11 @@ func sin(angle float32) float32 {
 	return angle - angle*angle*angle/6.0 + angle*angle*angle*angle*angle/120.0
 }
 
-// DuelVisualization represents a Specter Duel.
-type DuelVisualization struct {
-	Duelist1X, Duelist1Y float32
-	Duelist2X, Duelist2Y float32
-	Color1, Color2       color.RGBA
-	Intensity            float32
-	Phase                float32
+// MiniGameVisualization represents a mini-game event.
+type MiniGameVisualization struct {
+	Player1X, Player1Y float32
+	Player2X, Player2Y float32
+	Color1, Color2     color.RGBA
+	Intensity          float32
+	Phase              float32
 }

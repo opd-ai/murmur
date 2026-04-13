@@ -242,25 +242,36 @@ func (c *Cache) GarbageCollect() (int, error) {
 		return 0, ErrStoreClosed
 	}
 
-	// Collect expired wave IDs.
+	expiredIDs := c.collectExpiredIDs()
+	c.removeFromMemory(expiredIDs)
+	c.removeFromDatabase(expiredIDs)
+
+	return len(expiredIDs), nil
+}
+
+// collectExpiredIDs returns IDs of all expired waves in memory.
+func (c *Cache) collectExpiredIDs() [][]byte {
 	var expiredIDs [][]byte
 	for id, wave := range c.memory {
 		if waves.IsExpired(wave) {
 			expiredIDs = append(expiredIDs, []byte(id))
 		}
 	}
+	return expiredIDs
+}
 
-	// Remove from memory.
+// removeFromMemory deletes expired waves from the memory cache.
+func (c *Cache) removeFromMemory(expiredIDs [][]byte) {
 	for _, id := range expiredIDs {
 		delete(c.memory, string(id))
 	}
+}
 
-	// Remove from database.
+// removeFromDatabase deletes expired waves from persistent storage.
+func (c *Cache) removeFromDatabase(expiredIDs [][]byte) {
 	for _, id := range expiredIDs {
 		c.db.Delete(store.BucketWaves, id)
 	}
-
-	return len(expiredIDs), nil
 }
 
 // StartGC runs periodic garbage collection.

@@ -133,57 +133,69 @@ func CreateAbyssal(
 	specterPrivateKey []byte,
 	opts CreateAbyssalOptions,
 ) (*AbyssalWave, error) {
-	if len(content) > MaxContentSize {
-		return nil, ErrContentTooLarge
+	if err := validateAbyssalContent(content, opts); err != nil {
+		return nil, err
 	}
 
-	if opts.TTL <= 0 {
-		return nil, ErrInvalidTTL
-	}
-
-	if opts.TTL > MaxTTL {
-		return nil, ErrTTLTooLong
-	}
-
-	// Derive one-time keypair.
 	keyPair, err := DeriveAbyssalKeyPair(specterPrivateKey)
 	if err != nil {
 		return nil, err
 	}
 
-	now := time.Now()
-
-	// Create Wave with one-time public key as author.
-	wave := &pb.Wave{
-		WaveType:     pb.WaveType(TypeAbyssal),
-		Content:      content,
-		AuthorPubkey: keyPair.PublicKey, // One-time key, not Specter key.
-		CreatedAt:    now.Unix(),
-		TtlSeconds:   int64(opts.TTL.Seconds()),
-		ParentHash:   nil, // Abyssal Waves cannot be replies.
-		HopCount:     0,
-	}
-
-	// Compute Wave ID.
-	wave.WaveId = computeWaveID(wave)
-
-	// Sign with one-time key.
-	sigData := signatureData(wave)
-	wave.Signature = keyPair.Sign(sigData)
-
-	// Compute PoW with elevated difficulty.
-	powData := powData(wave)
-	work, err := pow.Compute(powData, opts.Difficulty)
-	if err != nil {
+	wave := buildAbyssalWave(content, keyPair, opts)
+	if err := signAndComputePoW(wave, keyPair, opts.Difficulty); err != nil {
 		return nil, err
 	}
-	wave.PowNonce = work.Nonce
 
 	return &AbyssalWave{
 		Wave:    wave,
 		KeyPair: keyPair,
 		ZKProof: opts.ZKProof,
 	}, nil
+}
+
+// validateAbyssalContent validates content and TTL for Abyssal Waves.
+func validateAbyssalContent(content []byte, opts CreateAbyssalOptions) error {
+	if len(content) > MaxContentSize {
+		return ErrContentTooLarge
+	}
+	if opts.TTL <= 0 {
+		return ErrInvalidTTL
+	}
+	if opts.TTL > MaxTTL {
+		return ErrTTLTooLong
+	}
+	return nil
+}
+
+// buildAbyssalWave constructs the protobuf Wave structure.
+func buildAbyssalWave(content []byte, keyPair *AbyssalKeyPair, opts CreateAbyssalOptions) *pb.Wave {
+	now := time.Now()
+	wave := &pb.Wave{
+		WaveType:     pb.WaveType(TypeAbyssal),
+		Content:      content,
+		AuthorPubkey: keyPair.PublicKey,
+		CreatedAt:    now.Unix(),
+		TtlSeconds:   int64(opts.TTL.Seconds()),
+		ParentHash:   nil,
+		HopCount:     0,
+	}
+	wave.WaveId = computeWaveID(wave)
+	return wave
+}
+
+// signAndComputePoW signs the wave and computes proof of work.
+func signAndComputePoW(wave *pb.Wave, keyPair *AbyssalKeyPair, difficulty uint8) error {
+	sigData := signatureData(wave)
+	wave.Signature = keyPair.Sign(sigData)
+
+	powInput := powData(wave)
+	work, err := pow.Compute(powInput, difficulty)
+	if err != nil {
+		return err
+	}
+	wave.PowNonce = work.Nonce
+	return nil
 }
 
 // ValidateAbyssal validates an Abyssal Wave.
@@ -259,15 +271,7 @@ func AbyssalWaveID(wave *pb.Wave) []byte {
 	h.Write(wave.AuthorPubkey)
 
 	// Include creation timestamp.
-	var ts [8]byte
-	ts[0] = byte(wave.CreatedAt >> 56)
-	ts[1] = byte(wave.CreatedAt >> 48)
-	ts[2] = byte(wave.CreatedAt >> 40)
-	ts[3] = byte(wave.CreatedAt >> 32)
-	ts[4] = byte(wave.CreatedAt >> 24)
-	ts[5] = byte(wave.CreatedAt >> 16)
-	ts[6] = byte(wave.CreatedAt >> 8)
-	ts[7] = byte(wave.CreatedAt)
+	ts := int64ToBytes(wave.CreatedAt)
 	h.Write(ts[:])
 
 	return h.Sum(nil)

@@ -45,8 +45,8 @@ enum InteractionType {
   INTERACTION_TYPE_REPLY_RECEIVED = 2;    // Specter received replies
   INTERACTION_TYPE_GIFT_SENT = 3;         // Phantom Gift sent
   INTERACTION_TYPE_GIFT_RECEIVED = 4;     // Phantom Gift received
-  INTERACTION_TYPE_DUEL_WON = 5;          // Won a Specter Duel
-  INTERACTION_TYPE_DUEL_LOST = 6;         // Lost a Specter Duel
+  INTERACTION_TYPE_MINIGAME_WON = 5;         // Won a mini-game
+  INTERACTION_TYPE_MINIGAME_LOST = 6;        // Lost a mini-game
   INTERACTION_TYPE_MARK_PLACED = 7;       // Placed a Specter Mark
   INTERACTION_TYPE_EVENT_HOSTED = 8;      // Hosted a Ghost Event
   INTERACTION_TYPE_COUNCIL_VOTE = 9;      // Participated in Council

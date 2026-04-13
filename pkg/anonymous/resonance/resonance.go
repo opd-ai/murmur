@@ -74,7 +74,7 @@ func RankFromScore(score int) Rank {
 // Signal categories per RESONANCE_SYSTEM.md.
 type SignalWeights struct {
 	PublicationConsistency float64 // Regular Specter activity
-	MiniGameQuality        float64 // Puzzle solutions, duel outcomes
+	MiniGameQuality        float64 // Puzzle solutions, game outcomes
 	GiftActivity           float64 // Given and received gifts
 	CommunityEndorsement   float64 // Marks from high-Resonance Specters
 }
@@ -97,8 +97,8 @@ type Score struct {
 	Publications         int
 	ConsecutiveDays      int
 	PuzzlesSolved        int
-	DuelsWon             int
-	DuelsLost            int
+	GamesWon             int
+	GamesLost            int
 	GiftsGiven           int
 	GiftsReceived        int
 	Endorsements         int
@@ -170,15 +170,15 @@ func (s *Score) AddPuzzleSolved() {
 	s.updateActivity()
 }
 
-// AddDuelResult records a duel outcome.
-func (s *Score) AddDuelResult(won bool) {
+// AddGameResult records a mini-game outcome.
+func (s *Score) AddGameResult(won bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if won {
-		s.DuelsWon++
+		s.GamesWon++
 	} else {
-		s.DuelsLost++
+		s.GamesLost++
 	}
 	s.updateActivity()
 }
@@ -277,15 +277,15 @@ func (s *Score) computeMiniGameScore() float64 {
 	// Puzzle solutions are straightforward.
 	puzzleScore := math.Log1p(float64(s.PuzzlesSolved)) * 15
 
-	// Duel win rate matters.
-	totalDuels := s.DuelsWon + s.DuelsLost
-	var duelScore float64
-	if totalDuels > 0 {
-		winRate := float64(s.DuelsWon) / float64(totalDuels)
-		duelScore = winRate * math.Log1p(float64(totalDuels)) * 20
+	// Game win rate matters.
+	totalGames := s.GamesWon + s.GamesLost
+	var gameScore float64
+	if totalGames > 0 {
+		winRate := float64(s.GamesWon) / float64(totalGames)
+		gameScore = winRate * math.Log1p(float64(totalGames)) * 20
 	}
 
-	return puzzleScore + duelScore
+	return puzzleScore + gameScore
 }
 
 // computeGiftScore calculates the gift activity component.
