@@ -134,3 +134,35 @@ func DrawIdentityCard(screen *ebiten.Image, x, y float32, label, name string, si
 	}
 	DrawCenteredText(screen, displayName, x, nameY, style.NameSize, nameColor)
 }
+
+// ButtonStyle defines visual parameters for buttons.
+type ButtonStyle struct {
+	Width     float32
+	Height    float32
+	TextSize  float64
+	TextColor color.RGBA
+}
+
+// DefaultButtonStyle returns a standard button style.
+func DefaultButtonStyle() ButtonStyle {
+	return ButtonStyle{
+		Width:     160,
+		Height:    40,
+		TextSize:  14,
+		TextColor: color.RGBA{220, 220, 230, 255},
+	}
+}
+
+// DrawButton renders a button at the given position.
+func DrawButton(screen *ebiten.Image, label string, x, y float32, style ButtonStyle) {
+	bx := x - style.Width/2
+	by := y - style.Height/2
+
+	bgColor := color.RGBA{60, 70, 100, 255}
+	vector.DrawFilledRect(screen, bx, by, style.Width, style.Height, bgColor, true)
+
+	borderColor := color.RGBA{100, 120, 180, 255}
+	vector.StrokeRect(screen, bx, by, style.Width, style.Height, 1.5, borderColor, true)
+
+	DrawCenteredText(screen, label, x, y+6, style.TextSize, style.TextColor)
+}
