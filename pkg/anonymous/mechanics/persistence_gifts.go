@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
-	pb "github.com/opd-ai/murmur/proto"
 	"github.com/opd-ai/murmur/pkg/store"
+	pb "github.com/opd-ai/murmur/proto"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -79,9 +79,13 @@ func (ps *PersistentGiftStore) CreateGift(
 	signingKey interface{}, // ed25519.PrivateKey, but using interface for flexibility.
 ) (*Gift, error) {
 	// Import type assertion at call site to avoid circular imports.
-	var sk interface{ Sign(rand, message []byte) ([]byte, error) }
+	var sk interface {
+		Sign(rand, message []byte) ([]byte, error)
+	}
 	if signingKey != nil {
-		sk = signingKey.(interface{ Sign(rand, message []byte) ([]byte, error) })
+		sk = signingKey.(interface {
+			Sign(rand, message []byte) ([]byte, error)
+		})
 	}
 	_ = sk // Unused for now; actual signing uses ed25519.Sign directly.
 

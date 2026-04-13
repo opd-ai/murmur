@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	pb "github.com/opd-ai/murmur/proto"
 	"github.com/opd-ai/murmur/pkg/store"
+	pb "github.com/opd-ai/murmur/proto"
 	"google.golang.org/protobuf/proto"
 )
 
