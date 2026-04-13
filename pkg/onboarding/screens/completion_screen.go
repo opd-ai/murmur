@@ -328,18 +328,9 @@ func (s *CompletionScreen) isClickOnButton(clickX, clickY, buttonCenterX, button
 }
 
 func (s *CompletionScreen) drawButton(screen *ebiten.Image, label string, x, y float32, index int) {
-	width := float32(160)
-	height := float32(40)
-	bx := x - width/2
-	by := y - height/2
-
-	bgColor := color.RGBA{60, 70, 100, 255}
-	vector.DrawFilledRect(screen, bx, by, width, height, bgColor, true)
-
-	borderColor := color.RGBA{100, 120, 180, 255}
-	vector.StrokeRect(screen, bx, by, width, height, 1.5, borderColor, true)
-
-	s.drawCenteredText(screen, label, x, y+6, 13, color.RGBA{220, 220, 230, 255})
+	style := DefaultButtonStyle()
+	style.TextSize = 13
+	DrawButton(screen, label, x, y, style)
 }
 
 // drawCenteredText delegates to the shared DrawCenteredText helper.
