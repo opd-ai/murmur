@@ -30,3 +30,14 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# Project binary (repo-specific)
+murmur
+
+# Analysis and development artifacts
+*.log
+pre-cleanup.json
+post-cleanup.json
+baseline.json
+final.json
+test-output.txt
