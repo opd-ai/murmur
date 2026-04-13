@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/opd-ai/murmur/pkg/content/storage"
 	"github.com/opd-ai/murmur/pkg/identity/keys"
 	"github.com/opd-ai/murmur/pkg/networking/gossip"
 	"github.com/opd-ai/murmur/pkg/networking/transport"
@@ -54,6 +55,12 @@ type Subsystems struct {
 
 	// PubSub is the GossipSub instance for topic messaging.
 	PubSub *gossip.PubSub
+
+	// Handlers manages GossipSub message handlers.
+	Handlers *Handlers
+
+	// WaveCache stores received Waves.
+	WaveCache *storage.Cache
 }
 
 // App is the top-level MURMUR application.
@@ -145,10 +152,15 @@ func (a *App) Run() error {
 	}
 	fmt.Println("  [3/7] Networking initialized")
 
-	// Content, Anonymous, Pulse Map, and Onboarding subsystems are initialized
+	// Initialize content subsystem (Wave cache and handlers).
+	if err := a.initContent(); err != nil {
+		return fmt.Errorf("initializing content: %w", err)
+	}
+	fmt.Println("  [4/7] Content initialized")
+
+	// Anonymous, Pulse Map, and Onboarding subsystems are initialized
 	// by their respective packages when messages arrive or UI events occur.
-	// The core infrastructure (Storage, Identity, Networking) is now ready.
-	fmt.Println("  [4-7] Content/Anonymous/PulseMap/Onboarding: ready for lazy init")
+	fmt.Println("  [5-7] Anonymous/PulseMap/Onboarding: ready for lazy init")
 
 	fmt.Printf("MURMUR listening on %v\n", a.subsystems.Host.Addrs())
 	fmt.Printf("Peer ID: %s\n", a.subsystems.Host.PeerID())
@@ -268,6 +280,40 @@ func (a *App) initNetworking() error {
 	return nil
 }
 
+// initContent initializes the content subsystem (Wave cache and GossipSub handlers).
+// Per TECHNICAL_IMPLEMENTATION.md §3.1, handlers are registered for all core topics.
+func (a *App) initContent() error {
+	// Create Wave cache.
+	cache, err := storage.NewCache(a.subsystems.Storage)
+	if err != nil {
+		return fmt.Errorf("creating wave cache: %w", err)
+	}
+	a.subsystems.WaveCache = cache
+
+	// Create message handlers.
+	handlers, err := NewHandlers(HandlersConfig{
+		Cache: cache,
+	})
+	if err != nil {
+		return fmt.Errorf("creating handlers: %w", err)
+	}
+	a.subsystems.Handlers = handlers
+
+	// Register handlers for all topics.
+	if err := handlers.RegisterAll(a.ctx, a.subsystems.PubSub); err != nil {
+		return fmt.Errorf("registering handlers: %w", err)
+	}
+
+	// Start garbage collection goroutine.
+	a.wg.Add(1)
+	go func() {
+		defer a.wg.Done()
+		cache.StartGC(a.ctx, storage.GCInterval)
+	}()
+
+	return nil
+}
+
 // Close shuts down the application gracefully.
 // It cancels the context and waits for all goroutines to complete.
 // Subsystems are closed in reverse initialization order.
@@ -293,7 +339,12 @@ func (a *App) Close() error {
 func (a *App) closeSubsystems() error {
 	var errs []error
 
-	// Close in reverse order: Networking → Identity → Storage.
+	// Close in reverse order: Content → Networking → Identity → Storage.
+	if a.subsystems.WaveCache != nil {
+		if err := a.subsystems.WaveCache.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("closing wave cache: %w", err))
+		}
+	}
 	if a.subsystems.PubSub != nil {
 		if err := a.subsystems.PubSub.Close(); err != nil {
 			errs = append(errs, fmt.Errorf("closing pubsub: %w", err))

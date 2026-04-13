@@ -20,6 +20,17 @@ var (
 	BucketShroud    = []byte("shroud")
 	BucketResonance = []byte("resonance")
 	BucketConfig    = []byte("config")
+	// Mechanics buckets for Anonymous Layer game state persistence.
+	BucketGifts      = []byte("gifts")
+	BucketMarks      = []byte("marks")
+	BucketPuzzles    = []byte("puzzles")
+	BucketHunts      = []byte("hunts")
+	BucketTerritories = []byte("territories")
+	BucketOracles    = []byte("oracles")
+	BucketForge      = []byte("forge")
+	BucketShadowPlay = []byte("shadowplay")
+	BucketCouncils   = []byte("councils")
+	BucketDailyLimits = []byte("daily_limits")
 )
 
 // DB wraps a Bbolt database with MURMUR-specific operations.
@@ -67,6 +78,17 @@ func (db *DB) initBuckets() error {
 		BucketShroud,
 		BucketResonance,
 		BucketConfig,
+		// Mechanics buckets.
+		BucketGifts,
+		BucketMarks,
+		BucketPuzzles,
+		BucketHunts,
+		BucketTerritories,
+		BucketOracles,
+		BucketForge,
+		BucketShadowPlay,
+		BucketCouncils,
+		BucketDailyLimits,
 	}
 
 	return db.bolt.Update(func(tx *bbolt.Tx) error {
@@ -129,4 +151,37 @@ func (db *DB) Delete(bucket, key []byte) error {
 		}
 		return b.Delete(key)
 	})
+}
+
+// ForEach iterates over all key-value pairs in a bucket.
+// The callback receives copies of the key and value, safe to use outside the callback.
+func (db *DB) ForEach(bucket []byte, fn func(key, value []byte) error) error {
+	return db.bolt.View(func(tx *bbolt.Tx) error {
+		b := tx.Bucket(bucket)
+		if b == nil {
+			return fmt.Errorf("bucket %s not found", bucket)
+		}
+		return b.ForEach(func(k, v []byte) error {
+			// Copy key and value since they're only valid during transaction.
+			keyCopy := make([]byte, len(k))
+			copy(keyCopy, k)
+			valueCopy := make([]byte, len(v))
+			copy(valueCopy, v)
+			return fn(keyCopy, valueCopy)
+		})
+	})
+}
+
+// Count returns the number of keys in a bucket.
+func (db *DB) Count(bucket []byte) (int, error) {
+	var count int
+	err := db.bolt.View(func(tx *bbolt.Tx) error {
+		b := tx.Bucket(bucket)
+		if b == nil {
+			return fmt.Errorf("bucket %s not found", bucket)
+		}
+		count = b.Stats().KeyN
+		return nil
+	})
+	return count, err
 }

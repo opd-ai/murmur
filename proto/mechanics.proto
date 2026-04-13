@@ -1,0 +1,305 @@
+// MURMUR Protocol Buffer Definitions
+// Game mechanics message types for Anonymous Layer persistence.
+// Per ANONYMOUS_GAME_MECHANICS.md, mechanics include Phantom Gifts, Specter Marks,
+// Territory Drift, Cipher Puzzles, Specter Hunts, Oracle Pools, Sigil Forge,
+// Shadow Play, and Phantom Councils.
+
+syntax = "proto3";
+
+package murmur;
+
+option go_package = "github.com/opd-ai/murmur/proto";
+
+// PhantomGift represents a one-way anonymous gift from Specter to Surface identity.
+// Per ANONYMOUS_GAME_MECHANICS.md §2.1, gifts apply visual effects based on Resonance tier.
+message PhantomGift {
+  bytes id = 1;                   // 32-byte BLAKE3 hash ID.
+  bytes sender_pubkey = 2;        // 32-byte Curve25519 Specter public key.
+  bytes recipient_pubkey = 3;     // Recipient's public key (Ed25519 or Curve25519).
+  uint32 effect_type = 4;         // Visual effect type (EffectType enum value).
+  int64 created_at = 5;           // Unix timestamp of creation.
+  int64 expires_at = 6;           // Unix timestamp of expiration (7 days from creation).
+  bytes signature = 7;            // Ed25519 signature for verification.
+}
+
+// SpecterMark represents an anonymous annotation on a Surface node.
+// Per ANONYMOUS_GAME_MECHANICS.md §2.2, marks are visible on Pulse Map.
+message SpecterMark {
+  bytes id = 1;                   // 32-byte BLAKE3 hash ID.
+  bytes specter_pubkey = 2;       // 32-byte Curve25519 Specter public key.
+  bytes target_pubkey = 3;        // Target Surface identity public key.
+  string content = 4;             // Mark content (≤256 chars).
+  int64 created_at = 5;           // Unix timestamp of creation.
+  int64 expires_at = 6;           // Unix timestamp of expiration.
+  bytes signature = 7;            // Ed25519 signature for verification.
+}
+
+// CipherPuzzle represents an encrypted puzzle for Specters to solve.
+// Per ANONYMOUS_GAME_MECHANICS.md §3, puzzles require cryptographic solving.
+message CipherPuzzle {
+  bytes id = 1;                   // 32-byte puzzle ID.
+  bytes creator_pubkey = 2;       // Creator's Specter public key.
+  bytes encrypted_content = 3;    // Encrypted puzzle content.
+  bytes hint = 4;                 // Optional plaintext hint.
+  uint32 difficulty = 5;          // Puzzle difficulty (1-10).
+  int64 created_at = 6;           // Unix timestamp of creation.
+  int64 expires_at = 7;           // Expiration timestamp.
+  PuzzleState state = 8;          // Current puzzle state.
+  bytes solution_hash = 9;        // BLAKE3 hash of solution for verification.
+  bytes winner_pubkey = 10;       // Winner's public key (if solved).
+  int64 solved_at = 11;           // When puzzle was solved.
+}
+
+// PuzzleState tracks the lifecycle of a cipher puzzle.
+enum PuzzleState {
+  PUZZLE_STATE_UNSPECIFIED = 0;
+  PUZZLE_STATE_ACTIVE = 1;        // Puzzle is active and accepting attempts.
+  PUZZLE_STATE_SOLVED = 2;        // Puzzle has been solved.
+  PUZZLE_STATE_EXPIRED = 3;       // Puzzle expired without being solved.
+}
+
+// SpecterHunt represents a collaborative search game.
+// Per ANONYMOUS_GAME_MECHANICS.md §4, hunts involve finding hidden Specters.
+message SpecterHunt {
+  bytes id = 1;                   // 32-byte hunt ID.
+  bytes organizer_pubkey = 2;     // Organizer's Specter public key.
+  string title = 3;               // Hunt title.
+  string description = 4;         // Hunt description.
+  int64 start_time = 5;           // Hunt start timestamp.
+  int64 end_time = 6;             // Hunt end timestamp.
+  HuntState state = 7;            // Current hunt state.
+  repeated HuntTarget targets = 8; // Hidden targets to find.
+  repeated HuntParticipant participants = 9; // Participants and scores.
+  uint32 max_participants = 10;   // Maximum participants allowed.
+}
+
+// HuntState tracks the lifecycle of a Specter Hunt.
+enum HuntState {
+  HUNT_STATE_UNSPECIFIED = 0;
+  HUNT_STATE_PENDING = 1;         // Hunt not yet started.
+  HUNT_STATE_ACTIVE = 2;          // Hunt in progress.
+  HUNT_STATE_COMPLETED = 3;       // Hunt finished.
+  HUNT_STATE_CANCELLED = 4;       // Hunt cancelled.
+}
+
+// HuntTarget is a hidden target in a Specter Hunt.
+message HuntTarget {
+  bytes id = 1;                   // Target ID.
+  bytes location_hash = 2;        // Hashed location hint.
+  bool found = 3;                 // Whether target has been found.
+  bytes finder_pubkey = 4;        // Who found it (if found).
+  int64 found_at = 5;             // When it was found.
+  uint32 points = 6;              // Points awarded for finding.
+}
+
+// HuntParticipant tracks a participant in a Specter Hunt.
+message HuntParticipant {
+  bytes specter_pubkey = 1;       // Participant's Specter public key.
+  uint32 score = 2;               // Current score.
+  int64 joined_at = 3;            // When they joined.
+  repeated bytes found_targets = 4; // IDs of targets they found.
+}
+
+// Territory represents a region in Territory Drift game.
+// Per ANONYMOUS_GAME_MECHANICS.md §5, territories shift based on Specter activity.
+message Territory {
+  bytes id = 1;                   // Territory ID.
+  string name = 2;                // Territory name.
+  bytes controller_pubkey = 3;    // Current controlling Specter (may be empty).
+  uint32 influence = 4;           // Current influence level (0-100).
+  int64 last_updated = 5;         // Last activity timestamp.
+  repeated TerritoryContender contenders = 6; // Specters vying for control.
+}
+
+// TerritoryContender tracks a Specter's influence in a territory.
+message TerritoryContender {
+  bytes specter_pubkey = 1;       // Contender's public key.
+  uint32 influence = 2;           // Their influence contribution.
+  int64 last_action = 3;          // Last action timestamp.
+}
+
+// OraclePool represents a prediction market pool.
+// Per ANONYMOUS_GAME_MECHANICS.md §6, oracles allow Specters to make predictions.
+message OraclePool {
+  bytes id = 1;                   // Pool ID.
+  bytes creator_pubkey = 2;       // Creator's Specter public key.
+  string question = 3;            // The prediction question.
+  repeated OracleOption options = 4; // Possible outcomes.
+  int64 created_at = 5;           // Creation timestamp.
+  int64 closes_at = 6;            // When voting closes.
+  int64 resolves_at = 7;          // When outcome is determined.
+  OracleState state = 8;          // Current pool state.
+  uint32 winning_option = 9;      // Index of winning option (when resolved).
+}
+
+// OracleState tracks the lifecycle of an Oracle Pool.
+enum OracleState {
+  ORACLE_STATE_UNSPECIFIED = 0;
+  ORACLE_STATE_OPEN = 1;          // Accepting predictions.
+  ORACLE_STATE_CLOSED = 2;        // No more predictions, awaiting resolution.
+  ORACLE_STATE_RESOLVED = 3;      // Outcome determined.
+  ORACLE_STATE_CANCELLED = 4;     // Pool cancelled.
+}
+
+// OracleOption represents one possible outcome in an Oracle Pool.
+message OracleOption {
+  uint32 index = 1;               // Option index.
+  string description = 2;         // Option description.
+  uint32 stake_count = 3;         // Number of stakers.
+  uint64 total_stake = 4;         // Total stake on this option.
+}
+
+// OraclePrediction represents a Specter's prediction in an Oracle Pool.
+message OraclePrediction {
+  bytes pool_id = 1;              // Pool this prediction is for.
+  bytes specter_pubkey = 2;       // Predictor's public key.
+  uint32 option_index = 3;        // Which option they chose.
+  uint64 stake = 4;               // Amount staked (Resonance points).
+  int64 timestamp = 5;            // When prediction was made.
+}
+
+// ForgeProject represents a Sigil Forge collaborative creation.
+// Per ANONYMOUS_GAME_MECHANICS.md §7, forge allows Specters to create custom sigils.
+message ForgeProject {
+  bytes id = 1;                   // Project ID.
+  bytes creator_pubkey = 2;       // Creator's Specter public key.
+  string name = 3;                // Project name.
+  bytes seed = 4;                 // Sigil generation seed.
+  repeated ForgeContribution contributions = 5; // Contributions from participants.
+  int64 created_at = 6;           // Creation timestamp.
+  int64 deadline = 7;             // Contribution deadline.
+  ForgeState state = 8;           // Current state.
+  bytes final_sigil = 9;          // Completed sigil data (when finalized).
+}
+
+// ForgeState tracks the lifecycle of a Forge Project.
+enum ForgeState {
+  FORGE_STATE_UNSPECIFIED = 0;
+  FORGE_STATE_COLLECTING = 1;     // Accepting contributions.
+  FORGE_STATE_FINALIZING = 2;     // Being assembled.
+  FORGE_STATE_COMPLETE = 3;       // Sigil created.
+  FORGE_STATE_FAILED = 4;         // Not enough contributions.
+}
+
+// ForgeContribution represents a Specter's contribution to a forge project.
+message ForgeContribution {
+  bytes specter_pubkey = 1;       // Contributor's public key.
+  bytes contribution = 2;         // Their contribution data.
+  int64 timestamp = 3;            // When contributed.
+}
+
+// ShadowPlay represents an anonymous theatrical performance.
+// Per ANONYMOUS_GAME_MECHANICS.md §8, shadow plays are ephemeral performances.
+message ShadowPlay {
+  bytes id = 1;                   // Play ID.
+  bytes director_pubkey = 2;      // Director's Specter public key.
+  string title = 3;               // Play title.
+  string script = 4;              // Play script/content.
+  int64 scheduled_time = 5;       // When play is scheduled.
+  int64 duration_seconds = 6;     // Expected duration.
+  ShadowPlayState state = 7;      // Current state.
+  repeated ShadowPlayActor actors = 8; // Cast members.
+  uint32 audience_count = 9;      // Number of audience members.
+}
+
+// ShadowPlayState tracks the lifecycle of a Shadow Play.
+enum ShadowPlayState {
+  SHADOW_PLAY_STATE_UNSPECIFIED = 0;
+  SHADOW_PLAY_STATE_CASTING = 1;  // Recruiting actors.
+  SHADOW_PLAY_STATE_REHEARSING = 2; // Preparing.
+  SHADOW_PLAY_STATE_PERFORMING = 3; // Live performance.
+  SHADOW_PLAY_STATE_COMPLETE = 4;  // Performance ended.
+  SHADOW_PLAY_STATE_CANCELLED = 5; // Cancelled.
+}
+
+// ShadowPlayActor represents a cast member in a Shadow Play.
+message ShadowPlayActor {
+  bytes specter_pubkey = 1;       // Actor's Specter public key.
+  string role = 2;                // Their role/character.
+  int64 joined_at = 3;            // When they joined the cast.
+}
+
+// PhantomCouncil represents a secret governing body.
+// Per ANONYMOUS_GAME_MECHANICS.md §9, councils make collective decisions.
+message PhantomCouncil {
+  bytes id = 1;                   // Council ID.
+  string name = 2;                // Council name.
+  bytes founder_pubkey = 3;       // Founder's Specter public key.
+  repeated CouncilMember members = 4; // Council members.
+  repeated CouncilProposal proposals = 5; // Active proposals.
+  int64 created_at = 6;           // Creation timestamp.
+  uint32 min_resonance = 7;       // Minimum Resonance to join.
+  uint32 quorum = 8;              // Minimum votes for decisions.
+  CouncilState state = 9;         // Current state.
+}
+
+// CouncilState tracks the lifecycle of a Phantom Council.
+enum CouncilState {
+  COUNCIL_STATE_UNSPECIFIED = 0;
+  COUNCIL_STATE_FORMING = 1;      // Recruiting members.
+  COUNCIL_STATE_ACTIVE = 2;       // Operating normally.
+  COUNCIL_STATE_DISSOLVED = 3;    // Council dissolved.
+}
+
+// CouncilMember represents a member of a Phantom Council.
+message CouncilMember {
+  bytes specter_pubkey = 1;       // Member's Specter public key.
+  int64 joined_at = 2;            // When they joined.
+  uint32 vote_weight = 3;         // Their voting weight.
+  CouncilRole role = 4;           // Their role in the council.
+}
+
+// CouncilRole defines roles within a Phantom Council.
+enum CouncilRole {
+  COUNCIL_ROLE_UNSPECIFIED = 0;
+  COUNCIL_ROLE_FOUNDER = 1;       // Council founder.
+  COUNCIL_ROLE_ELDER = 2;         // Senior member.
+  COUNCIL_ROLE_MEMBER = 3;        // Regular member.
+  COUNCIL_ROLE_INITIATE = 4;      // New member.
+}
+
+// CouncilProposal represents a proposal before a Phantom Council.
+message CouncilProposal {
+  bytes id = 1;                   // Proposal ID.
+  bytes proposer_pubkey = 2;      // Who proposed it.
+  string title = 3;               // Proposal title.
+  string description = 4;         // Proposal description.
+  int64 created_at = 5;           // When proposed.
+  int64 voting_ends_at = 6;       // Voting deadline.
+  ProposalState state = 7;        // Current state.
+  repeated CouncilVote votes = 8; // Votes cast.
+  uint32 yes_votes = 9;           // Count of yes votes.
+  uint32 no_votes = 10;           // Count of no votes.
+  uint32 abstain_votes = 11;      // Count of abstentions.
+}
+
+// ProposalState tracks the lifecycle of a council proposal.
+enum ProposalState {
+  PROPOSAL_STATE_UNSPECIFIED = 0;
+  PROPOSAL_STATE_PENDING = 1;     // Awaiting votes.
+  PROPOSAL_STATE_PASSED = 2;      // Approved.
+  PROPOSAL_STATE_REJECTED = 3;    // Rejected.
+  PROPOSAL_STATE_WITHDRAWN = 4;   // Withdrawn by proposer.
+}
+
+// CouncilVote represents a vote on a council proposal.
+message CouncilVote {
+  bytes voter_pubkey = 1;         // Voter's Specter public key.
+  VoteChoice choice = 2;          // Their vote.
+  int64 timestamp = 3;            // When they voted.
+}
+
+// VoteChoice represents voting options.
+enum VoteChoice {
+  VOTE_CHOICE_UNSPECIFIED = 0;
+  VOTE_CHOICE_YES = 1;
+  VOTE_CHOICE_NO = 2;
+  VOTE_CHOICE_ABSTAIN = 3;
+}
+
+// DailyLimit tracks rate limiting for a Specter.
+message DailyLimit {
+  bytes specter_pubkey = 1;       // Specter being limited.
+  string limit_type = 2;          // Type of limit (e.g., "gifts", "marks").
+  repeated int64 timestamps = 3;  // Timestamps of actions taken.
+}
