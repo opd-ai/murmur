@@ -48,7 +48,7 @@ func New(ctx context.Context, h host.Host) (*PubSub, error) {
 		Topics: map[string]*pubsub.TopicScoreParams{},
 
 		// Application-specific score function (returns 0 by default)
-		AppSpecificScore: func(p peer.ID) float64 { return 0 },
+		AppSpecificScore:  func(p peer.ID) float64 { return 0 },
 		AppSpecificWeight: 1,
 
 		// IP colocation penalty for Sybil resistance
