@@ -206,7 +206,7 @@ func (a *App) CreateSurfaceWave(ctx context.Context, content []byte) (*pb.Wave, 
 }
 
 // CreateReplyWave creates and broadcasts a reply to another Wave.
-func (a *App) CreateReplyWave(ctx context.Context, content []byte, parentHash []byte) (*pb.Wave, error) {
+func (a *App) CreateReplyWave(ctx context.Context, content, parentHash []byte) (*pb.Wave, error) {
 	opts := waves.DefaultCreateOptions()
 	opts.ParentHash = parentHash
 	return a.CreateWave(ctx, content, waves.TypeReply, opts)

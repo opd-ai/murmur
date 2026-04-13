@@ -35,17 +35,17 @@ const (
 
 // Handler errors.
 var (
-	ErrInvalidEnvelope   = errors.New("invalid envelope format")
-	ErrInvalidVersion    = errors.New("unsupported protocol version")
-	ErrInvalidSignature  = errors.New("invalid envelope signature")
-	ErrInvalidTimestamp  = errors.New("timestamp out of acceptable range")
-	ErrMessageExpired    = errors.New("message has expired")
-	ErrDuplicateMessage  = errors.New("duplicate message")
-	ErrInvalidMessageID  = errors.New("invalid message ID")
-	ErrInvalidPayload    = errors.New("invalid payload format")
-	ErrInvalidPoW        = errors.New("invalid proof of work")
-	ErrMessageTooLarge   = errors.New("message exceeds size limit")
-	ErrHandlerNotReady   = errors.New("handler dependencies not initialized")
+	ErrInvalidEnvelope  = errors.New("invalid envelope format")
+	ErrInvalidVersion   = errors.New("unsupported protocol version")
+	ErrInvalidSignature = errors.New("invalid envelope signature")
+	ErrInvalidTimestamp = errors.New("timestamp out of acceptable range")
+	ErrMessageExpired   = errors.New("message has expired")
+	ErrDuplicateMessage = errors.New("duplicate message")
+	ErrInvalidMessageID = errors.New("invalid message ID")
+	ErrInvalidPayload   = errors.New("invalid payload format")
+	ErrInvalidPoW       = errors.New("invalid proof of work")
+	ErrMessageTooLarge  = errors.New("message exceeds size limit")
+	ErrHandlerNotReady  = errors.New("handler dependencies not initialized")
 )
 
 // Handlers manages GossipSub message handlers for all MURMUR topics.
