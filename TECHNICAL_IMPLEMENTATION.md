@@ -93,7 +93,7 @@ The application is structured as a set of Go packages under `internal/`, with a 
     │   ├── shroud.go               # Onion circuit construction, cell encryption/decryption
     │   ├── relay.go                # Shroud relay participation, bandwidth accounting
     │   ├── resonance.go            # Resonance computation, rank thresholds, decay
-    │   └── mechanics.go            # Phantom Gifts, Duels, Marks, Events, Councils
+    │   └── mechanics.go            # Phantom Gifts, Games, Marks, Events, Councils
     │
     ├── store/
     │   ├── db.go                   # Bbolt initialization, bucket creation, shutdown
