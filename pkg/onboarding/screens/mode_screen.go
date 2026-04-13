@@ -388,55 +388,9 @@ func (s *ModeScreen) drawConfirmation(screen *ebiten.Image) {
 	s.drawButton(screen, "Enter the Network", centerX, buttonY, 0)
 }
 
-// drawIdentityCard renders an identity preview card.
+// drawIdentityCard renders an identity preview card using the shared helper.
 func (s *ModeScreen) drawIdentityCard(screen *ebiten.Image, x, y float32, label, name string, sigil *ebiten.Image, isSpecter bool) {
-	cardWidth := float32(180)
-	cardHeight := float32(160)
-	cardX := x - cardWidth/2
-	cardY := y - cardHeight/2
-
-	// Card background
-	bgColor := color.RGBA{30, 35, 50, 255}
-	if isSpecter {
-		bgColor = color.RGBA{25, 30, 55, 255}
-	}
-	vector.DrawFilledRect(screen, cardX, cardY, cardWidth, cardHeight, bgColor, true)
-
-	// Border
-	borderColor := color.RGBA{70, 80, 120, 255}
-	if isSpecter {
-		borderColor = color.RGBA{80, 100, 180, 255}
-	}
-	vector.StrokeRect(screen, cardX, cardY, cardWidth, cardHeight, 1.5, borderColor, true)
-
-	// Label
-	labelY := cardY + 20
-	labelColor := color.RGBA{150, 150, 160, 255}
-	if isSpecter {
-		labelColor = color.RGBA{120, 150, 200, 255}
-	}
-	s.drawCenteredText(screen, label, x, labelY, 12, labelColor)
-
-	// Sigil
-	if sigil != nil {
-		sigilOpts := &ebiten.DrawImageOptions{}
-		sigilX := x - float32(sigil.Bounds().Dx())/2
-		sigilY := cardY + 40
-		sigilOpts.GeoM.Translate(float64(sigilX), float64(sigilY))
-		screen.DrawImage(sigil, sigilOpts)
-	}
-
-	// Name
-	nameY := cardY + cardHeight - 30
-	nameColor := color.RGBA{200, 200, 210, 255}
-	if isSpecter {
-		nameColor = color.RGBA{140, 170, 230, 255}
-	}
-	displayedName := name
-	if displayedName == "" {
-		displayedName = "(No name)"
-	}
-	s.drawCenteredText(screen, displayedName, x, nameY, 14, nameColor)
+	DrawIdentityCard(screen, x, y, label, name, sigil, isSpecter, DefaultIdentityCardStyle())
 }
 
 // generateSpecter creates the Specter keypair.
@@ -674,23 +628,9 @@ func (s *ModeScreen) drawButton(screen *ebiten.Image, label string, x, y float32
 	s.drawCenteredText(screen, label, x, y+6, 16, color.RGBA{220, 220, 230, 255})
 }
 
+// drawCenteredText delegates to the shared DrawCenteredText helper.
 func (s *ModeScreen) drawCenteredText(screen *ebiten.Image, str string, x, y float32, size float64, clr color.Color) {
-	charWidth := float32(size) * 0.5
-	textWidth := float32(len(str)) * charWidth
-	textX := x - textWidth/2
-
-	charColor := clr.(color.RGBA)
-	charH := float32(size) * 0.8
-	charW := charWidth * 0.8
-	charY := y - charH/2
-
-	for i, char := range str {
-		if char == ' ' {
-			continue
-		}
-		charX := textX + float32(i)*charWidth
-		vector.DrawFilledRect(screen, charX, charY, charW, charH, charColor, true)
-	}
+	DrawCenteredText(screen, str, x, y, size, clr)
 }
 
 // GetSelectedMode returns the selected mode.

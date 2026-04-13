@@ -268,6 +268,28 @@ func (e *Engine) computeForcesNaive(forces map[string][2]float64) {
 	}
 
 	// Spring attraction for edges
+	e.applySpringForces(forces)
+}
+
+// computeForcesBarnesHut uses Barnes-Hut algorithm for O(n log n) performance.
+func (e *Engine) computeForcesBarnesHut(forces map[string][2]float64) {
+	// Build quadtree
+	qt := newQuadtree(e.positions, e.centerX, e.centerY, 2000.0)
+
+	// Compute repulsion using quadtree
+	for id := range e.nodes {
+		pos := e.positions[id]
+		fx, fy := qt.computeForce(pos.X, pos.Y, id, e.params.RepulsionConstant, 0.5)
+		forces[id] = [2]float64{forces[id][0] + fx, forces[id][1] + fy}
+	}
+
+	// Spring attraction (still O(E))
+	e.applySpringForces(forces)
+}
+
+// applySpringForces computes spring attraction forces for all edges using Hooke's law.
+// Spring rest length decreases with connection age per PULSE_MAP.md.
+func (e *Engine) applySpringForces(forces map[string][2]float64) {
 	for _, edge := range e.edges {
 		pos1, ok1 := e.positions[edge.SourceID]
 		pos2, ok2 := e.positions[edge.TargetID]
@@ -287,50 +309,6 @@ func (e *Engine) computeForcesNaive(forces map[string][2]float64) {
 		displacement := dist - restLength
 
 		// Hooke's law
-		force := e.params.SpringConstant * displacement
-		fx := force * dx / dist
-		fy := force * dy / dist
-
-		forces[edge.SourceID] = [2]float64{
-			forces[edge.SourceID][0] + fx,
-			forces[edge.SourceID][1] + fy,
-		}
-		forces[edge.TargetID] = [2]float64{
-			forces[edge.TargetID][0] - fx,
-			forces[edge.TargetID][1] - fy,
-		}
-	}
-}
-
-// computeForcesBarnesHut uses Barnes-Hut algorithm for O(n log n) performance.
-func (e *Engine) computeForcesBarnesHut(forces map[string][2]float64) {
-	// Build quadtree
-	qt := newQuadtree(e.positions, e.centerX, e.centerY, 2000.0)
-
-	// Compute repulsion using quadtree
-	for id := range e.nodes {
-		pos := e.positions[id]
-		fx, fy := qt.computeForce(pos.X, pos.Y, id, e.params.RepulsionConstant, 0.5)
-		forces[id] = [2]float64{forces[id][0] + fx, forces[id][1] + fy}
-	}
-
-	// Spring attraction (still O(E))
-	for _, edge := range e.edges {
-		pos1, ok1 := e.positions[edge.SourceID]
-		pos2, ok2 := e.positions[edge.TargetID]
-		if !ok1 || !ok2 {
-			continue
-		}
-
-		dx := pos2.X - pos1.X
-		dy := pos2.Y - pos1.Y
-		dist := math.Sqrt(dx*dx + dy*dy)
-		if dist < 1 {
-			dist = 1
-		}
-
-		restLength := e.params.SpringRestLength * math.Exp(-edge.Age/365.0)
-		displacement := dist - restLength
 		force := e.params.SpringConstant * displacement
 		fx := force * dx / dist
 		fy := force * dy / dist

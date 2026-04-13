@@ -445,18 +445,8 @@ func (s *PuzzleStore) GarbageCollect(maxHistory int) int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if len(s.history) <= maxHistory {
-		return 0
-	}
-
-	removed := len(s.history) - maxHistory
-
-	// Remove oldest entries from the puzzle map.
-	for i := 0; i < removed; i++ {
-		delete(s.puzzles, s.history[i].ID)
-	}
-
-	s.history = s.history[removed:]
+	var removed int
+	s.history, removed = GarbageCollectHistory(s.history, s.puzzles, maxHistory, func(p *Puzzle) [32]byte { return p.ID })
 	return removed
 }
 

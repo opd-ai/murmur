@@ -190,39 +190,20 @@ func CreateAbyssal(
 // Note: The ZK proof should be verified separately as it requires
 // access to the ZK verification primitives.
 func ValidateAbyssal(wave *pb.Wave, difficulty uint8) error {
-	if wave == nil {
-		return errors.New("wave is nil")
-	}
-
-	// Check wave type.
-	if pb.WaveType(TypeAbyssal) != wave.WaveType {
+	// Check wave type first.
+	if wave != nil && pb.WaveType(TypeAbyssal) != wave.WaveType {
 		return errors.New("not an abyssal wave")
 	}
 
-	// Check content size.
-	if len(wave.Content) > MaxContentSize {
-		return ErrContentTooLarge
-	}
-
-	// Check expiration.
-	if IsExpired(wave) {
-		return ErrExpired
+	// Perform common validation (content size, expiration, pubkey size, PoW).
+	if err := validateCommon(wave, difficulty); err != nil {
+		return err
 	}
 
 	// Verify signature with one-time key.
-	if len(wave.AuthorPubkey) != ed25519.PublicKeySize {
-		return ErrInvalidSig
-	}
-
 	sigData := signatureData(wave)
 	if !ed25519.Verify(wave.AuthorPubkey, sigData, wave.Signature) {
 		return ErrInvalidSig
-	}
-
-	// Verify PoW with elevated difficulty.
-	pd := powData(wave)
-	if !pow.Verify(pd, wave.PowNonce, difficulty) {
-		return ErrInvalidPoW
 	}
 
 	return nil

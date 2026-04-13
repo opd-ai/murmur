@@ -1,20 +1,20 @@
 {
   "metadata": {
     "repository": "/home/user/go/src/github.com/opd-ai/murmur",
-    "generated_at": "2026-04-13T00:43:18.635845222-04:00",
-    "analysis_time": 644735790,
-    "files_processed": 52,
+    "generated_at": "2026-04-13T01:50:13.513349159-04:00",
+    "analysis_time": 574172916,
+    "files_processed": 55,
     "tool_version": "1.0.0",
     "go_version": ""
   },
   "overview": {
-    "total_lines_of_code": 8055,
-    "total_functions": 215,
-    "total_methods": 661,
-    "total_structs": 140,
+    "total_lines_of_code": 7911,
+    "total_functions": 219,
+    "total_methods": 662,
+    "total_structs": 141,
     "total_interfaces": 2,
     "total_packages": 31,
-    "total_files": 52
+    "total_files": 55
   },
   "functions": null,
   "structs": null,
@@ -112,10 +112,10 @@
     "complexity_score": 0
   },
   "duplication": {
-    "clone_pairs": 20,
-    "duplicated_lines": 439,
-    "duplication_ratio": 0.025548507245533376,
-    "largest_clone_size": 41,
+    "clone_pairs": 11,
+    "duplicated_lines": 195,
+    "duplication_ratio": 0.011427566807313643,
+    "largest_clone_size": 32,
     "clones": [
       {
         "hash": "5840ea42259d49e3",
@@ -123,26 +123,26 @@
         "instances": [
           {
             "file": "pkg/content/waves/abyssal.go",
-            "start_line": 282,
-            "end_line": 289,
+            "start_line": 263,
+            "end_line": 270,
             "node_count": 86
           },
           {
             "file": "pkg/content/waves/waves.go",
-            "start_line": 223,
-            "end_line": 230,
+            "start_line": 232,
+            "end_line": 239,
             "node_count": 86
           },
           {
             "file": "pkg/content/waves/waves.go",
-            "start_line": 250,
-            "end_line": 257,
+            "start_line": 259,
+            "end_line": 266,
             "node_count": 86
           },
           {
             "file": "pkg/content/waves/waves.go",
-            "start_line": 261,
-            "end_line": 268,
+            "start_line": 270,
+            "end_line": 277,
             "node_count": 86
           }
         ],
@@ -162,8 +162,8 @@
           },
           {
             "file": "pkg/content/waves/abyssal.go",
-            "start_line": 243,
-            "end_line": 249,
+            "start_line": 224,
+            "end_line": 230,
             "node_count": 43
           }
         ],
@@ -177,14 +177,14 @@
         "instances": [
           {
             "file": "pkg/content/waves/abyssal.go",
-            "start_line": 282,
-            "end_line": 290,
+            "start_line": 263,
+            "end_line": 271,
             "node_count": 93
           },
           {
             "file": "pkg/content/waves/waves.go",
-            "start_line": 223,
-            "end_line": 231,
+            "start_line": 232,
+            "end_line": 240,
             "node_count": 93
           }
         ],
@@ -225,14 +225,14 @@
           },
           {
             "file": "pkg/onboarding/screens/completion_screen.go",
-            "start_line": 385,
-            "end_line": 396,
+            "start_line": 331,
+            "end_line": 342,
             "node_count": 89
           },
           {
             "file": "pkg/onboarding/screens/mode_screen.go",
-            "start_line": 663,
-            "end_line": 674,
+            "start_line": 617,
+            "end_line": 628,
             "node_count": 89
           }
         ],
@@ -283,129 +283,6 @@
         "suggestion": "Extract 13-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
       },
       {
-        "hash": "3399fd154751c966",
-        "type": "renamed",
-        "instances": [
-          {
-            "file": "pkg/anonymous/specters/specters.go",
-            "start_line": 189,
-            "end_line": 203,
-            "node_count": 62
-          },
-          {
-            "file": "pkg/anonymous/specters/specters.go",
-            "start_line": 218,
-            "end_line": 232,
-            "node_count": 62
-          }
-        ],
-        "line_count": 15,
-        "severity": "warning",
-        "suggestion": "Extract 15-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
-      },
-      {
-        "hash": "873a6b910d26ad37",
-        "type": "renamed",
-        "instances": [
-          {
-            "file": "pkg/anonymous/mechanics/hunts.go",
-            "start_line": 588,
-            "end_line": 602,
-            "node_count": 68
-          },
-          {
-            "file": "pkg/anonymous/mechanics/oracle.go",
-            "start_line": 560,
-            "end_line": 574,
-            "node_count": 68
-          },
-          {
-            "file": "pkg/anonymous/mechanics/puzzles.go",
-            "start_line": 445,
-            "end_line": 460,
-            "node_count": 68
-          }
-        ],
-        "line_count": 15,
-        "severity": "warning",
-        "suggestion": "Extract 15-line duplicate code block into a shared function. Found in 3 locations. Consider using generics or interface-based abstraction"
-      },
-      {
-        "hash": "5efac108def2c1c6",
-        "type": "exact",
-        "instances": [
-          {
-            "file": "pkg/onboarding/screens/bootstrap_screen.go",
-            "start_line": 560,
-            "end_line": 575,
-            "node_count": 81
-          },
-          {
-            "file": "pkg/onboarding/screens/completion_screen.go",
-            "start_line": 400,
-            "end_line": 415,
-            "node_count": 81
-          },
-          {
-            "file": "pkg/onboarding/screens/mode_screen.go",
-            "start_line": 678,
-            "end_line": 693,
-            "node_count": 81
-          },
-          {
-            "file": "pkg/onboarding/screens/screens.go",
-            "start_line": 460,
-            "end_line": 476,
-            "node_count": 81
-          }
-        ],
-        "line_count": 16,
-        "severity": "violation",
-        "suggestion": "Extract 16-line duplicate code block into a shared function. Found in 4 locations"
-      },
-      {
-        "hash": "dfb53c62b9e7c4f2",
-        "type": "exact",
-        "instances": [
-          {
-            "file": "pkg/pulsemap/rendering/rendering.go",
-            "start_line": 181,
-            "end_line": 196,
-            "node_count": 66
-          },
-          {
-            "file": "pkg/pulsemap/rendering/rendering_stub.go",
-            "start_line": 90,
-            "end_line": 105,
-            "node_count": 66
-          }
-        ],
-        "line_count": 16,
-        "severity": "warning",
-        "suggestion": "Extract 16-line duplicate code block into a shared function. Found in 2 locations"
-      },
-      {
-        "hash": "3299a6d27dc0852b",
-        "type": "exact",
-        "instances": [
-          {
-            "file": "pkg/pulsemap/rendering/rendering.go",
-            "start_line": 160,
-            "end_line": 177,
-            "node_count": 101
-          },
-          {
-            "file": "pkg/pulsemap/rendering/rendering_stub.go",
-            "start_line": 69,
-            "end_line": 86,
-            "node_count": 101
-          }
-        ],
-        "line_count": 18,
-        "severity": "warning",
-        "suggestion": "Extract 18-line duplicate code block into a shared function. Found in 2 locations"
-      },
-      {
         "hash": "51cdffce9259f753",
         "type": "renamed",
         "instances": [
@@ -417,8 +294,8 @@
           },
           {
             "file": "pkg/onboarding/screens/completion_screen.go",
-            "start_line": 261,
-            "end_line": 279,
+            "start_line": 207,
+            "end_line": 225,
             "node_count": 142
           }
         ],
@@ -427,34 +304,13 @@
         "suggestion": "Extract 19-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
       },
       {
-        "hash": "9f8fc7c9bf0cb827",
-        "type": "exact",
-        "instances": [
-          {
-            "file": "pkg/pulsemap/rendering/rendering.go",
-            "start_line": 136,
-            "end_line": 155,
-            "node_count": 93
-          },
-          {
-            "file": "pkg/pulsemap/rendering/rendering_stub.go",
-            "start_line": 50,
-            "end_line": 65,
-            "node_count": 93
-          }
-        ],
-        "line_count": 20,
-        "severity": "warning",
-        "suggestion": "Extract 20-line duplicate code block into a shared function. Found in 2 locations"
-      },
-      {
         "hash": "db380586b8c2dba0",
         "type": "exact",
         "instances": [
           {
             "file": "pkg/onboarding/screens/mode_screen.go",
-            "start_line": 465,
-            "end_line": 485,
+            "start_line": 419,
+            "end_line": 439,
             "node_count": 91
           },
           {
@@ -490,48 +346,6 @@
         "suggestion": "Extract 22-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
       },
       {
-        "hash": "6cf6ae8b7bd91b0c",
-        "type": "renamed",
-        "instances": [
-          {
-            "file": "pkg/content/waves/abyssal.go",
-            "start_line": 203,
-            "end_line": 228,
-            "node_count": 73
-          },
-          {
-            "file": "pkg/content/waves/waves.go",
-            "start_line": 137,
-            "end_line": 162,
-            "node_count": 73
-          }
-        ],
-        "line_count": 26,
-        "severity": "violation",
-        "suggestion": "Extract 26-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
-      },
-      {
-        "hash": "da07d2b77bf82cf1",
-        "type": "exact",
-        "instances": [
-          {
-            "file": "pkg/pulsemap/layout/layout.go",
-            "start_line": 272,
-            "end_line": 301,
-            "node_count": 169
-          },
-          {
-            "file": "pkg/pulsemap/layout/layout.go",
-            "start_line": 319,
-            "end_line": 345,
-            "node_count": 169
-          }
-        ],
-        "line_count": 30,
-        "severity": "violation",
-        "suggestion": "Extract 30-line duplicate code block into a shared function. Found in 2 locations"
-      },
-      {
         "hash": "e4329d568d738f4c",
         "type": "exact",
         "instances": [
@@ -551,27 +365,6 @@
         "line_count": 32,
         "severity": "violation",
         "suggestion": "Extract 32-line duplicate code block into a shared function. Found in 2 locations"
-      },
-      {
-        "hash": "f62cd1c898c64aa8",
-        "type": "renamed",
-        "instances": [
-          {
-            "file": "pkg/onboarding/screens/completion_screen.go",
-            "start_line": 171,
-            "end_line": 211,
-            "node_count": 214
-          },
-          {
-            "file": "pkg/onboarding/screens/mode_screen.go",
-            "start_line": 399,
-            "end_line": 439,
-            "node_count": 214
-          }
-        ],
-        "line_count": 41,
-        "severity": "violation",
-        "suggestion": "Extract 41-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
       }
     ]
   },

@@ -588,17 +588,8 @@ func (s *HuntStore) GarbageCollect(maxHistory int) int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if len(s.history) <= maxHistory {
-		return 0
-	}
-
-	removed := len(s.history) - maxHistory
-
-	for i := 0; i < removed; i++ {
-		delete(s.hunts, s.history[i].ID)
-	}
-
-	s.history = s.history[removed:]
+	var removed int
+	s.history, removed = GarbageCollectHistory(s.history, s.hunts, maxHistory, func(h *Hunt) [32]byte { return h.ID })
 	return removed
 }
 

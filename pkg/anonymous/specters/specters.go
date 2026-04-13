@@ -184,6 +184,15 @@ func (s *Specter) DeriveSharedSecret(peerPublic []byte) ([]byte, error) {
 	return shared[:], nil
 }
 
+// deriveEncryptionKey derives a 32-byte encryption key from a shared secret.
+// Uses BLAKE3 with domain separation per SECURITY_PRIVACY.md.
+func deriveEncryptionKey(sharedSecret []byte) []byte {
+	h := blake3.New()
+	h.Write(sharedSecret)
+	h.Write([]byte("murmur-specter-encrypt"))
+	return h.Sum(nil)[:32]
+}
+
 // Encrypt encrypts data using XChaCha20-Poly1305 with a derived key.
 func (s *Specter) Encrypt(plaintext, recipientPublic []byte) ([]byte, error) {
 	shared, err := s.DeriveSharedSecret(recipientPublic)
@@ -191,12 +200,7 @@ func (s *Specter) Encrypt(plaintext, recipientPublic []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	// Derive encryption key from shared secret.
-	h := blake3.New()
-	h.Write(shared)
-	h.Write([]byte("murmur-specter-encrypt"))
-	key := h.Sum(nil)[:32]
-
+	key := deriveEncryptionKey(shared)
 	cipher, err := chacha20poly1305.NewX(key)
 	if err != nil {
 		return nil, ErrEncryptionFail
@@ -220,12 +224,7 @@ func (s *Specter) Decrypt(ciphertext, senderPublic []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	// Derive encryption key from shared secret.
-	h := blake3.New()
-	h.Write(shared)
-	h.Write([]byte("murmur-specter-encrypt"))
-	key := h.Sum(nil)[:32]
-
+	key := deriveEncryptionKey(shared)
 	cipher, err := chacha20poly1305.NewX(key)
 	if err != nil {
 		return nil, ErrDecryptionFail

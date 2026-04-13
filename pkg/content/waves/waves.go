@@ -129,6 +129,20 @@ func CreateReply(content, parentHash []byte, kp *keys.KeyPair) (*pb.Wave, error)
 
 // Validate checks if a Wave is valid (signature, PoW, TTL).
 func Validate(wave *pb.Wave, difficulty uint8) error {
+	if err := validateCommon(wave, difficulty); err != nil {
+		return err
+	}
+	// Use keys.Verify for standard waves (same as ed25519.Verify)
+	sigData := signatureData(wave)
+	if !keys.Verify(wave.AuthorPubkey, sigData, wave.Signature) {
+		return ErrInvalidSig
+	}
+	return nil
+}
+
+// validateCommon performs common validation checks shared by all wave types.
+// Checks content size, expiration, public key size, and PoW.
+func validateCommon(wave *pb.Wave, difficulty uint8) error {
 	if wave == nil {
 		return errors.New("wave is nil")
 	}
@@ -143,19 +157,14 @@ func Validate(wave *pb.Wave, difficulty uint8) error {
 		return ErrExpired
 	}
 
-	// Verify signature.
+	// Verify public key size.
 	if len(wave.AuthorPubkey) != ed25519.PublicKeySize {
 		return ErrInvalidSig
 	}
 
-	sigData := signatureData(wave)
-	if !keys.Verify(wave.AuthorPubkey, sigData, wave.Signature) {
-		return ErrInvalidSig
-	}
-
 	// Verify PoW.
-	powData := powData(wave)
-	if !pow.Verify(powData, wave.PowNonce, difficulty) {
+	pd := powData(wave)
+	if !pow.Verify(pd, wave.PowNonce, difficulty) {
 		return ErrInvalidPoW
 	}
 

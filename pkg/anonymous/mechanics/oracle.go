@@ -560,17 +560,8 @@ func (s *OraclePoolStore) GarbageCollect(maxHistory int) int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if len(s.history) <= maxHistory {
-		return 0
-	}
-
-	removed := len(s.history) - maxHistory
-
-	for i := 0; i < removed; i++ {
-		delete(s.pools, s.history[i].ID)
-	}
-
-	s.history = s.history[removed:]
+	var removed int
+	s.history, removed = GarbageCollectHistory(s.history, s.pools, maxHistory, func(p *OraclePool) [32]byte { return p.ID })
 	return removed
 }
 

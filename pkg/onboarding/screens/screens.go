@@ -453,27 +453,9 @@ func (s *Screen) drawButton(screen *ebiten.Image, label string, x, y float32, in
 	s.drawCenteredText(screen, label, x, y+6, 16, color.RGBA{220, 220, 230, 255})
 }
 
-// drawCenteredText draws text centered at the given position.
-// Note: This is a simplified placeholder. Production code should use text/v2 with a proper font.
+// drawCenteredText delegates to the shared DrawCenteredText helper.
 func (s *Screen) drawCenteredText(screen *ebiten.Image, str string, x, y float32, size float64, clr color.Color) {
-	// Approximate text width for centering (rough estimate)
-	charWidth := float32(size) * 0.5
-	textWidth := float32(len(str)) * charWidth
-	textX := x - textWidth/2
-
-	// Draw each character as a small rectangle (placeholder for actual text rendering)
-	charColor := clr.(color.RGBA)
-	charH := float32(size) * 0.8
-	charW := charWidth * 0.8
-	charY := y - charH/2
-
-	for i, char := range str {
-		if char == ' ' {
-			continue
-		}
-		charX := textX + float32(i)*charWidth
-		vector.DrawFilledRect(screen, charX, charY, charW, charH, charColor, true)
-	}
+	DrawCenteredText(screen, str, x, y, size, clr)
 }
 
 // generateKeypair creates a new keypair and sigil.
