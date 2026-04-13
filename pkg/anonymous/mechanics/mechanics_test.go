@@ -711,6 +711,24 @@ func TestHuntInvalidFragmentCount(t *testing.T) {
 	}
 }
 
+func TestHuntInsufficientResonance(t *testing.T) {
+	var seed, initiator [32]byte
+	rand.Read(seed[:])
+	rand.Read(initiator[:])
+
+	// Resonance below minimum (75).
+	_, err := NewHunt("Test", seed, initiator, HuntDuration60Min, 10, HuntMinResonance-1)
+	if err != ErrHuntInsufficientRes {
+		t.Errorf("Expected ErrHuntInsufficientRes, got %v", err)
+	}
+
+	// Exactly at minimum should succeed.
+	_, err = NewHunt("Test", seed, initiator, HuntDuration60Min, 10, HuntMinResonance)
+	if err != nil {
+		t.Errorf("Expected success at minimum resonance, got %v", err)
+	}
+}
+
 func TestHuntFragmentGeneration(t *testing.T) {
 	var seed [32]byte
 	var initiator [32]byte
@@ -1381,6 +1399,35 @@ func TestForgeInvalidDuration(t *testing.T) {
 	)
 	if err != ErrForgeInvalidDuration {
 		t.Errorf("Expected ErrForgeInvalidDuration, got %v", err)
+	}
+}
+
+func TestForgeInsufficientResonance(t *testing.T) {
+	var initiator [32]byte
+	rand.Read(initiator[:])
+
+	// Resonance below minimum (50).
+	_, err := NewSigilForge(
+		ForgeSigilArt,
+		"Test",
+		initiator,
+		ForgeDuration30Min,
+		ForgeMinResonance-1,
+	)
+	if err != ErrForgeInsufficientResonance {
+		t.Errorf("Expected ErrForgeInsufficientResonance, got %v", err)
+	}
+
+	// Exactly at minimum should succeed.
+	_, err = NewSigilForge(
+		ForgeSigilArt,
+		"Test",
+		initiator,
+		ForgeDuration30Min,
+		ForgeMinResonance,
+	)
+	if err != nil {
+		t.Errorf("Expected success at minimum resonance, got %v", err)
 	}
 }
 
@@ -2092,6 +2139,23 @@ func TestCouncilInvalidResonance(t *testing.T) {
 	_, err := NewPhantomCouncil(creator, "Test", "Test", 100.0, 5, CouncilMinResonance)
 	if err != ErrCouncilInvalidMinResonance {
 		t.Errorf("Expected ErrCouncilInvalidMinResonance, got %v", err)
+	}
+}
+
+func TestCouncilInsufficientCreatorResonance(t *testing.T) {
+	var creator [32]byte
+	rand.Read(creator[:])
+
+	// Creator resonance below minimum (200).
+	_, err := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance-1)
+	if err != ErrCouncilInsufficientResonance {
+		t.Errorf("Expected ErrCouncilInsufficientResonance, got %v", err)
+	}
+
+	// Exactly at minimum should succeed.
+	_, err = NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance)
+	if err != nil {
+		t.Errorf("Expected success at minimum resonance, got %v", err)
 	}
 }
 

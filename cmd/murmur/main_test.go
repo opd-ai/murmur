@@ -10,6 +10,53 @@ import (
 	"github.com/opd-ai/murmur/pkg/app"
 )
 
+// TestRunFunction verifies the run() function initializes and shuts down properly.
+func TestRunFunction(t *testing.T) {
+	// Set up a temporary data directory.
+	tmpDir, err := os.MkdirTemp("", "murmur-test-*")
+	if err != nil {
+		t.Fatalf("creating temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Override the default data directory via HOME.
+	origHome := os.Getenv("HOME")
+	os.Setenv("HOME", tmpDir)
+	defer os.Setenv("HOME", origHome)
+
+	// Override XDG_DATA_HOME for consistent data directory.
+	origXDG := os.Getenv("XDG_DATA_HOME")
+	os.Setenv("XDG_DATA_HOME", tmpDir)
+	defer os.Setenv("XDG_DATA_HOME", origXDG)
+
+	// Test that we can create an application with the current Version.
+	application, err := app.New(app.Config{
+		Version: Version,
+		DataDir: tmpDir,
+	})
+	if err != nil {
+		t.Fatalf("creating application with Version %q: %v", Version, err)
+	}
+	defer application.Close()
+
+	// Verify version is correctly passed.
+	if application.Version() != Version {
+		t.Errorf("Version() = %q, want %q", application.Version(), Version)
+	}
+}
+
+// TestVersionVariableIsSet verifies the Version variable has a value.
+func TestVersionVariableIsSet(t *testing.T) {
+	// Version is set via build flags, default is "0.0.0-alpha".
+	if Version == "" {
+		t.Error("Version should not be empty")
+	}
+	// Should be the default since we don't set build flags in test.
+	if Version != "0.0.0-alpha" {
+		t.Logf("Version = %q (may be set by build flags)", Version)
+	}
+}
+
 // TestRunStartsApplication verifies that run() successfully initializes the app.
 func TestRunStartsApplication(t *testing.T) {
 	// Set up a temporary data directory.

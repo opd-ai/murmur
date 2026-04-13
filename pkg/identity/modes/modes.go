@@ -71,13 +71,14 @@ const TransitionCooldown = 30 * time.Second
 // Per SHADOW_GRADIENT.md, mode transitions must follow allowed paths
 // and respect cooldown periods.
 type Manager struct {
-	mu         sync.RWMutex
-	current    Mode
-	lastChange time.Time
-	cooldown   time.Duration
-	hasSpecter bool // Whether a Specter identity exists
-	hasShroud  bool // Whether Shroud routing is available
-	listeners  []func(old, new Mode)
+	mu               sync.RWMutex
+	current          Mode
+	lastChange       time.Time
+	cooldown         time.Duration
+	hasSpecter       bool // Whether a Specter identity exists
+	hasShroud        bool // Whether Shroud routing is available
+	listeners        []func(old, new Mode)
+	specterDestroyer func() error // Called when transitioning to non-Specter mode
 }
 
 // NewManager creates a new mode manager starting in Open mode.
@@ -162,7 +163,12 @@ func isValidTransition(from, to Mode) bool {
 	return false
 }
 
+// ErrSpecterDestructionFailed indicates Specter destruction callback failed.
+var ErrSpecterDestructionFailed = errors.New("failed to destroy Specter identity")
+
 // Transition attempts to switch to a new privacy mode.
+// Per SHADOW_GRADIENT.md, transitioning from a Specter-enabled mode
+// (Hybrid/Guarded/Fortress) to Open destroys the Specter identity.
 func (m *Manager) Transition(target Mode) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -172,6 +178,18 @@ func (m *Manager) Transition(target Mode) error {
 	}
 
 	old := m.current
+
+	// Per SHADOW_GRADIENT.md: when transitioning from a Specter-enabled mode
+	// to Open, the Specter keypair must be destroyed to prevent correlation.
+	if old.AllowsSpecter() && !target.AllowsSpecter() {
+		if m.specterDestroyer != nil {
+			if err := m.specterDestroyer(); err != nil {
+				return ErrSpecterDestructionFailed
+			}
+			m.hasSpecter = false
+		}
+	}
+
 	m.current = target
 	m.lastChange = time.Now()
 
@@ -211,6 +229,17 @@ func (m *Manager) SetShroudAvailable(available bool) {
 	defer m.mu.Unlock()
 
 	m.hasShroud = available
+}
+
+// SetSpecterDestroyer sets a callback to destroy Specter identity when
+// transitioning from a Specter-enabled mode (Hybrid/Guarded/Fortress) to
+// Open mode. Per SHADOW_GRADIENT.md, Specter keypair must be zeroed and
+// destroyed when anonymity is no longer active to prevent correlation.
+func (m *Manager) SetSpecterDestroyer(destroyer func() error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.specterDestroyer = destroyer
 }
 
 // OnTransition registers a callback for mode transitions.

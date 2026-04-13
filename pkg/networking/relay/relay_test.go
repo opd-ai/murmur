@@ -181,3 +181,219 @@ func TestTraverserConcurrentAccess(t *testing.T) {
 		t.Fatal("Timeout waiting for concurrent operations")
 	}
 }
+
+func TestSetHolePunchService(t *testing.T) {
+	_, priv, _ := ed25519.GenerateKey(rand.Reader)
+	libp2pKey, _ := crypto.UnmarshalEd25519PrivateKey(priv)
+
+	h, err := libp2p.New(
+		libp2p.Identity(libp2pKey),
+		libp2p.ListenAddrStrings("/ip4/127.0.0.1/tcp/0"),
+	)
+	if err != nil {
+		t.Fatalf("libp2p.New failed: %v", err)
+	}
+	defer h.Close()
+
+	traverser := New(h)
+
+	// Setting nil should work without panic.
+	traverser.SetHolePunchService(nil)
+
+	// Reading when service is nil.
+	traverser.mu.RLock()
+	hps := traverser.hpService
+	traverser.mu.RUnlock()
+	if hps != nil {
+		t.Error("Expected hpService to be nil")
+	}
+}
+
+func TestDirectConnectNoService(t *testing.T) {
+	_, priv, _ := ed25519.GenerateKey(rand.Reader)
+	libp2pKey, _ := crypto.UnmarshalEd25519PrivateKey(priv)
+
+	h, err := libp2p.New(
+		libp2p.Identity(libp2pKey),
+		libp2p.ListenAddrStrings("/ip4/127.0.0.1/tcp/0"),
+	)
+	if err != nil {
+		t.Fatalf("libp2p.New failed: %v", err)
+	}
+	defer h.Close()
+
+	traverser := New(h)
+	ctx := context.Background()
+
+	// Generate a random target peer ID.
+	_, priv2, _ := ed25519.GenerateKey(rand.Reader)
+	libp2pKey2, _ := crypto.UnmarshalEd25519PrivateKey(priv2)
+	targetID, _ := peer.IDFromPrivateKey(libp2pKey2)
+
+	// DirectConnect without hole punch service should fail.
+	err = traverser.DirectConnect(ctx, targetID)
+	if err == nil {
+		t.Error("DirectConnect should fail without hole punch service")
+	}
+}
+
+func TestConnectViaRelayNoRelays(t *testing.T) {
+	_, priv, _ := ed25519.GenerateKey(rand.Reader)
+	libp2pKey, _ := crypto.UnmarshalEd25519PrivateKey(priv)
+
+	h, err := libp2p.New(
+		libp2p.Identity(libp2pKey),
+		libp2p.ListenAddrStrings("/ip4/127.0.0.1/tcp/0"),
+	)
+	if err != nil {
+		t.Fatalf("libp2p.New failed: %v", err)
+	}
+	defer h.Close()
+
+	traverser := New(h)
+
+	// Generate a random target peer.
+	_, priv2, _ := ed25519.GenerateKey(rand.Reader)
+	libp2pKey2, _ := crypto.UnmarshalEd25519PrivateKey(priv2)
+	targetID, _ := peer.IDFromPrivateKey(libp2pKey2)
+
+	target := peer.AddrInfo{ID: targetID}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	// No relays added, so should return nil (no error, but also no connection).
+	err = traverser.ConnectViaRelay(ctx, target)
+	// With no relays, the loop doesn't execute, lastErr is nil.
+	if err != nil {
+		t.Errorf("ConnectViaRelay with no relays returned error: %v", err)
+	}
+}
+
+func TestConnectViaRelayFailedConnect(t *testing.T) {
+	_, priv, _ := ed25519.GenerateKey(rand.Reader)
+	libp2pKey, _ := crypto.UnmarshalEd25519PrivateKey(priv)
+
+	h, err := libp2p.New(
+		libp2p.Identity(libp2pKey),
+		libp2p.ListenAddrStrings("/ip4/127.0.0.1/tcp/0"),
+	)
+	if err != nil {
+		t.Fatalf("libp2p.New failed: %v", err)
+	}
+	defer h.Close()
+
+	traverser := New(h)
+
+	// Generate fake relay and target peer IDs.
+	_, priv2, _ := ed25519.GenerateKey(rand.Reader)
+	libp2pKey2, _ := crypto.UnmarshalEd25519PrivateKey(priv2)
+	relayID, _ := peer.IDFromPrivateKey(libp2pKey2)
+
+	_, priv3, _ := ed25519.GenerateKey(rand.Reader)
+	libp2pKey3, _ := crypto.UnmarshalEd25519PrivateKey(priv3)
+	targetID, _ := peer.IDFromPrivateKey(libp2pKey3)
+
+	// Add relay with unreachable address.
+	relay := peer.AddrInfo{ID: relayID}
+	traverser.AddRelays([]peer.AddrInfo{relay})
+
+	target := peer.AddrInfo{ID: targetID}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	// Should fail to connect to relay (no addresses).
+	err = traverser.ConnectViaRelay(ctx, target)
+	if err == nil {
+		t.Error("ConnectViaRelay should fail when relay has no addresses")
+	}
+}
+
+func TestMakeReservationFailedConnect(t *testing.T) {
+	_, priv, _ := ed25519.GenerateKey(rand.Reader)
+	libp2pKey, _ := crypto.UnmarshalEd25519PrivateKey(priv)
+
+	h, err := libp2p.New(
+		libp2p.Identity(libp2pKey),
+		libp2p.ListenAddrStrings("/ip4/127.0.0.1/tcp/0"),
+	)
+	if err != nil {
+		t.Fatalf("libp2p.New failed: %v", err)
+	}
+	defer h.Close()
+
+	traverser := New(h)
+
+	// Generate fake relay peer ID with no addresses.
+	_, priv2, _ := ed25519.GenerateKey(rand.Reader)
+	libp2pKey2, _ := crypto.UnmarshalEd25519PrivateKey(priv2)
+	relayID, _ := peer.IDFromPrivateKey(libp2pKey2)
+
+	relay := peer.AddrInfo{ID: relayID}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	// Should fail to connect to relay (no addresses).
+	err = traverser.MakeReservation(ctx, relay)
+	if err == nil {
+		t.Error("MakeReservation should fail when relay has no addresses")
+	}
+
+	// Reservation should not exist.
+	if traverser.HasReservation(relayID) {
+		t.Error("HasReservation should be false after failed MakeReservation")
+	}
+}
+
+func TestHostOptionsDisabled(t *testing.T) {
+	// Test with relay disabled.
+	cfg := Config{
+		EnableRelay:     false,
+		EnableHolePunch: false,
+		RelayOnly:       false,
+	}
+	opts := HostOptions(cfg)
+
+	// Should only have AutoNAT option.
+	if len(opts) != 1 {
+		t.Errorf("HostOptions returned %d options, want 1 (just AutoNAT)", len(opts))
+	}
+}
+
+func TestRelaysReturnsDefensiveCopy(t *testing.T) {
+	_, priv, _ := ed25519.GenerateKey(rand.Reader)
+	libp2pKey, _ := crypto.UnmarshalEd25519PrivateKey(priv)
+
+	h, err := libp2p.New(
+		libp2p.Identity(libp2pKey),
+		libp2p.ListenAddrStrings("/ip4/127.0.0.1/tcp/0"),
+	)
+	if err != nil {
+		t.Fatalf("libp2p.New failed: %v", err)
+	}
+	defer h.Close()
+
+	traverser := New(h)
+	traverser.AddRelays([]peer.AddrInfo{{ID: h.ID()}})
+
+	relays1 := traverser.Relays()
+	relays2 := traverser.Relays()
+
+	// Modifying returned slice should not affect internal state.
+	if len(relays1) > 0 {
+		relays1[0] = peer.AddrInfo{}
+	}
+
+	// Original should still be intact.
+	relays3 := traverser.Relays()
+	if len(relays3) != 1 {
+		t.Error("Relays() should return defensive copy")
+	}
+
+	// Verify they're different slices.
+	if &relays1[0] == &relays2[0] {
+		t.Error("Relays() should return new slice each time")
+	}
+}

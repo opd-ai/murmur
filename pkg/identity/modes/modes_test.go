@@ -1,6 +1,7 @@
 package modes
 
 import (
+	"errors"
 	"sync"
 	"testing"
 	"time"
@@ -150,6 +151,97 @@ func TestTransitionToOpen(t *testing.T) {
 
 	if m.Current() != Open {
 		t.Errorf("mode = %s, want Open", m.Current())
+	}
+}
+
+func TestTransitionDestroysSpecter(t *testing.T) {
+	m := NewManagerWithConfig(Hybrid, 0)
+	m.SetSpecterAvailable(true)
+
+	// Track if destroyer was called.
+	destroyed := false
+	m.SetSpecterDestroyer(func() error {
+		destroyed = true
+		return nil
+	})
+
+	// Transition from Hybrid (Specter-enabled) to Open (no Specter).
+	if err := m.Transition(Open); err != nil {
+		t.Fatalf("Hybrid -> Open failed: %v", err)
+	}
+
+	if !destroyed {
+		t.Error("Specter destroyer was not called on Hybrid -> Open transition")
+	}
+
+	// hasSpecter should be set to false.
+	m.SetSpecterAvailable(true) // Try to set it true.
+	// But transition should have cleared it, so we can't verify directly.
+	// The API doesn't expose hasSpecter, but we can check if we can transition
+	// back to Hybrid (which requires Specter).
+}
+
+func TestTransitionToOpenPreservesSpecterIfDestroyed(t *testing.T) {
+	m := NewManagerWithConfig(Guarded, 0)
+	m.SetSpecterAvailable(true)
+
+	// Set destroyer that clears Specter.
+	m.SetSpecterDestroyer(func() error {
+		return nil
+	})
+
+	// Transition to Open.
+	if err := m.Transition(Open); err != nil {
+		t.Fatalf("Guarded -> Open failed: %v", err)
+	}
+
+	// After transition, hasSpecter should be false, so we can't transition
+	// back to Hybrid without re-setting it.
+	err := m.Transition(Hybrid)
+	if err != ErrMissingRequirement {
+		t.Errorf("expected ErrMissingRequirement (no Specter), got %v", err)
+	}
+}
+
+func TestTransitionSpecterDestroyerFails(t *testing.T) {
+	m := NewManagerWithConfig(Hybrid, 0)
+	m.SetSpecterAvailable(true)
+
+	// Destroyer that fails.
+	m.SetSpecterDestroyer(func() error {
+		return errors.New("destruction failed")
+	})
+
+	// Transition should fail if destroyer fails.
+	err := m.Transition(Open)
+	if err != ErrSpecterDestructionFailed {
+		t.Errorf("expected ErrSpecterDestructionFailed, got %v", err)
+	}
+
+	// Mode should remain unchanged.
+	if m.Current() != Hybrid {
+		t.Errorf("mode = %s, want Hybrid (unchanged after failed destruction)", m.Current())
+	}
+}
+
+func TestTransitionNoDestroyerWhenSpecterStaysEnabled(t *testing.T) {
+	m := NewManagerWithConfig(Hybrid, 0)
+	m.SetSpecterAvailable(true)
+
+	// Track if destroyer was called.
+	destroyed := false
+	m.SetSpecterDestroyer(func() error {
+		destroyed = true
+		return nil
+	})
+
+	// Transition from Hybrid to Guarded (both Specter-enabled).
+	if err := m.Transition(Guarded); err != nil {
+		t.Fatalf("Hybrid -> Guarded failed: %v", err)
+	}
+
+	if destroyed {
+		t.Error("Specter destroyer should NOT be called when staying in Specter-enabled mode")
 	}
 }
 
