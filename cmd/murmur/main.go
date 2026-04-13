@@ -13,6 +13,9 @@ import (
 // Version is the current version of MURMUR. Set by build flags.
 var Version = "0.0.0-alpha"
 
+// appNew is a variable to allow testing with a mock app creator.
+var appNew = app.New
+
 func main() {
 	if err := run(); err != nil {
 		fmt.Fprintf(os.Stderr, "murmur: %v\n", err)
@@ -22,10 +25,15 @@ func main() {
 
 // run initializes and starts the MURMUR application.
 func run() error {
-	// Create application with default configuration.
-	application, err := app.New(app.Config{
+	return runWithConfig(app.Config{
 		Version: Version,
 	})
+}
+
+// runWithConfig initializes and starts the MURMUR application with the given config.
+func runWithConfig(cfg app.Config) error {
+	// Create application with the given configuration.
+	application, err := appNew(cfg)
 	if err != nil {
 		return fmt.Errorf("creating application: %w", err)
 	}

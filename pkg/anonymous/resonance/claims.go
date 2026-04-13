@@ -166,8 +166,8 @@ func (cg *ClaimGenerator) generateThresholdProof(value, threshold int, blind, co
 	}
 
 	// Generate random value for ZK property.
-	var r [32]byte
-	if _, err := rand.Read(r[:]); err != nil {
+	var randomNonce [32]byte
+	if _, err := rand.Read(randomNonce[:]); err != nil {
 		return nil, err
 	}
 
@@ -178,11 +178,11 @@ func (cg *ClaimGenerator) generateThresholdProof(value, threshold int, blind, co
 
 	var response [32]byte
 	for i := 0; i < 32; i++ {
-		response[i] = r[i] ^ (challenge[i] & blind[i])
+		response[i] = randomNonce[i] ^ (challenge[i] & blind[i])
 	}
 
 	// Proof = [delta_commitment || challenge || response].
-	deltaCommitment := cg.commit(delta, r)
+	deltaCommitment := cg.commit(delta, randomNonce)
 
 	proof := make([]byte, 0, 32+32+32+4)
 	proof = append(proof, deltaCommitment[:]...)

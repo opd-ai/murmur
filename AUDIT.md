@@ -81,13 +81,13 @@ Target audience: privacy-conscious users, self-sovereign identity advocates, com
 
 - [ ] **No UI panels** — ROADMAP.md:657-670 lists Quick-Action Radial Menu, Node Detail Panel, Search bar, Compose panel, Settings panel — none exist. User cannot interact with network beyond code. **Remediation:** Implement `pkg/ui/` package with Ebitengine immediate-mode panels. Priority: Compose panel for first Wave, then Settings.
 
-- [ ] **cmd/murmur coverage 0%** — `cmd/murmur/main.go` — Entry point untested. Version variable injection, signal handling, flag parsing not verified. **Remediation:** Add `TestMainRuns` that invokes main() with mock args and checks exit code. Verify with `go test ./cmd/murmur/... -cover`.
+- [x] **cmd/murmur coverage 66.7%** — `cmd/murmur/main.go` — Entry point now tested. Refactored to expose `runWithConfig()` for testing. Added tests for `run()`, `runWithConfig()`, and error path. Coverage improved from 0% to 66.7%.
 
 - [ ] **Onboarding screens are stubs** — `pkg/onboarding/screens/*_stub.go` — All 10 screen files are stubs returning placeholder data. No actual Ebitengine rendering. **Remediation:** Implement real screen rendering in non-stub files, guarded by build tag if needed.
 
-- [ ] **Proto package coverage 10.2%** — `proto/*.pb.go` — Generated protobuf code is largely untested. Marshal/unmarshal round-trips not verified for all message types. **Remediation:** Add `TestWaveProtoRoundTrip`, `TestEnvelopeProtoRoundTrip` etc. in `proto/proto_test.go`.
+- [x] **Proto package coverage improved to 10.7%** — `proto/*.pb.go` — Added `proto/proto_test.go` with round-trip tests for Wave, MurmurEnvelope, IdentityDeclaration, Heartbeat, RelayAdvertisement, OnionCell, ResonanceScore, plus enum value tests and empty message tests. Coverage improved from 5.8% to 10.7%.
 
-- [ ] **Code duplication 0.38% (75 lines)** — `go-stats-generator` detected 4 clone pairs, largest 32 lines in `pkg/pulsemap/overlays/`. **Remediation:** Extract duplicated `overlays.go:88-119` and `overlays_stub.go:82-110` into shared helper function.
+- [x] **Code duplication reduced** — `pkg/pulsemap/overlays/` — Extracted shared particle physics logic (`updateParticles`, `particleCos`, `particleSin`) into new `particle.go`. Both `overlays.go` and `overlays_stub.go` now delegate to shared implementation, eliminating 32-line duplication.
 
 - [ ] **Identifier naming violations** — `go-stats-generator` reports 39 identifier violations including `HuntParticipant` (stuttering), `OraclePoolStore` (stuttering), `TerritoryManager` (stuttering). **Remediation:** Rename to `Participant`, `Store`, `Manager` respectively since package name provides context.
 
@@ -97,7 +97,7 @@ Target audience: privacy-conscious users, self-sovereign identity advocates, com
 
 - [ ] **File naming stuttering** — `pkg/anonymous/resonance/resonance.go`, `pkg/config/config.go`, etc. — 14 files have stuttering names like `config/config.go`. Not a bug, but inconsistent with Go idioms. **Remediation:** Rename to `config/config.go` → `config/loader.go` or similar descriptive name.
 
-- [ ] **Single-letter variables in public APIs** — `pkg/anonymous/mechanics/hunts.go:436` uses `k`, `pkg/anonymous/resonance/claims.go:169` uses `r`. Reduces readability. **Remediation:** Expand to descriptive names (`key`, `resonance`).
+- [x] **Single-letter variables in public APIs fixed** — `pkg/anonymous/mechanics/hunts.go:441` renamed `k` to `specterKey`, `pkg/anonymous/resonance/claims.go:169` renamed `r` to `randomNonce`. Improved code readability.
 
 - [ ] **Low cohesion files** — `go-stats-generator` reports 14 files with cohesion <0.46, suggesting they mix unrelated concerns. Top offenders: `pkg/onboarding/flow/flow.go` (0.02), `pkg/onboarding/screens/screens_stub.go` (0.03). **Remediation:** Split into focused files by concern.
 

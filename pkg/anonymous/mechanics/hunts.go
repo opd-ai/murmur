@@ -438,10 +438,10 @@ func (h *Hunt) GetLeaderboard() []HuntParticipant {
 
 	participants := make([]HuntParticipant, 0, len(scores))
 	for key, claims := range scores {
-		var k [32]byte
-		hexToKey(key, k[:])
+		var specterKey [32]byte
+		hexToKey(key, specterKey[:])
 		participants = append(participants, HuntParticipant{
-			SpecterKey: k,
+			SpecterKey: specterKey,
 			Claims:     claims,
 		})
 	}

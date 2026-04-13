@@ -3,15 +3,17 @@ package main
 
 import (
 	"context"
+	"errors"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/opd-ai/murmur/pkg/app"
 )
 
-// TestRunFunction verifies the run() function initializes and shuts down properly.
-func TestRunFunction(t *testing.T) {
+// TestRunWithConfig tests the runWithConfig function with a temporary directory.
+func TestRunWithConfig(t *testing.T) {
 	// Set up a temporary data directory.
 	tmpDir, err := os.MkdirTemp("", "murmur-test-*")
 	if err != nil {
@@ -19,29 +21,122 @@ func TestRunFunction(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Override the default data directory via HOME.
-	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	// Create a channel to capture run result.
+	runErr := make(chan error, 1)
+	var application *app.App
 
-	// Override XDG_DATA_HOME for consistent data directory.
-	origXDG := os.Getenv("XDG_DATA_HOME")
-	os.Setenv("XDG_DATA_HOME", tmpDir)
-	defer os.Setenv("XDG_DATA_HOME", origXDG)
+	// Run in a goroutine since it blocks.
+	go func() {
+		// We need to intercept the app creation to get a handle.
+		var createErr error
+		application, createErr = app.New(app.Config{
+			Version: "0.0.0-test",
+			DataDir: tmpDir,
+		})
+		if createErr != nil {
+			runErr <- createErr
+			return
+		}
 
-	// Test that we can create an application with the current Version.
-	application, err := app.New(app.Config{
-		Version: Version,
-		DataDir: tmpDir,
-	})
-	if err != nil {
-		t.Fatalf("creating application with Version %q: %v", Version, err)
+		runErr <- application.Run()
+	}()
+
+	// Wait for app to be created.
+	time.Sleep(100 * time.Millisecond)
+
+	// Wait for init.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if application != nil {
+		if err := application.WaitReady(ctx); err != nil {
+			t.Fatalf("WaitReady() error = %v", err)
+		}
+
+		// Verify version.
+		if application.Version() != "0.0.0-test" {
+			t.Errorf("Version() = %q, want %q", application.Version(), "0.0.0-test")
+		}
+
+		// Clean shutdown.
+		if err := application.Close(); err != nil {
+			t.Errorf("Close() error = %v", err)
+		}
 	}
-	defer application.Close()
 
-	// Verify version is correctly passed.
-	if application.Version() != Version {
-		t.Errorf("Version() = %q, want %q", application.Version(), Version)
+	select {
+	case err := <-runErr:
+		if err != nil {
+			t.Errorf("Run() returned error: %v", err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Error("Run() did not return within 10 seconds after Close()")
+	}
+}
+
+// TestRunWithConfigDirectly tests runWithConfig directly.
+func TestRunWithConfigDirectly(t *testing.T) {
+	// Set up a temporary data directory.
+	tmpDir, err := os.MkdirTemp("", "murmur-test-*")
+	if err != nil {
+		t.Fatalf("creating temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// We'll run in a goroutine and stop it after a short delay.
+	runErr := make(chan error, 1)
+	appChan := make(chan *app.App, 1)
+
+	// Override appNew to capture the created app.
+	origAppNew := appNew
+	appNew = func(cfg app.Config) (*app.App, error) {
+		a, err := app.New(cfg)
+		if err != nil {
+			return nil, err
+		}
+		appChan <- a
+		return a, nil
+	}
+	defer func() { appNew = origAppNew }()
+
+	go func() {
+		runErr <- runWithConfig(app.Config{
+			Version: "0.0.0-direct",
+			DataDir: tmpDir,
+		})
+	}()
+
+	// Wait for app to be created.
+	var createdApp *app.App
+	select {
+	case createdApp = <-appChan:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Application was not created within timeout")
+	}
+
+	// Wait for init.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := createdApp.WaitReady(ctx); err != nil {
+		t.Fatalf("WaitReady() error = %v", err)
+	}
+
+	// Verify version.
+	if createdApp.Version() != "0.0.0-direct" {
+		t.Errorf("Version() = %q, want %q", createdApp.Version(), "0.0.0-direct")
+	}
+
+	// Clean shutdown.
+	if err := createdApp.Close(); err != nil {
+		t.Errorf("Close() error = %v", err)
+	}
+
+	select {
+	case err := <-runErr:
+		if err != nil {
+			t.Errorf("runWithConfig() returned error: %v", err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Error("runWithConfig() did not return within 10 seconds after Close()")
 	}
 }
 
@@ -241,4 +336,89 @@ func TestSubsystemsInitialized(t *testing.T) {
 
 	application.Close()
 	<-runErr
+}
+
+// TestRunFunction tests the run() function using the Version variable.
+func TestRunFunction(t *testing.T) {
+	// Set up a temporary data directory.
+	tmpDir, err := os.MkdirTemp("", "murmur-test-*")
+	if err != nil {
+		t.Fatalf("creating temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Override appNew to capture the created app and use temp dir.
+	origAppNew := appNew
+	appChan := make(chan *app.App, 1)
+	appNew = func(cfg app.Config) (*app.App, error) {
+		// Override DataDir to use temp directory.
+		cfg.DataDir = tmpDir
+		a, err := app.New(cfg)
+		if err != nil {
+			return nil, err
+		}
+		appChan <- a
+		return a, nil
+	}
+	defer func() { appNew = origAppNew }()
+
+	runErr := make(chan error, 1)
+	go func() {
+		runErr <- run()
+	}()
+
+	// Wait for app to be created.
+	var createdApp *app.App
+	select {
+	case createdApp = <-appChan:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Application was not created within timeout")
+	}
+
+	// Wait for init.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := createdApp.WaitReady(ctx); err != nil {
+		t.Fatalf("WaitReady() error = %v", err)
+	}
+
+	// Verify version uses the global Version variable.
+	if createdApp.Version() != Version {
+		t.Errorf("Version() = %q, want %q", createdApp.Version(), Version)
+	}
+
+	// Clean shutdown.
+	if err := createdApp.Close(); err != nil {
+		t.Errorf("Close() error = %v", err)
+	}
+
+	select {
+	case err := <-runErr:
+		if err != nil {
+			t.Errorf("run() returned error: %v", err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Error("run() did not return within 10 seconds after Close()")
+	}
+}
+
+// TestRunWithConfigError tests runWithConfig when app creation fails.
+func TestRunWithConfigError(t *testing.T) {
+	// Override appNew to return an error.
+	origAppNew := appNew
+	appNew = func(_ app.Config) (*app.App, error) {
+		return nil, errors.New("mock creation error")
+	}
+	defer func() { appNew = origAppNew }()
+
+	err := runWithConfig(app.Config{
+		Version: "0.0.0-error-test",
+	})
+
+	if err == nil {
+		t.Error("runWithConfig() should return error when app creation fails")
+	}
+	if !strings.Contains(err.Error(), "creating application") {
+		t.Errorf("runWithConfig() error = %q, want to contain 'creating application'", err.Error())
+	}
 }

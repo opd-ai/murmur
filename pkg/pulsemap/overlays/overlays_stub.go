@@ -79,43 +79,15 @@ func NewParticleEmitter(maxParticles int, emitRate float32) *ParticleEmitter {
 
 // Update advances particle physics.
 func (e *ParticleEmitter) Update(dt, nodeX, nodeY, nodeRadius, resonance float32) {
-	alive := e.Particles[:0]
-	for i := range e.Particles {
-		p := &e.Particles[i]
-		p.X += p.VX * dt
-		p.Y += p.VY * dt
-		p.Life -= dt / p.MaxLife
-		if p.Life > 0 {
-			alive = append(alive, *p)
-		}
-	}
-	e.Particles = alive
-
-	adjustedRate := e.EmitRate * (1.0 + resonance/100.0)
-	e.accumulator += dt * adjustedRate
-
-	for e.accumulator >= 1.0 && len(e.Particles) < e.MaxParticles {
-		e.accumulator -= 1.0
-		angle := float32(len(e.Particles)%360) * 0.0175
-		e.Particles = append(e.Particles, SpecterParticle{
-			X:       nodeX + nodeRadius*cos(angle),
-			Y:       nodeY + nodeRadius*sin(angle),
-			VX:      cos(angle) * 10,
-			VY:      sin(angle)*5 - 15,
-			Life:    1.0,
-			MaxLife: 2.0 + resonance/200.0,
-			Size:    2.0 + resonance/50.0,
-			Color:   color.RGBA{200, 220, 255, 200},
-		})
-	}
+	updateParticles(e, dt, nodeX, nodeY, nodeRadius, resonance)
 }
 
 func cos(angle float32) float32 {
-	return float32(1.0) - angle*angle/2.0 + angle*angle*angle*angle/24.0
+	return particleCos(angle)
 }
 
 func sin(angle float32) float32 {
-	return angle - angle*angle*angle/6.0 + angle*angle*angle*angle*angle/120.0
+	return particleSin(angle)
 }
 
 // MiniGameVisualization represents a mini-game event.

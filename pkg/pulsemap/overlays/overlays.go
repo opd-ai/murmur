@@ -84,39 +84,7 @@ func NewParticleEmitter(maxParticles int, emitRate float32) *ParticleEmitter {
 
 // Update advances particle physics and emits new particles.
 func (e *ParticleEmitter) Update(dt, nodeX, nodeY, nodeRadius, resonance float32) {
-	// Update existing particles
-	alive := e.Particles[:0]
-	for i := range e.Particles {
-		p := &e.Particles[i]
-		p.X += p.VX * dt
-		p.Y += p.VY * dt
-		p.Life -= dt / p.MaxLife
-		if p.Life > 0 {
-			alive = append(alive, *p)
-		}
-	}
-	e.Particles = alive
-
-	// Emit new particles based on resonance
-	// Higher resonance = more particles per PULSE_MAP.md
-	adjustedRate := e.EmitRate * (1.0 + resonance/100.0)
-	e.accumulator += dt * adjustedRate
-
-	for e.accumulator >= 1.0 && len(e.Particles) < e.MaxParticles {
-		e.accumulator -= 1.0
-		// Emit particle at node edge, drifting outward and upward
-		angle := float32(len(e.Particles)%360) * 0.0175 // Radians
-		e.Particles = append(e.Particles, SpecterParticle{
-			X:       nodeX + nodeRadius*cos(angle),
-			Y:       nodeY + nodeRadius*sin(angle),
-			VX:      cos(angle) * 10,
-			VY:      sin(angle)*5 - 15, // Drift upward
-			Life:    1.0,
-			MaxLife: 2.0 + resonance/200.0, // Longer life with higher resonance
-			Size:    2.0 + resonance/50.0,
-			Color:   color.RGBA{200, 220, 255, 200}, // Luminous blue-white
-		})
-	}
+	updateParticles(e, dt, nodeX, nodeY, nodeRadius, resonance)
 }
 
 // Render draws all particles to the screen.
@@ -133,13 +101,12 @@ func (e *ParticleEmitter) Render(dst *ebiten.Image, cameraX, cameraY, scale floa
 
 // cos returns cosine of angle in radians.
 func cos(angle float32) float32 {
-	// Simple approximation for particle effects
-	return float32(1.0) - angle*angle/2.0 + angle*angle*angle*angle/24.0
+	return particleCos(angle)
 }
 
 // sin returns sine of angle in radians.
 func sin(angle float32) float32 {
-	return angle - angle*angle*angle/6.0 + angle*angle*angle*angle*angle/120.0
+	return particleSin(angle)
 }
 
 // ShroudIndicator renders the Shroud routing indicator.

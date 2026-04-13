@@ -9,17 +9,16 @@ import (
 // TestWaveRoundTrip verifies Wave messages marshal and unmarshal correctly.
 func TestWaveRoundTrip(t *testing.T) {
 	original := &Wave{
-		WaveType:      WaveType_WAVE_TYPE_SURFACE,
-		Content:       []byte("Hello, MURMUR network!"),
-		TtlSeconds:    604800, // 7 days
-		Pow:           make([]byte, 32),
-		Signature:     make([]byte, 64),
-		Nonce:         12345,
-		HopCount:      0,
-		Difficulty:    20,
-		MaxHops:       10,
-		ParentWaveId:  nil,
-		CreatedAtUnix: 1714500000,
+		WaveType:     WaveType_WAVE_TYPE_SURFACE,
+		Content:      []byte("Hello, MURMUR network!"),
+		AuthorPubkey: make([]byte, 32),
+		Signature:    make([]byte, 64),
+		CreatedAt:    1714500000,
+		TtlSeconds:   604800, // 7 days
+		PowNonce:     12345,
+		ParentHash:   nil,
+		HopCount:     0,
+		WaveId:       make([]byte, 32),
 	}
 
 	data, err := proto.Marshal(original)
@@ -41,14 +40,14 @@ func TestWaveRoundTrip(t *testing.T) {
 	if decoded.GetTtlSeconds() != original.GetTtlSeconds() {
 		t.Errorf("TtlSeconds = %d, want %d", decoded.GetTtlSeconds(), original.GetTtlSeconds())
 	}
-	if decoded.GetNonce() != original.GetNonce() {
-		t.Errorf("Nonce = %d, want %d", decoded.GetNonce(), original.GetNonce())
+	if decoded.GetPowNonce() != original.GetPowNonce() {
+		t.Errorf("PowNonce = %d, want %d", decoded.GetPowNonce(), original.GetPowNonce())
 	}
-	if decoded.GetDifficulty() != original.GetDifficulty() {
-		t.Errorf("Difficulty = %d, want %d", decoded.GetDifficulty(), original.GetDifficulty())
+	if decoded.GetHopCount() != original.GetHopCount() {
+		t.Errorf("HopCount = %d, want %d", decoded.GetHopCount(), original.GetHopCount())
 	}
-	if decoded.GetMaxHops() != original.GetMaxHops() {
-		t.Errorf("MaxHops = %d, want %d", decoded.GetMaxHops(), original.GetMaxHops())
+	if decoded.GetCreatedAt() != original.GetCreatedAt() {
+		t.Errorf("CreatedAt = %d, want %d", decoded.GetCreatedAt(), original.GetCreatedAt())
 	}
 }
 
@@ -94,10 +93,11 @@ func TestMurmurEnvelopeRoundTrip(t *testing.T) {
 // TestIdentityDeclarationRoundTrip verifies identity messages marshal correctly.
 func TestIdentityDeclarationRoundTrip(t *testing.T) {
 	original := &IdentityDeclaration{
-		PublicKey:  make([]byte, 32),
-		DisplayTag: "shadow_walker_42",
-		CreatedAt:  1714500000,
-		Signature:  make([]byte, 64),
+		PublicKey:   make([]byte, 32),
+		DisplayName: "shadow_walker_42",
+		Bio:         "A mysterious traveler",
+		CreatedAt:   1714500000,
+		Version:     1,
 	}
 
 	data, err := proto.Marshal(original)
@@ -110,8 +110,8 @@ func TestIdentityDeclarationRoundTrip(t *testing.T) {
 		t.Fatalf("Unmarshal failed: %v", err)
 	}
 
-	if decoded.GetDisplayTag() != original.GetDisplayTag() {
-		t.Errorf("DisplayTag = %q, want %q", decoded.GetDisplayTag(), original.GetDisplayTag())
+	if decoded.GetDisplayName() != original.GetDisplayName() {
+		t.Errorf("DisplayName = %q, want %q", decoded.GetDisplayName(), original.GetDisplayName())
 	}
 	if decoded.GetCreatedAt() != original.GetCreatedAt() {
 		t.Errorf("CreatedAt = %d, want %d", decoded.GetCreatedAt(), original.GetCreatedAt())
@@ -179,12 +179,13 @@ func TestWaveTypeEnumValues(t *testing.T) {
 // TestRelayAdvertisementRoundTrip verifies relay ad messages marshal correctly.
 func TestRelayAdvertisementRoundTrip(t *testing.T) {
 	original := &RelayAdvertisement{
-		PeerId:        "QmTest1234567890",
-		Addresses:     []string{"/ip4/127.0.0.1/tcp/4001"},
-		Bandwidth:     10 * 1024 * 1024, // 10 MB/s
-		PublicKey:     make([]byte, 32),
-		Signature:     make([]byte, 64),
-		TimestampUnix: 1714500000,
+		Curve25519Pubkey: make([]byte, 32),
+		Ed25519Pubkey:    make([]byte, 32),
+		Addrs:            []string{"/ip4/127.0.0.1/tcp/4001"},
+		Roles:            []RelayRole{RelayRole_RELAY_ROLE_ENTRY},
+		Bandwidth:        10 * 1024 * 1024, // 10 MB/s
+		Timestamp:        1714500000,
+		Signature:        make([]byte, 64),
 	}
 
 	data, err := proto.Marshal(original)
@@ -197,24 +198,24 @@ func TestRelayAdvertisementRoundTrip(t *testing.T) {
 		t.Fatalf("Unmarshal failed: %v", err)
 	}
 
-	if decoded.GetPeerId() != original.GetPeerId() {
-		t.Errorf("PeerId = %q, want %q", decoded.GetPeerId(), original.GetPeerId())
-	}
 	if decoded.GetBandwidth() != original.GetBandwidth() {
 		t.Errorf("Bandwidth = %d, want %d", decoded.GetBandwidth(), original.GetBandwidth())
 	}
-	if len(decoded.GetAddresses()) != len(original.GetAddresses()) {
-		t.Errorf("Addresses len = %d, want %d", len(decoded.GetAddresses()), len(original.GetAddresses()))
+	if len(decoded.GetAddrs()) != len(original.GetAddrs()) {
+		t.Errorf("Addrs len = %d, want %d", len(decoded.GetAddrs()), len(original.GetAddrs()))
+	}
+	if decoded.GetTimestamp() != original.GetTimestamp() {
+		t.Errorf("Timestamp = %d, want %d", decoded.GetTimestamp(), original.GetTimestamp())
 	}
 }
 
-// TestCircuitCellRoundTrip verifies circuit cell messages marshal correctly.
-func TestCircuitCellRoundTrip(t *testing.T) {
-	original := &CircuitCell{
-		CircuitId:     12345,
-		Encrypted:     true,
-		CellType:      CircuitCellType_CIRCUIT_CELL_TYPE_RELAY,
-		EncryptedData: make([]byte, 256),
+// TestOnionCellRoundTrip verifies onion cell messages marshal correctly.
+func TestOnionCellRoundTrip(t *testing.T) {
+	original := &OnionCell{
+		CircuitId:        make([]byte, 16),
+		CellType:         OnionCellType_ONION_CELL_TYPE_RELAY,
+		EncryptedPayload: make([]byte, 256),
+		Nonce:            make([]byte, 24),
 	}
 
 	data, err := proto.Marshal(original)
@@ -222,28 +223,25 @@ func TestCircuitCellRoundTrip(t *testing.T) {
 		t.Fatalf("Marshal failed: %v", err)
 	}
 
-	decoded := &CircuitCell{}
+	decoded := &OnionCell{}
 	if err := proto.Unmarshal(data, decoded); err != nil {
 		t.Fatalf("Unmarshal failed: %v", err)
 	}
 
-	if decoded.GetCircuitId() != original.GetCircuitId() {
-		t.Errorf("CircuitId = %d, want %d", decoded.GetCircuitId(), original.GetCircuitId())
-	}
-	if decoded.GetEncrypted() != original.GetEncrypted() {
-		t.Errorf("Encrypted = %v, want %v", decoded.GetEncrypted(), original.GetEncrypted())
-	}
 	if decoded.GetCellType() != original.GetCellType() {
 		t.Errorf("CellType = %v, want %v", decoded.GetCellType(), original.GetCellType())
+	}
+	if len(decoded.GetCircuitId()) != len(original.GetCircuitId()) {
+		t.Errorf("CircuitId len = %d, want %d", len(decoded.GetCircuitId()), len(original.GetCircuitId()))
 	}
 }
 
 // TestResonanceScoreRoundTrip verifies resonance messages marshal correctly.
 func TestResonanceScoreRoundTrip(t *testing.T) {
 	original := &ResonanceScore{
-		SpecterPubkey: make([]byte, 32),
+		SpecterIdHash: make([]byte, 32),
 		Score:         150.5,
-		ComputedAt:    1714500000,
+		Milestone:     ResonanceMilestone_RESONANCE_MILESTONE_PHANTOM,
 	}
 
 	data, err := proto.Marshal(original)
@@ -259,8 +257,8 @@ func TestResonanceScoreRoundTrip(t *testing.T) {
 	if decoded.GetScore() != original.GetScore() {
 		t.Errorf("Score = %f, want %f", decoded.GetScore(), original.GetScore())
 	}
-	if decoded.GetComputedAt() != original.GetComputedAt() {
-		t.Errorf("ComputedAt = %d, want %d", decoded.GetComputedAt(), original.GetComputedAt())
+	if decoded.GetMilestone() != original.GetMilestone() {
+		t.Errorf("Milestone = %v, want %v", decoded.GetMilestone(), original.GetMilestone())
 	}
 }
 
@@ -272,7 +270,7 @@ func TestEmptyMessages(t *testing.T) {
 		&IdentityDeclaration{},
 		&Heartbeat{},
 		&RelayAdvertisement{},
-		&CircuitCell{},
+		&OnionCell{},
 		&ResonanceScore{},
 	}
 
