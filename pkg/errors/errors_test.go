@@ -139,7 +139,6 @@ func TestRetry(t *testing.T) {
 		attempts++
 		return nil
 	}, RetryConfig{MaxAttempts: 3, InitialWait: time.Millisecond})
-
 	if err != nil {
 		t.Errorf("Retry should succeed: %v", err)
 	}
@@ -172,7 +171,6 @@ func TestRetry(t *testing.T) {
 		}
 		return nil
 	}, RetryConfig{MaxAttempts: 5, InitialWait: time.Millisecond, Multiplier: 1.0})
-
 	if err != nil {
 		t.Errorf("Retry should eventually succeed: %v", err)
 	}

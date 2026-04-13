@@ -18,32 +18,32 @@ import (
 
 // SimNode represents a node in the simulation network.
 type SimNode struct {
-	ID           string
-	Beacon       *Beacon
-	Relay        *Relay
-	Manager      *CircuitManager
-	directPeers  []string // Simulated direct mesh neighbors
-	sentPackets  []SimPacket
-	recvPackets  []SimPacket
-	mu           sync.Mutex
+	ID          string
+	Beacon      *Beacon
+	Relay       *Relay
+	Manager     *CircuitManager
+	directPeers []string // Simulated direct mesh neighbors
+	sentPackets []SimPacket
+	recvPackets []SimPacket
+	mu          sync.Mutex
 }
 
 // SimPacket tracks packet metadata for traffic analysis.
 type SimPacket struct {
-	SourceID    string
-	DestID      string
-	Size        int
-	Timestamp   time.Time
-	OrigWaveID  string // The original Wave identifier (known only to origin)
-	IsDummy     bool
-	HopCount    int
+	SourceID   string
+	DestID     string
+	Size       int
+	Timestamp  time.Time
+	OrigWaveID string // The original Wave identifier (known only to origin)
+	IsDummy    bool
+	HopCount   int
 }
 
 // SimNetwork manages the simulation network.
 type SimNetwork struct {
 	nodes       map[string]*SimNode
 	mu          sync.RWMutex
-	packetLog   []SimPacket // Global packet log (passive observer view)
+	packetLog   []SimPacket       // Global packet log (passive observer view)
 	waveOrigins map[string]string // waveID -> originNodeID (ground truth, hidden from observer)
 }
 
@@ -295,7 +295,7 @@ func (net *SimNetwork) attemptTimingCorrelation(waveID string) string {
 	// Important: The attacker does NOT have access to waveID in real life.
 	// They only see packet streams and must try to correlate by timing/size.
 	// We use waveID here only to evaluate their success rate.
-	
+
 	// Realistic attack: find all packets within a time window and try to
 	// identify chains. This is hard because:
 	// 1. All packets look identical (same size due to padding)

@@ -165,32 +165,31 @@ func (s *MarkStore) PlaceMark(
 	resonance int,
 	signingKey ed25519.PrivateKey,
 ) (*Mark, error) {
-	// Validate inputs.
 	if err := s.CanPlaceMark(markerKey, targetKey, resonance); err != nil {
 		return nil, err
 	}
-
 	if category < MarkWatcher || category > MarkRival {
 		return nil, ErrInvalidMarkCategory
 	}
-
-	// Truncate note to 64 bytes.
 	if len(note) > 64 {
 		note = note[:64]
 	}
 
+	mark := s.createMark(markerKey, targetKey, category, note)
+	s.signMark(mark, signingKey)
+	s.storeMark(mark)
+
+	return mark, nil
+}
+
+// createMark initializes a new Mark with ID generated from BLAKE3 hash.
+func (s *MarkStore) createMark(markerKey [32]byte, targetKey []byte, category MarkCategory, note string) *Mark {
 	now := time.Now()
 	mark := &Mark{
-		MarkerKey:  markerKey,
-		TargetKey:  targetKey,
-		Category:   category,
-		Note:       note,
-		CreatedAt:  now,
-		ExpiresAt:  now.Add(MarkDuration),
-		Visibility: 1.0,
+		MarkerKey: markerKey, TargetKey: targetKey, Category: category,
+		Note: note, CreatedAt: now, ExpiresAt: now.Add(MarkDuration), Visibility: 1.0,
 	}
 
-	// Generate mark ID as BLAKE3 hash.
 	h := blake3.New()
 	h.Write(markerKey[:])
 	h.Write(targetKey)
@@ -200,33 +199,37 @@ func (s *MarkStore) PlaceMark(
 	h.Write(timestamp[:])
 	copy(mark.ID[:], h.Sum(nil))
 
-	// Sign the mark.
-	if signingKey != nil {
-		signData := append(mark.ID[:], mark.TargetKey...)
-		signData = append(signData, byte(category))
-		signData = append(signData, []byte(note)...)
-		mark.Signature = ed25519.Sign(signingKey, signData)
-	}
+	return mark
+}
 
-	// Store the mark.
+// signMark signs the mark with the provided Ed25519 key if present.
+func (s *MarkStore) signMark(mark *Mark, signingKey ed25519.PrivateKey) {
+	if signingKey == nil {
+		return
+	}
+	signData := append(mark.ID[:], mark.TargetKey...)
+	signData = append(signData, byte(mark.Category))
+	signData = append(signData, []byte(mark.Note)...)
+	mark.Signature = ed25519.Sign(signingKey, signData)
+}
+
+// storeMark adds the mark to all tracking indices.
+func (s *MarkStore) storeMark(mark *Mark) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	s.marks[mark.ID] = mark
 
-	markerHex := keyToHex(markerKey[:])
+	markerHex := keyToHex(mark.MarkerKey[:])
 	s.byMarker[markerHex] = append(s.byMarker[markerHex], mark)
 
-	targetHex := keyToHex(targetKey)
+	targetHex := keyToHex(mark.TargetKey)
 	s.byTarget[targetHex] = append(s.byTarget[targetHex], mark)
 
-	// Track marker-target relationship.
 	if s.markerTargets[markerHex] == nil {
 		s.markerTargets[markerHex] = make(map[string]bool)
 	}
 	s.markerTargets[markerHex][targetHex] = true
-
-	return mark, nil
 }
 
 // GetMark retrieves a mark by ID.

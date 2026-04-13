@@ -5,6 +5,7 @@
 package security
 
 import (
+	"crypto/cipher"
 	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/sha256"
@@ -136,52 +137,79 @@ func (a *CryptoAuditor) AuditCurve25519() error {
 
 // AuditChaCha20Poly1305 verifies XChaCha20-Poly1305 implementation.
 func (a *CryptoAuditor) AuditChaCha20Poly1305() error {
-	// Generate random key.
+	key, err := a.generateChaChaKey()
+	if err != nil {
+		return err
+	}
+
+	cipher, err := a.createChaCha20Cipher(key)
+	if err != nil {
+		return err
+	}
+
+	plaintext, nonce, ciphertext, err := a.testChaChaRoundtrip(cipher)
+	if err != nil {
+		return err
+	}
+
+	return a.testChaChaAuthTag(cipher, nonce, ciphertext, plaintext)
+}
+
+// generateChaChaKey generates and validates a random key for XChaCha20-Poly1305.
+func (a *CryptoAuditor) generateChaChaKey() ([]byte, error) {
 	key := make([]byte, chacha20poly1305.KeySize)
 	if _, err := rand.Read(key); err != nil {
 		a.addResult("XChaCha20-Poly1305", false, "Key generation", err.Error())
-		return err
+		return nil, err
 	}
 	a.addResult("XChaCha20-Poly1305", true, "Key generation", "Generated valid key")
+	return key, nil
+}
 
-	// Create cipher.
-	cipher, err := chacha20poly1305.NewX(key)
+// createChaCha20Cipher creates and validates an XChaCha20-Poly1305 cipher.
+func (a *CryptoAuditor) createChaCha20Cipher(key []byte) (cipher.AEAD, error) {
+	c, err := chacha20poly1305.NewX(key)
 	if err != nil {
 		a.addResult("XChaCha20-Poly1305", false, "Cipher creation", err.Error())
-		return err
+		return nil, err
 	}
 	a.addResult("XChaCha20-Poly1305", true, "Cipher creation", "Created XChaCha20-Poly1305 cipher")
+	return c, nil
+}
 
-	// Test encryption/decryption.
+// testChaChaRoundtrip tests encryption and decryption roundtrip.
+func (a *CryptoAuditor) testChaChaRoundtrip(c cipher.AEAD) ([]byte, []byte, []byte, error) {
 	plaintext := []byte("test message for ChaCha20-Poly1305")
-	nonce := make([]byte, cipher.NonceSize())
+	nonce := make([]byte, c.NonceSize())
 	if _, err := rand.Read(nonce); err != nil {
 		a.addResult("XChaCha20-Poly1305", false, "Nonce generation", err.Error())
-		return err
+		return nil, nil, nil, err
 	}
 
-	ciphertext := cipher.Seal(nil, nonce, plaintext, nil)
-	decrypted, err := cipher.Open(nil, nonce, ciphertext, nil)
+	ciphertext := c.Seal(nil, nonce, plaintext, nil)
+	decrypted, err := c.Open(nil, nonce, ciphertext, nil)
 	if err != nil {
 		a.addResult("XChaCha20-Poly1305", false, "Decryption", err.Error())
-		return ErrDecryptionFailed
+		return nil, nil, nil, ErrDecryptionFailed
 	}
 
 	if string(decrypted) != string(plaintext) {
 		a.addResult("XChaCha20-Poly1305", false, "Roundtrip", "Decrypted text doesn't match")
-		return ErrDecryptionFailed
+		return nil, nil, nil, ErrDecryptionFailed
 	}
 	a.addResult("XChaCha20-Poly1305", true, "Roundtrip", "Encryption/decryption roundtrip successful")
+	return plaintext, nonce, ciphertext, nil
+}
 
-	// Test tampering detection.
+// testChaChaAuthTag verifies authentication tag integrity by testing tampering detection.
+func (a *CryptoAuditor) testChaChaAuthTag(c cipher.AEAD, nonce, ciphertext, _ []byte) error {
 	tampered := append([]byte{}, ciphertext...)
 	tampered[0] ^= 0xFF
-	if _, err := cipher.Open(nil, nonce, tampered, nil); err == nil {
+	if _, err := c.Open(nil, nonce, tampered, nil); err == nil {
 		a.addResult("XChaCha20-Poly1305", false, "Tampering detection", "Tampered ciphertext accepted")
 		return ErrDecryptionFailed
 	}
 	a.addResult("XChaCha20-Poly1305", true, "Tampering detection", "Tampered ciphertext correctly rejected")
-
 	return nil
 }
 

@@ -482,26 +482,50 @@ func (qt *quadtree) computeForce(x, y float64, excludeID string, k, theta float6
 		return 0, 0
 	}
 
-	dx := qt.comX - x
-	dy := qt.comY - y
+	dx, dy, dist := qt.computeDistance(x, y)
+
+	if qt.shouldSkipSelf(excludeID) {
+		return 0, 0
+	}
+
+	if qt.canApproximateAsPoint(dist, theta) {
+		return qt.computePointForce(dx, dy, dist, k)
+	}
+
+	return qt.aggregateChildForces(x, y, excludeID, k, theta)
+}
+
+// computeDistance calculates displacement and distance from point (x,y) to center of mass.
+func (qt *quadtree) computeDistance(x, y float64) (dx, dy, dist float64) {
+	dx = qt.comX - x
+	dy = qt.comY - y
 	distSq := dx*dx + dy*dy
 	if distSq < 1 {
 		distSq = 1
 	}
-	dist := math.Sqrt(distSq)
+	return dx, dy, math.Sqrt(distSq)
+}
 
-	// If leaf and same node, skip
-	if qt.isLeaf && qt.nodeID == excludeID {
-		return 0, 0
-	}
+// shouldSkipSelf returns true if this is a leaf node matching the excluded ID.
+func (qt *quadtree) shouldSkipSelf(excludeID string) bool {
+	return qt.isLeaf && qt.nodeID == excludeID
+}
 
-	// Barnes-Hut criterion: if node is far enough, treat as single mass
-	if qt.isLeaf || qt.size/dist < theta {
-		force := k * qt.mass / distSq
-		return -force * dx / dist, -force * dy / dist
-	}
+// canApproximateAsPoint applies Barnes-Hut criterion to determine if
+// this quadtree region can be treated as a single point mass.
+func (qt *quadtree) canApproximateAsPoint(dist, theta float64) bool {
+	return qt.isLeaf || qt.size/dist < theta
+}
 
-	// Otherwise, recurse into children
+// computePointForce calculates the repulsive force treating this region as a point mass.
+func (qt *quadtree) computePointForce(dx, dy, dist, k float64) (fx, fy float64) {
+	distSq := dist * dist
+	force := k * qt.mass / distSq
+	return -force * dx / dist, -force * dy / dist
+}
+
+// aggregateChildForces sums forces from all non-nil children.
+func (qt *quadtree) aggregateChildForces(x, y float64, excludeID string, k, theta float64) (fx, fy float64) {
 	for _, child := range qt.children {
 		if child != nil {
 			cfx, cfy := child.computeForce(x, y, excludeID, k, theta)

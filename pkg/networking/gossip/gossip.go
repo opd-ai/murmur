@@ -42,65 +42,12 @@ type MessageHandler func(ctx context.Context, msg *pubsub.Message)
 // Per DESIGN_DOCUMENT.md Part II §7, peer scoring penalizes invalid signatures,
 // failed PoW, expired TTL, and applies IP colocation penalty for Sybil resistance.
 func New(ctx context.Context, h host.Host) (*PubSub, error) {
-	// Configure peer scoring per DESIGN_DOCUMENT.md
-	peerScoreParams := &pubsub.PeerScoreParams{
-		// Per topic parameters
-		Topics: map[string]*pubsub.TopicScoreParams{},
+	peerScoreParams := buildPeerScoreParams()
+	thresholds := buildScoreThresholds()
 
-		// Application-specific score function (returns 0 by default)
-		AppSpecificScore:  func(p peer.ID) float64 { return 0 },
-		AppSpecificWeight: 1,
-
-		// IP colocation penalty for Sybil resistance
-		IPColocationFactorWeight:    -10,
-		IPColocationFactorThreshold: 3,
-
-		// Behavior penalties
-		BehaviourPenaltyWeight: -1,
-		BehaviourPenaltyDecay:  0.9,
-
-		// Decay interval
-		DecayInterval: 1 * time.Minute,
-		DecayToZero:   0.01,
-	}
-
-	// Add topic-specific scoring
-	defaultTopicParams := &pubsub.TopicScoreParams{
-		TopicWeight: 1,
-
-		// Time in mesh
-		TimeInMeshWeight:  0.01,
-		TimeInMeshQuantum: time.Second,
-		TimeInMeshCap:     100,
-
-		// First message deliveries
-		FirstMessageDeliveriesWeight: 1,
-		FirstMessageDeliveriesDecay:  0.9,
-		FirstMessageDeliveriesCap:    100,
-
-		// Invalid message penalties
-		InvalidMessageDeliveriesWeight: -10,
-		InvalidMessageDeliveriesDecay:  0.9,
-	}
-
-	peerScoreParams.Topics[TopicWaves] = defaultTopicParams
-	peerScoreParams.Topics[TopicIdentity] = defaultTopicParams
-	peerScoreParams.Topics[TopicShroud] = defaultTopicParams
-	peerScoreParams.Topics[TopicPulse] = defaultTopicParams
-
-	// Score thresholds
-	thresholds := &pubsub.PeerScoreThresholds{
-		GossipThreshold:             -100,
-		PublishThreshold:            -1000,
-		GraylistThreshold:           -10000,
-		AcceptPXThreshold:           0,
-		OpportunisticGraftThreshold: 5,
-	}
-
-	// Create GossipSub with peer scoring
 	ps, err := pubsub.NewGossipSub(ctx, h,
 		pubsub.WithPeerScore(peerScoreParams, thresholds),
-		pubsub.WithFloodPublish(true), // Flood publish to all mesh peers
+		pubsub.WithFloodPublish(true),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create GossipSub: %w", err)
@@ -112,6 +59,49 @@ func New(ctx context.Context, h host.Host) (*PubSub, error) {
 		topics: make(map[string]*pubsub.Topic),
 		subs:   make(map[string]*pubsub.Subscription),
 	}, nil
+}
+
+// buildPeerScoreParams constructs GossipSub peer scoring parameters per DESIGN_DOCUMENT.md.
+func buildPeerScoreParams() *pubsub.PeerScoreParams {
+	topicParams := buildDefaultTopicParams()
+
+	return &pubsub.PeerScoreParams{
+		Topics:                      map[string]*pubsub.TopicScoreParams{TopicWaves: topicParams, TopicIdentity: topicParams, TopicShroud: topicParams, TopicPulse: topicParams},
+		AppSpecificScore:            func(p peer.ID) float64 { return 0 },
+		AppSpecificWeight:           1,
+		IPColocationFactorWeight:    -10,
+		IPColocationFactorThreshold: 3,
+		BehaviourPenaltyWeight:      -1,
+		BehaviourPenaltyDecay:       0.9,
+		DecayInterval:               1 * time.Minute,
+		DecayToZero:                 0.01,
+	}
+}
+
+// buildDefaultTopicParams returns topic-specific scoring parameters.
+func buildDefaultTopicParams() *pubsub.TopicScoreParams {
+	return &pubsub.TopicScoreParams{
+		TopicWeight:                    1,
+		TimeInMeshWeight:               0.01,
+		TimeInMeshQuantum:              time.Second,
+		TimeInMeshCap:                  100,
+		FirstMessageDeliveriesWeight:   1,
+		FirstMessageDeliveriesDecay:    0.9,
+		FirstMessageDeliveriesCap:      100,
+		InvalidMessageDeliveriesWeight: -10,
+		InvalidMessageDeliveriesDecay:  0.9,
+	}
+}
+
+// buildScoreThresholds returns peer score thresholds for GossipSub.
+func buildScoreThresholds() *pubsub.PeerScoreThresholds {
+	return &pubsub.PeerScoreThresholds{
+		GossipThreshold:             -100,
+		PublishThreshold:            -1000,
+		GraylistThreshold:           -10000,
+		AcceptPXThreshold:           0,
+		OpportunisticGraftThreshold: 5,
+	}
 }
 
 // Join joins a topic and returns the topic handle.
@@ -140,21 +130,38 @@ func (p *PubSub) Subscribe(ctx context.Context, topicName string, handler Messag
 		return err
 	}
 
-	p.mu.Lock()
-	if _, ok := p.subs[topicName]; ok {
-		p.mu.Unlock()
+	sub, err := p.registerSubscription(topicName, topic)
+	if err != nil {
+		return err
+	}
+	if sub == nil {
 		return nil // Already subscribed
+	}
+
+	p.startMessageHandler(ctx, sub, handler)
+	return nil
+}
+
+// registerSubscription creates a subscription if one doesn't exist.
+// Returns nil subscription if already subscribed.
+func (p *PubSub) registerSubscription(topicName string, topic *pubsub.Topic) (*pubsub.Subscription, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if _, ok := p.subs[topicName]; ok {
+		return nil, nil // Already subscribed
 	}
 
 	sub, err := topic.Subscribe()
 	if err != nil {
-		p.mu.Unlock()
-		return fmt.Errorf("failed to subscribe to topic %s: %w", topicName, err)
+		return nil, fmt.Errorf("failed to subscribe to topic %s: %w", topicName, err)
 	}
 	p.subs[topicName] = sub
-	p.mu.Unlock()
+	return sub, nil
+}
 
-	// Start message handler goroutine
+// startMessageHandler launches a goroutine to process incoming messages.
+func (p *PubSub) startMessageHandler(ctx context.Context, sub *pubsub.Subscription, handler MessageHandler) {
 	go func() {
 		for {
 			msg, err := sub.Next(ctx)
@@ -164,8 +171,6 @@ func (p *PubSub) Subscribe(ctx context.Context, topicName string, handler Messag
 			handler(ctx, msg)
 		}
 	}()
-
-	return nil
 }
 
 // Publish publishes a message to a topic.

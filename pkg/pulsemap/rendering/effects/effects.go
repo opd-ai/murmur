@@ -23,38 +23,32 @@ type Shaders struct {
 // LoadShaders compiles and returns all effect shaders.
 func LoadShaders() (*Shaders, error) {
 	shaders := &Shaders{}
+	var err error
 
-	// Load glow shader
-	glowSrc, err := shaderFS.ReadFile("glow.kage")
-	if err != nil {
-		return nil, fmt.Errorf("reading glow.kage: %w", err)
+	if shaders.Glow, err = loadShader("glow.kage"); err != nil {
+		return nil, err
 	}
-	shaders.Glow, err = ebiten.NewShader(glowSrc)
-	if err != nil {
-		return nil, fmt.Errorf("compiling glow shader: %w", err)
+	if shaders.Ripple, err = loadShader("ripple.kage"); err != nil {
+		return nil, err
 	}
-
-	// Load ripple shader
-	rippleSrc, err := shaderFS.ReadFile("ripple.kage")
-	if err != nil {
-		return nil, fmt.Errorf("reading ripple.kage: %w", err)
-	}
-	shaders.Ripple, err = ebiten.NewShader(rippleSrc)
-	if err != nil {
-		return nil, fmt.Errorf("compiling ripple shader: %w", err)
-	}
-
-	// Load spectra shader
-	spectraSrc, err := shaderFS.ReadFile("spectra.kage")
-	if err != nil {
-		return nil, fmt.Errorf("reading spectra.kage: %w", err)
-	}
-	shaders.Spectra, err = ebiten.NewShader(spectraSrc)
-	if err != nil {
-		return nil, fmt.Errorf("compiling spectra shader: %w", err)
+	if shaders.Spectra, err = loadShader("spectra.kage"); err != nil {
+		return nil, err
 	}
 
 	return shaders, nil
+}
+
+// loadShader reads and compiles a single Kage shader file.
+func loadShader(filename string) (*ebiten.Shader, error) {
+	src, err := shaderFS.ReadFile(filename)
+	if err != nil {
+		return nil, fmt.Errorf("reading %s: %w", filename, err)
+	}
+	shader, err := ebiten.NewShader(src)
+	if err != nil {
+		return nil, fmt.Errorf("compiling %s: %w", filename, err)
+	}
+	return shader, nil
 }
 
 // GlowUniforms contains uniforms for the glow shader.

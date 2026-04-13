@@ -78,8 +78,8 @@ func NewCacheWithConfig(db *store.DB, cfg CacheConfig) (*Cache, error) {
 
 // Put stores a Wave in the cache and database.
 func (c *Cache) Put(wave *pb.Wave) error {
-	if wave == nil || len(wave.WaveId) == 0 {
-		return ErrInvalidWave
+	if err := validateWave(wave); err != nil {
+		return err
 	}
 
 	c.mu.Lock()
@@ -89,53 +89,75 @@ func (c *Cache) Put(wave *pb.Wave) error {
 		return ErrStoreClosed
 	}
 
-	waveID := string(wave.WaveId)
-
-	// Check cache size.
-	if len(c.memory) >= c.maxSize {
-		// Evict expired waves first.
-		c.evictExpiredLocked()
-
-		// If still full, reject.
-		if len(c.memory) >= c.maxSize {
-			return ErrCacheFull
-		}
+	if err := c.ensureCapacityLocked(); err != nil {
+		return err
 	}
 
-	// Store in memory.
-	c.memory[waveID] = wave
+	c.memory[string(wave.WaveId)] = wave
+	return c.persistWave(wave)
+}
 
-	// Persist to database.
+// validateWave checks if the wave is valid for storage.
+func validateWave(wave *pb.Wave) error {
+	if wave == nil || len(wave.WaveId) == 0 {
+		return ErrInvalidWave
+	}
+	return nil
+}
+
+// ensureCapacityLocked ensures cache has room for a new wave. Must hold c.mu.
+func (c *Cache) ensureCapacityLocked() error {
+	if len(c.memory) < c.maxSize {
+		return nil
+	}
+
+	c.evictExpiredLocked()
+	if len(c.memory) >= c.maxSize {
+		return ErrCacheFull
+	}
+	return nil
+}
+
+// persistWave serializes and stores the wave in the database.
+func (c *Cache) persistWave(wave *pb.Wave) error {
 	data, err := proto.Marshal(wave)
 	if err != nil {
 		return err
 	}
-
 	return c.db.Put(store.BucketWaves, wave.WaveId, data)
 }
 
 // Get retrieves a Wave by ID from cache or database.
 func (c *Cache) Get(waveID []byte) (*pb.Wave, error) {
-	c.mu.RLock()
-	if c.closed {
-		c.mu.RUnlock()
-		return nil, ErrStoreClosed
+	wave, found, err := c.getFromMemory(waveID)
+	if err != nil {
+		return nil, err
 	}
-
-	// Check memory cache first.
-	if wave, ok := c.memory[string(waveID)]; ok {
-		c.mu.RUnlock()
+	if found {
 		return wave, nil
 	}
-	c.mu.RUnlock()
+	return c.getFromDatabase(waveID)
+}
 
-	// Try database.
+// getFromMemory checks the memory cache for a Wave.
+func (c *Cache) getFromMemory(waveID []byte) (*pb.Wave, bool, error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	if c.closed {
+		return nil, false, ErrStoreClosed
+	}
+
+	wave, ok := c.memory[string(waveID)]
+	return wave, ok, nil
+}
+
+// getFromDatabase retrieves a Wave from the database and caches it.
+func (c *Cache) getFromDatabase(waveID []byte) (*pb.Wave, error) {
 	data, err := c.db.Get(store.BucketWaves, waveID)
 	if err != nil {
 		return nil, err
 	}
-
-	// Bbolt returns nil for missing keys.
 	if data == nil {
 		return nil, ErrNotFound
 	}
@@ -145,14 +167,18 @@ func (c *Cache) Get(waveID []byte) (*pb.Wave, error) {
 		return nil, err
 	}
 
-	// Add to memory cache.
+	c.cacheWave(waveID, wave)
+	return wave, nil
+}
+
+// cacheWave adds a Wave to the memory cache if space is available.
+func (c *Cache) cacheWave(waveID []byte, wave *pb.Wave) {
 	c.mu.Lock()
-	if len(c.memory) < c.maxSize {
+	defer c.mu.Unlock()
+
+	if !c.closed && len(c.memory) < c.maxSize {
 		c.memory[string(waveID)] = wave
 	}
-	c.mu.Unlock()
-
-	return wave, nil
 }
 
 // Delete removes a Wave from cache and database.

@@ -185,33 +185,43 @@ func (c *Controller) CompleteCurrentPhase() {
 		return
 	}
 
-	// Mark current phase complete
+	completedPhase := c.markPhaseCompleteLocked()
+	c.notifyPhaseComplete(completedPhase)
+	c.advanceToNextPhaseLocked()
+}
+
+// markPhaseCompleteLocked marks the current phase as complete. Must hold c.mu.
+func (c *Controller) markPhaseCompleteLocked() Phase {
 	if p, ok := c.progress[c.currentPhase]; ok {
 		p.Completed = true
 		p.EndTime = time.Now()
 	}
+	return c.currentPhase
+}
 
-	completedPhase := c.currentPhase
-
+// notifyPhaseComplete triggers the OnPhaseComplete callback.
+func (c *Controller) notifyPhaseComplete(phase Phase) {
 	if c.callbacks.OnPhaseComplete != nil {
-		go c.callbacks.OnPhaseComplete(completedPhase)
+		go c.callbacks.OnPhaseComplete(phase)
 	}
+}
 
-	// Advance to next phase
+// advanceToNextPhaseLocked moves to the next phase or completes the flow. Must hold c.mu.
+func (c *Controller) advanceToNextPhaseLocked() {
 	if c.currentPhase < PhaseFirstWave {
 		c.currentPhase++
 		c.startPhase(c.currentPhase)
 		c.mu.Unlock()
-	} else {
-		// Flow complete
-		c.currentPhase = PhaseComplete
-		c.completedTime = time.Now()
-		totalTime := c.completedTime.Sub(c.startTime)
-		c.mu.Unlock()
+		return
+	}
 
-		if c.callbacks.OnFlowComplete != nil {
-			go c.callbacks.OnFlowComplete(totalTime)
-		}
+	c.currentPhase = PhaseComplete
+	c.completedTime = time.Now()
+	totalTime := c.completedTime.Sub(c.startTime)
+	c.mu.Unlock()
+
+	if c.callbacks.OnFlowComplete != nil {
+		go c.callbacks.OnFlowComplete(totalTime)
 	}
 }
 

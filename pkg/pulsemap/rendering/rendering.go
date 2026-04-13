@@ -47,7 +47,15 @@ type NodeStyle struct {
 // RenderNode draws a node at the given screen position.
 // Per PULSE_MAP.md, radius = r_base + r_scale * ln(1 + metric).
 func RenderNode(dst *ebiten.Image, x, y float32, style NodeStyle, zoom ZoomLevel) {
-	// Calculate radius per PULSE_MAP.md formula
+	radius := computeNodeRadius(style)
+	renderNodeHalo(dst, x, y, radius, style)
+	renderNodeCore(dst, x, y, radius, style)
+	renderNodeRing(dst, x, y, radius, style)
+	renderNodeSelection(dst, x, y, radius, style)
+}
+
+// computeNodeRadius calculates node size based on connections/resonance.
+func computeNodeRadius(style NodeStyle) float32 {
 	const (
 		rBase  = 4.0
 		rScale = 3.0
@@ -58,37 +66,47 @@ func RenderNode(dst *ebiten.Image, x, y float32, style NodeStyle, zoom ZoomLevel
 	} else {
 		metric = float64(style.Connections) + style.Activity
 	}
-	radius := float32(rBase + rScale*math.Log(1+metric))
+	return float32(rBase + rScale*math.Log(1+metric))
+}
 
-	// Render halo if active (within 60 minutes of activity)
-	if style.HasHalo && style.HaloAlpha > 0 {
-		haloRadius := radius * 2.0
-		haloColor := color.RGBA{
-			R: style.CoreColor.R,
-			G: style.CoreColor.G,
-			B: style.CoreColor.B,
-			A: uint8(float32(80) * style.HaloAlpha),
-		}
-		vector.DrawFilledCircle(dst, x, y, haloRadius, haloColor, true)
+// renderNodeHalo draws the activity halo if present.
+func renderNodeHalo(dst *ebiten.Image, x, y, radius float32, style NodeStyle) {
+	if !style.HasHalo || style.HaloAlpha <= 0 {
+		return
 	}
+	haloColor := color.RGBA{
+		R: style.CoreColor.R,
+		G: style.CoreColor.G,
+		B: style.CoreColor.B,
+		A: uint8(float32(80) * style.HaloAlpha),
+	}
+	vector.DrawFilledCircle(dst, x, y, radius*2.0, haloColor, true)
+}
 
-	// Render core circle
+// renderNodeCore draws the filled node circle.
+func renderNodeCore(dst *ebiten.Image, x, y, radius float32, style NodeStyle) {
 	vector.DrawFilledCircle(dst, x, y, radius, style.CoreColor, true)
+}
 
-	// Render ring based on mode
-	if style.HasRing {
-		ringThickness := float32(1.5)
-		if style.Selected {
-			ringThickness = 3.0
-		}
-		vector.StrokeCircle(dst, x, y, radius+ringThickness, ringThickness, style.RingColor, true)
+// renderNodeRing draws the mode ring if enabled.
+func renderNodeRing(dst *ebiten.Image, x, y, radius float32, style NodeStyle) {
+	if !style.HasRing {
+		return
 	}
-
-	// Selection highlight
+	ringThickness := float32(1.5)
 	if style.Selected {
-		selectColor := color.RGBA{255, 255, 255, 128}
-		vector.StrokeCircle(dst, x, y, radius+6, 2.0, selectColor, true)
+		ringThickness = 3.0
 	}
+	vector.StrokeCircle(dst, x, y, radius+ringThickness, ringThickness, style.RingColor, true)
+}
+
+// renderNodeSelection draws the selection highlight.
+func renderNodeSelection(dst *ebiten.Image, x, y, radius float32, style NodeStyle) {
+	if !style.Selected {
+		return
+	}
+	selectColor := color.RGBA{255, 255, 255, 128}
+	vector.StrokeCircle(dst, x, y, radius+6, 2.0, selectColor, true)
 }
 
 // EdgeStyle contains visual properties for an edge.

@@ -125,29 +125,37 @@ func (r *Relay) Stop() {
 
 // Forward queues a packet for forwarding with traffic mixing.
 func (r *Relay) Forward(packet []byte) error {
-	if r.shutdown.Load() {
-		return ErrRelayShutdown
+	if err := r.validateRelayState(); err != nil {
+		return err
 	}
 
-	if !r.enabled.Load() {
-		return ErrRelayNotEnabled
-	}
-
-	// Process packet to determine next hop.
 	nextHop, data, err := r.handler(packet)
 	if err != nil {
 		atomic.AddUint64(&r.stats.PacketsDropped, 1)
 		return err
 	}
 
-	// Calculate random delay for traffic mixing.
-	delay := r.randomDelay()
+	return r.enqueuePacket(nextHop, data)
+}
 
+// validateRelayState checks if the relay is enabled and not shutting down.
+func (r *Relay) validateRelayState() error {
+	if r.shutdown.Load() {
+		return ErrRelayShutdown
+	}
+	if !r.enabled.Load() {
+		return ErrRelayNotEnabled
+	}
+	return nil
+}
+
+// enqueuePacket creates and queues a packet with random delay for traffic mixing.
+func (r *Relay) enqueuePacket(nextHop string, data []byte) error {
 	rp := relayPacket{
 		data:      data,
 		nextHop:   nextHop,
 		arriveAt:  time.Now(),
-		scheduled: time.Now().Add(delay),
+		scheduled: time.Now().Add(r.randomDelay()),
 	}
 
 	select {
@@ -166,17 +174,26 @@ func (r *Relay) processLoop(ctx context.Context) {
 	defer ticker.Stop()
 
 	for {
-		select {
-		case <-ctx.Done():
+		if r.processLoopIteration(ctx, &pending, ticker) {
 			return
-		case <-r.ctx.Done():
-			return
-		case pkt := <-r.inbound:
-			pending = append(pending, pkt)
-		case <-ticker.C:
-			pending = r.processPendingPackets(pending)
 		}
 	}
+}
+
+// processLoopIteration handles one iteration of the process loop.
+// Returns true if the loop should exit.
+func (r *Relay) processLoopIteration(ctx context.Context, pending *[]relayPacket, ticker *time.Ticker) bool {
+	select {
+	case <-ctx.Done():
+		return true
+	case <-r.ctx.Done():
+		return true
+	case pkt := <-r.inbound:
+		*pending = append(*pending, pkt)
+	case <-ticker.C:
+		*pending = r.processPendingPackets(*pending)
+	}
+	return false
 }
 
 // processPendingPackets sends ready packets and returns remaining.
@@ -240,15 +257,24 @@ func (r *Relay) dummyTrafficLoop(ctx context.Context) {
 	defer ticker.Stop()
 
 	for {
-		select {
-		case <-ctx.Done():
+		if r.dummyTrafficIteration(ctx, ticker) {
 			return
-		case <-r.ctx.Done():
-			return
-		case <-ticker.C:
-			r.maybeSendDummyPacket()
 		}
 	}
+}
+
+// dummyTrafficIteration handles one iteration of the dummy traffic loop.
+// Returns true if the loop should exit.
+func (r *Relay) dummyTrafficIteration(ctx context.Context, ticker *time.Ticker) bool {
+	select {
+	case <-ctx.Done():
+		return true
+	case <-r.ctx.Done():
+		return true
+	case <-ticker.C:
+		r.maybeSendDummyPacket()
+	}
+	return false
 }
 
 // maybeSendDummyPacket sends a dummy packet if conditions are met.

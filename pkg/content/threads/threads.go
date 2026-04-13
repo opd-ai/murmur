@@ -303,32 +303,58 @@ func (idx *Index) loadReplies(
 		return nil, ErrMaxDepth
 	}
 
-	idx.mu.RLock()
-	replyIDs := idx.replies[string(parentID)]
-	idx.mu.RUnlock()
-
+	replyIDs := idx.getReplyIDs(parentID)
 	if len(replyIDs) == 0 {
 		return nil, nil
 	}
 
+	return idx.buildReplyNodes(replyIDs, loader, seen, depth)
+}
+
+// getReplyIDs retrieves reply IDs for a parent wave ID.
+func (idx *Index) getReplyIDs(parentID []byte) []string {
+	idx.mu.RLock()
+	defer idx.mu.RUnlock()
+	return idx.replies[string(parentID)]
+}
+
+// buildReplyNodes creates ThreadNode entries for each reply.
+func (idx *Index) buildReplyNodes(
+	replyIDs []string,
+	loader func([]byte) (*pb.Wave, error),
+	seen map[string]bool,
+	depth int,
+) ([]*ThreadNode, error) {
 	nodes := make([]*ThreadNode, 0, len(replyIDs))
 	for _, replyID := range replyIDs {
-		if seen[replyID] {
-			continue
+		node := idx.loadSingleReply(replyID, loader, seen, depth)
+		if node != nil {
+			nodes = append(nodes, node)
 		}
-		seen[replyID] = true
+	}
+	return nodes, nil
+}
 
-		wave, err := loader([]byte(replyID))
-		if err != nil {
-			continue
-		}
+// loadSingleReply loads one reply and its children if not already seen.
+func (idx *Index) loadSingleReply(
+	replyID string,
+	loader func([]byte) (*pb.Wave, error),
+	seen map[string]bool,
+	depth int,
+) *ThreadNode {
+	if seen[replyID] {
+		return nil
+	}
+	seen[replyID] = true
 
-		node := &ThreadNode{Wave: wave}
-		node.Replies, _ = idx.loadReplies([]byte(replyID), loader, seen, depth+1)
-		nodes = append(nodes, node)
+	wave, err := loader([]byte(replyID))
+	if err != nil {
+		return nil
 	}
 
-	return nodes, nil
+	node := &ThreadNode{Wave: wave}
+	node.Replies, _ = idx.loadReplies([]byte(replyID), loader, seen, depth+1)
+	return node
 }
 
 // Serialize serializes a Thread to protobuf bytes.

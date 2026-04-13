@@ -322,16 +322,31 @@ func (m *Manager) waitForMinPeers(ctx context.Context) error {
 	defer ticker.Stop()
 
 	for {
-		select {
-		case <-ctx.Done():
-			return ErrTimeout
-		case <-ticker.C:
-			if m.connector.PeerCount() >= m.config.MinPeers {
-				return nil
-			}
-			m.notifyProgress()
+		done, err := m.waitForMinPeersIteration(ctx, ticker)
+		if done {
+			return err
 		}
 	}
+}
+
+// waitForMinPeersIteration handles one iteration of the peer wait loop.
+// Returns (done, error) where done indicates whether the loop should exit.
+func (m *Manager) waitForMinPeersIteration(ctx context.Context, ticker *time.Ticker) (bool, error) {
+	select {
+	case <-ctx.Done():
+		return true, ErrTimeout
+	case <-ticker.C:
+		if m.hasMinPeers() {
+			return true, nil
+		}
+		m.notifyProgress()
+	}
+	return false, nil
+}
+
+// hasMinPeers returns true if the minimum peer count has been reached.
+func (m *Manager) hasMinPeers() bool {
+	return m.connector.PeerCount() >= m.config.MinPeers
 }
 
 // setStatus updates the status and notifies.

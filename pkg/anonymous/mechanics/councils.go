@@ -307,64 +307,54 @@ func NewPhantomCouncil(
 	minResonance float64,
 	maxMembers int,
 ) (*PhantomCouncil, error) {
-	// Validate name.
-	if len(name) > CouncilMaxNameLength {
-		return nil, ErrCouncilNameTooLong
+	if err := validateCouncilParams(name, purpose, minResonance, maxMembers); err != nil {
+		return nil, err
 	}
 
-	// Validate purpose.
-	if len(purpose) > CouncilMaxPurposeLength {
-		return nil, ErrCouncilPurposeTooLong
-	}
-
-	// Validate minimum resonance.
-	if minResonance < CouncilMinResonance {
-		return nil, ErrCouncilInvalidMinResonance
-	}
-
-	// Validate member count.
-	if maxMembers < CouncilMinMembers || maxMembers > CouncilMaxMembers {
-		return nil, ErrCouncilInvalidSize
-	}
-
-	now := time.Now()
-
-	// Generate random council ID.
-	var id [32]byte
-	rand.Read(id[:])
-
-	// Generate initial group key.
-	var groupKey [32]byte
-	rand.Read(groupKey[:])
-
-	council := &PhantomCouncil{
-		ID:               id,
-		Name:             name,
-		Purpose:          purpose,
-		CreatorKey:       creator,
-		CreatedAt:        now,
-		MinResonance:     minResonance,
-		MaxMembers:       maxMembers,
-		State:            CouncilDormant, // Starts dormant until 3+ members.
-		Members:          make([]*CouncilMember, 0),
-		memberByKey:      make(map[string]*CouncilMember),
-		Applications:     make([]*CouncilApplication, 0),
-		applicationByKey: make(map[string]*CouncilApplication),
-		Proposals:        make([]*CouncilProposal, 0),
-		ExpulsionVotes:   make([]*ExpulsionVote, 0),
-		GroupKey:         groupKey,
-	}
-
-	// Add creator as first member.
-	creatorMember := &CouncilMember{
-		SpecterKey: creator,
-		Status:     MemberActive,
-		JoinedAt:   now,
-	}
-	council.Members = append(council.Members, creatorMember)
-	council.memberByKey[keyToHex(creator[:])] = creatorMember
+	council := initCouncil(creator, name, purpose, minResonance, maxMembers)
+	addFoundingMember(council, creator)
 
 	return council, nil
+}
+
+// validateCouncilParams validates the council creation parameters.
+func validateCouncilParams(name, purpose string, minResonance float64, maxMembers int) error {
+	if len(name) > CouncilMaxNameLength {
+		return ErrCouncilNameTooLong
+	}
+	if len(purpose) > CouncilMaxPurposeLength {
+		return ErrCouncilPurposeTooLong
+	}
+	if minResonance < CouncilMinResonance {
+		return ErrCouncilInvalidMinResonance
+	}
+	if maxMembers < CouncilMinMembers || maxMembers > CouncilMaxMembers {
+		return ErrCouncilInvalidSize
+	}
+	return nil
+}
+
+// initCouncil creates a new PhantomCouncil with generated ID and group key.
+func initCouncil(creator [32]byte, name, purpose string, minResonance float64, maxMembers int) *PhantomCouncil {
+	var id, groupKey [32]byte
+	rand.Read(id[:])
+	rand.Read(groupKey[:])
+
+	return &PhantomCouncil{
+		ID: id, Name: name, Purpose: purpose, CreatorKey: creator,
+		CreatedAt: time.Now(), MinResonance: minResonance, MaxMembers: maxMembers,
+		State: CouncilDormant, GroupKey: groupKey,
+		Members: make([]*CouncilMember, 0), memberByKey: make(map[string]*CouncilMember),
+		Applications: make([]*CouncilApplication, 0), applicationByKey: make(map[string]*CouncilApplication),
+		Proposals: make([]*CouncilProposal, 0), ExpulsionVotes: make([]*ExpulsionVote, 0),
+	}
+}
+
+// addFoundingMember adds the creator as the first council member.
+func addFoundingMember(council *PhantomCouncil, creator [32]byte) {
+	member := &CouncilMember{SpecterKey: creator, Status: MemberActive, JoinedAt: time.Now()}
+	council.Members = append(council.Members, member)
+	council.memberByKey[keyToHex(creator[:])] = member
 }
 
 // IsActive returns true if council is active.
@@ -423,26 +413,49 @@ func (c *PhantomCouncil) Apply(applicant [32]byte, zkProof []byte) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	// Check if already a member.
-	member := c.memberByKey[keyToHex(applicant[:])]
-	if member != nil && member.Status == MemberActive {
-		return ErrCouncilAlreadyMember
+	if err := c.validateApplicantLocked(applicant); err != nil {
+		return err
 	}
 
-	// Check if council is full.
+	c.createApplicationLocked(applicant, zkProof)
+	return nil
+}
+
+// validateApplicantLocked checks membership and capacity constraints.
+// Must be called with c.mu held.
+func (c *PhantomCouncil) validateApplicantLocked(applicant [32]byte) error {
+	if c.isActiveMemberLocked(applicant) {
+		return ErrCouncilAlreadyMember
+	}
+	if c.isAtCapacityLocked() {
+		return ErrCouncilFull
+	}
+	return nil
+}
+
+// isActiveMemberLocked checks if the applicant is already an active member.
+func (c *PhantomCouncil) isActiveMemberLocked(applicant [32]byte) bool {
+	member := c.memberByKey[keyToHex(applicant[:])]
+	return member != nil && member.Status == MemberActive
+}
+
+// isAtCapacityLocked checks if the council has reached max members.
+func (c *PhantomCouncil) isAtCapacityLocked() bool {
 	activeCount := 0
 	for _, m := range c.Members {
 		if m.Status == MemberActive {
 			activeCount++
 		}
 	}
-	if activeCount >= c.MaxMembers {
-		return ErrCouncilFull
-	}
+	return activeCount >= c.MaxMembers
+}
 
-	// Check for existing application.
-	if c.applicationByKey[keyToHex(applicant[:])] != nil {
-		return nil // Idempotent.
+// createApplicationLocked creates and registers a new application.
+// Idempotent: returns early if application already exists.
+func (c *PhantomCouncil) createApplicationLocked(applicant [32]byte, zkProof []byte) {
+	key := keyToHex(applicant[:])
+	if c.applicationByKey[key] != nil {
+		return // Idempotent
 	}
 
 	app := &CouncilApplication{
@@ -453,11 +466,8 @@ func (c *PhantomCouncil) Apply(applicant [32]byte, zkProof []byte) error {
 		Resolved:     false,
 		Admitted:     false,
 	}
-
 	c.Applications = append(c.Applications, app)
-	c.applicationByKey[keyToHex(applicant[:])] = app
-
-	return nil
+	c.applicationByKey[key] = app
 }
 
 // VoteOnApplication casts a vote on a pending application.

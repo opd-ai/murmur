@@ -149,8 +149,13 @@ func TestValidateInvalidPoW(t *testing.T) {
 		t.Fatalf("Create failed: %v", err)
 	}
 
-	// Validate with higher difficulty should fail.
-	err = Validate(wave, 16)
+	// Corrupt the nonce to ensure PoW verification fails deterministically.
+	// Adding 1 to the nonce makes the hash invalid (unless it happens to
+	// also satisfy the difficulty, which is astronomically unlikely).
+	wave.PowNonce = wave.PowNonce + 1
+
+	// Validation should fail with invalid PoW.
+	err = Validate(wave, 8)
 	if err != ErrInvalidPoW {
 		t.Errorf("expected ErrInvalidPoW, got %v", err)
 	}

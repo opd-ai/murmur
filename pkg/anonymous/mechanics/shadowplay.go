@@ -396,31 +396,43 @@ func (s *ShadowPlay) Vote(voter, target [32]byte) error {
 		return ErrShadowPlayNotVoting
 	}
 
-	// Get voter.
+	voterPlayer, err := s.validateVoter(voter)
+	if err != nil {
+		return err
+	}
+
+	if err := s.validateVoteTarget(target); err != nil {
+		return err
+	}
+
+	voterPlayer.VotedFor = &target
+	return nil
+}
+
+// validateVoter checks that the voter is a valid, active player who hasn't voted.
+func (s *ShadowPlay) validateVoter(voter [32]byte) (*Player, error) {
 	voterPlayer := s.playerByKey[keyToHex(voter[:])]
 	if voterPlayer == nil {
-		return ErrShadowPlayNotPlayer
+		return nil, ErrShadowPlayNotPlayer
 	}
-
 	if voterPlayer.IsEliminated {
-		return ErrShadowPlayEliminated
+		return nil, ErrShadowPlayEliminated
 	}
-
 	if voterPlayer.VotedFor != nil {
-		return ErrShadowPlayAlreadyVoted
+		return nil, ErrShadowPlayAlreadyVoted
 	}
+	return voterPlayer, nil
+}
 
-	// Get target.
+// validateVoteTarget checks that the target is a valid, active player.
+func (s *ShadowPlay) validateVoteTarget(target [32]byte) error {
 	targetPlayer := s.playerByKey[keyToHex(target[:])]
 	if targetPlayer == nil {
 		return ErrShadowPlayNotPlayer
 	}
-
 	if targetPlayer.IsEliminated {
 		return ErrShadowPlayEliminated
 	}
-
-	voterPlayer.VotedFor = &target
 	return nil
 }
 

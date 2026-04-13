@@ -115,12 +115,12 @@ func (l *ConnectionLimiter) Max() int {
 
 // BandwidthThrottler enforces bandwidth limits using token bucket.
 type BandwidthThrottler struct {
-	mu           sync.Mutex
-	bytesPerSec  int64
-	tokens       int64
-	maxTokens    int64
-	lastRefill   time.Time
-	enabled      atomic.Bool
+	mu          sync.Mutex
+	bytesPerSec int64
+	tokens      int64
+	maxTokens   int64
+	lastRefill  time.Time
+	enabled     atomic.Bool
 }
 
 // NewBandwidthThrottler creates a bandwidth throttler.

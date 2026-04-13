@@ -130,64 +130,55 @@ func (s *ModeScreen) drawModeIntro(screen *ebiten.Image) {
 	centerX := float32(s.width) / 2
 	centerY := float32(s.height)/2 - 30
 
-	// Title
-	titleY := float32(60)
-	s.drawCenteredText(screen, "Choose How You Participate", centerX, titleY, 22, color.RGBA{220, 220, 225, 255})
+	s.drawCenteredText(screen, "Choose How You Participate", centerX, 60, 22, color.RGBA{220, 220, 225, 255})
+	s.drawSurfaceLayerNode(screen, centerX-30, centerY)
 
-	// Surface layer node (warm tones)
-	surfaceRadius := float32(25)
-	surfacePulse := float32(0.5 + 0.5*math.Sin(s.animPhase*2*math.Pi))
-	surfaceColor := color.RGBA{230, 180, 100, uint8(200 + 55*surfacePulse)}
-	vector.DrawFilledCircle(screen, centerX-30, centerY, surfaceRadius, surfaceColor, true)
-
-	// Anonymous layer node (cool tones, fades in with intro progress)
 	if s.introProgress > 0.2 {
-		anonAlpha := uint8(255 * math.Min(1, (s.introProgress-0.2)/0.3))
-		anonRadius := float32(20)
-		anonX := centerX + 30
-		anonY := centerY + 10
-
-		// Background particles for anonymous layer
-		for i := 0; i < 8; i++ {
-			angle := float64(i)*math.Pi/4 + s.animPhase*2*math.Pi
-			px := anonX + 40*float32(math.Cos(angle))
-			py := anonY + 40*float32(math.Sin(angle))
-			pColor := color.RGBA{100, 100, 200, uint8(float64(anonAlpha) * 0.3)}
-			vector.DrawFilledCircle(screen, px, py, 3, pColor, true)
-		}
-
-		// Anonymous node
-		anonColor := color.RGBA{100, 150, 230, anonAlpha}
-		vector.DrawFilledCircle(screen, anonX, anonY, anonRadius, anonColor, true)
-
-		// Glow effect
-		glowColor := color.RGBA{80, 120, 200, uint8(float64(anonAlpha) * 0.4)}
-		vector.DrawFilledCircle(screen, anonX, anonY, anonRadius+10, glowColor, true)
+		s.drawAnonymousLayerNode(screen, centerX+30, centerY+10)
 	}
-
-	// Explanation text
 	if s.introProgress > 0.5 {
-		textAlpha := uint8(255 * math.Min(1, (s.introProgress-0.5)/0.3))
-		textColor := color.RGBA{180, 180, 190, textAlpha}
-
-		textY := centerY + 100
-		s.drawCenteredText(screen, "MURMUR has two layers.", centerX, textY, 16, textColor)
-
-		textY2 := textY + 25
-		s.drawCenteredText(screen, "The Surface Layer is public — your identity is visible.", centerX, textY2, 14, textColor)
-
-		textY3 := textY2 + 25
-		s.drawCenteredText(screen, "The Anonymous Layer is private — participate through", centerX, textY3, 14, textColor)
-
-		textY4 := textY3 + 20
-		s.drawCenteredText(screen, "an anonymous identity that cannot be linked to you.", centerX, textY4, 14, textColor)
+		s.drawIntroExplanationText(screen, centerX, centerY+100)
 	}
-
-	// Continue button (appears after intro completes)
 	if s.introProgress >= 1.0 {
-		buttonY := float32(s.height) - 100
-		s.drawButton(screen, "Continue", centerX, buttonY, 0)
+		s.drawButton(screen, "Continue", centerX, float32(s.height)-100, 0)
 	}
+}
+
+// drawSurfaceLayerNode renders the warm-toned Surface layer node.
+func (s *ModeScreen) drawSurfaceLayerNode(screen *ebiten.Image, x, y float32) {
+	pulse := float32(0.5 + 0.5*math.Sin(s.animPhase*2*math.Pi))
+	nodeColor := color.RGBA{230, 180, 100, uint8(200 + 55*pulse)}
+	vector.DrawFilledCircle(screen, x, y, 25, nodeColor, true)
+}
+
+// drawAnonymousLayerNode renders the anonymous layer node with particles and glow.
+func (s *ModeScreen) drawAnonymousLayerNode(screen *ebiten.Image, x, y float32) {
+	alpha := uint8(255 * math.Min(1, (s.introProgress-0.2)/0.3))
+
+	s.drawAnonParticles(screen, x, y, alpha)
+	vector.DrawFilledCircle(screen, x, y, 20, color.RGBA{100, 150, 230, alpha}, true)
+	vector.DrawFilledCircle(screen, x, y, 30, color.RGBA{80, 120, 200, uint8(float64(alpha) * 0.4)}, true)
+}
+
+// drawAnonParticles renders orbiting particles around the anonymous layer node.
+func (s *ModeScreen) drawAnonParticles(screen *ebiten.Image, x, y float32, alpha uint8) {
+	for i := 0; i < 8; i++ {
+		angle := float64(i)*math.Pi/4 + s.animPhase*2*math.Pi
+		px := x + 40*float32(math.Cos(angle))
+		py := y + 40*float32(math.Sin(angle))
+		vector.DrawFilledCircle(screen, px, py, 3, color.RGBA{100, 100, 200, uint8(float64(alpha) * 0.3)}, true)
+	}
+}
+
+// drawIntroExplanationText renders the dual-layer explanation text.
+func (s *ModeScreen) drawIntroExplanationText(screen *ebiten.Image, centerX, textY float32) {
+	alpha := uint8(255 * math.Min(1, (s.introProgress-0.5)/0.3))
+	textColor := color.RGBA{180, 180, 190, alpha}
+
+	s.drawCenteredText(screen, "MURMUR has two layers.", centerX, textY, 16, textColor)
+	s.drawCenteredText(screen, "The Surface Layer is public — your identity is visible.", centerX, textY+25, 14, textColor)
+	s.drawCenteredText(screen, "The Anonymous Layer is private — participate through", centerX, textY+50, 14, textColor)
+	s.drawCenteredText(screen, "an anonymous identity that cannot be linked to you.", centerX, textY+70, 14, textColor)
 }
 
 // drawModeCards renders the three mode selection cards.
@@ -226,8 +217,15 @@ func (s *ModeScreen) drawModeCards(screen *ebiten.Image) {
 func (s *ModeScreen) drawModeCard(screen *ebiten.Image, mode modes.Mode, x, y, w, h float32, index int) {
 	isSelected := s.selectedMode == mode
 	isHovered := s.hoverMode == mode
+	iconCenterX := x + w/2
 
-	// Card background
+	s.drawCardBackground(screen, x, y, w, h, isSelected, isHovered)
+	s.drawModeIcon(screen, mode, iconCenterX, y+40)
+	s.drawCardLabels(screen, mode, iconCenterX, y)
+}
+
+// drawCardBackground renders the card frame with selection/hover styling.
+func (s *ModeScreen) drawCardBackground(screen *ebiten.Image, x, y, w, h float32, isSelected, isHovered bool) {
 	bgColor := color.RGBA{30, 35, 50, 255}
 	if isSelected {
 		bgColor = color.RGBA{50, 60, 90, 255}
@@ -236,52 +234,42 @@ func (s *ModeScreen) drawModeCard(screen *ebiten.Image, mode modes.Mode, x, y, w
 	}
 	vector.DrawFilledRect(screen, x, y, w, h, bgColor, true)
 
-	// Border
 	borderColor := color.RGBA{70, 80, 120, 255}
 	if isSelected {
 		borderColor = color.RGBA{120, 160, 255, 255}
 	}
 	vector.StrokeRect(screen, x, y, w, h, 2, borderColor, true)
+}
 
-	// Mode icon
-	iconCenterX := x + w/2
-	iconY := y + 40
-
+// drawModeIcon renders the mode-specific icon at the given position.
+func (s *ModeScreen) drawModeIcon(screen *ebiten.Image, mode modes.Mode, iconCenterX, iconY float32) {
 	switch mode {
 	case modes.Open:
-		// Single bright circle
 		iconColor := color.RGBA{230, 180, 100, 255}
 		vector.DrawFilledCircle(screen, iconCenterX, iconY, 20, iconColor, true)
-
 	case modes.Hybrid:
-		// Two overlapping circles
 		warmColor := color.RGBA{230, 180, 100, 200}
 		coolColor := color.RGBA{100, 150, 230, 200}
 		vector.DrawFilledCircle(screen, iconCenterX-12, iconY, 18, warmColor, true)
 		vector.DrawFilledCircle(screen, iconCenterX+12, iconY+5, 16, coolColor, true)
-
 	case modes.Fortress:
-		// Cool circle with shield outline
 		coolColor := color.RGBA{100, 150, 230, 255}
 		vector.DrawFilledCircle(screen, iconCenterX, iconY, 18, coolColor, true)
-		// Shield outline (simplified)
 		shieldColor := color.RGBA{140, 160, 200, 180}
 		vector.StrokeCircle(screen, iconCenterX, iconY, 25, 2, shieldColor, true)
 	}
+}
 
-	// Mode name
-	nameY := y + 80
+// drawCardLabels renders the mode name, description, and properties.
+func (s *ModeScreen) drawCardLabels(screen *ebiten.Image, mode modes.Mode, iconCenterX, cardY float32) {
+	nameY := cardY + 80
 	s.drawCenteredText(screen, mode.String(), iconCenterX, nameY, 16, color.RGBA{220, 220, 230, 255})
 
-	// Description
-	desc := getModeDescription(mode)
-	descY := y + 110
-	s.drawCenteredText(screen, desc, iconCenterX, descY, 11, color.RGBA{150, 150, 160, 255})
+	descY := cardY + 110
+	s.drawCenteredText(screen, getModeDescription(mode), iconCenterX, descY, 11, color.RGBA{150, 150, 160, 255})
 
-	// Properties (simplified)
-	props := getModeProperties(mode)
-	for i, prop := range props {
-		propY := y + 140 + float32(i)*18
+	for i, prop := range getModeProperties(mode) {
+		propY := cardY + 140 + float32(i)*18
 		s.drawCenteredText(screen, "• "+prop, iconCenterX, propY, 10, color.RGBA{130, 130, 140, 255})
 	}
 }

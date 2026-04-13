@@ -190,40 +190,44 @@ func (s *Screen) drawPhilosophy(screen *ebiten.Image) {
 	centerY := float32(s.height) / 2
 
 	if s.philosophyIndex < len(s.philosophyTexts) {
-		text := s.philosophyTexts[s.philosophyIndex]
-
-		// Fade in effect based on time within 3-second window
-		elapsed := time.Since(s.philosophyStart).Seconds()
-		withinPhase := elapsed - float64(s.philosophyIndex)*3
-		var alpha float64 = 1
-		if withinPhase < 0.5 {
-			alpha = withinPhase / 0.5 // Fade in
-		} else if withinPhase > 2.5 {
-			alpha = (3 - withinPhase) / 0.5 // Fade out
-		}
-
-		textColor := color.RGBA{200, 200, 210, uint8(255 * alpha)}
-		s.drawCenteredText(screen, text, centerX, centerY, 18, textColor)
-
-		// Progress dots
-		dotY := centerY + 60
-		for i := 0; i < len(s.philosophyTexts); i++ {
-			dotX := centerX + float32((i-1)*20)
-			dotColor := color.RGBA{80, 80, 90, 255}
-			if i == s.philosophyIndex {
-				dotColor = color.RGBA{180, 180, 200, 255}
-			}
-			vector.DrawFilledCircle(screen, dotX, dotY, 4, dotColor, true)
-		}
+		s.drawPhilosophyText(screen, centerX, centerY)
+		s.drawProgressDots(screen, centerX, centerY+60)
 	}
 
-	// Continue button
-	buttonY := float32(s.height) - 120
-	s.drawButton(screen, "Continue", centerX, buttonY, 0)
+	s.drawButton(screen, "Continue", centerX, float32(s.height)-120, 0)
+	s.drawCenteredText(screen, "Skip", centerX, float32(s.height)-60, 12, color.RGBA{100, 100, 110, 255})
+}
 
-	// Skip link
-	skipY := float32(s.height) - 60
-	s.drawCenteredText(screen, "Skip", centerX, skipY, 12, color.RGBA{100, 100, 110, 255})
+// drawPhilosophyText renders the current philosophy statement with fade animation.
+func (s *Screen) drawPhilosophyText(screen *ebiten.Image, centerX, centerY float32) {
+	text := s.philosophyTexts[s.philosophyIndex]
+	alpha := s.calculateFadeAlpha()
+	textColor := color.RGBA{200, 200, 210, uint8(255 * alpha)}
+	s.drawCenteredText(screen, text, centerX, centerY, 18, textColor)
+}
+
+// calculateFadeAlpha computes the alpha value for fade in/out animation.
+func (s *Screen) calculateFadeAlpha() float64 {
+	elapsed := time.Since(s.philosophyStart).Seconds()
+	withinPhase := elapsed - float64(s.philosophyIndex)*3
+	if withinPhase < 0.5 {
+		return withinPhase / 0.5 // Fade in
+	} else if withinPhase > 2.5 {
+		return (3 - withinPhase) / 0.5 // Fade out
+	}
+	return 1
+}
+
+// drawProgressDots renders the progress indicator dots.
+func (s *Screen) drawProgressDots(screen *ebiten.Image, centerX, dotY float32) {
+	for i := 0; i < len(s.philosophyTexts); i++ {
+		dotX := centerX + float32((i-1)*20)
+		dotColor := color.RGBA{80, 80, 90, 255}
+		if i == s.philosophyIndex {
+			dotColor = color.RGBA{180, 180, 200, 255}
+		}
+		vector.DrawFilledCircle(screen, dotX, dotY, 4, dotColor, true)
+	}
 }
 
 // drawKeypairGen renders the keypair generation animation.

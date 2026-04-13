@@ -235,9 +235,30 @@ func (m *Manager) PruneLowestPriority() peer.ID {
 		return ""
 	}
 
-	m.mu.Lock()
+	lowestID := m.removeLowestPriorityPeer()
+	if lowestID != "" {
+		_ = m.h.Network().ClosePeer(lowestID)
+	}
 
-	// Find lowest priority peer
+	return lowestID
+}
+
+// removeLowestPriorityPeer finds and removes the lowest priority peer from the map.
+// Returns the removed peer ID, or empty if none found.
+func (m *Manager) removeLowestPriorityPeer() peer.ID {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	lowestID := m.findLowestPriorityPeerLocked()
+	if lowestID != "" {
+		delete(m.peers, lowestID)
+	}
+	return lowestID
+}
+
+// findLowestPriorityPeerLocked finds the peer with the lowest priority.
+// Must be called with m.mu held.
+func (m *Manager) findLowestPriorityPeerLocked() peer.ID {
 	var lowestID peer.ID
 	lowestPriority := PeerPriority(-1)
 
@@ -247,15 +268,5 @@ func (m *Manager) PruneLowestPriority() peer.ID {
 			lowestID = id
 		}
 	}
-
-	if lowestID != "" {
-		delete(m.peers, lowestID)
-	}
-	m.mu.Unlock()
-
-	if lowestID != "" {
-		_ = m.h.Network().ClosePeer(lowestID)
-	}
-
 	return lowestID
 }

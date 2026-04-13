@@ -299,56 +299,49 @@ func (s *BootstrapScreen) drawPulseMapPreview(screen *ebiten.Image, centerX, cen
 func (s *BootstrapScreen) drawFirstWavePrompt(screen *ebiten.Image) {
 	centerX := float32(s.width) / 2
 
-	// Title
-	titleY := float32(60)
-	s.drawCenteredText(screen, "Send Your First Wave", centerX, titleY, 22, color.RGBA{220, 220, 225, 255})
+	s.drawCenteredText(screen, "Send Your First Wave", centerX, 60, 22, color.RGBA{220, 220, 225, 255})
 
-	// Prompt text
 	promptY := float32(120)
 	s.drawCenteredText(screen, "A Wave is an ephemeral message that ripples through the network.", centerX, promptY, 14, color.RGBA{150, 150, 160, 255})
 	s.drawCenteredText(screen, "It's not permanent — it will fade after its TTL expires.", centerX, promptY+20, 14, color.RGBA{150, 150, 160, 255})
 
-	// Text input area
-	inputY := float32(200)
-	inputWidth := float32(400)
-	inputHeight := float32(80)
+	s.drawWaveInputArea(screen, centerX, 200)
+	s.drawWaveSuggestions(screen, centerX, 320)
+	s.drawWaveButtons(screen, centerX, float32(s.height)-100)
+}
+
+// drawWaveInputArea renders the text input box for the first Wave.
+func (s *BootstrapScreen) drawWaveInputArea(screen *ebiten.Image, centerX, inputY float32) {
+	inputWidth, inputHeight := float32(400), float32(80)
 	inputX := centerX - inputWidth/2
 
-	inputBgColor := color.RGBA{25, 30, 45, 255}
-	vector.DrawFilledRect(screen, inputX, inputY, inputWidth, inputHeight, inputBgColor, true)
-	inputBorderColor := color.RGBA{70, 80, 120, 255}
-	vector.StrokeRect(screen, inputX, inputY, inputWidth, inputHeight, 1.5, inputBorderColor, true)
+	vector.DrawFilledRect(screen, inputX, inputY, inputWidth, inputHeight, color.RGBA{25, 30, 45, 255}, true)
+	vector.StrokeRect(screen, inputX, inputY, inputWidth, inputHeight, 1.5, color.RGBA{70, 80, 120, 255}, true)
 
-	// Show entered text
+	textY := inputY + inputHeight/2 + 5
 	if s.firstWaveText != "" {
-		textY := inputY + inputHeight/2 + 5
 		s.drawCenteredText(screen, s.firstWaveText, centerX, textY, 14, color.RGBA{220, 220, 230, 255})
 	} else {
-		placeholderY := inputY + inputHeight/2 + 5
-		s.drawCenteredText(screen, "Type your first Wave...", centerX, placeholderY, 14, color.RGBA{100, 100, 110, 255})
+		s.drawCenteredText(screen, "Type your first Wave...", centerX, textY, 14, color.RGBA{100, 100, 110, 255})
 	}
+}
 
-	// Suggested prompts
-	suggestY := inputY + inputHeight + 40
+// drawWaveSuggestions renders the suggested Wave prompts.
+func (s *BootstrapScreen) drawWaveSuggestions(screen *ebiten.Image, centerX, suggestY float32) {
 	s.drawCenteredText(screen, "Suggestions:", centerX, suggestY, 12, color.RGBA{130, 130, 140, 255})
 
-	suggestions := []string{
-		"Hello, network!",
-		"Just joined MURMUR",
-		"Testing the waves...",
-	}
+	suggestions := []string{"Hello, network!", "Just joined MURMUR", "Testing the waves..."}
 	for i, suggestion := range suggestions {
 		suggY := suggestY + float32(20+i*22)
-		suggBgColor := color.RGBA{35, 40, 55, 255}
-		suggWidth := float32(150)
-		suggHeight := float32(20)
+		suggWidth, suggHeight := float32(150), float32(20)
 		suggX := centerX - suggWidth/2
-		vector.DrawFilledRect(screen, suggX, suggY-suggHeight/2, suggWidth, suggHeight, suggBgColor, true)
+		vector.DrawFilledRect(screen, suggX, suggY-suggHeight/2, suggWidth, suggHeight, color.RGBA{35, 40, 55, 255}, true)
 		s.drawCenteredText(screen, suggestion, centerX, suggY+4, 11, color.RGBA{160, 160, 170, 255})
 	}
+}
 
-	// Buttons
-	buttonY := float32(s.height) - 100
+// drawWaveButtons renders the Send and Skip buttons.
+func (s *BootstrapScreen) drawWaveButtons(screen *ebiten.Image, centerX, buttonY float32) {
 	if s.firstWaveText != "" {
 		s.drawButton(screen, "Send Wave", centerX-80, buttonY, 0)
 	}

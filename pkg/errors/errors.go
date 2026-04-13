@@ -183,21 +183,32 @@ func Retry(fn func() error, cfg RetryConfig) error {
 			return nil
 		}
 
-		var e *Error
-		if !errors.As(lastErr, &e) || !e.Retryable() {
+		if !isRetryable(lastErr) {
 			return lastErr
 		}
 
 		if attempt < cfg.MaxAttempts {
 			time.Sleep(wait)
-			wait = time.Duration(float64(wait) * cfg.Multiplier)
-			if wait > cfg.MaxWait {
-				wait = cfg.MaxWait
-			}
+			wait = computeNextWait(wait, cfg)
 		}
 	}
 
 	return lastErr
+}
+
+// isRetryable checks if an error can be retried.
+func isRetryable(err error) bool {
+	var e *Error
+	return errors.As(err, &e) && e.Retryable()
+}
+
+// computeNextWait calculates the next backoff wait time.
+func computeNextWait(current time.Duration, cfg RetryConfig) time.Duration {
+	next := time.Duration(float64(current) * cfg.Multiplier)
+	if next > cfg.MaxWait {
+		return cfg.MaxWait
+	}
+	return next
 }
 
 // FallbackStrategy defines how to handle failures.

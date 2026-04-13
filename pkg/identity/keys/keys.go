@@ -150,17 +150,29 @@ func EncryptKeystore(plaintext []byte, passphrase string) ([]byte, error) {
 
 // DecryptKeystore decrypts key material encrypted by EncryptKeystore.
 func DecryptKeystore(data []byte, passphrase string) ([]byte, error) {
-	if len(data) < SaltSize+NonceSize+chacha20poly1305.Overhead {
-		return nil, errors.New("encrypted data too short")
+	salt, nonce, ciphertext, err := extractKeystoreComponents(data)
+	if err != nil {
+		return nil, err
 	}
 
-	// Extract components.
-	salt := data[:SaltSize]
-	nonce := data[SaltSize : SaltSize+NonceSize]
-	ciphertext := data[SaltSize+NonceSize:]
+	key := deriveKeyFromPassphrase(passphrase, salt)
+	defer ZeroBytes(key)
 
-	// Derive key using Argon2id.
-	key := argon2.IDKey(
+	return decryptWithKey(key, nonce, ciphertext)
+}
+
+// extractKeystoreComponents parses encrypted keystore data into its parts.
+func extractKeystoreComponents(data []byte) (salt, nonce, ciphertext []byte, err error) {
+	minLen := SaltSize + NonceSize + chacha20poly1305.Overhead
+	if len(data) < minLen {
+		return nil, nil, nil, errors.New("encrypted data too short")
+	}
+	return data[:SaltSize], data[SaltSize : SaltSize+NonceSize], data[SaltSize+NonceSize:], nil
+}
+
+// deriveKeyFromPassphrase uses Argon2id to derive an encryption key.
+func deriveKeyFromPassphrase(passphrase string, salt []byte) []byte {
+	return argon2.IDKey(
 		[]byte(passphrase),
 		salt,
 		argon2Time,
@@ -168,29 +180,19 @@ func DecryptKeystore(data []byte, passphrase string) ([]byte, error) {
 		argon2Threads,
 		argon2KeyLen,
 	)
+}
 
-	// Create XChaCha20-Poly1305 cipher.
+// decryptWithKey decrypts ciphertext using XChaCha20-Poly1305.
+func decryptWithKey(key, nonce, ciphertext []byte) ([]byte, error) {
 	aead, err := chacha20poly1305.NewX(key)
 	if err != nil {
-		// Zero the key material.
-		for i := range key {
-			key[i] = 0
-		}
 		return nil, fmt.Errorf("creating cipher: %w", err)
 	}
 
-	// Decrypt with AEAD.
 	plaintext, err := aead.Open(nil, nonce, ciphertext, nil)
-
-	// Zero the key material.
-	for i := range key {
-		key[i] = 0
-	}
-
 	if err != nil {
 		return nil, fmt.Errorf("decryption failed: %w", err)
 	}
-
 	return plaintext, nil
 }
 
