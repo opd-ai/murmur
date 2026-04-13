@@ -306,40 +306,30 @@ go test -v ./pkg/networking/relay/... -run TestNATTraversal
 
 ---
 
-### Step 12: Implement Basic CI Workflow
+### Step 12: Implement Basic CI Workflow ✅ COMPLETE
 - **Deliverable**: `.github/workflows/ci.yml` with build, test, vet, format check
 - **Dependencies**: Steps 1-11 (code must exist to test)
 - **Goal Impact**: Quality gate for all future contributions; prevents regressions
 - **Acceptance**: CI passes on push to main; fails on formatting violations or test failures
-- **Validation**: GitHub Actions workflow executes successfully
-
-**CI checks**:
-```yaml
-- go build ./...
-- go test ./...
-- go vet ./...
-- gofumpt -d . | grep . && exit 1 || exit 0  # formatting check
-```
+- **Status**: Implemented with build, test, vet, gofumpt, and license compliance checks
 
 ---
 
-### Step 13: Integration Test - Two-Node Message Exchange
+### Step 13: Integration Test - Two-Node Message Exchange ✅ COMPLETE
 - **Deliverable**: `pkg/networking/integration_test.go` with in-memory two-node gossip test
 - **Dependencies**: Steps 7-11 (full networking stack)
 - **Goal Impact**: Validates end-to-end networking functionality; acceptance test for v0.1
 - **Acceptance**: Two in-memory libp2p hosts discover each other and exchange signed messages within 10 seconds
-- **Validation**:
-```bash
-go test -v ./pkg/networking/... -run TestIntegration -timeout 30s
-```
+- **Status**: Implemented with TestIntegrationTwoNodeGossip and TestIntegrationMultipleTopics
 
-**Test scenario per ROADMAP.md Priority 3**:
-1. Create two libp2p hosts with memory transports
-2. Bootstrap node A
-3. Node B discovers node A via provided address
-4. Node A publishes signed test message to `/murmur/waves/1`
-5. Node B receives and verifies message within 10 seconds
-6. Assert message integrity and signature validity
+**Test results**:
+```
+=== RUN   TestIntegrationTwoNodeGossip
+    integration_test.go:126: Message received from 12D3KooW...: "Hello, MURMUR! This is a test Wave."
+--- PASS: TestIntegrationTwoNodeGossip
+=== RUN   TestIntegrationMultipleTopics
+--- PASS: TestIntegrationMultipleTopics
+```
 
 ---
 
