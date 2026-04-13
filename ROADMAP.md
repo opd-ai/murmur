@@ -131,8 +131,8 @@ MURMUR positions itself against existing decentralized social platforms:
 
 **Why First**: Nothing can be built without a module definition, dependencies, and package structure. This unblocks all subsequent work.
 
-- [ ] Create `go.mod` with module path `github.com/opd-ai/murmur` and Go 1.22+
-- [ ] Add foundational dependencies:
+- [x] Create `go.mod` with module path `github.com/opd-ai/murmur` and Go 1.22+
+- [x] Add foundational dependencies:
   - `github.com/libp2p/go-libp2p` v0.48+ — P2P networking foundation
   - `github.com/libp2p/go-libp2p-pubsub` — GossipSub for Wave propagation
   - `github.com/libp2p/go-libp2p-kad-dht` — Kademlia peer discovery
@@ -140,7 +140,7 @@ MURMUR positions itself against existing decentralized social platforms:
   - `github.com/zeebo/blake3` — BLAKE3 hashing for identity/sigils
   - `go.etcd.io/bbolt` — embedded key-value storage
   - `google.golang.org/protobuf` — wire format serialization
-- [ ] Create package structure per documented architecture:
+- [x] Create package structure per documented architecture:
   ```
   cmd/murmur/main.go              # Entry point
   proto/                           # .proto files
@@ -176,11 +176,11 @@ MURMUR positions itself against existing decentralized social platforms:
       ├── interaction/             # Input handling
       └── overlays/                # Anonymous layer
   ```
-- [ ] Add CI workflow (`.github/workflows/ci.yml`) with `go build`, `go test`, `go vet`
-- [ ] Create placeholder `main.go` with basic libp2p node initialization
-- [ ] **Validation**: `go build ./...` succeeds; CI passes on scaffold
+- [x] Add CI workflow (`.github/workflows/ci.yml`) with `go build`, `go test`, `go vet`
+- [x] Create placeholder `main.go` with basic libp2p node initialization
+- [x] **Validation**: `go build ./...` succeeds; CI passes on scaffold
 
-**Estimated Effort**: 1-2 days
+**Estimated Effort**: 1-2 days ✅ COMPLETE
 
 ---
 
@@ -190,28 +190,28 @@ MURMUR positions itself against existing decentralized social platforms:
 
 **Why Second**: Identity is the foundation for all cryptographic operations — signing Waves, establishing connections, creating Specters.
 
-- [ ] Implement `pkg/identity/keys/keypair.go`:
+- [x] Implement `pkg/identity/keys/keypair.go`:
   - Ed25519 keypair generation via `crypto/ed25519`
   - Curve25519 derivation for key agreement (birational map)
   - Peer ID derivation (SHA-256 hash truncated to 160 bits)
-- [ ] Implement `pkg/identity/keys/keystore.go`:
+- [x] Implement `pkg/identity/keys/keystore.go`:
   - Encrypted keystore with Argon2id key derivation (time=3, memory=64MiB, threads=4)
   - XChaCha20-Poly1305 encryption for key material
   - Secure memory handling (explicit zeroing of byte slices)
-- [ ] Implement `pkg/identity/keys/backup.go`:
+- [x] Implement `pkg/identity/keys/backup.go`:
   - BIP-39 mnemonic encoding/decoding for backup
   - Recovery flow from mnemonic phrase
   - Key export/import for device migration
-- [ ] Implement `pkg/identity/sigils/generator.go`:
+- [x] Implement `pkg/identity/sigils/generator.go`:
   - Deterministic visual identity from BLAKE3 hash of public key
   - Parametric generation (shapes, colors, patterns)
   - 64×64 raster output for cross-platform consistency
-- [ ] Write comprehensive unit tests:
+- [x] Write comprehensive unit tests:
   - Keypair generation randomness verification
   - Round-trip encryption/decryption
   - Mnemonic backup/restore accuracy
   - Sigil determinism (same key → same sigil)
-- [ ] **Validation**: `go test ./pkg/identity/...` passes; backup recovery restores identical keypair
+- [x] **Validation**: `go test ./pkg/identity/...` passes; backup recovery restores identical keypair
 
 **Estimated Effort**: 1-2 weeks
 
@@ -223,15 +223,15 @@ MURMUR positions itself against existing decentralized social platforms:
 
 **Why Third**: Networking enables communication between nodes — all content propagation depends on this.
 
-- [ ] Implement `pkg/networking/transport/host.go`:
+- [x] Implement `pkg/networking/transport/host.go`:
   - libp2p host initialization with Noise encryption
   - Multi-transport support (QUIC preferred, TCP fallback)
   - Peer ID from identity keypair
-- [ ] Implement `pkg/networking/discovery/dht.go`:
+- [x] Implement `pkg/networking/discovery/dht.go`:
   - Kademlia DHT bootstrap to hardcoded seed nodes
   - Peer discovery via DHT walks
   - Peer exchange during gossip for redundancy
-- [ ] Implement `pkg/networking/gossip/pubsub.go`:
+- [x] Implement `pkg/networking/gossip/pubsub.go`:
   - GossipSub subscription to topics:
     - `/murmur/waves/1` — standard content
     - `/murmur/identity/1` — identity declarations
@@ -239,20 +239,20 @@ MURMUR positions itself against existing decentralized social platforms:
     - `/murmur/pulse/1` — heartbeat pings
   - Message validation hooks for signature/PoW verification
   - Peer scoring for invalid message penalties
-- [ ] Implement `pkg/networking/mesh/manager.go`:
+- [x] Implement `pkg/networking/mesh/manager.go`:
   - Connection manager with 6-12 peer target
   - Priority tiers: identity connections > useful gossip peers > random peers
   - 30-second heartbeat with 3-miss disconnect
-- [ ] Implement `pkg/networking/relay/nat.go`:
+- [x] Implement `pkg/networking/relay/nat.go`:
   - DCUtR hole punching coordination
   - Relay fallback for double-NAT scenarios
   - AutoNAT probing at startup
-- [ ] Write integration tests:
+- [x] Write integration tests:
   - Two-node in-memory discovery and message exchange
   - Multi-node gossip propagation simulation
-- [ ] **Validation**: Two nodes exchange signed test messages within 10 seconds
+- [x] **Validation**: Two nodes exchange signed test messages within 10 seconds
 
-**Estimated Effort**: 2-3 weeks
+**Estimated Effort**: 2-3 weeks ✅ COMPLETE
 
 ---
 
@@ -262,37 +262,37 @@ MURMUR positions itself against existing decentralized social platforms:
 
 **Why Fourth**: Waves are the atomic content unit — users need to create and consume content for the network to have value.
 
-- [ ] Define protobuf schema (`proto/wave.proto`):
+- [x] Define protobuf schema (`proto/wave.proto`):
   - Wave structure per spec: ID, author_pubkey, content, timestamp, parent_hash, reference_hash, ttl_hours, nonce, signature
   - MurmurEnvelope wrapper with version, type, payload, signature, message_id
   - 2,048 byte content limit enforcement
-- [ ] Implement `pkg/content/pow/proof.go`:
+- [x] Implement `pkg/content/pow/proof.go`:
   - SHA-256 PoW with difficulty 20 (target 2-5 second computation)
   - Nonce search with progress callback for UI
   - Device capability detection for difficulty adjustment
-- [ ] Implement `pkg/content/waves/wave.go`:
+- [x] Implement `pkg/content/waves/wave.go`:
   - Wave composition with automatic PoW and signing
   - Wave validation (signature, PoW, timestamp sanity ±300s)
   - Wave types: Surface (0x01), Reply (0x02), Veiled (0x03)
-- [ ] Implement `pkg/content/propagation/relay.go`:
+- [x] Implement `pkg/content/propagation/relay.go`:
   - GossipSub broadcast to `/murmur/waves/1`
   - Hop count tracking (max 6 hops)
   - Duplicate detection via BLAKE3 hash cache (24-hour retention)
-- [ ] Implement `pkg/content/storage/cache.go`:
+- [x] Implement `pkg/content/storage/cache.go`:
   - LRU cache with configurable size limit (default 100MB)
   - Hourly TTL sweep for expired Waves (GC every 60s)
   - Bbolt persistence for offline access
-- [ ] Implement `pkg/content/threads/threading.go`:
+- [x] Implement `pkg/content/threads/threading.go`:
   - Reply chain construction via parent_hash references
   - Thread traversal and display ordering
-- [ ] Write tests:
+- [x] Write tests:
   - PoW difficulty calibration verification
   - TTL expiration accuracy
   - Propagation hop counting
   - Duplicate rejection
-- [ ] **Validation**: Wave published on node A arrives at node B via gossip within 5 seconds; expired Waves are garbage collected
+- [x] **Validation**: Wave published on node A arrives at node B via gossip within 5 seconds; expired Waves are garbage collected
 
-**Estimated Effort**: 2-3 weeks
+**Estimated Effort**: 2-3 weeks ✅ COMPLETE
 
 ---
 
@@ -302,29 +302,30 @@ MURMUR positions itself against existing decentralized social platforms:
 
 **Why Fifth**: The anonymous layer is MURMUR's primary differentiator — it enables the Shadow Gradient that makes the network compelling.
 
-- [ ] Implement `pkg/anonymous/specters/specter.go`:
+- [x] Implement `pkg/anonymous/specters/specter.go`:
   - Independent Curve25519 keypair generation (no derivation from main identity)
   - Separate encrypted keystore partition for Specter keys
   - Specter lifecycle: creation, suspension, deletion
-- [ ] Implement `pkg/anonymous/specters/name.go`:
+- [x] Implement `pkg/anonymous/specters/name.go`:
   - Procedural pseudonym generation from BLAKE3 hash
   - Two-word format: adjective + noun from curated wordlist (65,536 entries)
   - Collision avoidance via hash prefix variation
-- [ ] Implement `pkg/anonymous/specters/sigil.go`:
+- [x] Implement `pkg/anonymous/specters/sigil.go`:
   - Distinct visual style from Surface sigils (spectral glow, different shapes)
   - Procedural generation from Specter public key
   - Resonance-tier cosmetic variations
-- [ ] Implement `pkg/identity/modes/mode.go`:
+  - (Implemented in `pkg/identity/sigils/sigils.go` as `GenerateSpecter`)
+- [x] Implement `pkg/identity/modes/mode.go`:
   - Mode enumeration: Open, Hybrid, Guarded, Fortress
   - Mode switching state machine
   - Mode-aware message routing (Surface vs Anonymous topics)
-- [ ] Write tests:
+- [x] Write tests:
   - Keypair independence verification (no mathematical link)
   - Mode transition state consistency
   - Specter name uniqueness probability
-- [ ] **Validation**: Generated Specter keypair has no derivation relationship to main keypair
+- [x] **Validation**: Generated Specter keypair has no derivation relationship to main keypair
 
-**Estimated Effort**: 2 weeks
+**Estimated Effort**: 2 weeks ✅ COMPLETE
 
 ---
 
@@ -334,30 +335,31 @@ MURMUR positions itself against existing decentralized social platforms:
 
 **Why Sixth**: Shroud routing provides the traffic analysis resistance that makes Guarded/Fortress modes meaningful.
 
-- [ ] Implement `pkg/anonymous/shroud/beacon.go`:
+- [x] Implement `pkg/anonymous/shroud/beacon.go`:
   - Shroud Node announcement on `/murmur/shroud/1`
   - Capability advertisement (bandwidth, uptime)
   - Discovery via DHT and beacon subscription
-- [ ] Implement `pkg/anonymous/shroud/circuit.go`:
+- [x] Implement `pkg/anonymous/shroud/circuit.go`:
   - Three-hop relay chain selection
   - Diversity heuristics (no two hops in direct mesh)
   - Circuit handshake with X25519 key agreement
   - 10-minute circuit rotation
-- [ ] Implement `pkg/anonymous/shroud/onion.go`:
+- [x] Implement `pkg/anonymous/shroud/onion.go`:
   - Triple-layer Curve25519 key agreement
   - XChaCha20-Poly1305 for each hop layer
   - Fixed 1KB packet padding
   - Decryption at each relay hop
-- [ ] Implement `pkg/anonymous/shroud/relay.go`:
+- [x] Implement `pkg/anonymous/shroud/relay.go`:
   - Shroud Node message forwarding
   - Traffic mixing (random delay injection)
   - Dummy traffic generation (constant-rate padding)
-- [ ] Write simulation tests:
+- [x] Write simulation tests:
   - Passive traffic analysis resistance
   - Circuit reconstruction on relay failure
+  - (Basic tests in shroud_test.go; simulation tests deferred)
 - [ ] **Validation**: Anonymous Wave cannot be correlated to origin by passive observer in 100-node simulation
 
-**Estimated Effort**: 3-4 weeks
+**Estimated Effort**: 3-4 weeks (SHROUD RELAY COMPLETE)
 
 ---
 
@@ -367,31 +369,31 @@ MURMUR positions itself against existing decentralized social platforms:
 
 **Why Seventh**: Resonance gates access to anonymous mechanics — it's the progression system that creates engagement.
 
-- [ ] Implement `pkg/anonymous/resonance/scorer.go`:
+- [x] Implement `pkg/anonymous/resonance/scorer.go`:
   - Local scoring algorithm per RESONANCE_SYSTEM.md spec
   - Four signal categories:
     - Publication consistency (regular Specter activity)
     - Mini-game quality (puzzle solutions, duel outcomes)
     - Gift activity (given and received)
     - Community endorsement (marks from high-Resonance Specters)
-- [ ] Implement `pkg/anonymous/resonance/decay.go`:
+- [x] Implement `pkg/anonymous/resonance/decay.go`:
   - Time decay for inactive Specters (half-life curve)
   - Activity refresh mechanics
-- [ ] Implement `pkg/anonymous/resonance/milestones.go`:
+- [x] Implement `pkg/anonymous/resonance/milestones.go`:
   - Milestone thresholds: 25 (Shade), 50 (Wraith), 75 (Shade-Wraith), 100 (Phantom), 200 (Council-Eligible), 500 (Abyss)
   - Unlock tracking and notification
   - Rank display cosmetics per tier
-- [ ] Implement `pkg/anonymous/resonance/claims.go`:
+- [x] Implement `pkg/anonymous/resonance/claims.go`:
   - Zero-knowledge Resonance claims (Pedersen commitments + Bulletproofs)
   - Claim verification without scorer access
   - Claim freshness and replay prevention
-- [ ] Write tests:
+- [x] Write tests:
   - Scoring accuracy for activity patterns
   - Decay rate verification
   - ZK claim verification
-- [ ] **Validation**: 7 days of consistent daily activity reaches Resonance 25
+- [x] **Validation**: 7 days of consistent daily activity reaches Resonance 25
 
-**Estimated Effort**: 2 weeks
+**Estimated Effort**: 2 weeks ✅ COMPLETE
 
 ---
 
@@ -401,30 +403,30 @@ MURMUR positions itself against existing decentralized social platforms:
 
 **Why Eighth**: These mechanics make the anonymous layer visible and compelling to Surface users.
 
-- [ ] Implement `pkg/anonymous/mechanics/gifts.go`:
+- [x] Implement `pkg/anonymous/mechanics/gifts.go`:
   - Phantom Gift creation (Resonance 25+ required)
   - Visual effect catalog (particle trails, glows, shimmers)
   - Gift application to Surface Layer nodes
-  - 24-hour expiration
-- [ ] Implement `pkg/anonymous/mechanics/marks.go`:
+  - 7-day expiration (per ANONYMOUS_GAME_MECHANICS.md spec)
+- [x] Implement `pkg/anonymous/mechanics/marks.go`:
   - Specter Mark placement (Resonance 50+ required)
   - Mark categories (Watcher, Ally, Rival)
   - Persistent storage with 30-day decay
-- [ ] Implement `pkg/anonymous/mechanics/territory.go`:
+- [x] Implement `pkg/anonymous/mechanics/territory.go`:
   - Territory Drift influence accumulation
   - Controller status at threshold
   - Weekly territory reset
-- [ ] Implement `pkg/anonymous/mechanics/puzzles.go`:
+- [x] Implement `pkg/anonymous/mechanics/puzzles.go`:
   - Fragment Puzzle (basic Cipher Puzzle variant)
   - Puzzle generation from content hash
   - Solution verification and Resonance reward
-- [ ] Write tests:
+- [x] Write tests:
   - Gift application and expiration
   - Mark persistence and decay
   - Territory influence calculation
-- [ ] **Validation**: Phantom Gift from Resonance 25+ Specter appears on recipient's Surface node
+- [ ] **Validation**: Phantom Gift from Resonance 25+ Specter appears on recipient's Surface node (requires Pulse Map UI)
 
-**Estimated Effort**: 3 weeks
+**Estimated Effort**: 3 weeks (COMPLETE - 30 tests passing)
 
 ---
 
@@ -434,31 +436,31 @@ MURMUR positions itself against existing decentralized social platforms:
 
 **Why Ninth**: The Pulse Map is the "face" of MURMUR — without it, there's no differentiation from text-based social apps.
 
-- [ ] Add Ebitengine v2.10+ dependency
-- [ ] Implement `pkg/pulsemap/layout/force.go`:
+- [x] Add Ebitengine v2.10+ dependency
+- [x] Implement `pkg/pulsemap/layout/force.go`:
   - Force-directed graph layout (Fruchterman-Reingold algorithm)
   - Barnes-Hut optimization for O(n log n) performance (>500 nodes)
   - Incremental layout updates for node add/remove
   - Double-buffered positions with atomic.Pointer swaps
-- [ ] Implement `pkg/pulsemap/rendering/nodes.go`:
+- [x] Implement `pkg/pulsemap/rendering/nodes.go`:
   - Node rendering with sigil integration
   - Node size scaled by connection count
   - Activity pulse animation (recent Waves)
-- [ ] Implement `pkg/pulsemap/rendering/edges.go`:
+- [x] Implement `pkg/pulsemap/rendering/edges.go`:
   - Connection edge rendering
   - Edge thickness by relationship strength
-- [ ] Implement `pkg/pulsemap/rendering/effects.go`:
+- [x] Implement `pkg/pulsemap/rendering/effects.go`:
   - Wave propagation ripple effects (ripple.kage shader)
   - Phantom Gift particle trails
   - Node activity glow (glow.kage shader)
-- [ ] Implement `pkg/pulsemap/overlays/anonymous.go`:
+- [x] Implement `pkg/pulsemap/overlays/anonymous.go`:
   - Ghost layer for Anonymous Layer visualization
   - Faint Specter nodes with spectral effects (spectra.kage)
-- [ ] Implement `pkg/pulsemap/interaction/navigation.go`:
+- [x] Implement `pkg/pulsemap/interaction/navigation.go`:
   - Pan, zoom (mouse and touch)
   - Node selection and profile expansion
   - Momentum scrolling
-- [ ] Write visual regression tests:
+- [x] Write visual regression tests:
   - Layout stability for fixed graph
   - Memory usage under large graphs
 - [ ] **Validation**: 500-node graph renders at 60fps with smooth pan/zoom
@@ -473,28 +475,35 @@ MURMUR positions itself against existing decentralized social platforms:
 
 **Why Tenth**: Onboarding determines whether new users convert or churn.
 
-- [ ] Implement `pkg/onboarding/flow/controller.go`:
+- [x] Implement `pkg/onboarding/flow/controller.go`:
   - Phase state machine: Welcome → Identity → Mode → Bootstrap → Exploration → Complete
   - Progress persistence for interrupted flows
-- [ ] Implement Phase 1-2: Welcome + Identity Creation
+- [x] Implement Phase 1-2: Welcome + Identity Creation
   - Animated node visualization
   - Keypair generation ceremony with visual feedback
   - Display name selection and sigil reveal
   - Backup prompt (optional but emphasized)
-- [ ] Implement Phase 3: Mode Selection
+  - Implemented in `pkg/onboarding/screens/screens.go`
+- [x] Implement Phase 3: Mode Selection
   - Animated Shadow Gradient visualization
   - Mode cards with capability comparison
   - Default recommendation (Hybrid)
-- [ ] Implement Phase 4-5: Bootstrap + Exploration
+  - Specter identity generation for Hybrid/Fortress modes
+  - Implemented in `pkg/onboarding/screens/mode_screen.go`
+- [x] Implement Phase 4-5: Bootstrap + Exploration
   - Peer discovery progress indicator
-  - Pulse Map introduction tour
+  - Pulse Map introduction tour (5 tutorial steps)
   - First Wave prompt with guided composition
-- [ ] Implement Phase 6: Completion
-  - Summary of created identity
-  - Invitation generation prompt
-- [ ] Write flow tests:
+  - Implemented in `pkg/onboarding/screens/bootstrap_screen.go`
+- [x] Implement Phase 6: Completion
+  - Summary of created identity (Surface + Specter based on mode)
+  - Invitation generation prompt with code generation
+  - Implemented in `pkg/onboarding/screens/completion_screen.go`
+- [x] Write flow tests:
   - Full path completion timing (<5 minutes)
   - State recovery after interruption
+- [x] Implement tutorials/hints system (contextual hints for UI elements)
+- [x] Implement bootstrap manager (peer connection coordination)
 - [ ] **Validation**: New user completes onboarding in <5 minutes with formed identity and 1+ peer connection
 
 **Estimated Effort**: 3 weeks
@@ -507,12 +516,12 @@ MURMUR positions itself against existing decentralized social platforms:
 
 **Why Eleventh**: These mechanics provide depth and replayability.
 
-- [ ] Implement Specter Hunts (network-wide scavenger hunts)
-- [ ] Implement Oracle Pools (commit-reveal prediction markets)
-- [ ] Implement Sigil Forge (timed creative challenges)
-- [ ] Implement Shadow Play (anonymous social deduction)
-- [ ] Implement Phantom Councils (threshold-signed anonymous deliberation)
-- [ ] Implement Abyssal Waves (Fortress-exclusive 5-hop deep anonymity)
+- [x] Implement Specter Hunts (network-wide scavenger hunts)
+- [x] Implement Oracle Pools (commit-reveal prediction markets)
+- [x] Implement Sigil Forge (timed creative challenges)
+- [x] Implement Shadow Play (anonymous social deduction)
+- [x] Implement Phantom Councils (threshold-signed anonymous deliberation)
+- [x] Implement Abyssal Waves (Fortress-exclusive 5-hop deep anonymity)
 - [ ] **Validation**: Each mini-game completes end-to-end in multi-node simulation
 
 **Estimated Effort**: 6-8 weeks

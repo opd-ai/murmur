@@ -78,62 +78,70 @@ func NewHost(ctx context.Context, cfg Config) (*Host, error) {
 		return nil, fmt.Errorf("private key is required")
 	}
 
-	// Convert Ed25519 private key to libp2p format
 	privKey, err := crypto.UnmarshalEd25519PrivateKey(cfg.PrivateKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal private key: %w", err)
 	}
 
-	// Parse listen addresses
-	listenAddrs := make([]multiaddr.Multiaddr, 0, len(cfg.ListenAddrs))
-	for _, addr := range cfg.ListenAddrs {
+	listenAddrs, err := parseListenAddresses(cfg.ListenAddrs)
+	if err != nil {
+		return nil, err
+	}
+
+	var idht *dht.IpfsDHT
+	opts := buildBaseOptions(privKey, listenAddrs)
+
+	if cfg.EnableDHT {
+		opts = append(opts, buildDHTOption(ctx, cfg.DHTServerMode, &idht))
+	}
+
+	h, err := libp2p.New(opts...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create libp2p host: %w", err)
+	}
+
+	return &Host{Host: h, dht: idht}, nil
+}
+
+// parseListenAddresses converts string addresses to multiaddrs.
+func parseListenAddresses(addrs []string) ([]multiaddr.Multiaddr, error) {
+	listenAddrs := make([]multiaddr.Multiaddr, 0, len(addrs))
+	for _, addr := range addrs {
 		ma, err := multiaddr.NewMultiaddr(addr)
 		if err != nil {
 			return nil, fmt.Errorf("invalid listen address %q: %w", addr, err)
 		}
 		listenAddrs = append(listenAddrs, ma)
 	}
+	return listenAddrs, nil
+}
 
-	// Build libp2p options
-	var idht *dht.IpfsDHT
-	opts := []libp2p.Option{
+// buildBaseOptions returns common libp2p options for transport and security.
+func buildBaseOptions(privKey crypto.PrivKey, listenAddrs []multiaddr.Multiaddr) []libp2p.Option {
+	return []libp2p.Option{
 		libp2p.Identity(privKey),
 		libp2p.ListenAddrs(listenAddrs...),
-		// Transport: prefer QUIC, fall back to TCP
 		libp2p.Transport(libp2pquic.NewTransport),
 		libp2p.Transport(tcp.NewTCPTransport),
-		// Security: Noise XX preferred, TLS fallback
 		libp2p.Security(noise.ID, noise.New),
 		libp2p.Security(libp2ptls.ID, libp2ptls.New),
-		// Connection timeouts
-		libp2p.ConnectionGater(nil), // Allow all connections by default
+		libp2p.ConnectionGater(nil),
 	}
+}
 
-	// Add DHT routing if enabled
-	if cfg.EnableDHT {
-		opts = append(opts, libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
-			var err error
-			dhtOpts := []dht.Option{}
-			if cfg.DHTServerMode {
-				dhtOpts = append(dhtOpts, dht.Mode(dht.ModeAutoServer))
-			} else {
-				dhtOpts = append(dhtOpts, dht.Mode(dht.ModeClient))
-			}
-			idht, err = dht.New(ctx, h, dhtOpts...)
-			return idht, err
-		}))
-	}
-
-	// Create the libp2p host
-	h, err := libp2p.New(opts...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create libp2p host: %w", err)
-	}
-
-	return &Host{
-		Host: h,
-		dht:  idht,
-	}, nil
+// buildDHTOption creates a routing option that initializes the DHT.
+func buildDHTOption(ctx context.Context, serverMode bool, idht **dht.IpfsDHT) libp2p.Option {
+	return libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
+		var err error
+		dhtOpts := []dht.Option{}
+		if serverMode {
+			dhtOpts = append(dhtOpts, dht.Mode(dht.ModeAutoServer))
+		} else {
+			dhtOpts = append(dhtOpts, dht.Mode(dht.ModeClient))
+		}
+		*idht, err = dht.New(ctx, h, dhtOpts...)
+		return *idht, err
+	})
 }
 
 // DHT returns the Kademlia DHT instance, or nil if DHT is disabled.

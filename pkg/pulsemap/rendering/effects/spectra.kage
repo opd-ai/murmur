@@ -1,0 +1,55 @@
+//kage:unit pixels
+
+// spectra.kage - Specter node spectral/ghost effect
+// Per PULSE_MAP.md, Specter nodes have translucency and particle emission.
+
+package main
+
+var Time float
+var SpecterOpacity float
+var Resonance float
+
+// Simple hash function for pseudo-random noise
+func hash(p vec2) float {
+    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453)
+}
+
+func Fragment(dst vec4, src vec2, color vec4) vec4 {
+    // Base translucency effect
+    center := vec2(0.5, 0.5)
+    pos := src - center
+    dist := length(pos) * 2.0
+    
+    // Create ghostly edge effect - more transparent at edges
+    edge := smoothstep(0.8, 1.0, dist)
+    coreAlpha := (1.0 - edge) * SpecterOpacity
+    
+    // Add subtle shimmer based on time and position
+    shimmer := 0.9 + 0.1 * sin(Time * 2.0 + pos.x * 10.0 + pos.y * 10.0)
+    
+    // Cool-tone color shift (blues and purples)
+    coolShift := vec3(
+        0.7 + 0.1 * sin(Time * 1.5),
+        0.8 + 0.1 * sin(Time * 1.2),
+        1.0 + 0.1 * sin(Time * 1.0),
+    )
+    
+    // Particle-like noise for dissolution effect
+    noise := hash(src * 100.0 + Time * 0.1)
+    particleEffect := 1.0
+    if Resonance < 100.0 && noise > 0.95 - Resonance * 0.001 {
+        particleEffect = 0.5 + 0.5 * sin(Time * 10.0)
+    }
+    
+    // Final color
+    finalColor := color.rgb * coolShift * shimmer
+    finalAlpha := coreAlpha * particleEffect * color.a
+    
+    // Add subtle glow for high-resonance specters
+    if Resonance > 100.0 {
+        glowBoost := 1.0 + (Resonance - 100.0) * 0.002
+        finalColor = finalColor * glowBoost
+    }
+    
+    return vec4(finalColor, finalAlpha)
+}

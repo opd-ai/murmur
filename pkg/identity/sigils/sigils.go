@@ -40,55 +40,52 @@ func Generate(publicKey []byte) *Sigil {
 // render generates the visual representation from the hash.
 // The algorithm uses hash bytes to determine colors, patterns, and shapes.
 func (s *Sigil) render() {
-	// Extract colors from hash bytes.
-	bgColor := color.RGBA{
-		R: s.Hash[0],
-		G: s.Hash[1],
-		B: s.Hash[2],
-		A: 255,
-	}
+	bgColor, fgColor := s.extractColors()
+	s.fillBackground(bgColor)
+	s.drawSymmetricPattern(fgColor)
+	s.drawBorder(s.extractBorderColor())
+}
 
-	fgColor := color.RGBA{
-		R: s.Hash[3],
-		G: s.Hash[4],
-		B: s.Hash[5],
-		A: 255,
-	}
+// extractColors derives background and foreground colors from the hash.
+func (s *Sigil) extractColors() (bg, fg color.RGBA) {
+	bg = color.RGBA{R: s.Hash[0], G: s.Hash[1], B: s.Hash[2], A: 255}
+	fg = color.RGBA{R: s.Hash[3], G: s.Hash[4], B: s.Hash[5], A: 255}
+	return bg, fg
+}
 
-	// Fill background.
+// extractBorderColor derives the border color from the hash.
+func (s *Sigil) extractBorderColor() color.RGBA {
+	return color.RGBA{R: s.Hash[6], G: s.Hash[7], B: s.Hash[8], A: 255}
+}
+
+// fillBackground fills the image with the background color.
+func (s *Sigil) fillBackground(bgColor color.RGBA) {
 	for y := 0; y < Size; y++ {
 		for x := 0; x < Size; x++ {
 			s.Image.Set(x, y, bgColor)
 		}
 	}
+}
 
-	// Generate symmetric pattern using hash bytes.
-	// Use 5×5 grid, mirrored horizontally for symmetry.
+// drawSymmetricPattern generates a mirrored 5x5 grid pattern.
+func (s *Sigil) drawSymmetricPattern(fgColor color.RGBA) {
 	gridSize := 5
 	cellSize := Size / gridSize
 
 	for row := 0; row < gridSize; row++ {
 		for col := 0; col <= gridSize/2; col++ {
-			// Use hash byte to determine if cell is filled.
-			idx := (row*gridSize + col) % 32
-			filled := s.Hash[idx]&(1<<uint(col)) != 0
-
-			if filled {
-				// Fill cell and its mirror.
+			if s.isCellFilled(row, col, gridSize) {
 				s.fillCell(col, row, cellSize, fgColor)
 				s.fillCell(gridSize-1-col, row, cellSize, fgColor)
 			}
 		}
 	}
+}
 
-	// Add border based on hash.
-	borderColor := color.RGBA{
-		R: s.Hash[6],
-		G: s.Hash[7],
-		B: s.Hash[8],
-		A: 255,
-	}
-	s.drawBorder(borderColor)
+// isCellFilled determines if a cell should be filled based on hash.
+func (s *Sigil) isCellFilled(row, col, gridSize int) bool {
+	idx := (row*gridSize + col) % 32
+	return s.Hash[idx]&(1<<uint(col)) != 0
 }
 
 // fillCell fills a cell in the grid pattern.
@@ -151,59 +148,72 @@ func GenerateSpecter(publicKey []byte) *Sigil {
 
 // renderSpecter generates the spectral visual style.
 func (s *Sigil) renderSpecter() {
-	// Spectral colors: more blues, purples, and translucent effects.
-	bgColor := color.RGBA{
-		R: s.Hash[0] / 4,    // Muted red
-		G: s.Hash[1] / 4,    // Muted green
-		B: s.Hash[2]/2 + 64, // Enhanced blue
+	bgColor, fgColor := s.extractSpecterColors()
+	s.fillGradientBackground(bgColor)
+	s.drawDiamondPattern(fgColor)
+	s.drawBorder(s.extractGlowColor())
+}
+
+// extractSpecterColors derives spectral colors from the hash.
+func (s *Sigil) extractSpecterColors() (bg, fg color.RGBA) {
+	bg = color.RGBA{
+		R: s.Hash[0] / 4,
+		G: s.Hash[1] / 4,
+		B: s.Hash[2]/2 + 64,
 		A: 255,
 	}
-
-	// Ghostly foreground color.
-	fgColor := color.RGBA{
-		R: s.Hash[3]/2 + 64, // Spectral hue
+	fg = color.RGBA{
+		R: s.Hash[3]/2 + 64,
 		G: s.Hash[4]/2 + 64,
-		B: s.Hash[5]/2 + 128, // Strong blue component
-		A: 200,               // Slight transparency effect
+		B: s.Hash[5]/2 + 128,
+		A: 200,
 	}
+	return bg, fg
+}
 
-	// Fill with gradient-like background.
-	for y := 0; y < Size; y++ {
-		for x := 0; x < Size; x++ {
-			// Add subtle gradient based on position.
-			gradientFactor := uint8(y * 64 / Size)
-			adjusted := color.RGBA{
-				R: bgColor.R,
-				G: bgColor.G,
-				B: uint8(min(255, int(bgColor.B)+int(gradientFactor))),
-				A: 255,
-			}
-			s.Image.Set(x, y, adjusted)
-		}
-	}
-
-	// Generate diamond/spectral pattern.
-	center := Size / 2
-	for row := 0; row < Size; row++ {
-		for col := 0; col < Size; col++ {
-			// Diamond distance from center.
-			dist := abs(col-center) + abs(row-center)
-			hashIdx := (dist / 4) % 32
-
-			if s.Hash[hashIdx]&(1<<uint(row%8)) != 0 && dist < center {
-				s.Image.Set(col, row, fgColor)
-			}
-		}
-	}
-
-	// Spectral glow border.
-	glowColor := color.RGBA{
+// extractGlowColor derives the spectral glow border color from the hash.
+func (s *Sigil) extractGlowColor() color.RGBA {
+	return color.RGBA{
 		R: s.Hash[9] / 2,
 		G: s.Hash[10] / 2,
 		B: s.Hash[11]/2 + 128,
 		A: 255,
 	}
-	s.drawBorder(glowColor)
+}
+
+// fillGradientBackground fills with a vertical gradient effect.
+func (s *Sigil) fillGradientBackground(bgColor color.RGBA) {
+	for y := 0; y < Size; y++ {
+		gradientFactor := uint8(y * 64 / Size)
+		adjusted := color.RGBA{
+			R: bgColor.R,
+			G: bgColor.G,
+			B: uint8(min(255, int(bgColor.B)+int(gradientFactor))),
+			A: 255,
+		}
+		for x := 0; x < Size; x++ {
+			s.Image.Set(x, y, adjusted)
+		}
+	}
+}
+
+// drawDiamondPattern draws a spectral diamond pattern.
+func (s *Sigil) drawDiamondPattern(fgColor color.RGBA) {
+	center := Size / 2
+	for row := 0; row < Size; row++ {
+		for col := 0; col < Size; col++ {
+			if s.shouldFillDiamondPixel(col, row, center) {
+				s.Image.Set(col, row, fgColor)
+			}
+		}
+	}
+}
+
+// shouldFillDiamondPixel determines if a pixel in the diamond pattern is filled.
+func (s *Sigil) shouldFillDiamondPixel(col, row, center int) bool {
+	dist := abs(col-center) + abs(row-center)
+	hashIdx := (dist / 4) % 32
+	return s.Hash[hashIdx]&(1<<uint(row%8)) != 0 && dist < center
 }
 
 func abs(x int) int {
