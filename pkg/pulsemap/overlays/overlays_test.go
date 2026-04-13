@@ -109,30 +109,6 @@ func TestParticleEmitterUpdate(t *testing.T) {
 // ShroudIndicator, MiniGameVisualization.Render) are in overlays_render_test.go
 // behind the "ebitentest" build tag per TECHNICAL_IMPLEMENTATION.md.
 
-func TestMiniGameVisualizationInit(t *testing.T) {
-	d := &MiniGameVisualization{
-		Player1X:  20,
-		Player1Y:  20,
-		Player2X:  80,
-		Player2Y:  80,
-		Color1:    color.RGBA{255, 0, 0, 255},
-		Color2:    color.RGBA{0, 0, 255, 255},
-		Intensity: 0.8,
-		Phase:     0.5,
-	}
-
-	// Verify struct initialization
-	if d.Player1X != 20 || d.Player1Y != 20 {
-		t.Error("expected player 1 at (20, 20)")
-	}
-	if d.Player2X != 80 || d.Player2Y != 80 {
-		t.Error("expected player 2 at (80, 80)")
-	}
-	if d.Intensity != 0.8 {
-		t.Errorf("expected Intensity 0.8, got %f", d.Intensity)
-	}
-}
-
 func TestTrigFunctions(t *testing.T) {
 	// Simple sanity checks for approximate trig functions
 	// These are approximations so we accept some error

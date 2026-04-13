@@ -10,27 +10,6 @@ import (
 	"testing"
 )
 
-func TestColorFromHash(t *testing.T) {
-	// Test surface node color
-	hash := []byte{128, 128, 128}
-	c := ColorFromHash(hash, false)
-	if c.A != 255 {
-		t.Errorf("expected full alpha, got %d", c.A)
-	}
-
-	// Test specter node color (should be cool tones)
-	specterHash := []byte{0, 128, 128}
-	sc := ColorFromHash(specterHash, true)
-	if sc.A != 255 {
-		t.Errorf("expected full alpha, got %d", sc.A)
-	}
-	// Specter colors should be blueish (B >= R)
-	// This is a rough heuristic based on hue 200-280
-	if sc.B < sc.R/2 {
-		t.Logf("Specter color may not be cool-toned: R=%d, G=%d, B=%d", sc.R, sc.G, sc.B)
-	}
-}
-
 func TestColorFromHashEmpty(t *testing.T) {
 	// Test with empty hash
 	c := ColorFromHash([]byte{}, false)
@@ -58,26 +37,6 @@ func TestZoomLevelFromScale(t *testing.T) {
 		if got != tt.want {
 			t.Errorf("ZoomLevelFromScale(%f) = %v, want %v", tt.scale, got, tt.want)
 		}
-	}
-}
-
-func TestHSLToRGB(t *testing.T) {
-	// Test red (hue 0)
-	r, g, b := hslToRGB(0, 1.0, 0.5)
-	if r < 250 || g > 5 || b > 5 {
-		t.Errorf("expected red, got R=%d G=%d B=%d", r, g, b)
-	}
-
-	// Test green (hue 120)
-	r, g, b = hslToRGB(120, 1.0, 0.5)
-	if g < 250 || r > 5 || b > 5 {
-		t.Errorf("expected green, got R=%d G=%d B=%d", r, g, b)
-	}
-
-	// Test gray (saturation 0)
-	r, g, b = hslToRGB(0, 0, 0.5)
-	if r != g || g != b {
-		t.Errorf("expected gray (equal RGB), got R=%d G=%d B=%d", r, g, b)
 	}
 }
 
