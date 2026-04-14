@@ -1926,3 +1926,291 @@ func TestForgePanelModeConstants(t *testing.T) {
 		t.Errorf("ForgeModeEntries should be 3, got %d", ForgeModeEntries)
 	}
 }
+
+// Shadow Play Panel tests.
+
+func TestNewShadowPlayPanel(t *testing.T) {
+	theme := DefaultTheme()
+	panel := NewShadowPlayPanel(theme)
+
+	if panel == nil {
+		t.Fatal("NewShadowPlayPanel returned nil")
+	}
+	if panel.IsVisible() {
+		t.Error("Panel should not be visible initially")
+	}
+	if panel.GetMode() != ShadowPlayModeOverview {
+		t.Errorf("Initial mode should be Overview, got %v", panel.GetMode())
+	}
+}
+
+func TestShadowPlayPanelShowHide(t *testing.T) {
+	theme := DefaultTheme()
+	panel := NewShadowPlayPanel(theme)
+
+	game := &ShadowPlayGameInfo{
+		GameID:      [32]byte{1, 2, 3},
+		State:       ShadowPlayStateActive,
+		RoundNumber: 1,
+		Players: []ShadowPlayPlayer{
+			{Name: "Player1", Role: ShadowRoleEcho},
+			{Name: "Player2", Role: ShadowRoleShade},
+		},
+	}
+
+	panel.Show(game)
+	if !panel.IsVisible() {
+		t.Error("Panel should be visible after Show()")
+	}
+
+	panel.Hide()
+	if panel.IsVisible() {
+		t.Error("Panel should not be visible after Hide()")
+	}
+}
+
+func TestShadowPlayPanelShowNil(t *testing.T) {
+	theme := DefaultTheme()
+	panel := NewShadowPlayPanel(theme)
+
+	panel.Show(nil)
+	if !panel.IsVisible() {
+		t.Error("Panel should be visible after Show(nil)")
+	}
+}
+
+func TestShadowPlayPanelModeAutoSelect(t *testing.T) {
+	theme := DefaultTheme()
+	panel := NewShadowPlayPanel(theme)
+
+	// Voting state without having voted should show vote mode.
+	game := &ShadowPlayGameInfo{
+		GameID:   [32]byte{1},
+		State:    ShadowPlayStateVoting,
+		HasVoted: false,
+	}
+	panel.Show(game)
+	if panel.GetMode() != ShadowPlayModeVote {
+		t.Errorf("Mode should be Vote for voting state, got %v", panel.GetMode())
+	}
+
+	// Voting state with already voted should show overview.
+	game2 := &ShadowPlayGameInfo{
+		GameID:   [32]byte{2},
+		State:    ShadowPlayStateVoting,
+		HasVoted: true,
+	}
+	panel.Show(game2)
+	if panel.GetMode() != ShadowPlayModeOverview {
+		t.Errorf("Mode should be Overview when already voted, got %v", panel.GetMode())
+	}
+
+	// Win state should show results.
+	game3 := &ShadowPlayGameInfo{
+		GameID: [32]byte{3},
+		State:  ShadowPlayStateEchoesWin,
+	}
+	panel.Show(game3)
+	if panel.GetMode() != ShadowPlayModeResults {
+		t.Errorf("Mode should be Results for win state, got %v", panel.GetMode())
+	}
+}
+
+func TestShadowPlayPanelShowRoleReveal(t *testing.T) {
+	theme := DefaultTheme()
+	panel := NewShadowPlayPanel(theme)
+
+	game := &ShadowPlayGameInfo{
+		GameID: [32]byte{1},
+		State:  ShadowPlayStateActive,
+		MyRole: ShadowRoleShade,
+	}
+
+	panel.ShowRoleReveal(game)
+	if !panel.IsVisible() {
+		t.Error("Panel should be visible after ShowRoleReveal()")
+	}
+	if panel.GetMode() != ShadowPlayModeRole {
+		t.Errorf("Mode should be Role, got %v", panel.GetMode())
+	}
+}
+
+func TestShadowPlayPanelSetGame(t *testing.T) {
+	theme := DefaultTheme()
+	panel := NewShadowPlayPanel(theme)
+
+	game := &ShadowPlayGameInfo{
+		GameID:      [32]byte{1, 2, 3},
+		RoundNumber: 3,
+	}
+
+	panel.SetGame(game)
+	if panel.GetGame() != game {
+		t.Error("GetGame should return the set game")
+	}
+}
+
+func TestShadowPlayPanelSetMode(t *testing.T) {
+	theme := DefaultTheme()
+	panel := NewShadowPlayPanel(theme)
+
+	panel.SetMode(ShadowPlayModeVote)
+	if panel.GetMode() != ShadowPlayModeVote {
+		t.Errorf("Mode should be Vote, got %v", panel.GetMode())
+	}
+
+	panel.SetMode(ShadowPlayModeResults)
+	if panel.GetMode() != ShadowPlayModeResults {
+		t.Errorf("Mode should be Results, got %v", panel.GetMode())
+	}
+}
+
+func TestShadowPlayPanelCallbacks(t *testing.T) {
+	theme := DefaultTheme()
+	panel := NewShadowPlayPanel(theme)
+
+	var voteCalled bool
+	panel.SetOnVote(func(gameID, targetSpecter [32]byte) {
+		voteCalled = true
+	})
+
+	var joinCalled bool
+	panel.SetOnJoin(func(gameID [32]byte) {
+		joinCalled = true
+	})
+
+	var leaveCalled bool
+	panel.SetOnLeave(func(gameID [32]byte) {
+		leaveCalled = true
+	})
+
+	// Callbacks should be set without error.
+	// (Actual invocation would require UI interaction.)
+	_ = voteCalled
+	_ = joinCalled
+	_ = leaveCalled
+}
+
+func TestShadowPlayPanelSelection(t *testing.T) {
+	theme := DefaultTheme()
+	panel := NewShadowPlayPanel(theme)
+
+	panel.SetSelectedIndex(5)
+	if panel.GetSelectedIndex() != 5 {
+		t.Errorf("SelectedIndex should be 5, got %d", panel.GetSelectedIndex())
+	}
+}
+
+func TestShadowPlayPanelUpdate(t *testing.T) {
+	theme := DefaultTheme()
+	panel := NewShadowPlayPanel(theme)
+
+	// Update should not panic.
+	err := panel.Update()
+	if err != nil {
+		t.Errorf("Update returned error: %v", err)
+	}
+
+	panel.Show(&ShadowPlayGameInfo{
+		GameID: [32]byte{1},
+		State:  ShadowPlayStateActive,
+	})
+
+	err = panel.Update()
+	if err != nil {
+		t.Errorf("Update returned error: %v", err)
+	}
+}
+
+func TestShadowPlayStateString(t *testing.T) {
+	tests := []struct {
+		state ShadowPlayState
+		want  string
+	}{
+		{ShadowPlayStateWaiting, "Waiting"},
+		{ShadowPlayStateActive, "Active"},
+		{ShadowPlayStateVoting, "Voting"},
+		{ShadowPlayStateEchoesWin, "Echoes Win!"},
+		{ShadowPlayStateShadesWin, "Shades Win!"},
+		{ShadowPlayStateExpired, "Expired"},
+		{ShadowPlayState(99), "Unknown"},
+	}
+
+	for _, tc := range tests {
+		got := ShadowPlayStateString(tc.state)
+		if got != tc.want {
+			t.Errorf("ShadowPlayStateString(%d) = %q, want %q", tc.state, got, tc.want)
+		}
+	}
+}
+
+func TestShadowRoleString(t *testing.T) {
+	tests := []struct {
+		role ShadowPlayerRole
+		want string
+	}{
+		{ShadowRoleUnknown, "Unknown"},
+		{ShadowRoleEcho, "Echo"},
+		{ShadowRoleShade, "Shade"},
+	}
+
+	for _, tc := range tests {
+		got := ShadowRoleString(tc.role)
+		if got != tc.want {
+			t.Errorf("ShadowRoleString(%d) = %q, want %q", tc.role, got, tc.want)
+		}
+	}
+}
+
+func TestShadowPlayPanelConcurrency(t *testing.T) {
+	theme := DefaultTheme()
+	panel := NewShadowPlayPanel(theme)
+
+	done := make(chan bool, 4)
+
+	// Writer goroutine.
+	go func() {
+		for i := 0; i < 100; i++ {
+			panel.SetGame(&ShadowPlayGameInfo{
+				GameID:      [32]byte{byte(i)},
+				RoundNumber: i,
+			})
+			panel.SetMode(ShadowPlayPanelMode(i % 4))
+		}
+		done <- true
+	}()
+
+	// Reader goroutine.
+	go func() {
+		for i := 0; i < 100; i++ {
+			_ = panel.GetGame()
+			_ = panel.GetMode()
+			_ = panel.IsVisible()
+		}
+		done <- true
+	}()
+
+	// Show/Hide goroutine.
+	go func() {
+		for i := 0; i < 100; i++ {
+			if i%2 == 0 {
+				panel.Show(&ShadowPlayGameInfo{GameID: [32]byte{byte(i)}})
+			} else {
+				panel.Hide()
+			}
+		}
+		done <- true
+	}()
+
+	// Update goroutine.
+	go func() {
+		for i := 0; i < 100; i++ {
+			panel.Update()
+		}
+		done <- true
+	}()
+
+	for i := 0; i < 4; i++ {
+		<-done
+	}
+}

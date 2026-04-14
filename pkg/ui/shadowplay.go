@@ -1,0 +1,793 @@
+// Package ui - Shadow Play game interface panel.
+// Per ROADMAP.md line 492: "UI: Shadow Play game interface — role reveal,
+// vote casting, round status, results".
+// Per ANONYMOUS_GAME_MECHANICS.md: "Shadow Play is a social deduction game
+// that leverages anonymity as its core mechanic."
+//
+//go:build !noebiten
+// +build !noebiten
+
+package ui
+
+import (
+	"fmt"
+	"sync"
+	"time"
+
+	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	"github.com/hajimehoshi/ebiten/v2/text/v2"
+	"github.com/hajimehoshi/ebiten/v2/vector"
+)
+
+// ShadowPlayState represents the game state for UI display.
+type ShadowPlayState uint8
+
+const (
+	ShadowPlayStateWaiting   ShadowPlayState = iota // Waiting for players.
+	ShadowPlayStateActive                           // Game in progress.
+	ShadowPlayStateVoting                           // Voting phase.
+	ShadowPlayStateEchoesWin                        // Echoes won.
+	ShadowPlayStateShadesWin                        // Shades won.
+	ShadowPlayStateExpired                          // Game expired.
+)
+
+// ShadowPlayStateString returns a human-readable string.
+func ShadowPlayStateString(s ShadowPlayState) string {
+	switch s {
+	case ShadowPlayStateWaiting:
+		return "Waiting"
+	case ShadowPlayStateActive:
+		return "Active"
+	case ShadowPlayStateVoting:
+		return "Voting"
+	case ShadowPlayStateEchoesWin:
+		return "Echoes Win!"
+	case ShadowPlayStateShadesWin:
+		return "Shades Win!"
+	case ShadowPlayStateExpired:
+		return "Expired"
+	default:
+		return "Unknown"
+	}
+}
+
+// ShadowPlayerRole represents a player's hidden role.
+type ShadowPlayerRole uint8
+
+const (
+	ShadowRoleUnknown ShadowPlayerRole = iota // Role not known.
+	ShadowRoleEcho                            // Standard participant.
+	ShadowRoleShade                           // Hidden disruptor.
+)
+
+// ShadowRoleString returns a human-readable role name.
+func ShadowRoleString(r ShadowPlayerRole) string {
+	switch r {
+	case ShadowRoleEcho:
+		return "Echo"
+	case ShadowRoleShade:
+		return "Shade"
+	default:
+		return "Unknown"
+	}
+}
+
+// ShadowPlayPlayer contains player info for display.
+type ShadowPlayPlayer struct {
+	SpecterKey   [32]byte         // Specter identity.
+	Name         string           // Display name.
+	Role         ShadowPlayerRole // Role (may be unknown to viewer).
+	IsEliminated bool             // True if eliminated.
+	VoteCount    int              // Votes received this round.
+	HasVoted     bool             // True if has voted this round.
+}
+
+// ShadowPlayGameInfo contains game information for UI display.
+type ShadowPlayGameInfo struct {
+	GameID       [32]byte           // Unique game identifier.
+	State        ShadowPlayState    // Current game state.
+	RoundNumber  int                // Current round number.
+	RoundEndTime time.Time          // When current round ends.
+	GameEndTime  time.Time          // When game ends.
+	Players      []ShadowPlayPlayer // All players.
+	MyRole       ShadowPlayerRole   // Current user's role.
+	MyVotedFor   [32]byte           // Who user voted for (if any).
+	HasVoted     bool               // User has voted this round.
+}
+
+// ShadowPlayPanelMode represents the panel display mode.
+type ShadowPlayPanelMode uint8
+
+const (
+	ShadowPlayModeOverview ShadowPlayPanelMode = iota // Game overview.
+	ShadowPlayModeVote                                // Vote casting screen.
+	ShadowPlayModeResults                             // Round/game results.
+	ShadowPlayModeRole                                // Role reveal screen.
+)
+
+// ShadowPlayPanel provides UI for Shadow Play interaction.
+type ShadowPlayPanel struct {
+	mu sync.RWMutex
+
+	visible      bool
+	game         *ShadowPlayGameInfo
+	mode         ShadowPlayPanelMode
+	selectedIdx  int // Selected player index for voting.
+	errorMessage string
+	theme        Theme
+
+	// Animation state.
+	roleRevealPhase float64
+	resultPhase     float64
+
+	// Callbacks.
+	onVote  func(gameID, targetSpecter [32]byte)
+	onJoin  func(gameID [32]byte)
+	onLeave func(gameID [32]byte)
+}
+
+// NewShadowPlayPanel creates a new Shadow Play game panel.
+func NewShadowPlayPanel(theme Theme) *ShadowPlayPanel {
+	return &ShadowPlayPanel{
+		theme: theme,
+		mode:  ShadowPlayModeOverview,
+	}
+}
+
+// SetTheme updates the panel theme.
+func (sp *ShadowPlayPanel) SetTheme(theme Theme) {
+	sp.mu.Lock()
+	defer sp.mu.Unlock()
+	sp.theme = theme
+}
+
+// Show displays the panel with game info.
+func (sp *ShadowPlayPanel) Show(game *ShadowPlayGameInfo) {
+	sp.mu.Lock()
+	defer sp.mu.Unlock()
+
+	sp.visible = true
+	sp.game = game
+	sp.errorMessage = ""
+	sp.selectedIdx = 0
+
+	// Determine initial mode based on game state.
+	if game != nil {
+		switch game.State {
+		case ShadowPlayStateVoting:
+			if !game.HasVoted {
+				sp.mode = ShadowPlayModeVote
+			} else {
+				sp.mode = ShadowPlayModeOverview
+			}
+		case ShadowPlayStateEchoesWin, ShadowPlayStateShadesWin:
+			sp.mode = ShadowPlayModeResults
+		default:
+			sp.mode = ShadowPlayModeOverview
+		}
+	}
+}
+
+// ShowRoleReveal shows the role reveal screen.
+func (sp *ShadowPlayPanel) ShowRoleReveal(game *ShadowPlayGameInfo) {
+	sp.mu.Lock()
+	defer sp.mu.Unlock()
+
+	sp.visible = true
+	sp.game = game
+	sp.mode = ShadowPlayModeRole
+	sp.roleRevealPhase = 0
+}
+
+// Hide hides the panel.
+func (sp *ShadowPlayPanel) Hide() {
+	sp.mu.Lock()
+	defer sp.mu.Unlock()
+	sp.visible = false
+}
+
+// IsVisible returns true if panel is shown.
+func (sp *ShadowPlayPanel) IsVisible() bool {
+	sp.mu.RLock()
+	defer sp.mu.RUnlock()
+	return sp.visible
+}
+
+// SetGame updates the game info.
+func (sp *ShadowPlayPanel) SetGame(game *ShadowPlayGameInfo) {
+	sp.mu.Lock()
+	defer sp.mu.Unlock()
+	sp.game = game
+}
+
+// SetMode sets the panel mode.
+func (sp *ShadowPlayPanel) SetMode(mode ShadowPlayPanelMode) {
+	sp.mu.Lock()
+	defer sp.mu.Unlock()
+	sp.mode = mode
+}
+
+// SetOnVote sets the vote callback.
+func (sp *ShadowPlayPanel) SetOnVote(cb func(gameID, targetSpecter [32]byte)) {
+	sp.mu.Lock()
+	defer sp.mu.Unlock()
+	sp.onVote = cb
+}
+
+// SetOnJoin sets the join callback.
+func (sp *ShadowPlayPanel) SetOnJoin(cb func(gameID [32]byte)) {
+	sp.mu.Lock()
+	defer sp.mu.Unlock()
+	sp.onJoin = cb
+}
+
+// SetOnLeave sets the leave callback.
+func (sp *ShadowPlayPanel) SetOnLeave(cb func(gameID [32]byte)) {
+	sp.mu.Lock()
+	defer sp.mu.Unlock()
+	sp.onLeave = cb
+}
+
+// Update handles input and animation.
+func (sp *ShadowPlayPanel) Update() error {
+	sp.mu.Lock()
+	defer sp.mu.Unlock()
+
+	if !sp.visible {
+		return nil
+	}
+
+	// Update animations.
+	sp.updateAnimations()
+
+	// Handle input based on mode.
+	switch sp.mode {
+	case ShadowPlayModeVote:
+		sp.handleVoteInput()
+	case ShadowPlayModeRole:
+		sp.handleRoleInput()
+	case ShadowPlayModeResults:
+		sp.handleResultsInput()
+	default:
+		sp.handleOverviewInput()
+	}
+
+	return nil
+}
+
+// updateAnimations advances animation state.
+func (sp *ShadowPlayPanel) updateAnimations() {
+	if sp.mode == ShadowPlayModeRole && sp.roleRevealPhase < 1.0 {
+		sp.roleRevealPhase += 0.02
+		if sp.roleRevealPhase > 1.0 {
+			sp.roleRevealPhase = 1.0
+		}
+	}
+
+	if sp.mode == ShadowPlayModeResults && sp.resultPhase < 1.0 {
+		sp.resultPhase += 0.03
+		if sp.resultPhase > 1.0 {
+			sp.resultPhase = 1.0
+		}
+	}
+}
+
+// handleOverviewInput processes input in overview mode.
+func (sp *ShadowPlayPanel) handleOverviewInput() {
+	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
+		sp.visible = false
+		return
+	}
+
+	if inpututil.IsKeyJustPressed(ebiten.KeyV) && sp.game != nil {
+		if sp.game.State == ShadowPlayStateVoting && !sp.game.HasVoted {
+			sp.mode = ShadowPlayModeVote
+			sp.selectedIdx = 0
+		}
+	}
+
+	if inpututil.IsKeyJustPressed(ebiten.KeyR) && sp.game != nil {
+		sp.mode = ShadowPlayModeRole
+		sp.roleRevealPhase = 0
+	}
+}
+
+// handleVoteInput processes input in vote mode.
+func (sp *ShadowPlayPanel) handleVoteInput() {
+	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
+		sp.mode = ShadowPlayModeOverview
+		return
+	}
+
+	if sp.game == nil {
+		return
+	}
+
+	// Get eligible players (not eliminated, not self).
+	eligible := sp.getEligibleVoteTargets()
+	if len(eligible) == 0 {
+		return
+	}
+
+	// Navigate selection.
+	if inpututil.IsKeyJustPressed(ebiten.KeyUp) {
+		sp.selectedIdx--
+		if sp.selectedIdx < 0 {
+			sp.selectedIdx = len(eligible) - 1
+		}
+	}
+	if inpututil.IsKeyJustPressed(ebiten.KeyDown) {
+		sp.selectedIdx++
+		if sp.selectedIdx >= len(eligible) {
+			sp.selectedIdx = 0
+		}
+	}
+
+	// Confirm vote.
+	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) {
+		if sp.selectedIdx < len(eligible) {
+			target := eligible[sp.selectedIdx]
+			if sp.onVote != nil {
+				sp.onVote(sp.game.GameID, target.SpecterKey)
+			}
+			sp.game.HasVoted = true
+			sp.game.MyVotedFor = target.SpecterKey
+			sp.mode = ShadowPlayModeOverview
+		}
+	}
+}
+
+// handleRoleInput processes input in role reveal mode.
+func (sp *ShadowPlayPanel) handleRoleInput() {
+	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) ||
+		inpututil.IsKeyJustPressed(ebiten.KeyEnter) {
+		sp.mode = ShadowPlayModeOverview
+	}
+}
+
+// handleResultsInput processes input in results mode.
+func (sp *ShadowPlayPanel) handleResultsInput() {
+	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) ||
+		inpututil.IsKeyJustPressed(ebiten.KeyEnter) {
+		sp.mode = ShadowPlayModeOverview
+	}
+}
+
+// getEligibleVoteTargets returns players who can be voted for.
+func (sp *ShadowPlayPanel) getEligibleVoteTargets() []ShadowPlayPlayer {
+	if sp.game == nil {
+		return nil
+	}
+
+	var eligible []ShadowPlayPlayer
+	for _, player := range sp.game.Players {
+		// Can't vote for eliminated players or self.
+		if player.IsEliminated {
+			continue
+		}
+		eligible = append(eligible, player)
+	}
+	return eligible
+}
+
+// Draw renders the panel.
+func (sp *ShadowPlayPanel) Draw(screen *ebiten.Image) {
+	sp.mu.RLock()
+	defer sp.mu.RUnlock()
+
+	if !sp.visible || sp.game == nil {
+		return
+	}
+
+	// Panel dimensions.
+	screenW := float32(screen.Bounds().Dx())
+	screenH := float32(screen.Bounds().Dy())
+	panelW := float32(400)
+	panelH := float32(500)
+	x := (screenW - panelW) / 2
+	y := (screenH - panelH) / 2
+
+	// Draw panel background.
+	sp.drawPanelBackground(screen, x, y, panelW, panelH)
+
+	// Draw content based on mode.
+	switch sp.mode {
+	case ShadowPlayModeVote:
+		sp.drawVoteMode(screen, x, y, panelW, panelH)
+	case ShadowPlayModeRole:
+		sp.drawRoleMode(screen, x, y, panelW, panelH)
+	case ShadowPlayModeResults:
+		sp.drawResultsMode(screen, x, y, panelW, panelH)
+	default:
+		sp.drawOverviewMode(screen, x, y, panelW, panelH)
+	}
+}
+
+// drawPanelBackground renders the panel background.
+func (sp *ShadowPlayPanel) drawPanelBackground(
+	screen *ebiten.Image,
+	x, y, w, h float32,
+) {
+	// Background.
+	vector.DrawFilledRect(screen, x, y, w, h, sp.theme.PanelBackground, false)
+
+	// Border.
+	vector.StrokeRect(screen, x, y, w, h, 2, sp.theme.PanelBorder, false)
+}
+
+// drawOverviewMode renders the game overview.
+func (sp *ShadowPlayPanel) drawOverviewMode(
+	screen *ebiten.Image,
+	x, y, w, h float32,
+) {
+	if defaultFont == nil {
+		return
+	}
+
+	// Title.
+	title := "Shadow Play"
+	titleOpts := &text.DrawOptions{}
+	titleOpts.GeoM.Translate(float64(x+w/2-60), float64(y+20))
+	titleOpts.ColorScale.ScaleWithColor(sp.theme.TextPrimary)
+	text.Draw(screen, title, defaultFont, titleOpts)
+
+	// Game state.
+	stateText := fmt.Sprintf("Status: %s", ShadowPlayStateString(sp.game.State))
+	stateOpts := &text.DrawOptions{}
+	stateOpts.GeoM.Translate(float64(x+20), float64(y+60))
+	stateOpts.ColorScale.ScaleWithColor(sp.theme.TextSecondary)
+	text.Draw(screen, stateText, defaultFont, stateOpts)
+
+	// Round number.
+	roundText := fmt.Sprintf("Round: %d", sp.game.RoundNumber)
+	roundOpts := &text.DrawOptions{}
+	roundOpts.GeoM.Translate(float64(x+20), float64(y+85))
+	roundOpts.ColorScale.ScaleWithColor(sp.theme.TextSecondary)
+	text.Draw(screen, roundText, defaultFont, roundOpts)
+
+	// Time remaining.
+	var timeRemaining time.Duration
+	if sp.game.State == ShadowPlayStateVoting {
+		timeRemaining = time.Until(sp.game.RoundEndTime)
+	} else {
+		timeRemaining = time.Until(sp.game.GameEndTime)
+	}
+	if timeRemaining < 0 {
+		timeRemaining = 0
+	}
+	timeText := fmt.Sprintf("Time: %s", formatDuration(timeRemaining))
+	timeOpts := &text.DrawOptions{}
+	timeOpts.GeoM.Translate(float64(x+20), float64(y+110))
+	timeOpts.ColorScale.ScaleWithColor(sp.theme.TextSecondary)
+	text.Draw(screen, timeText, defaultFont, timeOpts)
+
+	// Player list header.
+	playerHeader := fmt.Sprintf("Players (%d):", len(sp.game.Players))
+	headerOpts := &text.DrawOptions{}
+	headerOpts.GeoM.Translate(float64(x+20), float64(y+145))
+	headerOpts.ColorScale.ScaleWithColor(sp.theme.TextPrimary)
+	text.Draw(screen, playerHeader, defaultFont, headerOpts)
+
+	// Player list.
+	sp.drawPlayerList(screen, x+20, y+170, w-40, float32(len(sp.game.Players)*25))
+
+	// Controls hint.
+	controlsY := y + h - 60
+	if sp.game.State == ShadowPlayStateVoting && !sp.game.HasVoted {
+		sp.drawControlHint(screen, x+20, controlsY, "[V] Cast Vote")
+	}
+	sp.drawControlHint(screen, x+20, controlsY+20, "[R] View Role")
+	sp.drawControlHint(screen, x+20, controlsY+40, "[ESC] Close")
+}
+
+// drawPlayerList renders the list of players.
+func (sp *ShadowPlayPanel) drawPlayerList(
+	screen *ebiten.Image,
+	x, y, w, h float32,
+) {
+	if defaultFont == nil {
+		return
+	}
+
+	for i, player := range sp.game.Players {
+		playerY := y + float32(i)*25
+
+		// Status indicator.
+		var status string
+		statusColor := sp.theme.TextSecondary
+		if player.IsEliminated {
+			status = "[X]"
+			statusColor = sp.theme.TextError
+		} else if player.HasVoted {
+			status = "[✓]"
+			statusColor = sp.theme.Success
+		} else {
+			status = "[ ]"
+		}
+
+		// Name and status.
+		name := player.Name
+		if name == "" {
+			name = fmt.Sprintf("Specter %d", i+1)
+		}
+
+		lineText := fmt.Sprintf("%s %s", status, name)
+		if player.VoteCount > 0 && sp.game.State == ShadowPlayStateVoting {
+			lineText += fmt.Sprintf(" (%d votes)", player.VoteCount)
+		}
+
+		opts := &text.DrawOptions{}
+		opts.GeoM.Translate(float64(x), float64(playerY))
+		opts.ColorScale.ScaleWithColor(statusColor)
+		text.Draw(screen, lineText, defaultFont, opts)
+	}
+}
+
+// drawVoteMode renders the vote casting screen.
+func (sp *ShadowPlayPanel) drawVoteMode(
+	screen *ebiten.Image,
+	x, y, w, h float32,
+) {
+	if defaultFont == nil {
+		return
+	}
+
+	// Title.
+	title := "Cast Your Vote"
+	titleOpts := &text.DrawOptions{}
+	titleOpts.GeoM.Translate(float64(x+w/2-70), float64(y+20))
+	titleOpts.ColorScale.ScaleWithColor(sp.theme.TextPrimary)
+	text.Draw(screen, title, defaultFont, titleOpts)
+
+	// Instructions.
+	instructions := "Select a player to eliminate:"
+	instrOpts := &text.DrawOptions{}
+	instrOpts.GeoM.Translate(float64(x+20), float64(y+60))
+	instrOpts.ColorScale.ScaleWithColor(sp.theme.TextSecondary)
+	text.Draw(screen, instructions, defaultFont, instrOpts)
+
+	// Eligible players.
+	eligible := sp.getEligibleVoteTargets()
+	for i, player := range eligible {
+		playerY := y + 100 + float32(i)*30
+
+		// Selection indicator.
+		prefix := "  "
+		textColor := sp.theme.TextSecondary
+		if i == sp.selectedIdx {
+			prefix = "> "
+			textColor = sp.theme.AccentPrimary
+
+			// Highlight background.
+			vector.DrawFilledRect(screen, x+15, playerY-5, w-30, 25, sp.theme.Selection, false)
+		}
+
+		name := player.Name
+		if name == "" {
+			name = fmt.Sprintf("Specter %d", i+1)
+		}
+		lineText := prefix + name
+
+		opts := &text.DrawOptions{}
+		opts.GeoM.Translate(float64(x+20), float64(playerY))
+		opts.ColorScale.ScaleWithColor(textColor)
+		text.Draw(screen, lineText, defaultFont, opts)
+	}
+
+	// Controls.
+	controlsY := y + h - 60
+	sp.drawControlHint(screen, x+20, controlsY, "[↑/↓] Navigate")
+	sp.drawControlHint(screen, x+20, controlsY+20, "[Enter] Confirm")
+	sp.drawControlHint(screen, x+20, controlsY+40, "[ESC] Cancel")
+}
+
+// drawRoleMode renders the role reveal screen.
+func (sp *ShadowPlayPanel) drawRoleMode(
+	screen *ebiten.Image,
+	x, y, w, h float32,
+) {
+	if defaultFont == nil {
+		return
+	}
+
+	// Title.
+	title := "Your Role"
+	titleOpts := &text.DrawOptions{}
+	titleOpts.GeoM.Translate(float64(x+w/2-50), float64(y+20))
+	titleOpts.ColorScale.ScaleWithColor(sp.theme.TextPrimary)
+	text.Draw(screen, title, defaultFont, titleOpts)
+
+	// Role reveal with animation.
+	roleY := y + h/2 - 40
+	roleText := ShadowRoleString(sp.game.MyRole)
+
+	// Animate opacity based on reveal phase.
+	alpha := uint8(255 * sp.roleRevealPhase)
+	roleColor := sp.theme.TextPrimary
+	roleColor.A = alpha
+
+	// Role-specific color.
+	if sp.game.MyRole == ShadowRoleEcho {
+		roleColor.R = 60
+		roleColor.G = 180
+		roleColor.B = 120
+		roleColor.A = alpha
+	} else if sp.game.MyRole == ShadowRoleShade {
+		roleColor.R = 180
+		roleColor.G = 60
+		roleColor.B = 80
+		roleColor.A = alpha
+	}
+
+	roleOpts := &text.DrawOptions{}
+	roleOpts.GeoM.Translate(float64(x+w/2-30), float64(roleY))
+	roleOpts.ColorScale.ScaleWithColor(roleColor)
+	text.Draw(screen, roleText, defaultFont, roleOpts)
+
+	// Role description.
+	var description string
+	if sp.game.MyRole == ShadowRoleEcho {
+		description = "Find and eliminate the Shades!"
+	} else if sp.game.MyRole == ShadowRoleShade {
+		description = "Blend in and survive..."
+	} else {
+		description = "Your role is unknown."
+	}
+
+	descOpts := &text.DrawOptions{}
+	descOpts.GeoM.Translate(float64(x+w/2-100), float64(roleY+50))
+	descColor := sp.theme.TextSecondary
+	descColor.A = alpha
+	descOpts.ColorScale.ScaleWithColor(descColor)
+	text.Draw(screen, description, defaultFont, descOpts)
+
+	// Continue hint.
+	if sp.roleRevealPhase >= 1.0 {
+		sp.drawControlHint(screen, x+20, y+h-40, "[Enter] Continue")
+	}
+}
+
+// drawResultsMode renders the game results screen.
+func (sp *ShadowPlayPanel) drawResultsMode(
+	screen *ebiten.Image,
+	x, y, w, h float32,
+) {
+	if defaultFont == nil {
+		return
+	}
+
+	// Title based on outcome.
+	var title string
+	titleColor := sp.theme.TextPrimary
+	if sp.game.State == ShadowPlayStateEchoesWin {
+		title = "Echoes Victory!"
+		titleColor.R = 60
+		titleColor.G = 180
+		titleColor.B = 120
+	} else if sp.game.State == ShadowPlayStateShadesWin {
+		title = "Shades Victory!"
+		titleColor.R = 180
+		titleColor.G = 60
+		titleColor.B = 80
+	} else {
+		title = "Game Over"
+	}
+
+	titleOpts := &text.DrawOptions{}
+	titleOpts.GeoM.Translate(float64(x+w/2-80), float64(y+40))
+	titleOpts.ColorScale.ScaleWithColor(titleColor)
+	text.Draw(screen, title, defaultFont, titleOpts)
+
+	// Your result.
+	var resultText string
+	if sp.game.State == ShadowPlayStateEchoesWin && sp.game.MyRole == ShadowRoleEcho {
+		resultText = "You won as Echo!"
+	} else if sp.game.State == ShadowPlayStateShadesWin && sp.game.MyRole == ShadowRoleShade {
+		resultText = "You won as Shade!"
+	} else if sp.game.MyRole == ShadowRoleEcho {
+		resultText = "You lost as Echo."
+	} else if sp.game.MyRole == ShadowRoleShade {
+		resultText = "You lost as Shade."
+	} else {
+		resultText = "Game complete."
+	}
+
+	resultOpts := &text.DrawOptions{}
+	resultOpts.GeoM.Translate(float64(x+w/2-70), float64(y+100))
+	resultOpts.ColorScale.ScaleWithColor(sp.theme.TextSecondary)
+	text.Draw(screen, resultText, defaultFont, resultOpts)
+
+	// Player results list (show roles).
+	resultsHeader := "Final Standings:"
+	headerOpts := &text.DrawOptions{}
+	headerOpts.GeoM.Translate(float64(x+20), float64(y+150))
+	headerOpts.ColorScale.ScaleWithColor(sp.theme.TextPrimary)
+	text.Draw(screen, resultsHeader, defaultFont, headerOpts)
+
+	for i, player := range sp.game.Players {
+		playerY := y + 180 + float32(i)*25
+
+		name := player.Name
+		if name == "" {
+			name = fmt.Sprintf("Specter %d", i+1)
+		}
+
+		roleStr := ShadowRoleString(player.Role)
+		status := ""
+		if player.IsEliminated {
+			status = " [Eliminated]"
+		}
+
+		lineText := fmt.Sprintf("%s - %s%s", name, roleStr, status)
+
+		lineColor := sp.theme.TextSecondary
+		if player.Role == ShadowRoleShade {
+			lineColor.R = 180
+			lineColor.G = 80
+			lineColor.B = 100
+		}
+
+		opts := &text.DrawOptions{}
+		opts.GeoM.Translate(float64(x+20), float64(playerY))
+		opts.ColorScale.ScaleWithColor(lineColor)
+		text.Draw(screen, lineText, defaultFont, opts)
+	}
+
+	// Continue hint.
+	sp.drawControlHint(screen, x+20, y+h-40, "[Enter] Close")
+}
+
+// drawControlHint draws a control hint text.
+func (sp *ShadowPlayPanel) drawControlHint(
+	screen *ebiten.Image,
+	x, y float32,
+	hint string,
+) {
+	if defaultFont == nil {
+		return
+	}
+
+	opts := &text.DrawOptions{}
+	opts.GeoM.Translate(float64(x), float64(y))
+	opts.ColorScale.ScaleWithColor(sp.theme.TextPlaceholder)
+	text.Draw(screen, hint, defaultFont, opts)
+}
+
+// formatDuration formats a duration as MM:SS.
+func formatDuration(d time.Duration) string {
+	if d < 0 {
+		return "0:00"
+	}
+	m := int(d.Minutes())
+	s := int(d.Seconds()) % 60
+	return fmt.Sprintf("%d:%02d", m, s)
+}
+
+// GetMode returns the current panel mode.
+func (sp *ShadowPlayPanel) GetMode() ShadowPlayPanelMode {
+	sp.mu.RLock()
+	defer sp.mu.RUnlock()
+	return sp.mode
+}
+
+// GetGame returns the current game info.
+func (sp *ShadowPlayPanel) GetGame() *ShadowPlayGameInfo {
+	sp.mu.RLock()
+	defer sp.mu.RUnlock()
+	return sp.game
+}
+
+// GetSelectedIndex returns the selected player index in vote mode.
+func (sp *ShadowPlayPanel) GetSelectedIndex() int {
+	sp.mu.RLock()
+	defer sp.mu.RUnlock()
+	return sp.selectedIdx
+}
+
+// SetSelectedIndex sets the selected player index.
+func (sp *ShadowPlayPanel) SetSelectedIndex(idx int) {
+	sp.mu.Lock()
+	defer sp.mu.Unlock()
+	sp.selectedIdx = idx
+}

@@ -475,7 +475,7 @@
 - [x] **Bbolt persistence** — ForgeStore backed by `pkg/store`
 - [x] **Pulse Map visualization** — anvil-and-flame icon with orbiting entries
 - [x] **UI: Forge submission panel** — create/submit entries, view competitors
-- [ ] **Timed creative challenge mechanics** — countdown timer, submission window
+- [x] **Timed creative challenge mechanics** — countdown timer, submission window
 
 ### Shadow Play
 
@@ -488,8 +488,8 @@
 - [x] **Resonance gating** — only Resonance ≥200 Specters can initiate Shadow Play
 - [x] **Network propagation** — broadcast game state, votes, eliminations, outcomes
 - [x] **Bbolt persistence** — ShadowPlayStore backed by `pkg/store`
-- [ ] **Pulse Map visualization** — dark shimmering dome with lightning effects
-- [ ] **UI: Shadow Play game interface** — role reveal, vote casting, round status, results
+- [x] **Pulse Map visualization** — dark shimmering dome with lightning effects
+- [x] **UI: Shadow Play game interface** — role reveal, vote casting, round status, results
 - [ ] **Communication phase** — in-game discussion between rounds via encrypted group channel
 
 ### Masked Events
