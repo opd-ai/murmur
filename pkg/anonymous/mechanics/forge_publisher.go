@@ -314,11 +314,10 @@ func (r *ForgeReceiver) handleContribution(event *pb.ForgeEvent) error {
 
 	var forgeID [32]byte
 	copy(forgeID[:], event.ProjectId)
-	forgeIDHex := hex.EncodeToString(forgeID[:])
 
-	forge := r.forgeStore.GetForge(forgeIDHex)
+	forge := r.forgeStore.GetForge(forgeID)
 	if forge == nil {
-		return fmt.Errorf("forge not found: %s", forgeIDHex)
+		return fmt.Errorf("forge not found: %x", forgeID)
 	}
 
 	// Check if this is a new entry or an amplification.
@@ -370,9 +369,8 @@ func (r *ForgeReceiver) handleContribution(event *pb.ForgeEvent) error {
 func (r *ForgeReceiver) handleForgeFinalized(event *pb.ForgeEvent) error {
 	var forgeID [32]byte
 	copy(forgeID[:], event.ProjectId)
-	forgeIDHex := hex.EncodeToString(forgeID[:])
 
-	forge := r.forgeStore.GetForge(forgeIDHex)
+	forge := r.forgeStore.GetForge(forgeID)
 	if forge == nil {
 		// If forge not found, try to create from event data.
 		if event.Project != nil {
@@ -383,7 +381,7 @@ func (r *ForgeReceiver) handleForgeFinalized(event *pb.ForgeEvent) error {
 			}
 		}
 		if forge == nil {
-			return fmt.Errorf("forge not found: %s", forgeIDHex)
+			return fmt.Errorf("forge not found: %x", forgeID)
 		}
 	}
 
@@ -398,11 +396,10 @@ func (r *ForgeReceiver) handleForgeFinalized(event *pb.ForgeEvent) error {
 func (r *ForgeReceiver) handleForgeFailed(event *pb.ForgeEvent) error {
 	var forgeID [32]byte
 	copy(forgeID[:], event.ProjectId)
-	forgeIDHex := hex.EncodeToString(forgeID[:])
 
-	forge := r.forgeStore.GetForge(forgeIDHex)
+	forge := r.forgeStore.GetForge(forgeID)
 	if forge == nil {
-		return fmt.Errorf("forge not found: %s", forgeIDHex)
+		return fmt.Errorf("forge not found: %x", forgeID)
 	}
 
 	forge.mu.Lock()

@@ -35,7 +35,7 @@ func TestForgePublisher_PublishForgeCreated(t *testing.T) {
 	var initiatorKey [32]byte
 	copy(initiatorKey[:], privKey.Public().(ed25519.PublicKey))
 
-	forge, err := NewSigilForge(ForgeMicroFiction, "Write a story about hope", initiatorKey, ForgeDuration30Min)
+	forge, err := NewSigilForge(ForgeMicroFiction, "Write a story about hope", initiatorKey, ForgeDuration30Min, ForgeMinResonance)
 	if err != nil {
 		t.Fatalf("failed to create forge: %v", err)
 	}
@@ -75,7 +75,7 @@ func TestForgePublisher_PublishForgeCreated_NoPublisher(t *testing.T) {
 	pub := NewForgePublisher(nil, privKey)
 
 	var initiatorKey [32]byte
-	forge, _ := NewSigilForge(ForgeSigilArt, "Test", initiatorKey, ForgeDuration30Min)
+	forge, _ := NewSigilForge(ForgeSigilArt, "Test", initiatorKey, ForgeDuration30Min, ForgeMinResonance)
 
 	err := pub.PublishForgeCreated(context.Background(), forge)
 	if err != ErrPublisherNotSet {
@@ -101,7 +101,7 @@ func TestForgePublisher_PublishForgeCreated_NoPrivateKey(t *testing.T) {
 	pub := NewForgePublisher(mockPub, nil)
 
 	var initiatorKey [32]byte
-	forge, _ := NewSigilForge(ForgeSigilArt, "Test", initiatorKey, ForgeDuration30Min)
+	forge, _ := NewSigilForge(ForgeSigilArt, "Test", initiatorKey, ForgeDuration30Min, ForgeMinResonance)
 
 	err := pub.PublishForgeCreated(context.Background(), forge)
 	if err != ErrMissingPrivateKey {
@@ -218,7 +218,7 @@ func TestForgePublisher_PublishForgeFinalized(t *testing.T) {
 	var initiatorKey [32]byte
 	copy(initiatorKey[:], privKey.Public().(ed25519.PublicKey))
 
-	forge, _ := NewSigilForge(ForgeSigilArt, "Test prompt", initiatorKey, ForgeDuration30Min)
+	forge, _ := NewSigilForge(ForgeSigilArt, "Test prompt", initiatorKey, ForgeDuration30Min, ForgeMinResonance)
 	winningSigil := []byte("winning sigil data")
 
 	ctx := context.Background()
@@ -322,7 +322,7 @@ func TestForgeReceiver_HandleForgeCreated(t *testing.T) {
 	var initiatorKey [32]byte
 	copy(initiatorKey[:], privKey.Public().(ed25519.PublicKey))
 
-	forge, _ := NewSigilForge(ForgeMicroFiction, "Test prompt", initiatorKey, ForgeDuration30Min)
+	forge, _ := NewSigilForge(ForgeMicroFiction, "Test prompt", initiatorKey, ForgeDuration30Min, ForgeMinResonance)
 
 	err := publisher.PublishForgeCreated(context.Background(), forge)
 	if err != nil {
@@ -336,8 +336,7 @@ func TestForgeReceiver_HandleForgeCreated(t *testing.T) {
 	}
 
 	// Verify forge was stored.
-	forgeIDHex := hex.EncodeToString(forge.ID[:])
-	stored := store.GetForge(forgeIDHex)
+	stored := store.GetForge(forge.ID)
 	if stored == nil {
 		t.Fatal("expected forge to be stored")
 	}
@@ -353,7 +352,7 @@ func TestForgeReceiver_HandleContribution(t *testing.T) {
 	var initiatorKey [32]byte
 	copy(initiatorKey[:], privKey.Public().(ed25519.PublicKey))
 
-	forge, _ := NewSigilForge(ForgeMicroFiction, "Test", initiatorKey, ForgeDuration30Min)
+	forge, _ := NewSigilForge(ForgeMicroFiction, "Test", initiatorKey, ForgeDuration30Min, ForgeMinResonance)
 	store.AddForge(forge)
 
 	// Publish entry.
@@ -384,8 +383,7 @@ func TestForgeReceiver_HandleContribution(t *testing.T) {
 	}
 
 	// Verify entry was added.
-	forgeIDHex := hex.EncodeToString(forge.ID[:])
-	stored := store.GetForge(forgeIDHex)
+	stored := store.GetForge(forge.ID)
 	if stored == nil {
 		t.Fatal("expected forge to be stored")
 	}
