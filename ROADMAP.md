@@ -83,7 +83,7 @@
 
 - [x] Kademlia DHT bootstrap peer connection
 - [x] DHT peer lookup and address advertisement
-- [ ] mDNS local network peer discovery
+- [x] mDNS local network peer discovery
 - [ ] Peer Exchange (PEX) protocol — `/murmur/peer-exchange/1` stream handler
 - [ ] PEX 5-minute periodic peer list sharing (per NETWORK_ARCHITECTURE.md)
 - [ ] Bootstrap node list (8–12 hardcoded entry points)

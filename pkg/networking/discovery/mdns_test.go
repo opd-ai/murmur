@@ -9,6 +9,7 @@ import (
 
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -22,12 +23,11 @@ func TestMDNSDiscovery_Constants(t *testing.T) {
 }
 
 func TestNewMDNSDiscovery(t *testing.T) {
-	h := createTestHost(t)
+	h := createMDNSTestHost(t)
 	defer h.Close()
 
-	handlerCalled := false
 	handler := func(pi peer.AddrInfo) {
-		handlerCalled = true
+		// Handler for testing
 	}
 
 	mdnsDiscovery := NewMDNSDiscovery(h, handler)
@@ -38,7 +38,7 @@ func TestNewMDNSDiscovery(t *testing.T) {
 }
 
 func TestMDNSDiscovery_StartStop(t *testing.T) {
-	h := createTestHost(t)
+	h := createMDNSTestHost(t)
 	defer h.Close()
 
 	mdnsDiscovery := NewMDNSDiscovery(h, nil)
@@ -68,7 +68,7 @@ func TestMDNSDiscovery_StartStop(t *testing.T) {
 }
 
 func TestMDNSDiscovery_HandlePeerFound_IgnoresSelf(t *testing.T) {
-	h := createTestHost(t)
+	h := createMDNSTestHost(t)
 	defer h.Close()
 
 	handlerCalled := false
@@ -89,7 +89,7 @@ func TestMDNSDiscovery_HandlePeerFound_IgnoresSelf(t *testing.T) {
 }
 
 func TestMDNSDiscovery_HandlePeerFound_CallsHandler(t *testing.T) {
-	h := createTestHost(t)
+	h := createMDNSTestHost(t)
 	defer h.Close()
 
 	var discoveredPeer peer.AddrInfo
@@ -114,7 +114,7 @@ func TestMDNSDiscovery_HandlePeerFound_CallsHandler(t *testing.T) {
 }
 
 func TestMDNSDiscovery_Peers_Channel(t *testing.T) {
-	h := createTestHost(t)
+	h := createMDNSTestHost(t)
 	defer h.Close()
 
 	mdnsDiscovery := NewMDNSDiscovery(h, nil)
@@ -145,7 +145,7 @@ func TestMDNSDiscovery_Peers_Channel(t *testing.T) {
 }
 
 func TestMDNSDiscovery_NilHandler(t *testing.T) {
-	h := createTestHost(t)
+	h := createMDNSTestHost(t)
 	defer h.Close()
 
 	// Should not panic with nil handler.
@@ -158,7 +158,7 @@ func TestMDNSDiscovery_NilHandler(t *testing.T) {
 }
 
 func TestMDNSDiscovery_ChannelOverflow(t *testing.T) {
-	h := createTestHost(t)
+	h := createMDNSTestHost(t)
 	defer h.Close()
 
 	mdnsDiscovery := NewMDNSDiscovery(h, nil)
@@ -189,7 +189,7 @@ drain:
 
 // Helper functions.
 
-func createTestHost(t *testing.T) host.Host {
+func createMDNSTestHost(t *testing.T) host.Host {
 	t.Helper()
 
 	_, priv, err := ed25519.GenerateKey(rand.Reader)
