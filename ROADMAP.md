@@ -440,7 +440,7 @@
 - [x] Weekly reset cycle with 30-day activity window
 - [x] TerritoryManager with influence computation
 - [x] Resonance score: `3 * ln(1 + controlled + 0.5 * contested)`
-- [ ] **Louvain clustering algorithm** for territory partitioning (per ANONYMOUS_GAME_MECHANICS.md)
+- [x] **Louvain clustering algorithm** for territory partitioning (per ANONYMOUS_GAME_MECHANICS.md)
 - [ ] **Network propagation** — broadcast influence claims and territory state changes
 - [x] **Bbolt persistence** — territory state backed by `pkg/store`
 - [ ] **Pulse Map visualization** — translucent watermarks with territory boundaries

@@ -16,6 +16,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **2026-04-14**: Louvain community detection for Territory Drift
+  - `pkg/anonymous/mechanics/louvain.go`: Louvain clustering algorithm (~420 lines)
+    - `LouvainGraph`: Network graph with adjacency list representation
+    - `LouvainNode`, `LouvainEdge`: Graph elements with positions and weights
+    - `Louvain`: Community detection with modularity optimization
+    - `DetectCommunities()`: Iterative modularity-based clustering
+    - `DetectTerritories()`: Convert clusters to territory boundaries
+    - `Modularity()`: Compute partition quality score
+    - `UpdateTerritories()`: Integrate with TerritoryManager
+    - Resolution parameter for cluster granularity control
+    - Per ROADMAP.md line 443: "Louvain clustering algorithm for territory partitioning"
+    - Per ANONYMOUS_GAME_MECHANICS.md: "Territories are defined by the Louvain community detection algorithm"
+  - `pkg/anonymous/mechanics/louvain_test.go`: 15 tests + 2 benchmarks
+    - Graph construction (nodes, edges)
+    - Two-clique detection
+    - Territory detection
+    - Modularity computation
+    - Concurrent access safety
+
 - **2026-04-14**: Hunt Pulse Map visualization effects
   - `pkg/pulsemap/rendering/effects/hunts.go`: Hunt fragment rendering (~340 lines)
     - `HuntEffects`: Manages hunt fragment visuals on Pulse Map
