@@ -544,7 +544,7 @@
 - [ ] **Resonance gating** — Fortress mode + Resonance ≥200 for creation
 - [ ] **ZK Claim verification** — verify Resonance threshold via Bulletproofs before admission
 - [ ] **Encrypted GossipSub topic** — `/murmur/council/[council_id]/1.0` with group key
-- [ ] **Network propagation** — council creation, admission, proposals, votes
+- [x] **Network propagation** — council creation, admission, proposals, votes
 - [x] **Bbolt persistence** — CouncilStore backed by `pkg/store`
 - [ ] **Pulse Map visualization** — constellation pattern connecting member nodes, unique color threads
 - [ ] **UI: Council management panel** — create council, invite members, propose, vote

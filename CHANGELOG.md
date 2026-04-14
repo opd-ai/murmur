@@ -16,6 +16,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **2026-04-14**: Phantom Councils network propagation
+  - `pkg/anonymous/mechanics/councils_publisher.go`: Council event publishing/receiving
+    - `CouncilPublisher`: Broadcasts council events to GossipSub
+    - `PublishCouncilCreated()`: Announce new phantom council creation
+    - `PublishMemberJoined()`: Broadcast member admission to council
+    - `PublishProposal()`: Announce new council proposals
+    - `PublishVote()`: Broadcast vote on proposal
+    - `PublishProposalResolved()`: Announce proposal resolution outcome
+    - `PublishCouncilDissolved()`: Announce council dissolution
+    - `CouncilReceiver`: Handles incoming council events
+    - Ed25519 signed events with BLAKE3 signature data
+    - Council store lookups for dissolution/resolution signature verification
+    - Per ROADMAP.md line 547: "Network propagation — council creation, admission, proposals, votes"
+  - `pkg/anonymous/mechanics/councils_publisher_test.go`: 21 tests + 2 benchmarks
+
 - **2026-04-14**: Specter Marks network propagation
   - `pkg/anonymous/mechanics/marks_publisher.go`: Mark event publishing/receiving
     - `MarkPublisher`: Broadcasts mark events to GossipSub
