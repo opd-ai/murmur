@@ -16,6 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **2026-04-14**: Phantom Gifts network propagation
+  - `pkg/anonymous/mechanics/gifts_publisher.go`: Gift event publishing/receiving
+    - `GiftPublisher`: Broadcasts gift events to GossipSub
+    - `PublishGiftCreated()`: Announce new phantom gifts from Specters
+    - `GiftReceiver`: Handles incoming gift events
+    - Ed25519 signed events with BLAKE3 signature data
+    - Duplicate detection, expiration checks, signature validation
+    - Per ROADMAP.md line 517: "Network propagation — broadcast gifts via /murmur/anonymous/mechanics/1.0"
+  - `pkg/anonymous/mechanics/gifts_publisher_test.go`: 20 tests + 2 benchmarks
+
 - **2026-04-14**: Shadow Play network propagation
   - `pkg/anonymous/mechanics/shadowplay_publisher.go`: Shadow Play event publishing/receiving
     - `ShadowPlayPublisher`: Broadcasts shadow play events to GossipSub

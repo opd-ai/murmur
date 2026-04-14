@@ -514,7 +514,7 @@
 - [x] 7-day expiration with automatic garbage collection
 - [x] GiftStore with recipient/sender indexes
 - [x] Ed25519 signature verification
-- [ ] **Network propagation** — broadcast gifts via `/murmur/anonymous/mechanics/1.0`
+- [x] **Network propagation** — broadcast gifts via `/murmur/anonymous/mechanics/1.0`
 - [x] **Bbolt persistence** — GiftStore backed by `pkg/store`
 - [ ] **Pulse Map integration** — animated cosmetic effects on recipient nodes (3 tiers)
 - [ ] **UI: Gift sending panel** — select gift type, choose recipient, confirm send
