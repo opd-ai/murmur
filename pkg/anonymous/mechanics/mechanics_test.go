@@ -2405,3 +2405,311 @@ func TestCouncilStateStrings(t *testing.T) {
 		t.Error("Expected 'Against'")
 	}
 }
+
+// --- Resonance Gating Tests ---
+
+// mockResonanceGate is a test implementation of ResonanceGate.
+type mockResonanceGate struct {
+	scores map[[32]byte]int
+}
+
+func (m *mockResonanceGate) GetResonance(specterKey [32]byte) (int, error) {
+	if score, ok := m.scores[specterKey]; ok {
+		return score, nil
+	}
+	return 0, nil
+}
+
+func newMockGate(specterKey [32]byte, resonance int) *mockResonanceGate {
+	return &mockResonanceGate{
+		scores: map[[32]byte]int{specterKey: resonance},
+	}
+}
+
+func TestCheckResonanceGate(t *testing.T) {
+	var key [32]byte
+	rand.Read(key[:])
+
+	// Test with nil gate (should allow).
+	err := CheckResonanceGate(nil, key, 50)
+	if err != nil {
+		t.Errorf("Expected nil error with nil gate, got %v", err)
+	}
+
+	// Test with gate meeting requirement.
+	gate := newMockGate(key, 75)
+	err = CheckResonanceGate(gate, key, 50)
+	if err != nil {
+		t.Errorf("Expected nil error with sufficient Resonance, got %v", err)
+	}
+
+	// Test with gate not meeting requirement.
+	gate = newMockGate(key, 25)
+	err = CheckResonanceGate(gate, key, 50)
+	if err != ErrResonanceRequirementNotMet {
+		t.Errorf("Expected ErrResonanceRequirementNotMet, got %v", err)
+	}
+
+	// Test at exact threshold.
+	gate = newMockGate(key, 50)
+	err = CheckResonanceGate(gate, key, 50)
+	if err != nil {
+		t.Errorf("Expected nil error at exact threshold, got %v", err)
+	}
+}
+
+func TestNewPuzzleGated(t *testing.T) {
+	var seed, initiator [32]byte
+	rand.Read(seed[:])
+	rand.Read(initiator[:])
+
+	// Test with sufficient Resonance.
+	gate := newMockGate(initiator, PuzzleMinResonance)
+	puzzle, err := NewPuzzleGated(PuzzleFragment, seed, 20, PuzzleDuration30Min, initiator, gate)
+	if err != nil {
+		t.Fatalf("NewPuzzleGated failed with sufficient Resonance: %v", err)
+	}
+	if puzzle == nil {
+		t.Fatal("Expected puzzle to be created")
+	}
+
+	// Test with insufficient Resonance.
+	lowGate := newMockGate(initiator, PuzzleMinResonance-1)
+	_, err = NewPuzzleGated(PuzzleFragment, seed, 20, PuzzleDuration30Min, initiator, lowGate)
+	if err != ErrPuzzleInsufficientRes {
+		t.Errorf("Expected ErrPuzzleInsufficientRes, got %v", err)
+	}
+
+	// Test with nil gate (permissionless mode).
+	puzzle, err = NewPuzzleGated(PuzzleFragment, seed, 20, PuzzleDuration30Min, initiator, nil)
+	if err != nil {
+		t.Fatalf("NewPuzzleGated failed with nil gate: %v", err)
+	}
+	if puzzle == nil {
+		t.Fatal("Expected puzzle to be created with nil gate")
+	}
+}
+
+// --- ZK Claim Verification Tests ---
+
+// mockZKVerifier is a test implementation of ZKClaimVerifier.
+type mockZKVerifier struct {
+	shouldPass bool
+}
+
+func (m *mockZKVerifier) VerifyResonanceClaim(proof []byte, minResonance int64) error {
+	if !m.shouldPass {
+		return ErrInvalidZKClaim
+	}
+	return nil
+}
+
+func TestCouncilZKVerification(t *testing.T) {
+	var creator, applicant [32]byte
+	rand.Read(creator[:])
+	rand.Read(applicant[:])
+
+	// Create council with ZK verifier.
+	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance)
+	council.SetZKVerifier(&mockZKVerifier{shouldPass: true})
+
+	// Apply with valid ZK proof.
+	err := council.Apply(applicant, []byte("valid_proof"))
+	if err != nil {
+		t.Fatalf("Apply should succeed with valid ZK proof: %v", err)
+	}
+
+	pending := council.GetPendingApplications()
+	if len(pending) != 1 {
+		t.Errorf("Expected 1 pending application, got %d", len(pending))
+	}
+}
+
+func TestCouncilZKVerificationFailure(t *testing.T) {
+	var creator, applicant [32]byte
+	rand.Read(creator[:])
+	rand.Read(applicant[:])
+
+	// Create council with failing ZK verifier.
+	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance)
+	council.SetZKVerifier(&mockZKVerifier{shouldPass: false})
+
+	// Apply with invalid ZK proof.
+	err := council.Apply(applicant, []byte("invalid_proof"))
+	if err != ErrInvalidZKClaim {
+		t.Errorf("Expected ErrInvalidZKClaim, got %v", err)
+	}
+
+	// Should have no pending applications.
+	pending := council.GetPendingApplications()
+	if len(pending) != 0 {
+		t.Errorf("Expected 0 pending applications, got %d", len(pending))
+	}
+}
+
+func TestCouncilZKVerificationMissingProof(t *testing.T) {
+	var creator, applicant [32]byte
+	rand.Read(creator[:])
+	rand.Read(applicant[:])
+
+	// Create council with ZK verifier that requires proof.
+	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance)
+	council.SetZKVerifier(&mockZKVerifier{shouldPass: true})
+
+	// Apply without ZK proof.
+	err := council.Apply(applicant, nil)
+	if err != ErrMissingZKClaim {
+		t.Errorf("Expected ErrMissingZKClaim, got %v", err)
+	}
+
+	// Also test with empty proof.
+	err = council.Apply(applicant, []byte{})
+	if err != ErrMissingZKClaim {
+		t.Errorf("Expected ErrMissingZKClaim for empty proof, got %v", err)
+	}
+}
+
+func TestCouncilWithoutZKVerifier(t *testing.T) {
+	var creator, applicant [32]byte
+	rand.Read(creator[:])
+	rand.Read(applicant[:])
+
+	// Create council without ZK verifier (backward compatible).
+	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance)
+
+	// Apply without ZK proof should succeed.
+	err := council.Apply(applicant, nil)
+	if err != nil {
+		t.Fatalf("Apply should succeed without ZK verifier: %v", err)
+	}
+
+	pending := council.GetPendingApplications()
+	if len(pending) != 1 {
+		t.Errorf("Expected 1 pending application, got %d", len(pending))
+	}
+}
+
+// --- Oracle Pool Gating Tests ---
+
+func TestNewOraclePoolGated(t *testing.T) {
+	var creator [32]byte
+	rand.Read(creator[:])
+
+	deadline := time.Now().Add(24 * time.Hour)
+	resolution := time.Now().Add(48 * time.Hour)
+
+	// Test with sufficient Resonance.
+	gate := newMockGate(creator, 150) // Above OracleMinResonance (100).
+	pool, err := NewOraclePoolGated(
+		"Will MURMUR have 1000 nodes by end of month?",
+		OraclePredictionBoolean,
+		"DHT node count",
+		creator,
+		deadline,
+		resolution,
+		gate,
+	)
+	if err != nil {
+		t.Fatalf("NewOraclePoolGated with sufficient Resonance failed: %v", err)
+	}
+	if pool == nil {
+		t.Fatal("Expected non-nil pool")
+	}
+	if pool.Question != "Will MURMUR have 1000 nodes by end of month?" {
+		t.Error("Pool question mismatch")
+	}
+
+	// Test with insufficient Resonance.
+	gate = newMockGate(creator, 50) // Below OracleMinResonance (100).
+	pool, err = NewOraclePoolGated(
+		"Test question",
+		OraclePredictionBoolean,
+		"test",
+		creator,
+		deadline,
+		resolution,
+		gate,
+	)
+	if err != ErrOracleInsufficientRes {
+		t.Errorf("Expected ErrOracleInsufficientRes, got %v", err)
+	}
+	if pool != nil {
+		t.Error("Expected nil pool with insufficient Resonance")
+	}
+
+	// Test at exact threshold.
+	gate = newMockGate(creator, OracleMinResonance)
+	pool, err = NewOraclePoolGated(
+		"Threshold test",
+		OraclePredictionNumeric,
+		"test",
+		creator,
+		deadline,
+		resolution,
+		gate,
+	)
+	if err != nil {
+		t.Errorf("NewOraclePoolGated at exact threshold failed: %v", err)
+	}
+	if pool == nil {
+		t.Error("Expected non-nil pool at exact threshold")
+	}
+}
+
+// --- Shadow Play Gating Tests ---
+
+func TestNewShadowPlayGated(t *testing.T) {
+	var initiator [32]byte
+	rand.Read(initiator[:])
+
+	// Test with sufficient Resonance.
+	gate := newMockGate(initiator, 250) // Above ShadowPlayMinResonance (200).
+	game, err := NewShadowPlayGated(
+		initiator,
+		ShadowPlayDuration30Min,
+		8,
+		gate,
+	)
+	if err != nil {
+		t.Fatalf("NewShadowPlayGated with sufficient Resonance failed: %v", err)
+	}
+	if game == nil {
+		t.Fatal("Expected non-nil game")
+	}
+	if game.MaxPlayers != 8 {
+		t.Errorf("Expected MaxPlayers 8, got %d", game.MaxPlayers)
+	}
+	if game.Duration != ShadowPlayDuration30Min {
+		t.Error("Duration mismatch")
+	}
+
+	// Test with insufficient Resonance.
+	gate = newMockGate(initiator, 100) // Below ShadowPlayMinResonance (200).
+	game, err = NewShadowPlayGated(
+		initiator,
+		ShadowPlayDuration60Min,
+		10,
+		gate,
+	)
+	if err != ErrShadowPlayInsufficientResonance {
+		t.Errorf("Expected ErrShadowPlayInsufficientResonance, got %v", err)
+	}
+	if game != nil {
+		t.Error("Expected nil game with insufficient Resonance")
+	}
+
+	// Test at exact threshold.
+	gate = newMockGate(initiator, ShadowPlayMinResonance)
+	game, err = NewShadowPlayGated(
+		initiator,
+		ShadowPlayDuration30Min,
+		5,
+		gate,
+	)
+	if err != nil {
+		t.Errorf("NewShadowPlayGated at exact threshold failed: %v", err)
+	}
+	if game == nil {
+		t.Error("Expected non-nil game at exact threshold")
+	}
+}

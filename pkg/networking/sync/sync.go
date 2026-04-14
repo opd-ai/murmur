@@ -43,11 +43,11 @@ const (
 
 // Request type constants.
 const (
-	RequestTypeByHash    byte = 0x01
-	RequestTypeByTopic   byte = 0x02
-	RequestTypeByAuthor  byte = 0x03
-	RequestTypeSince     byte = 0x04
-	RequestTypeLatestN   byte = 0x05
+	RequestTypeByHash   byte = 0x01
+	RequestTypeByTopic  byte = 0x02
+	RequestTypeByAuthor byte = 0x03
+	RequestTypeSince    byte = 0x04
+	RequestTypeLatestN  byte = 0x05
 )
 
 // Response status codes.
@@ -81,12 +81,12 @@ type WaveProvider interface {
 
 // SyncRequest represents a sync request.
 type SyncRequest struct {
-	Type      byte
-	Hashes    [][]byte // For RequestTypeByHash
-	Topic     string   // For RequestTypeByTopic
-	Author    []byte   // For RequestTypeByAuthor
-	Since     int64    // For RequestTypeSince (Unix timestamp)
-	Limit     int      // For RequestTypeLatestN or pagination
+	Type   byte
+	Hashes [][]byte // For RequestTypeByHash
+	Topic  string   // For RequestTypeByTopic
+	Author []byte   // For RequestTypeByAuthor
+	Since  int64    // For RequestTypeSince (Unix timestamp)
+	Limit  int      // For RequestTypeLatestN or pagination
 }
 
 // SyncResponse represents a sync response.
@@ -98,12 +98,12 @@ type SyncResponse struct {
 
 // SyncHandler handles Wave sync protocol.
 type SyncHandler struct {
-	h               host.Host
-	provider        WaveProvider
-	mu              sync.RWMutex
-	activeSessions  int32
-	rateLimiter     *rateLimiter
-	callbacks       SyncCallbacks
+	h              host.Host
+	provider       WaveProvider
+	mu             sync.RWMutex
+	activeSessions int32
+	rateLimiter    *rateLimiter
+	callbacks      SyncCallbacks
 }
 
 // SyncCallbacks are callbacks for sync events.

@@ -361,11 +361,11 @@ func TestIdentityPoWTargetComputation(t *testing.T) {
 		firstNonZero int  // Index of first byte that should be non-zero
 		firstByte    byte // Expected value of first non-zero byte
 	}{
-		{8, 1, 0xff},   // 1 byte of zeros
-		{16, 2, 0xff},  // 2 bytes of zeros
-		{18, 2, 0x3f},  // 2 bytes of zeros + 2 bits
-		{20, 2, 0x0f},  // 2 bytes of zeros + 4 bits
-		{24, 3, 0xff},  // 3 bytes of zeros
+		{8, 1, 0xff},  // 1 byte of zeros
+		{16, 2, 0xff}, // 2 bytes of zeros
+		{18, 2, 0x3f}, // 2 bytes of zeros + 2 bits
+		{20, 2, 0x0f}, // 2 bytes of zeros + 4 bits
+		{24, 3, 0xff}, // 3 bytes of zeros
 	}
 
 	for _, tc := range tests {

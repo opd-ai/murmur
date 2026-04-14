@@ -303,3 +303,226 @@ message DailyLimit {
   string limit_type = 2;          // Type of limit (e.g., "gifts", "marks").
   repeated int64 timestamps = 3;  // Timestamps of actions taken.
 }
+
+// =============================================================================
+// Event Messages for Network Propagation
+// These wrap the core types for gossip transmission on /murmur/anonymous/mechanics/1.0.
+// =============================================================================
+
+// PuzzleEventType identifies the puzzle event action.
+enum PuzzleEventType {
+  PUZZLE_EVENT_UNSPECIFIED = 0;
+  PUZZLE_EVENT_CREATED = 1;       // New puzzle announced.
+  PUZZLE_EVENT_SOLVED = 2;        // Puzzle was solved.
+  PUZZLE_EVENT_EXPIRED = 3;       // Puzzle time limit reached.
+  PUZZLE_EVENT_CONTRIBUTION = 4;  // Mosaic contribution submitted.
+  PUZZLE_EVENT_STAGE = 5;         // Cascade stage completed.
+}
+
+// PuzzleEvent wraps puzzle-related events for network propagation.
+message PuzzleEvent {
+  PuzzleEventType event_type = 1;
+  CipherPuzzle puzzle = 2;                    // Full puzzle (for CREATED events).
+  bytes puzzle_id = 3;                        // Puzzle ID (for other events).
+  bytes solver_pubkey = 4;                    // Solver's Specter key (for SOLVED, CONTRIBUTION, STAGE).
+  bytes solution_hash = 5;                    // Hash of solution (not raw solution).
+  int64 timestamp = 6;                        // Event timestamp.
+  bytes signature = 7;                        // Ed25519 signature from event source.
+}
+
+// HuntEventType identifies the hunt event action.
+enum HuntEventType {
+  HUNT_EVENT_UNSPECIFIED = 0;
+  HUNT_EVENT_CREATED = 1;         // New hunt announced.
+  HUNT_EVENT_CLAIM = 2;           // Fragment claimed.
+  HUNT_EVENT_CLUE = 3;            // Clue revealed.
+  HUNT_EVENT_COMPLETED = 4;       // Hunt finished (all fragments claimed).
+  HUNT_EVENT_EXPIRED = 5;         // Hunt time limit reached.
+}
+
+// HuntEvent wraps hunt-related events for network propagation.
+message HuntEvent {
+  HuntEventType event_type = 1;
+  Hunt hunt = 2;                          // Full hunt (for CREATED events).
+  bytes hunt_id = 3;                      // Hunt ID (for other events).
+  bytes claimer_key = 4;                  // Claimer's Specter key (for CLAIM).
+  uint32 fragment_index = 5;              // Fragment index (for CLAIM, CLUE).
+  uint32 clue_index = 6;                  // Clue index (for CLUE).
+  string clue_text = 7;                   // Clue text (for CLUE).
+  bytes initiator_key = 8;                // Hunt initiator key.
+  ProximityProof proximity_proof = 9;     // Proximity proof (for CLAIM).
+  repeated HuntLeaderboardEntry leaderboard_entries = 10; // Leaderboard (for COMPLETED).
+  int64 timestamp = 11;
+  bytes signature = 12;
+  bytes sender_pubkey = 13;               // Sender's public key for signature verification.
+}
+
+// Hunt represents a Specter Hunt event (per ANONYMOUS_GAME_MECHANICS.md §4).
+message Hunt {
+  bytes id = 1;                   // 32-byte hunt ID.
+  string theme = 2;               // Hunt theme/description.
+  bytes seed = 3;                 // 32-byte seed for deterministic fragment placement.
+  bytes initiator_key = 4;        // Initiator's Specter public key.
+  int64 created_at = 5;           // Creation timestamp.
+  int64 duration = 6;             // Duration in seconds.
+  int64 expires_at = 7;           // Expiration timestamp.
+  HuntState state = 8;            // Current hunt state.
+  uint32 fragment_count = 9;      // Number of fragments.
+  repeated Fragment fragments = 10; // Fragments in this hunt.
+}
+
+// Fragment represents a hidden token in a Specter Hunt.
+message Fragment {
+  uint32 index = 1;               // Fragment index.
+  bytes location_hash = 2;        // SHA-256(seed || index).
+  string target_peer_id = 3;      // Peer ID nearest to fragment.
+  bool claimed = 4;               // Whether fragment is claimed.
+  bytes claimer_key = 5;          // Claimer's Specter key (if claimed).
+  int64 claimed_at = 6;           // Claim timestamp.
+  repeated string clues = 7;      // Progressive clues.
+  uint32 clues_revealed = 8;      // Number of clues revealed.
+}
+
+// ProximityProof demonstrates the claimer is near the target.
+message ProximityProof {
+  bytes claimer_pubkey = 1;       // Claimer's public key.
+  string claimer_peer_id = 2;     // Claimer's peer ID.
+  bytes target_hash = 3;          // Target location hash.
+  uint32 routing_table_size = 4;  // Claimer's routing table size.
+  int64 timestamp = 5;            // Proof creation timestamp.
+  repeated ProximityAttestation attestations = 6; // Attestations from nearby peers.
+}
+
+// ProximityAttestation is a signed statement from a peer near the target.
+message ProximityAttestation {
+  bytes attester_pubkey = 1;      // Attester's Ed25519 public key.
+  string attester_peer_id = 2;    // Attester's peer ID.
+  bytes claimer_pubkey = 3;       // Who is being attested.
+  bytes target_hash = 4;          // Target location.
+  int64 timestamp = 5;            // Attestation timestamp.
+  bytes xor_distance = 6;         // Attester's XOR distance to target.
+  bytes signature = 7;            // Ed25519 signature.
+}
+
+// HuntLeaderboardEntry represents a participant's ranking.
+message HuntLeaderboardEntry {
+  bytes specter_key = 1;          // Participant's Specter key.
+  uint32 claims = 2;              // Number of fragments claimed.
+  uint32 rank = 3;                // Position in leaderboard.
+}
+
+// TerritoryEventType identifies territory event actions.
+enum TerritoryEventType {
+  TERRITORY_EVENT_UNSPECIFIED = 0;
+  TERRITORY_EVENT_INFLUENCE = 1;  // Influence claim submitted.
+  TERRITORY_EVENT_CONTROL = 2;    // Controller changed.
+  TERRITORY_EVENT_DRIFT = 3;      // Territory boundaries shifted.
+}
+
+// TerritoryEvent wraps territory-related events for network propagation.
+message TerritoryEvent {
+  TerritoryEventType event_type = 1;
+  Territory territory = 2;                    // Territory state (for CONTROL, DRIFT).
+  bytes territory_id = 3;                     // Territory ID.
+  bytes specter_pubkey = 4;                   // Specter making claim (for INFLUENCE).
+  uint32 influence_amount = 5;                // Influence being claimed.
+  int64 timestamp = 6;
+  bytes signature = 7;
+}
+
+// OracleEventType identifies oracle event actions.
+enum OracleEventType {
+  ORACLE_EVENT_UNSPECIFIED = 0;
+  ORACLE_EVENT_CREATED = 1;       // Pool created.
+  ORACLE_EVENT_PREDICTION = 2;    // Prediction submitted.
+  ORACLE_EVENT_CLOSED = 3;        // Voting closed.
+  ORACLE_EVENT_RESOLVED = 4;      // Outcome determined.
+}
+
+// OracleEvent wraps oracle pool events for network propagation.
+message OracleEvent {
+  OracleEventType event_type = 1;
+  OraclePool pool = 2;                        // Full pool (for CREATED).
+  bytes pool_id = 3;                          // Pool ID.
+  OraclePrediction prediction = 4;            // Prediction (for PREDICTION).
+  uint32 winning_option = 5;                  // Winning option (for RESOLVED).
+  int64 timestamp = 6;
+  bytes signature = 7;
+}
+
+// ForgeEventType identifies forge event actions.
+enum ForgeEventType {
+  FORGE_EVENT_UNSPECIFIED = 0;
+  FORGE_EVENT_CREATED = 1;        // Project created.
+  FORGE_EVENT_CONTRIBUTION = 2;   // Contribution added.
+  FORGE_EVENT_FINALIZED = 3;      // Sigil finalized.
+  FORGE_EVENT_FAILED = 4;         // Not enough contributions.
+}
+
+// ForgeEvent wraps sigil forge events for network propagation.
+message ForgeEvent {
+  ForgeEventType event_type = 1;
+  ForgeProject project = 2;                   // Full project (for CREATED).
+  bytes project_id = 3;                       // Project ID.
+  ForgeContribution contribution = 4;         // Contribution (for CONTRIBUTION).
+  bytes final_sigil = 5;                      // Final sigil (for FINALIZED).
+  int64 timestamp = 6;
+  bytes signature = 7;
+}
+
+// ShadowPlayEventType identifies shadow play event actions.
+enum ShadowPlayEventType {
+  SHADOW_PLAY_EVENT_UNSPECIFIED = 0;
+  SHADOW_PLAY_EVENT_CREATED = 1;      // Play announced.
+  SHADOW_PLAY_EVENT_CAST_JOIN = 2;    // Actor joined cast.
+  SHADOW_PLAY_EVENT_STARTED = 3;      // Performance started.
+  SHADOW_PLAY_EVENT_ENDED = 4;        // Performance ended.
+  SHADOW_PLAY_EVENT_CANCELLED = 5;    // Play cancelled.
+}
+
+// ShadowPlayEvent wraps shadow play events for network propagation.
+message ShadowPlayEvent {
+  ShadowPlayEventType event_type = 1;
+  ShadowPlay play = 2;                        // Full play (for CREATED).
+  bytes play_id = 3;                          // Play ID.
+  ShadowPlayActor actor = 4;                  // Actor (for CAST_JOIN).
+  int64 timestamp = 5;
+  bytes signature = 6;
+}
+
+// CouncilEventType identifies council event actions.
+enum CouncilEventType {
+  COUNCIL_EVENT_UNSPECIFIED = 0;
+  COUNCIL_EVENT_CREATED = 1;      // Council formed.
+  COUNCIL_EVENT_MEMBER_JOIN = 2;  // Member joined.
+  COUNCIL_EVENT_PROPOSAL = 3;     // Proposal submitted.
+  COUNCIL_EVENT_VOTE = 4;         // Vote cast.
+  COUNCIL_EVENT_RESOLVED = 5;     // Proposal resolved.
+  COUNCIL_EVENT_DISSOLVED = 6;    // Council dissolved.
+}
+
+// CouncilEvent wraps council events for network propagation.
+message CouncilEvent {
+  CouncilEventType event_type = 1;
+  PhantomCouncil council = 2;                 // Full council (for CREATED).
+  bytes council_id = 3;                       // Council ID.
+  CouncilMember member = 4;                   // Member (for MEMBER_JOIN).
+  CouncilProposal proposal = 5;               // Proposal (for PROPOSAL, RESOLVED).
+  CouncilVote vote = 6;                       // Vote (for VOTE).
+  int64 timestamp = 7;
+  bytes signature = 8;
+}
+
+// GiftEvent wraps Phantom Gift events for network propagation.
+message GiftEvent {
+  PhantomGift gift = 1;                       // The gift.
+  int64 timestamp = 2;
+  bytes signature = 3;
+}
+
+// MarkEvent wraps Specter Mark events for network propagation.
+message MarkEvent {
+  SpecterMark mark = 1;                       // The mark.
+  int64 timestamp = 2;
+  bytes signature = 3;
+}

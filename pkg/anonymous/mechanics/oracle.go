@@ -107,6 +107,8 @@ type OraclePool struct {
 }
 
 // NewOraclePool creates a new Oracle Pool.
+// NOTE: This function does not enforce Resonance gating. For gated creation,
+// use NewOraclePoolGated which requires Resonance >= OracleMinResonance (100).
 func NewOraclePool(
 	question string,
 	predictionType OraclePredictionType,
@@ -135,6 +137,25 @@ func NewOraclePool(
 		commitments:      make(map[string]*Commitment),
 		predictions:      make(map[string]*Prediction),
 	}, nil
+}
+
+// NewOraclePoolGated creates a new Oracle Pool with Resonance gating.
+// Per ANONYMOUS_GAME_MECHANICS.md, only Specters with Resonance >= 100
+// (Phantom milestone) may create Oracle Pools.
+func NewOraclePoolGated(
+	question string,
+	predictionType OraclePredictionType,
+	resolutionMethod string,
+	creatorKey [32]byte,
+	deadline time.Time,
+	resolutionTime time.Time,
+	gate ResonanceGate,
+) (*OraclePool, error) {
+	if err := CheckResonanceGate(gate, creatorKey, OracleMinResonance); err != nil {
+		return nil, ErrOracleInsufficientRes
+	}
+	return NewOraclePool(question, predictionType, resolutionMethod,
+		creatorKey, deadline, resolutionTime)
 }
 
 // generatePoolID creates a deterministic pool ID.

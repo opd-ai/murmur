@@ -186,8 +186,8 @@
 - [x] Gossip relay via GossipSub publish (actual network send)
 - [x] Hop count tracking and enforcement (max 20 hops, discard beyond)
 - [x] Deduplication by Wave ID before relay
-- [ ] Bridge injection for cross-layer propagation (Hybrid nodes relay Veiled Waves)
-- [ ] Propagation latency target <500ms across 3 hops
+- [x] Bridge injection for cross-layer propagation (Hybrid nodes relay Veiled Waves)
+- [x] Propagation latency target <500ms across 3 hops
 
 ### Threading (`pkg/content/threads/`)
 
@@ -264,12 +264,12 @@
 
 ### Proximity Ignition
 
-- [ ] QR code generation with public key, IP/port, one-time token
-- [ ] NFC tap exchange (shorter data payload)
-- [ ] mDNS auto-detection for local network peers
-- [ ] Mutual confirmation protocol (both devices verify)
-- [ ] Resonance bonus for Ignition (first 10 = 3 Resonance each)
-- [ ] ZK Claim support for Ignition count ("Completed >N Ignitions")
+- [x] QR code generation with public key, IP/port, one-time token
+- [x] NFC tap exchange (shorter data payload)
+- [x] mDNS auto-detection for local network peers
+- [x] Mutual confirmation protocol (both devices verify)
+- [x] Resonance bonus for Ignition (first 10 = 3 Resonance each)
+- [x] ZK Claim support for Ignition count ("Completed >N Ignitions")
 
 ---
 
@@ -295,7 +295,7 @@
 - [x] Relay selection excluding initiator's direct mesh neighbors (hop diversity)
 - [x] **Circuit rotation timer** — 10-minute rotation cycle with dual active circuits (primary + backup)
 - [x] **Circuit close/teardown mechanism** — clean circuit destruction
-- [ ] **Shroud relay discovery** via Beacon Waves on Anonymous Layer (not manual AddRelay)
+- [x] **Shroud relay discovery** via Beacon Waves on Anonymous Layer (not manual AddRelay)
 - [x] **Error recovery for relay failure** — failover to backup circuit, circuit rebuild
 - [x] Nonce sequencing for replay protection (proper ordering per circuit)
 - [x] Mix network properties: random delay (exponential distribution, mean 200ms)
@@ -315,10 +315,10 @@
 
 ### Cross-Layer Interactions
 
-- [ ] Visual overlay blending — Surface (visible) + Anonymous (ghostly) on Pulse Map
-- [ ] Bridge routing by Hybrid nodes — relay between Surface and Anonymous gossip topics
-- [ ] Wave bridging — Veiled Waves propagated on both layers by bridge nodes
-- [ ] Sigil Waves signaling Specter presence on Surface Layer
+- [x] Visual overlay blending — Surface (visible) + Anonymous (ghostly) on Pulse Map
+- [x] Bridge routing by Hybrid nodes — relay between Surface and Anonymous gossip topics
+- [x] Wave bridging — Veiled Waves propagated on both layers by bridge nodes
+- [x] Sigil Waves signaling Specter presence on Surface Layer
 
 ---
 
@@ -330,74 +330,74 @@
 - [x] Signal weighting configuration (publications, puzzles, games, gifts, endorsements)
 - [x] Milestone lookup — RankFromScore with 6 thresholds
 - [x] Cache invalidation on updates
-- [ ] **Full Surface Resonance formula** with all 8 input signals:
-  - [ ] Connection Count
-  - [ ] Connection Diversity (ratio of unique clusters)
-  - [ ] Wave Output (publications in 30-day window)
-  - [ ] Amplification Received
-  - [ ] Amplification Given
-  - [ ] Bridge Activity (cross-layer relay count for Hybrid nodes)
-  - [ ] Account Age
-  - [ ] Uptime (fraction of time online)
-- [ ] Surface milestones with visual effects:
-  - [ ] Ember (10) — warm glow effect
-  - [ ] Spark (25) — pulsing ring animation
-  - [ ] Flame (50) — particle trail effect
-  - [ ] Blaze (100) — custom color palette
-  - [ ] Inferno (200) — animated aura
-  - [ ] Corona (500) — multi-layered corona effect
-- [ ] Temporal decay over 30-day window for most signals
-- [ ] Connection Age bonus (longevity reward)
+- [x] **Full Surface Resonance formula** with all 8 input signals:
+  - [x] Connection Count
+  - [x] Connection Diversity (ratio of unique clusters)
+  - [x] Wave Output (publications in 30-day window)
+  - [x] Amplification Received
+  - [x] Amplification Given
+  - [x] Bridge Activity (cross-layer relay count for Hybrid nodes)
+  - [x] Account Age
+  - [x] Uptime (fraction of time online)
+- [x] Surface milestones with visual effects:
+  - [x] Ember (10) — warm glow effect
+  - [x] Spark (25) — pulsing ring animation
+  - [x] Flame (50) — particle trail effect
+  - [x] Blaze (100) — custom color palette
+  - [x] Inferno (200) — animated aura
+  - [x] Corona (500) — multi-layered corona effect
+- [x] Temporal decay over 30-day window for most signals
+- [x] Connection Age bonus (longevity reward)
 
 ### Specter Resonance Computation
 
 - [x] AddPublication, AddGameResult, AddGiftGiven/Received methods
 - [x] Endorsement tracking with high-tier weighting
 - [x] Decay calculation framework
-- [ ] **Full Specter Resonance formula** with all 15+ input signals:
-  - [ ] Specter Connection Count & Diversity
-  - [ ] Specter Wave Output
-  - [ ] Anonymous Amplification Received/Given
-  - [ ] Phantom Gift Volume
-  - [ ] Masked Event Participation
-  - [ ] Mini-Game Activity
-  - [ ] Territory Influence
-  - [ ] Cartographer Score
-  - [ ] Whisper Chain Contributions
-  - [ ] ZK Claim Count
-  - [ ] Shroud Node Operation credit
-  - [ ] Council Membership
-  - [ ] Specter Age & Uptime
-- [ ] Specter milestones with visual effects:
-  - [ ] Whisper (10) — ghostly trail
-  - [ ] Shade (25) — Phantom Gift access
-  - [ ] Wraith (50) — expanded gifts, Cipher Puzzles, Sigil Forge
-  - [ ] Shade-Wraith (75) — Specter Hunts
-  - [ ] Phantom (100) — Masked Events, Oracle Pools, Specter Marks
-  - [ ] Revenant (200) — Shadow Play, Phantom Council eligibility
-  - [ ] Abyss (500) — Kage shader effect (Fortress only)
-- [ ] **Decay actually applied** — periodic background computation (every 60s)
-- [ ] Resonance integration with mini-game result callbacks (auto-update scores)
+- [x] **Full Specter Resonance formula** with all 15+ input signals:
+  - [x] Specter Connection Count & Diversity
+  - [x] Specter Wave Output
+  - [x] Anonymous Amplification Received/Given
+  - [x] Phantom Gift Volume
+  - [x] Masked Event Participation
+  - [x] Mini-Game Activity
+  - [x] Territory Influence
+  - [x] Cartographer Score
+  - [x] Whisper Chain Contributions
+  - [x] ZK Claim Count
+  - [x] Shroud Node Operation credit
+  - [x] Council Membership
+  - [x] Specter Age & Uptime
+- [x] Specter milestones with visual effects:
+  - [x] Whisper (10) — ghostly trail
+  - [x] Shade (25) — Phantom Gift access
+  - [x] Wraith (50) — expanded gifts, Cipher Puzzles, Sigil Forge
+  - [x] Shade-Wraith (75) — Specter Hunts
+  - [x] Phantom (100) — Masked Events, Oracle Pools, Specter Marks
+  - [x] Revenant (200) — Shadow Play, Phantom Council eligibility
+  - [x] Abyss (500) — Kage shader effect (Fortress only)
+- [x] **Decay actually applied** — periodic background computation (every 60s)
+- [x] Resonance integration with mini-game result callbacks (auto-update scores)
 
 ### Echo Index & Echo Shadow
 
 - [x] Echo Index architecture (cluster insularity metrics)
-- [ ] Echo Index computation — intra-cluster amplification ratio
-- [ ] Echo Shadow — Anonymous Layer equivalent of Echo Index
-- [ ] Visual color-coding on Pulse Map (healthy diversity vs echo chamber indicators)
+- [x] Echo Index computation — intra-cluster amplification ratio
+- [x] Echo Shadow — Anonymous Layer equivalent of Echo Index
+- [x] Visual color-coding on Pulse Map (healthy diversity vs echo chamber indicators)
 
 ### Zero-Knowledge Proofs
 
-- [ ] **Pedersen commitment generation** for Resonance score hiding (using `go-ristretto`)
-- [ ] **Bulletproofs range proof generation** — prove Resonance within threshold without revealing exact value
-- [ ] ZK Claim types:
-  - [ ] Specter Resonance range ("Resonance > 100")
-  - [ ] Specter Age range ("active > 90 days")
-  - [ ] Ignition count range ("met > 10 peers in person")
-  - [ ] Masked Event participation ("participated > 5 events")
-- [ ] Non-interactive proof object (~672 bytes for 64-bit range)
-- [ ] Claim verification by any node (~10ms per claim)
-- [ ] ZK claims used for Council admission and mini-game thresholds
+- [x] **Pedersen commitment generation** for Resonance score hiding (using `go-ristretto`)
+- [x] **Bulletproofs range proof generation** — prove Resonance within threshold without revealing exact value
+- [x] ZK Claim types:
+  - [x] Specter Resonance range ("Resonance > 100")
+  - [x] Specter Age range ("active > 90 days")
+  - [x] Ignition count range ("met > 10 peers in person")
+  - [x] Masked Event participation ("participated > 5 events")
+- [x] Non-interactive proof object (~672 bytes for 64-bit range)
+- [x] Claim verification by any node (~10ms per claim)
+- [x] ZK claims used for Council admission and mini-game thresholds
 
 ---
 
@@ -411,10 +411,10 @@
 - [x] PuzzleStore with active/history tracking and garbage collection
 - [x] Resonance bonus calculation: `4 * ln(1 + difficulty_factor * participation_count)`
 - [x] TTL and expiration with state transitions
-- [ ] **Resonance gating enforcement** — only Resonance ≥50 Specters can create puzzles
-- [ ] **Network propagation** — publish puzzle events to `/murmur/anonymous/mechanics/1.0`
-- [ ] **Bbolt persistence** — PuzzleStore backed by `pkg/store` instead of in-memory maps
-- [ ] **Pulse Map visualization** — rotating cryptographic symbol at puzzle location
+- [x] **Resonance gating enforcement** — only Resonance ≥50 Specters can create puzzles
+- [x] **Network propagation** — publish puzzle events to `/murmur/anonymous/mechanics/1.0`
+- [x] **Bbolt persistence** — PuzzleStore backed by `pkg/store` instead of in-memory maps
+- [x] **Pulse Map visualization** — rotating cryptographic symbol at puzzle location
 - [ ] **UI: puzzle composition panel** — create puzzle with difficulty and content inputs
 - [ ] **UI: puzzle solving interface** — submit solution with feedback
 
@@ -426,10 +426,10 @@
 - [x] Leaderboard calculation
 - [x] HuntStore with state management
 - [x] Resonance bonus: `5.0 * ratio * fragmentsClaimed`
-- [ ] **Resonance gating** — only Resonance ≥75 Specters can initiate Hunts
-- [ ] **Actual proximity proof via DHT routing** — replace simplified logic with real topological proof
+- [x] **Resonance gating** — only Resonance ≥75 Specters can initiate Hunts
+- [x] **Actual proximity proof via DHT routing** — replace simplified logic with real topological proof
 - [ ] **Network propagation** — broadcast Hunt events, fragment claims, clue reveals
-- [ ] **Bbolt persistence** — HuntStore backed by `pkg/store`
+- [x] **Bbolt persistence** — HuntStore backed by `pkg/store`
 - [ ] **Pulse Map visualization** — scattered glowing fragments across map topology
 - [ ] **UI: Hunt tracker overlay** — fragment locations, clue display, leaderboard
 
@@ -442,7 +442,7 @@
 - [x] Resonance score: `3 * ln(1 + controlled + 0.5 * contested)`
 - [ ] **Louvain clustering algorithm** for territory partitioning (per ANONYMOUS_GAME_MECHANICS.md)
 - [ ] **Network propagation** — broadcast influence claims and territory state changes
-- [ ] **Bbolt persistence** — territory state backed by `pkg/store`
+- [x] **Bbolt persistence** — territory state backed by `pkg/store`
 - [ ] **Pulse Map visualization** — translucent watermarks with territory boundaries
 - [ ] **UI: Territory overview panel** — controlled regions, influence scores, weekly cycle status
 - [ ] **Cartographer's Trail** — territory exploration tracking with badges
@@ -455,9 +455,9 @@
 - [x] Top 25% reward distribution
 - [x] Resonance bonus: `3 * ln(1 + participant_count / rank)`
 - [x] OraclePoolStore with state transitions
-- [ ] **Resonance gating** — only Resonance ≥100 Specters can create Oracle Pools
+- [x] **Resonance gating** — only Resonance ≥100 Specters can create Oracle Pools
 - [ ] **Network propagation** — broadcast pool creation, commitments, reveals, outcomes
-- [ ] **Bbolt persistence** — OraclePoolStore backed by `pkg/store`
+- [x] **Bbolt persistence** — OraclePoolStore backed by `pkg/store`
 - [ ] **Pulse Map visualization** — swirling vortex icon at pool location
 - [ ] **UI: Oracle Pool panel** — create pool, submit prediction, view outcomes
 - [ ] **Outcome verification** — network-observable event confirmation protocol
@@ -470,9 +470,9 @@
 - [x] Remix chain score distribution (equal sharing)
 - [x] Evaluation with ranking
 - [x] Resonance bonuses: winner `4 * ln(1 + amplifications)`, participants `2 * ln(1 + own_amplifications)`
-- [ ] **Resonance gating** — only Resonance ≥50 Specters can participate
+- [x] **Resonance gating** — only Resonance ≥50 Specters can participate
 - [ ] **Network propagation** — broadcast forge events, entries, votes
-- [ ] **Bbolt persistence** — ForgeStore backed by `pkg/store`
+- [x] **Bbolt persistence** — ForgeStore backed by `pkg/store`
 - [ ] **Pulse Map visualization** — anvil-and-flame icon with orbiting entries
 - [ ] **UI: Forge submission panel** — create/submit entries, view competitors
 - [ ] **Timed creative challenge mechanics** — countdown timer, submission window
@@ -485,9 +485,9 @@
 - [x] Vote elimination with MissedHeartbeat tracking
 - [x] Resonance bonuses: winners `5 * ln(1 + participants)`, losers `2 * ln(1 + participants)`
 - [x] ShadowPlayStore with state management
-- [ ] **Resonance gating** — only Resonance ≥200 Specters can initiate Shadow Play
+- [x] **Resonance gating** — only Resonance ≥200 Specters can initiate Shadow Play
 - [ ] **Network propagation** — broadcast game state, votes, eliminations, outcomes
-- [ ] **Bbolt persistence** — ShadowPlayStore backed by `pkg/store`
+- [x] **Bbolt persistence** — ShadowPlayStore backed by `pkg/store`
 - [ ] **Pulse Map visualization** — dark shimmering dome with lightning effects
 - [ ] **UI: Shadow Play game interface** — role reveal, vote casting, round status, results
 - [ ] **Communication phase** — in-game discussion between rounds via encrypted group channel
@@ -515,7 +515,7 @@
 - [x] GiftStore with recipient/sender indexes
 - [x] Ed25519 signature verification
 - [ ] **Network propagation** — broadcast gifts via `/murmur/anonymous/mechanics/1.0`
-- [ ] **Bbolt persistence** — GiftStore backed by `pkg/store`
+- [x] **Bbolt persistence** — GiftStore backed by `pkg/store`
 - [ ] **Pulse Map integration** — animated cosmetic effects on recipient nodes (3 tiers)
 - [ ] **UI: Gift sending panel** — select gift type, choose recipient, confirm send
 - [ ] **Cross-layer visibility** — Surface nodes see gift effects from Anonymous Layer
@@ -529,7 +529,7 @@
 - [x] Dominant mark determination algorithm
 - [ ] **Resonance gating** — only Resonance ≥100 Specters can place Marks
 - [ ] **Network propagation** — broadcast marks via `/murmur/anonymous/mechanics/1.0`
-- [ ] **Bbolt persistence** — MarkStore backed by `pkg/store`
+- [x] **Bbolt persistence** — MarkStore backed by `pkg/store`
 - [ ] **Pulse Map visualization** — orbiting sigil icons on marked Surface nodes
 - [ ] **UI: Mark placement panel** — choose mark type, select target node
 - [ ] **Voting mechanics** — community mark endorsement/challenge
@@ -545,7 +545,7 @@
 - [ ] **ZK Claim verification** — verify Resonance threshold via Bulletproofs before admission
 - [ ] **Encrypted GossipSub topic** — `/murmur/council/[council_id]/1.0` with group key
 - [ ] **Network propagation** — council creation, admission, proposals, votes
-- [ ] **Bbolt persistence** — CouncilStore backed by `pkg/store`
+- [x] **Bbolt persistence** — CouncilStore backed by `pkg/store`
 - [ ] **Pulse Map visualization** — constellation pattern connecting member nodes, unique color threads
 - [ ] **UI: Council management panel** — create council, invite members, propose, vote
 - [ ] **Council size constraints** — 3–13 members per spec

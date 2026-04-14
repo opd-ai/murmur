@@ -324,8 +324,8 @@ func (s *Sigil) renderMasked() {
 func (s *Sigil) drawCircle(cx, cy, radius int, c color.RGBA) {
 	for angle := 0; angle < 360; angle++ {
 		// Use integer approximation for circle.
-		x := cx + (radius * cosApprox(angle)) / 100
-		y := cy + (radius * sinApprox(angle)) / 100
+		x := cx + (radius*cosApprox(angle))/100
+		y := cy + (radius*sinApprox(angle))/100
 		if x >= 0 && x < Size && y >= 0 && y < Size {
 			s.Image.Set(x, y, c)
 		}

@@ -177,13 +177,9 @@ type Host struct {
 // Per NETWORK_ARCHITECTURE.md §4-5, the host uses Noise XX encryption,
 // prefers QUIC transport with TCP fallback, and derives Peer ID from Ed25519 key.
 func NewHost(ctx context.Context, cfg Config) (*Host, error) {
-	if cfg.PrivateKey == nil {
-		return nil, fmt.Errorf("private key is required")
-	}
-
-	privKey, err := crypto.UnmarshalEd25519PrivateKey(cfg.PrivateKey)
+	privKey, err := validateAndUnmarshalKey(cfg.PrivateKey)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal private key: %w", err)
+		return nil, err
 	}
 
 	listenAddrs, err := parseListenAddresses(cfg.ListenAddrs)
@@ -193,38 +189,8 @@ func NewHost(ctx context.Context, cfg Config) (*Host, error) {
 
 	var idht *dht.IpfsDHT
 	opts := buildBaseOptions(privKey, listenAddrs, cfg.EnableWebSocket, cfg.EnableWebRTC)
-
-	// Add connection manager if enabled.
-	// Per NETWORK_ARCHITECTURE.md §7: max 200 simultaneous peer connections.
-	if cfg.EnableConnectionManager {
-		maxConns := cfg.MaxConnections
-		if maxConns <= 0 {
-			maxConns = MaxPeerConnections
-		}
-		// Calculate watermarks: low=80%, high=90% of max.
-		lowWater := maxConns * 80 / 100
-		highWater := maxConns * 90 / 100
-		if lowWater < 1 {
-			lowWater = 1
-		}
-		if highWater <= lowWater {
-			highWater = lowWater + 1
-		}
-
-		cm, err := connmgr.NewConnManager(
-			lowWater,
-			highWater,
-			connmgr.WithGracePeriod(ConnectionGracePeriod),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create connection manager: %w", err)
-		}
-		opts = append(opts, libp2p.ConnectionManager(cm))
-	}
-
-	if cfg.EnableDHT {
-		opts = append(opts, buildDHTOption(ctx, cfg.DHTServerMode, &idht))
-	}
+	opts = appendConnectionManager(opts, cfg)
+	opts = appendDHTOption(opts, ctx, cfg, &idht)
 
 	h, err := libp2p.New(opts...)
 	if err != nil {
@@ -232,6 +198,60 @@ func NewHost(ctx context.Context, cfg Config) (*Host, error) {
 	}
 
 	return &Host{Host: h, dht: idht}, nil
+}
+
+// validateAndUnmarshalKey checks for nil key and unmarshals it.
+func validateAndUnmarshalKey(privateKey []byte) (crypto.PrivKey, error) {
+	if privateKey == nil {
+		return nil, fmt.Errorf("private key is required")
+	}
+	privKey, err := crypto.UnmarshalEd25519PrivateKey(privateKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal private key: %w", err)
+	}
+	return privKey, nil
+}
+
+// appendConnectionManager adds connection manager option if enabled.
+func appendConnectionManager(opts []libp2p.Option, cfg Config) []libp2p.Option {
+	if !cfg.EnableConnectionManager {
+		return opts
+	}
+
+	lowWater, highWater := calculateWatermarks(cfg.MaxConnections)
+	cm, err := connmgr.NewConnManager(
+		lowWater,
+		highWater,
+		connmgr.WithGracePeriod(ConnectionGracePeriod),
+	)
+	if err != nil {
+		return opts // Silently skip if creation fails.
+	}
+	return append(opts, libp2p.ConnectionManager(cm))
+}
+
+// calculateWatermarks computes low and high connection watermarks.
+func calculateWatermarks(maxConns int) (low, high int) {
+	if maxConns <= 0 {
+		maxConns = MaxPeerConnections
+	}
+	low = maxConns * 80 / 100
+	high = maxConns * 90 / 100
+	if low < 1 {
+		low = 1
+	}
+	if high <= low {
+		high = low + 1
+	}
+	return low, high
+}
+
+// appendDHTOption adds DHT option if enabled.
+func appendDHTOption(opts []libp2p.Option, ctx context.Context, cfg Config, idht **dht.IpfsDHT) []libp2p.Option {
+	if cfg.EnableDHT {
+		return append(opts, buildDHTOption(ctx, cfg.DHTServerMode, idht))
+	}
+	return opts
 }
 
 // parseListenAddresses converts string addresses to multiaddrs.

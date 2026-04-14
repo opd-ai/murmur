@@ -57,13 +57,13 @@ type AcquireCallback func(p peer.AddrInfo, success bool)
 
 // DegreeStatus represents the current mesh degree state.
 type DegreeStatus struct {
-	Current     int
-	Target      int
-	LowBound    int
-	HighBound   int
-	NeedsMore   bool
-	NeedsPrune  bool
-	IsHealthy   bool
+	Current    int
+	Target     int
+	LowBound   int
+	HighBound  int
+	NeedsMore  bool
+	NeedsPrune bool
+	IsHealthy  bool
 }
 
 // NewDegreeController creates a new mesh degree controller.
@@ -235,9 +235,9 @@ func (dc *DegreeController) ForceAdjust() {
 
 // ScoreBasedPruning prunes peers with scores below threshold.
 type ScoreBasedPruning struct {
-	dc         *DegreeController
-	scoreFunc  PeerScoreFunc
-	threshold  float64
+	dc        *DegreeController
+	scoreFunc PeerScoreFunc
+	threshold float64
 }
 
 // PeerScoreFunc returns the score for a peer.

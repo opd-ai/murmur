@@ -36,8 +36,8 @@ func TestTopicRegistration(t *testing.T) {
 
 func TestTopicAllowanceByMode(t *testing.T) {
 	tests := []struct {
-		mode            Mode
-		surfaceAllowed  bool
+		mode             Mode
+		surfaceAllowed   bool
 		anonymousAllowed bool
 	}{
 		{Open, true, false},
@@ -206,10 +206,10 @@ func TestCanPerformOperation(t *testing.T) {
 
 func TestGetPolicy(t *testing.T) {
 	tests := []struct {
-		mode                 Mode
-		allowSurface         bool
-		allowAnonymous       bool
-		requireShroud        bool
+		mode                  Mode
+		allowSurface          bool
+		allowAnonymous        bool
+		requireShroud         bool
 		requireTrafficPadding bool
 	}{
 		{Open, true, false, false, false},

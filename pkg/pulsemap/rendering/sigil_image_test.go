@@ -1,8 +1,9 @@
 // Package rendering provides Ebitengine-based rendering for the Pulse Map.
 // This file tests sigil-to-Ebitengine-image conversion.
+// These tests require a display and are skipped in headless CI environments.
 //
-//go:build !noebiten
-// +build !noebiten
+//go:build ebitentest
+// +build ebitentest
 
 package rendering
 

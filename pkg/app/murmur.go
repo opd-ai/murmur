@@ -502,33 +502,73 @@ func (a *App) Close() error {
 func (a *App) closeSubsystems() error {
 	var errs []error
 
-	// Close in reverse order: Content → Networking → Identity → Storage.
-	if a.subsystems.WaveCache != nil {
-		if err := a.subsystems.WaveCache.Close(); err != nil {
-			errs = append(errs, fmt.Errorf("closing wave cache: %w", err))
-		}
-	}
-	if a.subsystems.PubSub != nil {
-		if err := a.subsystems.PubSub.Close(); err != nil {
-			errs = append(errs, fmt.Errorf("closing pubsub: %w", err))
-		}
-	}
-	if a.subsystems.Host != nil {
-		if err := a.subsystems.Host.Close(); err != nil {
-			errs = append(errs, fmt.Errorf("closing host: %w", err))
-		}
-	}
-	if a.subsystems.Identity != nil {
-		a.subsystems.Identity.ZeroKeyPair()
-	}
-	if a.subsystems.Storage != nil {
-		if err := a.subsystems.Storage.Close(); err != nil {
-			errs = append(errs, fmt.Errorf("closing storage: %w", err))
-		}
-	}
+	errs = appendCloseError(errs, a.closeWaveCache())
+	errs = appendCloseError(errs, a.closePubSub())
+	errs = appendCloseError(errs, a.closeHost())
+	a.zeroIdentity()
+	errs = appendCloseError(errs, a.closeStorage())
 
 	if len(errs) > 0 {
 		return errors.Join(errs...)
+	}
+	return nil
+}
+
+// appendCloseError appends non-nil errors to the slice.
+func appendCloseError(errs []error, err error) []error {
+	if err != nil {
+		errs = append(errs, err)
+	}
+	return errs
+}
+
+// closeWaveCache closes the wave cache subsystem.
+func (a *App) closeWaveCache() error {
+	if a.subsystems.WaveCache == nil {
+		return nil
+	}
+	if err := a.subsystems.WaveCache.Close(); err != nil {
+		return fmt.Errorf("closing wave cache: %w", err)
+	}
+	return nil
+}
+
+// closePubSub closes the pubsub subsystem.
+func (a *App) closePubSub() error {
+	if a.subsystems.PubSub == nil {
+		return nil
+	}
+	if err := a.subsystems.PubSub.Close(); err != nil {
+		return fmt.Errorf("closing pubsub: %w", err)
+	}
+	return nil
+}
+
+// closeHost closes the libp2p host.
+func (a *App) closeHost() error {
+	if a.subsystems.Host == nil {
+		return nil
+	}
+	if err := a.subsystems.Host.Close(); err != nil {
+		return fmt.Errorf("closing host: %w", err)
+	}
+	return nil
+}
+
+// zeroIdentity zeroes the identity keypair.
+func (a *App) zeroIdentity() {
+	if a.subsystems.Identity != nil {
+		a.subsystems.Identity.ZeroKeyPair()
+	}
+}
+
+// closeStorage closes the storage subsystem.
+func (a *App) closeStorage() error {
+	if a.subsystems.Storage == nil {
+		return nil
+	}
+	if err := a.subsystems.Storage.Close(); err != nil {
+		return fmt.Errorf("closing storage: %w", err)
 	}
 	return nil
 }

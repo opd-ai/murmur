@@ -11,6 +11,7 @@ option go_package = "github.com/opd-ai/murmur/proto;proto";
 import "proto/wave.proto";
 import "proto/identity.proto";
 import "proto/shroud.proto";
+import "proto/mechanics.proto";
 
 // GossipMessage is a union type for all gossip content.
 // The MurmurEnvelope.type field indicates which field is populated.
@@ -27,6 +28,16 @@ message GossipMessage {
     ConnectionRevocation connection_revocation = 9;
     ProfileUpdate profile_update = 10;
     SpecterDeclaration specter_declaration = 11;
+    // Mechanics events for /murmur/anonymous/mechanics/1.0 topic.
+    PuzzleEvent puzzle_event = 12;
+    HuntEvent hunt_event = 13;
+    TerritoryEvent territory_event = 14;
+    OracleEvent oracle_event = 15;
+    ForgeEvent forge_event = 16;
+    ShadowPlayEvent shadow_play_event = 17;
+    CouncilEvent council_event = 18;
+    GiftEvent gift_event = 19;
+    MarkEvent mark_event = 20;
   }
 }
 

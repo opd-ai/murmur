@@ -32,12 +32,12 @@ const (
 
 // Specter errors.
 var (
-	ErrInvalidSpecterKey  = errors.New("invalid Specter public key size")
-	ErrPseudonymTooLong   = errors.New("pseudonym exceeds maximum length")
-	ErrInvalidPoW         = errors.New("proof of work verification failed")
-	ErrSpecterNotSigned   = errors.New("specter declaration not signed")
-	ErrInvalidSpecterSig  = errors.New("invalid specter signature")
-	ErrMissingPoW         = errors.New("missing proof of work nonce")
+	ErrInvalidSpecterKey = errors.New("invalid Specter public key size")
+	ErrPseudonymTooLong  = errors.New("pseudonym exceeds maximum length")
+	ErrInvalidPoW        = errors.New("proof of work verification failed")
+	ErrSpecterNotSigned  = errors.New("specter declaration not signed")
+	ErrInvalidSpecterSig = errors.New("invalid specter signature")
+	ErrMissingPoW        = errors.New("missing proof of work nonce")
 )
 
 // SpecterDeclaration represents a Specter identity on the Anonymous Layer.

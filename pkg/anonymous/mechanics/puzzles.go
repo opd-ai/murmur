@@ -208,6 +208,22 @@ func NewPuzzle(
 	return puzzle, nil
 }
 
+// NewPuzzleGated creates a puzzle with Resonance gating enforcement.
+// Per ROADMAP.md line 414, only Specters with Resonance >= 50 can create puzzles.
+func NewPuzzleGated(
+	puzzleType PuzzleType,
+	seed [32]byte,
+	difficulty uint8,
+	duration time.Duration,
+	initiatorKey [32]byte,
+	gate ResonanceGate,
+) (*Puzzle, error) {
+	if err := CheckResonanceGate(gate, initiatorKey, PuzzleMinResonance); err != nil {
+		return nil, ErrPuzzleInsufficientRes
+	}
+	return NewPuzzle(puzzleType, seed, difficulty, duration, initiatorKey)
+}
+
 // validatePuzzleParams validates puzzle type and duration.
 func validatePuzzleParams(puzzleType PuzzleType, duration time.Duration) error {
 	if puzzleType < PuzzleFragment || puzzleType > PuzzleCascade {

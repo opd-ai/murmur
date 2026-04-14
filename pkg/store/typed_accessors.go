@@ -274,3 +274,587 @@ func (db *DB) PutThreadRoot(waveID, rootID []byte) error {
 func (db *DB) DeleteThreadRoot(waveID []byte) error {
 	return db.Delete(BucketThreads, waveID)
 }
+
+// CipherPuzzle accessors
+
+// GetCipherPuzzle retrieves a CipherPuzzle by its ID.
+func (db *DB) GetCipherPuzzle(puzzleID []byte) (*pb.CipherPuzzle, error) {
+	data, err := db.Get(BucketPuzzles, puzzleID)
+	if err != nil {
+		return nil, err
+	}
+	if data == nil {
+		return nil, nil
+	}
+
+	puzzle := &pb.CipherPuzzle{}
+	if err := proto.Unmarshal(data, puzzle); err != nil {
+		return nil, fmt.Errorf("unmarshaling cipher puzzle: %w", err)
+	}
+	return puzzle, nil
+}
+
+// PutCipherPuzzle stores a CipherPuzzle by its ID.
+func (db *DB) PutCipherPuzzle(puzzle *pb.CipherPuzzle) error {
+	if puzzle == nil {
+		return fmt.Errorf("nil cipher puzzle")
+	}
+	if len(puzzle.Id) == 0 {
+		return fmt.Errorf("cipher puzzle has no ID")
+	}
+
+	data, err := proto.Marshal(puzzle)
+	if err != nil {
+		return fmt.Errorf("marshaling cipher puzzle: %w", err)
+	}
+	return db.Put(BucketPuzzles, puzzle.Id, data)
+}
+
+// DeleteCipherPuzzle removes a CipherPuzzle by its ID.
+func (db *DB) DeleteCipherPuzzle(puzzleID []byte) error {
+	return db.Delete(BucketPuzzles, puzzleID)
+}
+
+// ListCipherPuzzles returns all stored CipherPuzzles.
+func (db *DB) ListCipherPuzzles() ([]*pb.CipherPuzzle, error) {
+	var puzzles []*pb.CipherPuzzle
+	err := db.ForEach(BucketPuzzles, func(_, value []byte) error {
+		puzzle := &pb.CipherPuzzle{}
+		if err := proto.Unmarshal(value, puzzle); err != nil {
+			return fmt.Errorf("unmarshaling cipher puzzle: %w", err)
+		}
+		puzzles = append(puzzles, puzzle)
+		return nil
+	})
+	return puzzles, err
+}
+
+// ListActiveCipherPuzzles returns puzzles in ACTIVE state.
+func (db *DB) ListActiveCipherPuzzles() ([]*pb.CipherPuzzle, error) {
+	var puzzles []*pb.CipherPuzzle
+	err := db.ForEach(BucketPuzzles, func(_, value []byte) error {
+		puzzle := &pb.CipherPuzzle{}
+		if err := proto.Unmarshal(value, puzzle); err != nil {
+			return fmt.Errorf("unmarshaling cipher puzzle: %w", err)
+		}
+		if puzzle.State == pb.PuzzleState_PUZZLE_STATE_ACTIVE {
+			puzzles = append(puzzles, puzzle)
+		}
+		return nil
+	})
+	return puzzles, err
+}
+
+// SpecterHunt accessors
+
+// GetSpecterHunt retrieves a SpecterHunt by its ID.
+func (db *DB) GetSpecterHunt(huntID []byte) (*pb.SpecterHunt, error) {
+	data, err := db.Get(BucketHunts, huntID)
+	if err != nil {
+		return nil, err
+	}
+	if data == nil {
+		return nil, nil
+	}
+
+	hunt := &pb.SpecterHunt{}
+	if err := proto.Unmarshal(data, hunt); err != nil {
+		return nil, fmt.Errorf("unmarshaling specter hunt: %w", err)
+	}
+	return hunt, nil
+}
+
+// PutSpecterHunt stores a SpecterHunt by its ID.
+func (db *DB) PutSpecterHunt(hunt *pb.SpecterHunt) error {
+	if hunt == nil {
+		return fmt.Errorf("nil specter hunt")
+	}
+	if len(hunt.Id) == 0 {
+		return fmt.Errorf("specter hunt has no ID")
+	}
+
+	data, err := proto.Marshal(hunt)
+	if err != nil {
+		return fmt.Errorf("marshaling specter hunt: %w", err)
+	}
+	return db.Put(BucketHunts, hunt.Id, data)
+}
+
+// DeleteSpecterHunt removes a SpecterHunt by its ID.
+func (db *DB) DeleteSpecterHunt(huntID []byte) error {
+	return db.Delete(BucketHunts, huntID)
+}
+
+// ListSpecterHunts returns all stored SpecterHunts.
+func (db *DB) ListSpecterHunts() ([]*pb.SpecterHunt, error) {
+	var hunts []*pb.SpecterHunt
+	err := db.ForEach(BucketHunts, func(_, value []byte) error {
+		hunt := &pb.SpecterHunt{}
+		if err := proto.Unmarshal(value, hunt); err != nil {
+			return fmt.Errorf("unmarshaling specter hunt: %w", err)
+		}
+		hunts = append(hunts, hunt)
+		return nil
+	})
+	return hunts, err
+}
+
+// ListActiveSpecterHunts returns hunts in ACTIVE state.
+func (db *DB) ListActiveSpecterHunts() ([]*pb.SpecterHunt, error) {
+	var hunts []*pb.SpecterHunt
+	err := db.ForEach(BucketHunts, func(_, value []byte) error {
+		hunt := &pb.SpecterHunt{}
+		if err := proto.Unmarshal(value, hunt); err != nil {
+			return fmt.Errorf("unmarshaling specter hunt: %w", err)
+		}
+		if hunt.State == pb.HuntState_HUNT_STATE_ACTIVE {
+			hunts = append(hunts, hunt)
+		}
+		return nil
+	})
+	return hunts, err
+}
+
+// Territory accessors
+
+// GetTerritory retrieves a Territory by its ID.
+func (db *DB) GetTerritory(territoryID []byte) (*pb.Territory, error) {
+	data, err := db.Get(BucketTerritories, territoryID)
+	if err != nil {
+		return nil, err
+	}
+	if data == nil {
+		return nil, nil
+	}
+
+	territory := &pb.Territory{}
+	if err := proto.Unmarshal(data, territory); err != nil {
+		return nil, fmt.Errorf("unmarshaling territory: %w", err)
+	}
+	return territory, nil
+}
+
+// PutTerritory stores a Territory by its ID.
+func (db *DB) PutTerritory(territory *pb.Territory) error {
+	if territory == nil {
+		return fmt.Errorf("nil territory")
+	}
+	if len(territory.Id) == 0 {
+		return fmt.Errorf("territory has no ID")
+	}
+
+	data, err := proto.Marshal(territory)
+	if err != nil {
+		return fmt.Errorf("marshaling territory: %w", err)
+	}
+	return db.Put(BucketTerritories, territory.Id, data)
+}
+
+// DeleteTerritory removes a Territory by its ID.
+func (db *DB) DeleteTerritory(territoryID []byte) error {
+	return db.Delete(BucketTerritories, territoryID)
+}
+
+// ListTerritories returns all stored Territories.
+func (db *DB) ListTerritories() ([]*pb.Territory, error) {
+	var territories []*pb.Territory
+	err := db.ForEach(BucketTerritories, func(_, value []byte) error {
+		territory := &pb.Territory{}
+		if err := proto.Unmarshal(value, territory); err != nil {
+			return fmt.Errorf("unmarshaling territory: %w", err)
+		}
+		territories = append(territories, territory)
+		return nil
+	})
+	return territories, err
+}
+
+// OraclePool accessors
+
+// GetOraclePool retrieves an OraclePool by its ID.
+func (db *DB) GetOraclePool(poolID []byte) (*pb.OraclePool, error) {
+	data, err := db.Get(BucketOracles, poolID)
+	if err != nil {
+		return nil, err
+	}
+	if data == nil {
+		return nil, nil
+	}
+
+	pool := &pb.OraclePool{}
+	if err := proto.Unmarshal(data, pool); err != nil {
+		return nil, fmt.Errorf("unmarshaling oracle pool: %w", err)
+	}
+	return pool, nil
+}
+
+// PutOraclePool stores an OraclePool by its ID.
+func (db *DB) PutOraclePool(pool *pb.OraclePool) error {
+	if pool == nil {
+		return fmt.Errorf("nil oracle pool")
+	}
+	if len(pool.Id) == 0 {
+		return fmt.Errorf("oracle pool has no ID")
+	}
+
+	data, err := proto.Marshal(pool)
+	if err != nil {
+		return fmt.Errorf("marshaling oracle pool: %w", err)
+	}
+	return db.Put(BucketOracles, pool.Id, data)
+}
+
+// DeleteOraclePool removes an OraclePool by its ID.
+func (db *DB) DeleteOraclePool(poolID []byte) error {
+	return db.Delete(BucketOracles, poolID)
+}
+
+// ListOraclePools returns all stored OraclePools.
+func (db *DB) ListOraclePools() ([]*pb.OraclePool, error) {
+	var pools []*pb.OraclePool
+	err := db.ForEach(BucketOracles, func(_, value []byte) error {
+		pool := &pb.OraclePool{}
+		if err := proto.Unmarshal(value, pool); err != nil {
+			return fmt.Errorf("unmarshaling oracle pool: %w", err)
+		}
+		pools = append(pools, pool)
+		return nil
+	})
+	return pools, err
+}
+
+// ListOpenOraclePools returns pools in OPEN state.
+func (db *DB) ListOpenOraclePools() ([]*pb.OraclePool, error) {
+	var pools []*pb.OraclePool
+	err := db.ForEach(BucketOracles, func(_, value []byte) error {
+		pool := &pb.OraclePool{}
+		if err := proto.Unmarshal(value, pool); err != nil {
+			return fmt.Errorf("unmarshaling oracle pool: %w", err)
+		}
+		if pool.State == pb.OracleState_ORACLE_STATE_OPEN {
+			pools = append(pools, pool)
+		}
+		return nil
+	})
+	return pools, err
+}
+
+// ForgeProject accessors
+
+// GetForgeProject retrieves a ForgeProject by its ID.
+func (db *DB) GetForgeProject(projectID []byte) (*pb.ForgeProject, error) {
+	data, err := db.Get(BucketForge, projectID)
+	if err != nil {
+		return nil, err
+	}
+	if data == nil {
+		return nil, nil
+	}
+
+	project := &pb.ForgeProject{}
+	if err := proto.Unmarshal(data, project); err != nil {
+		return nil, fmt.Errorf("unmarshaling forge project: %w", err)
+	}
+	return project, nil
+}
+
+// PutForgeProject stores a ForgeProject by its ID.
+func (db *DB) PutForgeProject(project *pb.ForgeProject) error {
+	if project == nil {
+		return fmt.Errorf("nil forge project")
+	}
+	if len(project.Id) == 0 {
+		return fmt.Errorf("forge project has no ID")
+	}
+
+	data, err := proto.Marshal(project)
+	if err != nil {
+		return fmt.Errorf("marshaling forge project: %w", err)
+	}
+	return db.Put(BucketForge, project.Id, data)
+}
+
+// DeleteForgeProject removes a ForgeProject by its ID.
+func (db *DB) DeleteForgeProject(projectID []byte) error {
+	return db.Delete(BucketForge, projectID)
+}
+
+// ListForgeProjects returns all stored ForgeProjects.
+func (db *DB) ListForgeProjects() ([]*pb.ForgeProject, error) {
+	var projects []*pb.ForgeProject
+	err := db.ForEach(BucketForge, func(_, value []byte) error {
+		project := &pb.ForgeProject{}
+		if err := proto.Unmarshal(value, project); err != nil {
+			return fmt.Errorf("unmarshaling forge project: %w", err)
+		}
+		projects = append(projects, project)
+		return nil
+	})
+	return projects, err
+}
+
+// ShadowPlay accessors
+
+// GetShadowPlay retrieves a ShadowPlay by its ID.
+func (db *DB) GetShadowPlay(playID []byte) (*pb.ShadowPlay, error) {
+	data, err := db.Get(BucketShadowPlay, playID)
+	if err != nil {
+		return nil, err
+	}
+	if data == nil {
+		return nil, nil
+	}
+
+	play := &pb.ShadowPlay{}
+	if err := proto.Unmarshal(data, play); err != nil {
+		return nil, fmt.Errorf("unmarshaling shadow play: %w", err)
+	}
+	return play, nil
+}
+
+// PutShadowPlay stores a ShadowPlay by its ID.
+func (db *DB) PutShadowPlay(play *pb.ShadowPlay) error {
+	if play == nil {
+		return fmt.Errorf("nil shadow play")
+	}
+	if len(play.Id) == 0 {
+		return fmt.Errorf("shadow play has no ID")
+	}
+
+	data, err := proto.Marshal(play)
+	if err != nil {
+		return fmt.Errorf("marshaling shadow play: %w", err)
+	}
+	return db.Put(BucketShadowPlay, play.Id, data)
+}
+
+// DeleteShadowPlay removes a ShadowPlay by its ID.
+func (db *DB) DeleteShadowPlay(playID []byte) error {
+	return db.Delete(BucketShadowPlay, playID)
+}
+
+// ListShadowPlays returns all stored ShadowPlays.
+func (db *DB) ListShadowPlays() ([]*pb.ShadowPlay, error) {
+	var plays []*pb.ShadowPlay
+	err := db.ForEach(BucketShadowPlay, func(_, value []byte) error {
+		play := &pb.ShadowPlay{}
+		if err := proto.Unmarshal(value, play); err != nil {
+			return fmt.Errorf("unmarshaling shadow play: %w", err)
+		}
+		plays = append(plays, play)
+		return nil
+	})
+	return plays, err
+}
+
+// PhantomCouncil accessors
+
+// GetPhantomCouncil retrieves a PhantomCouncil by its ID.
+func (db *DB) GetPhantomCouncil(councilID []byte) (*pb.PhantomCouncil, error) {
+	data, err := db.Get(BucketCouncils, councilID)
+	if err != nil {
+		return nil, err
+	}
+	if data == nil {
+		return nil, nil
+	}
+
+	council := &pb.PhantomCouncil{}
+	if err := proto.Unmarshal(data, council); err != nil {
+		return nil, fmt.Errorf("unmarshaling phantom council: %w", err)
+	}
+	return council, nil
+}
+
+// PutPhantomCouncil stores a PhantomCouncil by its ID.
+func (db *DB) PutPhantomCouncil(council *pb.PhantomCouncil) error {
+	if council == nil {
+		return fmt.Errorf("nil phantom council")
+	}
+	if len(council.Id) == 0 {
+		return fmt.Errorf("phantom council has no ID")
+	}
+
+	data, err := proto.Marshal(council)
+	if err != nil {
+		return fmt.Errorf("marshaling phantom council: %w", err)
+	}
+	return db.Put(BucketCouncils, council.Id, data)
+}
+
+// DeletePhantomCouncil removes a PhantomCouncil by its ID.
+func (db *DB) DeletePhantomCouncil(councilID []byte) error {
+	return db.Delete(BucketCouncils, councilID)
+}
+
+// ListPhantomCouncils returns all stored PhantomCouncils.
+func (db *DB) ListPhantomCouncils() ([]*pb.PhantomCouncil, error) {
+	var councils []*pb.PhantomCouncil
+	err := db.ForEach(BucketCouncils, func(_, value []byte) error {
+		council := &pb.PhantomCouncil{}
+		if err := proto.Unmarshal(value, council); err != nil {
+			return fmt.Errorf("unmarshaling phantom council: %w", err)
+		}
+		councils = append(councils, council)
+		return nil
+	})
+	return councils, err
+}
+
+// ListActivePhantomCouncils returns councils in ACTIVE state.
+func (db *DB) ListActivePhantomCouncils() ([]*pb.PhantomCouncil, error) {
+	var councils []*pb.PhantomCouncil
+	err := db.ForEach(BucketCouncils, func(_, value []byte) error {
+		council := &pb.PhantomCouncil{}
+		if err := proto.Unmarshal(value, council); err != nil {
+			return fmt.Errorf("unmarshaling phantom council: %w", err)
+		}
+		if council.State == pb.CouncilState_COUNCIL_STATE_ACTIVE {
+			councils = append(councils, council)
+		}
+		return nil
+	})
+	return councils, err
+}
+
+// PhantomGift accessors
+
+// GetPhantomGift retrieves a PhantomGift by its ID.
+func (db *DB) GetPhantomGift(giftID []byte) (*pb.PhantomGift, error) {
+	data, err := db.Get(BucketGifts, giftID)
+	if err != nil {
+		return nil, err
+	}
+	if data == nil {
+		return nil, nil
+	}
+
+	gift := &pb.PhantomGift{}
+	if err := proto.Unmarshal(data, gift); err != nil {
+		return nil, fmt.Errorf("unmarshaling phantom gift: %w", err)
+	}
+	return gift, nil
+}
+
+// PutPhantomGift stores a PhantomGift by its ID.
+func (db *DB) PutPhantomGift(gift *pb.PhantomGift) error {
+	if gift == nil {
+		return fmt.Errorf("nil phantom gift")
+	}
+	if len(gift.Id) == 0 {
+		return fmt.Errorf("phantom gift has no ID")
+	}
+
+	data, err := proto.Marshal(gift)
+	if err != nil {
+		return fmt.Errorf("marshaling phantom gift: %w", err)
+	}
+	return db.Put(BucketGifts, gift.Id, data)
+}
+
+// DeletePhantomGift removes a PhantomGift by its ID.
+func (db *DB) DeletePhantomGift(giftID []byte) error {
+	return db.Delete(BucketGifts, giftID)
+}
+
+// ListPhantomGifts returns all stored PhantomGifts.
+func (db *DB) ListPhantomGifts() ([]*pb.PhantomGift, error) {
+	var gifts []*pb.PhantomGift
+	err := db.ForEach(BucketGifts, func(_, value []byte) error {
+		gift := &pb.PhantomGift{}
+		if err := proto.Unmarshal(value, gift); err != nil {
+			return fmt.Errorf("unmarshaling phantom gift: %w", err)
+		}
+		gifts = append(gifts, gift)
+		return nil
+	})
+	return gifts, err
+}
+
+// ListGiftsForRecipient returns gifts for a specific recipient.
+func (db *DB) ListGiftsForRecipient(recipientKey []byte) ([]*pb.PhantomGift, error) {
+	var gifts []*pb.PhantomGift
+	keyStr := string(recipientKey)
+	err := db.ForEach(BucketGifts, func(_, value []byte) error {
+		gift := &pb.PhantomGift{}
+		if err := proto.Unmarshal(value, gift); err != nil {
+			return fmt.Errorf("unmarshaling phantom gift: %w", err)
+		}
+		if string(gift.RecipientPubkey) == keyStr {
+			gifts = append(gifts, gift)
+		}
+		return nil
+	})
+	return gifts, err
+}
+
+// SpecterMark accessors
+
+// GetSpecterMark retrieves a SpecterMark by its ID.
+func (db *DB) GetSpecterMark(markID []byte) (*pb.SpecterMark, error) {
+	data, err := db.Get(BucketMarks, markID)
+	if err != nil {
+		return nil, err
+	}
+	if data == nil {
+		return nil, nil
+	}
+
+	mark := &pb.SpecterMark{}
+	if err := proto.Unmarshal(data, mark); err != nil {
+		return nil, fmt.Errorf("unmarshaling specter mark: %w", err)
+	}
+	return mark, nil
+}
+
+// PutSpecterMark stores a SpecterMark by its ID.
+func (db *DB) PutSpecterMark(mark *pb.SpecterMark) error {
+	if mark == nil {
+		return fmt.Errorf("nil specter mark")
+	}
+	if len(mark.Id) == 0 {
+		return fmt.Errorf("specter mark has no ID")
+	}
+
+	data, err := proto.Marshal(mark)
+	if err != nil {
+		return fmt.Errorf("marshaling specter mark: %w", err)
+	}
+	return db.Put(BucketMarks, mark.Id, data)
+}
+
+// DeleteSpecterMark removes a SpecterMark by its ID.
+func (db *DB) DeleteSpecterMark(markID []byte) error {
+	return db.Delete(BucketMarks, markID)
+}
+
+// ListSpecterMarks returns all stored SpecterMarks.
+func (db *DB) ListSpecterMarks() ([]*pb.SpecterMark, error) {
+	var marks []*pb.SpecterMark
+	err := db.ForEach(BucketMarks, func(_, value []byte) error {
+		mark := &pb.SpecterMark{}
+		if err := proto.Unmarshal(value, mark); err != nil {
+			return fmt.Errorf("unmarshaling specter mark: %w", err)
+		}
+		marks = append(marks, mark)
+		return nil
+	})
+	return marks, err
+}
+
+// ListMarksForTarget returns marks on a specific target identity.
+func (db *DB) ListMarksForTarget(targetKey []byte) ([]*pb.SpecterMark, error) {
+	var marks []*pb.SpecterMark
+	keyStr := string(targetKey)
+	err := db.ForEach(BucketMarks, func(_, value []byte) error {
+		mark := &pb.SpecterMark{}
+		if err := proto.Unmarshal(value, mark); err != nil {
+			return fmt.Errorf("unmarshaling specter mark: %w", err)
+		}
+		if string(mark.TargetPubkey) == keyStr {
+			marks = append(marks, mark)
+		}
+		return nil
+	})
+	return marks, err
+}

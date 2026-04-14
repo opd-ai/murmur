@@ -201,10 +201,10 @@ func (ns *NetworkSeparator) CanPerformOperation(op NetworkOperation) error {
 
 // SeparationPolicy describes the network separation policy for a mode.
 type SeparationPolicy struct {
-	Mode                Mode
-	AllowSurfaceTopics  bool
-	AllowAnonymousTopics bool
-	RequireShroud       bool
+	Mode                  Mode
+	AllowSurfaceTopics    bool
+	AllowAnonymousTopics  bool
+	RequireShroud         bool
 	RequireTrafficPadding bool
 }
 
@@ -214,10 +214,10 @@ func (ns *NetworkSeparator) GetPolicy() SeparationPolicy {
 	caps := mode.Capabilities()
 
 	return SeparationPolicy{
-		Mode:                mode,
-		AllowSurfaceTopics:  caps.SurfaceAllowed,
-		AllowAnonymousTopics: caps.SpecterAllowed,
-		RequireShroud:       caps.ShroudRequired,
+		Mode:                  mode,
+		AllowSurfaceTopics:    caps.SurfaceAllowed,
+		AllowAnonymousTopics:  caps.SpecterAllowed,
+		RequireShroud:         caps.ShroudRequired,
 		RequireTrafficPadding: caps.TrafficPaddingActive,
 	}
 }

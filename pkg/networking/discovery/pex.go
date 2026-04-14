@@ -358,69 +358,110 @@ func writePeerList(w io.Writer, peers []PeerInfo) error {
 func readPeerList(r io.Reader) ([]PeerInfo, error) {
 	br := bufio.NewReader(io.LimitReader(r, PEXMaxMessageSize))
 
-	// Read number of peers.
-	var numPeers uint32
-	if err := binary.Read(br, binary.LittleEndian, &numPeers); err != nil {
+	numPeers, err := readPeerCount(br)
+	if err != nil {
 		return nil, err
-	}
-
-	// Sanity check.
-	if numPeers > 100 {
-		return nil, fmt.Errorf("too many peers: %d", numPeers)
 	}
 
 	peers := make([]PeerInfo, 0, numPeers)
 	for i := uint32(0); i < numPeers; i++ {
-		// Read peer ID.
-		var idLen uint16
-		if err := binary.Read(br, binary.LittleEndian, &idLen); err != nil {
+		pi, err := readSinglePeer(br)
+		if err != nil {
 			return nil, err
 		}
-		if idLen > 256 {
-			return nil, fmt.Errorf("peer ID too long: %d", idLen)
-		}
-		idBytes := make([]byte, idLen)
-		if _, err := io.ReadFull(br, idBytes); err != nil {
-			return nil, err
-		}
-		peerID := peer.ID(idBytes)
-
-		// Read addresses.
-		var numAddrs uint16
-		if err := binary.Read(br, binary.LittleEndian, &numAddrs); err != nil {
-			return nil, err
-		}
-		if numAddrs > PEXMaxAddrs {
-			numAddrs = PEXMaxAddrs // Truncate if too many
-		}
-
-		addrs := make([]multiaddr.Multiaddr, 0, numAddrs)
-		for j := uint16(0); j < numAddrs; j++ {
-			var addrLen uint16
-			if err := binary.Read(br, binary.LittleEndian, &addrLen); err != nil {
-				return nil, err
-			}
-			if addrLen > 512 {
-				return nil, fmt.Errorf("address too long: %d", addrLen)
-			}
-			addrBytes := make([]byte, addrLen)
-			if _, err := io.ReadFull(br, addrBytes); err != nil {
-				return nil, err
-			}
-			addr, err := multiaddr.NewMultiaddrBytes(addrBytes)
-			if err != nil {
-				continue // Skip malformed addresses
-			}
-			addrs = append(addrs, addr)
-		}
-
-		if len(addrs) > 0 {
-			peers = append(peers, PeerInfo{
-				ID:    peerID,
-				Addrs: addrs,
-			})
+		if pi != nil {
+			peers = append(peers, *pi)
 		}
 	}
 
 	return peers, nil
+}
+
+// readPeerCount reads and validates the peer count header.
+func readPeerCount(br *bufio.Reader) (uint32, error) {
+	var numPeers uint32
+	if err := binary.Read(br, binary.LittleEndian, &numPeers); err != nil {
+		return 0, err
+	}
+	if numPeers > 100 {
+		return 0, fmt.Errorf("too many peers: %d", numPeers)
+	}
+	return numPeers, nil
+}
+
+// readSinglePeer reads one peer's ID and addresses.
+func readSinglePeer(br *bufio.Reader) (*PeerInfo, error) {
+	peerID, err := readPeerID(br)
+	if err != nil {
+		return nil, err
+	}
+
+	addrs, err := readPeerAddresses(br)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(addrs) == 0 {
+		return nil, nil // Skip peers with no valid addresses.
+	}
+	return &PeerInfo{ID: peerID, Addrs: addrs}, nil
+}
+
+// readPeerID reads a peer ID from the buffer.
+func readPeerID(br *bufio.Reader) (peer.ID, error) {
+	var idLen uint16
+	if err := binary.Read(br, binary.LittleEndian, &idLen); err != nil {
+		return "", err
+	}
+	if idLen > 256 {
+		return "", fmt.Errorf("peer ID too long: %d", idLen)
+	}
+	idBytes := make([]byte, idLen)
+	if _, err := io.ReadFull(br, idBytes); err != nil {
+		return "", err
+	}
+	return peer.ID(idBytes), nil
+}
+
+// readPeerAddresses reads multiaddresses for a peer.
+func readPeerAddresses(br *bufio.Reader) ([]multiaddr.Multiaddr, error) {
+	var numAddrs uint16
+	if err := binary.Read(br, binary.LittleEndian, &numAddrs); err != nil {
+		return nil, err
+	}
+	if numAddrs > PEXMaxAddrs {
+		numAddrs = PEXMaxAddrs
+	}
+
+	addrs := make([]multiaddr.Multiaddr, 0, numAddrs)
+	for j := uint16(0); j < numAddrs; j++ {
+		addr, err := readSingleAddress(br)
+		if err != nil {
+			return nil, err
+		}
+		if addr != nil {
+			addrs = append(addrs, addr)
+		}
+	}
+	return addrs, nil
+}
+
+// readSingleAddress reads one multiaddr from the buffer.
+func readSingleAddress(br *bufio.Reader) (multiaddr.Multiaddr, error) {
+	var addrLen uint16
+	if err := binary.Read(br, binary.LittleEndian, &addrLen); err != nil {
+		return nil, err
+	}
+	if addrLen > 512 {
+		return nil, fmt.Errorf("address too long: %d", addrLen)
+	}
+	addrBytes := make([]byte, addrLen)
+	if _, err := io.ReadFull(br, addrBytes); err != nil {
+		return nil, err
+	}
+	addr, err := multiaddr.NewMultiaddrBytes(addrBytes)
+	if err != nil {
+		return nil, nil // Skip malformed addresses.
+	}
+	return addr, nil
 }

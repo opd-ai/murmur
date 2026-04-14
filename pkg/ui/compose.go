@@ -168,33 +168,47 @@ func (p *ComposePanel) Update() bool {
 
 // handleTextInput processes keyboard input for the text field.
 func (p *ComposePanel) handleTextInput() {
-	// Handle character input.
+	p.processCharacterInput()
+	p.processBackspace()
+	p.processDelete()
+	p.processCursorMovement()
+}
+
+// processCharacterInput handles typed characters.
+func (p *ComposePanel) processCharacterInput() {
 	chars := ebiten.AppendInputChars(nil)
 	for _, ch := range chars {
 		p.insertChar(ch)
 	}
+}
 
-	// Handle backspace.
-	if inpututil.IsKeyJustPressed(ebiten.KeyBackspace) || inpututil.KeyPressDuration(ebiten.KeyBackspace) > 20 {
-		if p.cursorPos > 0 && len(p.content) > 0 {
-			// Remove character before cursor.
-			runes := []rune(p.content)
-			if p.cursorPos <= len(runes) {
-				p.content = string(runes[:p.cursorPos-1]) + string(runes[p.cursorPos:])
-				p.cursorPos--
-			}
-		}
+// processBackspace handles backspace key.
+func (p *ComposePanel) processBackspace() {
+	if !inpututil.IsKeyJustPressed(ebiten.KeyBackspace) && inpututil.KeyPressDuration(ebiten.KeyBackspace) <= 20 {
+		return
 	}
-
-	// Handle delete.
-	if inpututil.IsKeyJustPressed(ebiten.KeyDelete) {
+	if p.cursorPos > 0 && len(p.content) > 0 {
 		runes := []rune(p.content)
-		if p.cursorPos < len(runes) {
-			p.content = string(runes[:p.cursorPos]) + string(runes[p.cursorPos+1:])
+		if p.cursorPos <= len(runes) {
+			p.content = string(runes[:p.cursorPos-1]) + string(runes[p.cursorPos:])
+			p.cursorPos--
 		}
 	}
+}
 
-	// Handle cursor movement.
+// processDelete handles delete key.
+func (p *ComposePanel) processDelete() {
+	if !inpututil.IsKeyJustPressed(ebiten.KeyDelete) {
+		return
+	}
+	runes := []rune(p.content)
+	if p.cursorPos < len(runes) {
+		p.content = string(runes[:p.cursorPos]) + string(runes[p.cursorPos+1:])
+	}
+}
+
+// processCursorMovement handles arrow keys and home/end.
+func (p *ComposePanel) processCursorMovement() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyLeft) && p.cursorPos > 0 {
 		p.cursorPos--
 	}

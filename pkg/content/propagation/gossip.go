@@ -6,6 +6,7 @@ package propagation
 import (
 	"context"
 	"errors"
+	"sync"
 
 	pb "github.com/opd-ai/murmur/proto"
 	"google.golang.org/protobuf/proto"
@@ -123,6 +124,7 @@ func wrapWaveInEnvelope(wave *pb.Wave) (*pb.MurmurEnvelope, error) {
 
 // MockPublisher is a test implementation of Publisher.
 type MockPublisher struct {
+	mu        sync.Mutex
 	topic     string
 	published [][]byte
 	err       error
@@ -138,6 +140,8 @@ func NewMockPublisher(topic string) *MockPublisher {
 
 // Publish records the data for later verification.
 func (m *MockPublisher) Publish(_ context.Context, data []byte) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if m.err != nil {
 		return m.err
 	}
@@ -152,16 +156,22 @@ func (m *MockPublisher) Topic() string {
 
 // Published returns all published messages.
 func (m *MockPublisher) Published() [][]byte {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	return m.published
 }
 
 // SetError sets an error to return on next publish.
 func (m *MockPublisher) SetError(err error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.err = err
 }
 
 // Clear clears the published messages.
 func (m *MockPublisher) Clear() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.published = make([][]byte, 0)
 	m.err = nil
 }

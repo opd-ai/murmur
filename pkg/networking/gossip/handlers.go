@@ -86,82 +86,108 @@ type Envelope struct {
 // 3. Signature verification
 // 4. Message ID (BLAKE3 hash of payload)
 func ValidateEnvelope(data []byte, now time.Time) (*Envelope, error) {
-	// Parse as GossipMessage first (it's a union type)
 	var msg pb.GossipMessage
 	if err := proto.Unmarshal(data, &msg); err != nil {
 		return nil, ErrInvalidPayload
 	}
 
-	// Create envelope from GossipMessage
 	env := &Envelope{
 		Version: CurrentProtocolVersion,
 		Payload: data,
 	}
 
-	// Determine type from content
-	switch msg.GetContent().(type) {
-	case *pb.GossipMessage_Wave, *pb.GossipMessage_Reply, *pb.GossipMessage_Amplification:
-		env.Type = MessageTypeWave
-		if wave := msg.GetWave(); wave != nil {
-			env.SenderPubkey = wave.GetAuthorPubkey()
-			env.Signature = wave.GetSignature()
-			env.TimestampUnix = wave.GetCreatedAt()
-		} else if reply := msg.GetReply(); reply != nil {
-			if reply.GetWave() != nil {
-				env.SenderPubkey = reply.GetWave().GetAuthorPubkey()
-				env.Signature = reply.GetWave().GetSignature()
-				env.TimestampUnix = reply.GetWave().GetCreatedAt()
-			}
-		} else if amp := msg.GetAmplification(); amp != nil {
-			env.SenderPubkey = amp.GetAmplifierPubkey()
-			env.Signature = amp.GetSignature()
-			env.TimestampUnix = amp.GetAmplifiedAt()
-		}
-	case *pb.GossipMessage_IdentityDeclaration, *pb.GossipMessage_ConnectionAnnouncement:
-		env.Type = MessageTypeIdentity
-		if decl := msg.GetIdentityDeclaration(); decl != nil {
-			env.SenderPubkey = decl.GetPublicKey()
-			env.Signature = decl.GetSignature()
-			env.TimestampUnix = decl.GetCreatedAt()
-		} else if conn := msg.GetConnectionAnnouncement(); conn != nil {
-			env.SenderPubkey = conn.GetPublicKey()
-			env.Signature = conn.GetSignature()
-			env.TimestampUnix = conn.GetTimestamp()
-		}
-	case *pb.GossipMessage_Heartbeat:
-		env.Type = MessageTypeHeartbeat
-		if hb := msg.GetHeartbeat(); hb != nil {
-			env.SenderPubkey = hb.GetPublicKey()
-			env.Signature = hb.GetSignature()
-			env.TimestampUnix = hb.GetTimestamp()
-		}
-	case *pb.GossipMessage_RelayAdvertisement:
-		env.Type = MessageTypeShroud
-		if ad := msg.GetRelayAdvertisement(); ad != nil {
-			env.SenderPubkey = ad.GetEd25519Pubkey()
-			env.Signature = ad.GetSignature()
-			env.TimestampUnix = ad.GetTimestamp()
-		}
-	default:
-		return nil, ErrInvalidPayload
+	if err := extractEnvelopeFields(env, &msg); err != nil {
+		return nil, err
 	}
 
-	// Compute message ID
 	env.MessageID = computeMessageID(data)
 
-	// Validate timestamp
 	if err := validateTimestamp(env.TimestampUnix, now); err != nil {
 		return nil, err
 	}
 
-	// Validate signature (if sender pubkey present and non-zero)
-	if len(env.SenderPubkey) > 0 && len(env.Signature) > 0 && !isAllZeros(env.SenderPubkey) {
-		if err := validateSignature(env); err != nil {
-			return nil, err
-		}
+	if err := validateEnvelopeSignature(env); err != nil {
+		return nil, err
 	}
 
 	return env, nil
+}
+
+// extractEnvelopeFields populates envelope fields based on message type.
+func extractEnvelopeFields(env *Envelope, msg *pb.GossipMessage) error {
+	switch msg.GetContent().(type) {
+	case *pb.GossipMessage_Wave, *pb.GossipMessage_Reply, *pb.GossipMessage_Amplification:
+		env.Type = MessageTypeWave
+		extractWaveFields(env, msg)
+	case *pb.GossipMessage_IdentityDeclaration, *pb.GossipMessage_ConnectionAnnouncement:
+		env.Type = MessageTypeIdentity
+		extractIdentityFields(env, msg)
+	case *pb.GossipMessage_Heartbeat:
+		env.Type = MessageTypeHeartbeat
+		extractHeartbeatFields(env, msg)
+	case *pb.GossipMessage_RelayAdvertisement:
+		env.Type = MessageTypeShroud
+		extractShroudFields(env, msg)
+	default:
+		return ErrInvalidPayload
+	}
+	return nil
+}
+
+// extractWaveFields extracts fields from Wave-type messages.
+func extractWaveFields(env *Envelope, msg *pb.GossipMessage) {
+	if wave := msg.GetWave(); wave != nil {
+		env.SenderPubkey = wave.GetAuthorPubkey()
+		env.Signature = wave.GetSignature()
+		env.TimestampUnix = wave.GetCreatedAt()
+	} else if reply := msg.GetReply(); reply != nil && reply.GetWave() != nil {
+		env.SenderPubkey = reply.GetWave().GetAuthorPubkey()
+		env.Signature = reply.GetWave().GetSignature()
+		env.TimestampUnix = reply.GetWave().GetCreatedAt()
+	} else if amp := msg.GetAmplification(); amp != nil {
+		env.SenderPubkey = amp.GetAmplifierPubkey()
+		env.Signature = amp.GetSignature()
+		env.TimestampUnix = amp.GetAmplifiedAt()
+	}
+}
+
+// extractIdentityFields extracts fields from Identity-type messages.
+func extractIdentityFields(env *Envelope, msg *pb.GossipMessage) {
+	if decl := msg.GetIdentityDeclaration(); decl != nil {
+		env.SenderPubkey = decl.GetPublicKey()
+		env.Signature = decl.GetSignature()
+		env.TimestampUnix = decl.GetCreatedAt()
+	} else if conn := msg.GetConnectionAnnouncement(); conn != nil {
+		env.SenderPubkey = conn.GetPublicKey()
+		env.Signature = conn.GetSignature()
+		env.TimestampUnix = conn.GetTimestamp()
+	}
+}
+
+// extractHeartbeatFields extracts fields from Heartbeat messages.
+func extractHeartbeatFields(env *Envelope, msg *pb.GossipMessage) {
+	if hb := msg.GetHeartbeat(); hb != nil {
+		env.SenderPubkey = hb.GetPublicKey()
+		env.Signature = hb.GetSignature()
+		env.TimestampUnix = hb.GetTimestamp()
+	}
+}
+
+// extractShroudFields extracts fields from Shroud relay advertisement messages.
+func extractShroudFields(env *Envelope, msg *pb.GossipMessage) {
+	if ad := msg.GetRelayAdvertisement(); ad != nil {
+		env.SenderPubkey = ad.GetEd25519Pubkey()
+		env.Signature = ad.GetSignature()
+		env.TimestampUnix = ad.GetTimestamp()
+	}
+}
+
+// validateEnvelopeSignature checks signature if sender pubkey is present.
+func validateEnvelopeSignature(env *Envelope) error {
+	if len(env.SenderPubkey) > 0 && len(env.Signature) > 0 && !isAllZeros(env.SenderPubkey) {
+		return validateSignature(env)
+	}
+	return nil
 }
 
 // validateTimestamp checks if timestamp is within acceptable range.

@@ -294,43 +294,32 @@ func (ib *IdentityBundle) ValidateIndependence() bool {
 		return false
 	}
 
-	// Surface Ed25519 public key should not match any portion of Specter public key.
-	// This is a sanity check - proper random generation should always pass.
 	surfacePub := ib.Surface.PublicKey
 	specterPub := ib.Specter.PublicKey[:]
 
-	// Check for exact match (should never happen with proper randomness).
-	if len(surfacePub) == len(specterPub) {
-		match := true
-		for i := range surfacePub {
-			if surfacePub[i] != specterPub[i] {
-				match = false
-				break
-			}
-		}
-		if match {
+	if keysMatch(surfacePub, specterPub) {
+		return false
+	}
+
+	if ib.FortressTransport != nil {
+		fortressPub := ib.FortressTransport.PublicKey
+		if keysMatch(fortressPub, surfacePub) {
 			return false
 		}
 	}
 
-	// If Fortress key exists, verify it's also independent.
-	if ib.FortressTransport != nil {
-		fortressPub := ib.FortressTransport.PublicKey
+	return true
+}
 
-		// Fortress should not match Surface.
-		if len(fortressPub) == len(surfacePub) {
-			match := true
-			for i := range fortressPub {
-				if fortressPub[i] != surfacePub[i] {
-					match = false
-					break
-				}
-			}
-			if match {
-				return false
-			}
+// keysMatch checks if two public keys are identical.
+func keysMatch(a, b []byte) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
 		}
 	}
-
 	return true
 }

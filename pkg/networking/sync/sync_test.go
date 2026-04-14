@@ -13,8 +13,8 @@ import (
 
 // mockWaveProvider implements WaveProvider for testing.
 type mockWaveProvider struct {
-	mu     sync.RWMutex
-	waves  map[string][]byte // hash (hex) -> wave data
+	mu       sync.RWMutex
+	waves    map[string][]byte // hash (hex) -> wave data
 	byTopic  map[string][][]byte
 	byAuthor map[string][][]byte
 	latest   [][]byte
@@ -43,7 +43,7 @@ func (m *mockWaveProvider) AddToTopic(topic string, data []byte) {
 	m.byTopic[topic] = append(m.byTopic[topic], data)
 }
 
-func (m *mockWaveProvider) AddByAuthor(author []byte, data []byte) {
+func (m *mockWaveProvider) AddByAuthor(author, data []byte) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	key := string(author)

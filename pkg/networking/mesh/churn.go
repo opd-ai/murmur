@@ -51,10 +51,10 @@ type ChurnHandler struct {
 
 // ChurnCallbacks allows external handlers to be notified of churn events.
 type ChurnCallbacks struct {
-	OnHighChurn     func()
-	OnMeshRepair    func(added int)
-	OnDHTRefresh    func()
-	OnReconnect     func(p peer.ID, success bool)
+	OnHighChurn  func()
+	OnMeshRepair func(added int)
+	OnDHTRefresh func()
+	OnReconnect  func(p peer.ID, success bool)
 }
 
 // ChurnStats provides statistics about peer churn.
@@ -348,13 +348,13 @@ func (ch *ChurnHandler) Stats() ChurnStats {
 
 // PartitionDetector detects network partitions.
 type PartitionDetector struct {
-	h                host.Host
-	minConnected     int
-	lastConnectedAt  time.Time
-	partitionStart   time.Time
-	isPartitioned    bool
-	mu               sync.RWMutex
-	onPartition      func(bool)
+	h               host.Host
+	minConnected    int
+	lastConnectedAt time.Time
+	partitionStart  time.Time
+	isPartitioned   bool
+	mu              sync.RWMutex
+	onPartition     func(bool)
 }
 
 // NewPartitionDetector creates a new partition detector.

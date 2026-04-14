@@ -29,9 +29,9 @@ type Region string
 
 const (
 	RegionUnknown Region = "unknown"
-	RegionLocal   Region = "local"     // 127.0.0.0/8, ::1
-	RegionPrivate Region = "private"   // RFC1918, RFC4193
-	RegionNAT64   Region = "nat64"     // 64:ff9b::/96
+	RegionLocal   Region = "local"   // 127.0.0.0/8, ::1
+	RegionPrivate Region = "private" // RFC1918, RFC4193
+	RegionNAT64   Region = "nat64"   // 64:ff9b::/96
 )
 
 // RegionDiversityManager ensures peer connections span multiple regions.
@@ -120,13 +120,13 @@ func (rdm *RegionDiversityManager) RegionCounts() map[Region]int {
 
 // DiversityStatus returns the current diversity status.
 type DiversityStatus struct {
-	UniqueRegions      int
-	MinRegions         int
-	TargetRegions      int
-	RegionCounts       map[Region]int
-	LargestRegionCount int
-	IsWellDistributed  bool
-	NeedsMoreRegions   bool
+	UniqueRegions       int
+	MinRegions          int
+	TargetRegions       int
+	RegionCounts        map[Region]int
+	LargestRegionCount  int
+	IsWellDistributed   bool
+	NeedsMoreRegions    bool
 	HasOverloadedRegion bool
 }
 
@@ -281,10 +281,10 @@ type IPClassification struct{}
 func (ic *IPClassification) IsAnycasted(ip net.IP) bool {
 	// Check for well-known anycast prefixes
 	anycasts := []string{
-		"1.1.1.1/32",    // Cloudflare DNS
-		"8.8.8.8/32",    // Google DNS
-		"8.8.4.4/32",    // Google DNS
-		"9.9.9.9/32",    // Quad9
+		"1.1.1.1/32",      // Cloudflare DNS
+		"8.8.8.8/32",      // Google DNS
+		"8.8.4.4/32",      // Google DNS
+		"9.9.9.9/32",      // Quad9
 		"208.67.222.0/24", // OpenDNS
 	}
 

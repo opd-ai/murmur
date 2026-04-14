@@ -12,16 +12,17 @@ import (
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 )
 
 // SyncClient provides client-side sync functionality.
 type SyncClient struct {
-	h                host.Host
-	mu               sync.RWMutex
-	activeSessions   int32
-	maxSessions      int32
-	callbacks        ClientCallbacks
+	h              host.Host
+	mu             sync.RWMutex
+	activeSessions int32
+	maxSessions    int32
+	callbacks      ClientCallbacks
 }
 
 // ClientCallbacks are callbacks for client sync events.
@@ -140,72 +141,105 @@ func (sc *SyncClient) RequestLatest(ctx context.Context, p peer.ID, n int) (*Syn
 
 // sendRequest sends a sync request to a peer.
 func (sc *SyncClient) sendRequest(ctx context.Context, p peer.ID, payload []byte) (*SyncResponse, error) {
-	// Check concurrent sessions
+	if err := sc.acquireSession(); err != nil {
+		return nil, err
+	}
+	defer sc.releaseSession()
+
+	sc.notifyStart(p)
+
+	resp, err := sc.executeRequest(ctx, p, payload)
+	if err != nil {
+		sc.notifyError(p, err)
+		return nil, err
+	}
+
+	sc.notifyComplete(p, len(resp.Waves))
+	return resp, nil
+}
+
+// acquireSession checks and increments the active session counter.
+func (sc *SyncClient) acquireSession() error {
 	if atomic.AddInt32(&sc.activeSessions, 1) > atomic.LoadInt32(&sc.maxSessions) {
 		atomic.AddInt32(&sc.activeSessions, -1)
-		return nil, ErrTooManySessions
+		return ErrTooManySessions
 	}
-	defer atomic.AddInt32(&sc.activeSessions, -1)
+	return nil
+}
 
+// releaseSession decrements the active session counter.
+func (sc *SyncClient) releaseSession() {
+	atomic.AddInt32(&sc.activeSessions, -1)
+}
+
+// notifyStart calls the OnSyncStart callback if set.
+func (sc *SyncClient) notifyStart(p peer.ID) {
 	sc.mu.RLock()
-	cbStart := sc.callbacks.OnSyncStart
-	cbComplete := sc.callbacks.OnSyncComplete
-	cbError := sc.callbacks.OnSyncError
+	cb := sc.callbacks.OnSyncStart
 	sc.mu.RUnlock()
-
-	if cbStart != nil {
-		cbStart(p)
+	if cb != nil {
+		cb(p)
 	}
+}
 
-	// Open stream
+// notifyComplete calls the OnSyncComplete callback if set.
+func (sc *SyncClient) notifyComplete(p peer.ID, waveCount int) {
+	sc.mu.RLock()
+	cb := sc.callbacks.OnSyncComplete
+	sc.mu.RUnlock()
+	if cb != nil {
+		cb(p, waveCount)
+	}
+}
+
+// notifyError calls the OnSyncError callback if set.
+func (sc *SyncClient) notifyError(p peer.ID, err error) {
+	sc.mu.RLock()
+	cb := sc.callbacks.OnSyncError
+	sc.mu.RUnlock()
+	if cb != nil {
+		cb(p, err)
+	}
+}
+
+// executeRequest performs the actual stream communication.
+func (sc *SyncClient) executeRequest(ctx context.Context, p peer.ID, payload []byte) (*SyncResponse, error) {
 	s, err := sc.h.NewStream(ctx, p, WaveSyncProtocol)
 	if err != nil {
-		if cbError != nil {
-			cbError(p, err)
-		}
 		return nil, fmt.Errorf("failed to open stream: %w", err)
 	}
 	defer s.Close()
 
-	// Set deadlines
+	sc.setStreamDeadline(ctx, s)
+
+	if err := sc.writePayload(s, payload); err != nil {
+		return nil, err
+	}
+
+	return sc.readResponse(s)
+}
+
+// setStreamDeadline configures the stream timeout.
+func (sc *SyncClient) setStreamDeadline(ctx context.Context, s network.Stream) {
 	deadline, ok := ctx.Deadline()
 	if !ok {
 		deadline = time.Now().Add(RequestTimeout)
 	}
 	_ = s.SetDeadline(deadline)
+}
 
-	// Write request
+// writePayload writes the request payload with length prefix.
+func (sc *SyncClient) writePayload(s network.Stream, payload []byte) error {
 	lenBuf := make([]byte, 4)
 	binary.BigEndian.PutUint32(lenBuf, uint32(len(payload)))
 
 	if _, err := s.Write(lenBuf); err != nil {
-		if cbError != nil {
-			cbError(p, err)
-		}
-		return nil, fmt.Errorf("failed to write length: %w", err)
+		return fmt.Errorf("failed to write length: %w", err)
 	}
-
 	if _, err := s.Write(payload); err != nil {
-		if cbError != nil {
-			cbError(p, err)
-		}
-		return nil, fmt.Errorf("failed to write payload: %w", err)
+		return fmt.Errorf("failed to write payload: %w", err)
 	}
-
-	// Read response
-	resp, err := sc.readResponse(s)
-	if err != nil {
-		if cbError != nil {
-			cbError(p, err)
-		}
-		return nil, err
-	}
-
-	if cbComplete != nil {
-		cbComplete(p, len(resp.Waves))
-	}
-
-	return resp, nil
+	return nil
 }
 
 // readResponse reads and parses a sync response.

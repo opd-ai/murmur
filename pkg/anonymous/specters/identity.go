@@ -45,9 +45,9 @@ type Specter struct {
 	Name         string
 	CreatedAt    time.Time
 	Status       string
-	Announced    bool      // Whether this Specter has been announced to the network
-	RotationFrom [32]byte  // Public key of previous identity (for rotation tracking)
-	Version      int       // Identity version (increments on rotation)
+	Announced    bool     // Whether this Specter has been announced to the network
+	RotationFrom [32]byte // Public key of previous identity (for rotation tracking)
+	Version      int      // Identity version (increments on rotation)
 }
 
 // KeyPair holds a Curve25519 key pair for Shroud circuits.

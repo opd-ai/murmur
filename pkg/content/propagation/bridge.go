@@ -31,9 +31,9 @@ const (
 
 // Errors for bridge operations.
 var (
-	ErrNotVeiledWave     = errors.New("wave is not a Veiled Wave")
-	ErrBridgeDisabled    = errors.New("bridge injection is disabled")
-	ErrNoSurfacePublisher = errors.New("no surface layer publisher configured")
+	ErrNotVeiledWave        = errors.New("wave is not a Veiled Wave")
+	ErrBridgeDisabled       = errors.New("bridge injection is disabled")
+	ErrNoSurfacePublisher   = errors.New("no surface layer publisher configured")
 	ErrNoAnonymousPublisher = errors.New("no anonymous layer publisher configured")
 )
 
@@ -59,24 +59,24 @@ type BridgeConfig struct {
 // Per WAVE_PROPAGATION.md, bridge nodes (Hybrid+) inject Veiled Waves
 // from the Anonymous Layer into the Surface Layer gossip topic.
 type Bridge struct {
-	mu                sync.RWMutex
-	enabled           atomic.Bool
-	surfacePublisher  Publisher
+	mu                 sync.RWMutex
+	enabled            atomic.Bool
+	surfacePublisher   Publisher
 	anonymousPublisher Publisher
-	injected          map[string]time.Time // Wave ID -> injection time
-	deduplicationTTL  time.Duration
-	rateLimiter       *bridgeRateLimiter
-	stats             BridgeStats
+	injected           map[string]time.Time // Wave ID -> injection time
+	deduplicationTTL   time.Duration
+	rateLimiter        *bridgeRateLimiter
+	stats              BridgeStats
 }
 
 // BridgeStats tracks bridge injection statistics.
 type BridgeStats struct {
-	mu                sync.RWMutex
-	InjectedToSurface uint64
+	mu                  sync.RWMutex
+	InjectedToSurface   uint64
 	InjectedToAnonymous uint64
-	DuplicatesSkipped uint64
-	RateLimited       uint64
-	InvalidWaves      uint64
+	DuplicatesSkipped   uint64
+	RateLimited         uint64
+	InvalidWaves        uint64
 }
 
 // bridgeRateLimiter implements token bucket rate limiting.
@@ -91,9 +91,9 @@ type bridgeRateLimiter struct {
 // NewBridge creates a new cross-layer bridge.
 func NewBridge(cfg BridgeConfig) *Bridge {
 	b := &Bridge{
-		injected:         make(map[string]time.Time),
-		deduplicationTTL: cfg.DeduplicationTTL,
-		surfacePublisher: cfg.SurfacePublisher,
+		injected:           make(map[string]time.Time),
+		deduplicationTTL:   cfg.DeduplicationTTL,
+		surfacePublisher:   cfg.SurfacePublisher,
 		anonymousPublisher: cfg.AnonymousPublisher,
 	}
 
@@ -402,16 +402,16 @@ func (b *Bridge) StartCleanup(ctx context.Context, interval time.Duration) conte
 type BridgeRelay struct {
 	*Relay
 	*Bridge
-	surfacePublisher  Publisher
+	surfacePublisher   Publisher
 	anonymousPublisher Publisher
 }
 
 // NewBridgeRelay creates a relay with cross-layer bridge functionality.
 func NewBridgeRelay(surfacePub, anonymousPub Publisher) *BridgeRelay {
 	return &BridgeRelay{
-		Relay:             NewRelay(),
-		Bridge:            NewBridgeWithPublishers(surfacePub, anonymousPub),
-		surfacePublisher:  surfacePub,
+		Relay:              NewRelay(),
+		Bridge:             NewBridgeWithPublishers(surfacePub, anonymousPub),
+		surfacePublisher:   surfacePub,
 		anonymousPublisher: anonymousPub,
 	}
 }

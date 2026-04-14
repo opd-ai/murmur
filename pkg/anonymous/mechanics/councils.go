@@ -296,6 +296,18 @@ type PhantomCouncil struct {
 
 	// GroupKey is the shared symmetric encryption key.
 	GroupKey [32]byte
+
+	// zkVerifier is an optional ZK claim verifier for admission.
+	// Per ROADMAP.md line 400: "ZK claims used for Council admission".
+	zkVerifier ZKClaimVerifier
+}
+
+// SetZKVerifier sets the ZK claim verifier for admission.
+// Per ROADMAP.md line 400: "ZK claims used for Council admission".
+func (c *PhantomCouncil) SetZKVerifier(v ZKClaimVerifier) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.zkVerifier = v
 }
 
 // NewPhantomCouncil creates a new Phantom Council.
@@ -412,6 +424,9 @@ func (c *PhantomCouncil) IsMember(specter [32]byte) bool {
 }
 
 // Apply submits an application to join the council.
+// If a ZK verifier is set, the zkProof must verify that the applicant
+// has Resonance >= the council's MinResonance.
+// Per ROADMAP.md line 400: "ZK claims used for Council admission".
 func (c *PhantomCouncil) Apply(applicant [32]byte, zkProof []byte) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -420,7 +435,28 @@ func (c *PhantomCouncil) Apply(applicant [32]byte, zkProof []byte) error {
 		return err
 	}
 
+	// Verify ZK proof if verifier is configured.
+	if err := c.verifyZKProofLocked(zkProof); err != nil {
+		return err
+	}
+
 	c.createApplicationLocked(applicant, zkProof)
+	return nil
+}
+
+// verifyZKProofLocked verifies the ZK proof against the council's MinResonance.
+// Must be called with c.mu held.
+func (c *PhantomCouncil) verifyZKProofLocked(zkProof []byte) error {
+	if c.zkVerifier == nil {
+		// No verifier configured - skip ZK verification (backward compatible).
+		return nil
+	}
+	if len(zkProof) == 0 {
+		return ErrMissingZKClaim
+	}
+	if err := c.zkVerifier.VerifyResonanceClaim(zkProof, int64(c.MinResonance)); err != nil {
+		return ErrInvalidZKClaim
+	}
 	return nil
 }
 

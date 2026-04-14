@@ -219,7 +219,7 @@ const AnonymousPoWDifficulty = 22 // Leading zero bits
 const BeaconPoWDifficulty = 24 // Leading zero bits
 
 // VerifyAnonymousPoW checks if a Wave meets Anonymous Layer PoW requirements.
-func VerifyAnonymousPoW(waveData []byte, nonce []byte, difficulty uint8) bool {
+func VerifyAnonymousPoW(waveData, nonce []byte, difficulty uint8) bool {
 	if difficulty < AnonymousPoWDifficulty {
 		return false
 	}
@@ -229,7 +229,7 @@ func VerifyAnonymousPoW(waveData []byte, nonce []byte, difficulty uint8) bool {
 }
 
 // VerifyBeaconPoW checks if a Beacon Wave meets elevated PoW requirements.
-func VerifyBeaconPoW(waveData []byte, nonce []byte, difficulty uint8) bool {
+func VerifyBeaconPoW(waveData, nonce []byte, difficulty uint8) bool {
 	if difficulty < BeaconPoWDifficulty {
 		return false
 	}

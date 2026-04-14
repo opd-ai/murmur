@@ -185,6 +185,8 @@ type ShadowPlay struct {
 }
 
 // NewShadowPlay creates a new Shadow Play game.
+// NOTE: This function does not enforce Resonance gating. For gated creation,
+// use NewShadowPlayGated which requires Resonance >= ShadowPlayMinResonance (200).
 func NewShadowPlay(
 	initiator [32]byte,
 	duration time.Duration,
@@ -220,6 +222,21 @@ func NewShadowPlay(
 		CurrentRound: 0,
 		GameDeadline: now.Add(duration),
 	}, nil
+}
+
+// NewShadowPlayGated creates a new Shadow Play game with Resonance gating.
+// Per ANONYMOUS_GAME_MECHANICS.md, only Specters with Resonance >= 200
+// (Revenant milestone) may initiate Shadow Play.
+func NewShadowPlayGated(
+	initiator [32]byte,
+	duration time.Duration,
+	maxPlayers int,
+	gate ResonanceGate,
+) (*ShadowPlay, error) {
+	if err := CheckResonanceGate(gate, initiator, ShadowPlayMinResonance); err != nil {
+		return nil, ErrShadowPlayInsufficientResonance
+	}
+	return NewShadowPlay(initiator, duration, maxPlayers)
 }
 
 // IsWaiting returns true if game is waiting for players.

@@ -99,32 +99,40 @@ func (m *MDNSDiscovery) Stop() error {
 // HandlePeerFound implements mdns.Notifee interface.
 // Called when a peer is discovered on the local network.
 func (m *MDNSDiscovery) HandlePeerFound(pi peer.AddrInfo) {
-	// Ignore self-discovery.
 	if pi.ID == m.h.ID() {
 		return
 	}
 
-	// Add peer addresses to peerstore for potential connection.
 	m.h.Peerstore().AddAddrs(pi.ID, pi.Addrs, time.Hour)
+	m.notifyHandler(pi)
+	m.sendToPeersChannel(pi)
+}
 
-	// Call the handler if set.
+// notifyHandler calls the peer handler callback if set.
+func (m *MDNSDiscovery) notifyHandler(pi peer.AddrInfo) {
 	if m.handler != nil {
 		m.handler(pi)
 	}
+}
 
-	// Non-blocking send to peers channel.
+// sendToPeersChannel sends peer info to channel, dropping oldest if full.
+func (m *MDNSDiscovery) sendToPeersChannel(pi peer.AddrInfo) {
 	select {
 	case m.peers <- pi:
 	default:
-		// Channel full, drop oldest and add new.
-		select {
-		case <-m.peers:
-		default:
-		}
-		select {
-		case m.peers <- pi:
-		default:
-		}
+		m.drainAndResend(pi)
+	}
+}
+
+// drainAndResend drops the oldest entry and retries sending.
+func (m *MDNSDiscovery) drainAndResend(pi peer.AddrInfo) {
+	select {
+	case <-m.peers:
+	default:
+	}
+	select {
+	case m.peers <- pi:
+	default:
 	}
 }
 

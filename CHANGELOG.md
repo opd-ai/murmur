@@ -7,7 +7,169 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **2026-04-14**: Fix test failure in pkg/pulsemap/rendering on headless environments
+  - `pkg/pulsemap/rendering/sigil_image_test.go`: Changed build tag from `!noebiten` to `ebitentest` to match the project's convention for Ebitengine-dependent tests (see `rendering_ebiten_test.go`)
+  - Tests now properly skip in headless CI environments where no display is available
+  - Category: Cat 1 (Implementation Bug) — test file build tag was misconfigured
+
 ### Added
+
+- **2026-04-14**: DHT-based proximity proofs for Specter Hunts
+  - `pkg/anonymous/mechanics/proximity_proof.go`: Real topological proximity verification
+    - `ProximityAttestation`: Signed statements from peers near target locations
+    - `DHTProximityProof`: Collects attestations for proximity verification
+    - `ProximityVerifier`: Creates attestations and verifies proofs
+    - XOR distance calculation per Kademlia DHT topology
+    - Hop-based threshold computation (42 bits per hop)
+    - TTL enforcement on attestations (5 minutes)
+    - Self-attestation rejection for security
+    - Legacy proof adapter for backward compatibility
+    - Per ROADMAP.md line 430: "Actual proximity proof via DHT routing"
+  - `pkg/anonymous/mechanics/proximity_proof_test.go`: 23 tests + 3 benchmarks
+    - Attestation creation and signature verification
+    - Proof construction and validation
+    - XOR distance computation
+    - Threshold calculations
+    - Legacy proof conversion
+
+- **2026-04-14**: Cipher Puzzle Pulse Map visualization effects
+  - `pkg/pulsemap/rendering/effects/puzzles.go`: Puzzle visual effects renderer
+    - Rotating cryptographic symbols per puzzle type
+    - Fragment: hexagon with inner triangle, golden glow
+    - Mosaic: 5 interlocking squares in cross pattern
+    - Cascade: 3 horizontal layers with wave animation
+    - State indicators: pulsing (active), checkmark (solved), X (expired)
+    - Per ROADMAP.md line 417: "Pulse Map visualization — rotating cryptographic symbol"
+  - `pkg/pulsemap/rendering/effects/puzzles_stub.go`: Non-Ebitengine stub for headless testing
+  - `pkg/pulsemap/rendering/effects/puzzles_test.go`: 12 tests + 2 benchmarks
+  
+- **2026-04-14**: Cipher Puzzle network propagation for Anonymous Layer
+  - `pkg/anonymous/mechanics/puzzle_publisher.go`: Puzzle event publishing and receiving
+    - `PuzzlePublisher`: Publishes puzzle events to `/murmur/anonymous/mechanics/1.0`
+    - Event types: CREATED, SOLVED, EXPIRED, CONTRIBUTION, STAGE
+    - Ed25519 signatures for event authenticity
+    - Solution hash transmission (never raw solutions)
+  - `PuzzleReceiver`: Handles incoming puzzle events from the network
+    - Event verification with signature checking
+    - Puzzle store integration for state updates
+    - Per ROADMAP.md line 415: "Network propagation — publish puzzle events"
+  - `pkg/anonymous/mechanics/puzzle_publisher_test.go`: 19 tests + 2 benchmarks
+  - `proto/mechanics.proto`: Added event wrapper messages for all mechanics
+    - PuzzleEvent, HuntEvent, TerritoryEvent, OracleEvent, ForgeEvent
+    - ShadowPlayEvent, CouncilEvent, GiftEvent, MarkEvent
+  - `proto/gossip.proto`: Extended GossipMessage union with mechanics events
+
+- **2026-04-14**: Bulletproofs range proof generation for ZK Resonance claims
+  - `pkg/anonymous/resonance/bulletproofs.go`: True Bulletproofs implementation
+    - Uses `github.com/coinbase/kryptology/pkg/bulletproof` for cryptographic proofs
+    - `BulletproofRangeProver`: Generates 64-bit range proofs (~672 bytes)
+    - `BulletproofRangeVerifier`: Verifies range proofs with replay prevention
+    - `BulletproofThresholdProver/Verifier`: Proves value >= threshold using delta range proof
+    - Serialization/deserialization for network transmission
+    - Per SECURITY_PRIVACY.md: "Bulletproofs range proof generation"
+  - `pkg/anonymous/resonance/bulletproofs_test.go`: 14 tests + 2 benchmarks
+    - Round-trip proof generation and verification
+    - Large/zero value handling
+    - Replay prevention and timestamp validation
+    - Threshold proof success/failure cases
+
+- **2026-04-14**: Echo Index visual color-coding on Pulse Map
+  - `pkg/pulsemap/overlays/echoindex.go`: Echo Index overlay renderer
+    - `EchoIndexOverlay` draws cluster boundaries with diversity color-coding
+    - High Echo Index (>0.7) = warm colors (amber/red) indicating insularity
+    - Low Echo Index (<0.4) = cool colors (blue/green) indicating openness
+    - Mid-range = neutral gray
+    - Animated badges at cluster centers with category icons
+    - `NewEchoShadowOverlay()` for Anonymous Layer equivalent
+    - Per RESONANCE_SYSTEM.md: color-coded badges on cluster boundaries
+  - `pkg/pulsemap/overlays/echoindex_stub.go`: Non-Ebitengine build stub
+  - `pkg/pulsemap/overlays/echoindex_test.go`: 13 tests + 1 benchmark
+
+- **2026-04-14**: Surface and Specter milestone visual effects
+  - `pkg/pulsemap/rendering/effects/milestones.go`: Milestone effect renderer
+    - Surface milestones: Ember(10), Spark(25), Flame(50), Blaze(100), Inferno(200), Corona(500)
+    - Specter milestones: Whisper(10), Shade(25), Wraith(50), ShadeWraith(75), Phantom(100), Revenant(200), Abyss(500)
+    - `MilestoneEffects` struct with particle pooling and time-based animations
+    - `DrawSurfaceMilestone()` dispatches to tier-specific warm/pulsing/particle effects
+    - `DrawSpecterMilestone()` dispatches to tier-specific ghostly/ethereal effects
+    - Abyss effect only renders in Fortress privacy mode per spec
+  - `pkg/pulsemap/rendering/effects/milestones_stub.go`: Non-Ebitengine build stub
+  - `pkg/pulsemap/rendering/effects/milestones_test.go`: Milestone threshold tests
+
+- **2026-04-14**: Mutual confirmation protocol for Proximity Ignition
+  - `pkg/identity/ignition/confirmation.go`: Two-way handshake verification
+    - `ConfirmationSession` tracks challenge-response state machine
+    - Order-independent session ID from XOR of public keys
+    - `ChallengeMessage()` creates signed 152-byte challenge with nonce
+    - `ProcessChallenge()` validates peer's challenge signature
+    - `ConfirmationMessage()` responds with signed challenge response
+    - `ConfirmationManager` for session lifecycle and cleanup
+    - Per VIRAL_GROWTH_AND_ONBOARDING.md: "Both parties accept"
+  - `pkg/identity/ignition/confirmation_test.go`: 16 tests + 1 benchmark
+    - Full protocol round-trip (Alice initiates, both confirm)
+    - Invalid challenge rejection
+    - Session expiry (5-minute timeout per spec)
+    - Cleanup loop verification
+
+- **2026-04-14**: NFC tap exchange for Proximity Ignition
+  - `pkg/identity/ignition/nfc.go`: Compact NFC format for tap-to-connect
+    - `NFCIgnitionData` with optimized binary format for NTAG213 compatibility
+    - Compact address encoding: IPv4 (6 bytes), IPv6 (18 bytes), PeerID (8 bytes)
+    - 124 bytes for IPv4, 136 bytes for IPv6 (within 137-byte NTAG213 limit)
+    - Timestamp reduced to uint32 (saves 4 bytes vs full int64)
+    - NDEF record wrapper for standard NFC tag formatting
+    - `ToIgnitionData()` conversion for protocol compatibility
+  - `pkg/identity/ignition/nfc_test.go`: 20 tests + 2 benchmarks
+    - Encode/decode round-trips for IPv4/IPv6/multiaddr formats
+    - Payload size verification against 137-byte NFC limit
+    - NDEF record creation and parsing
+    - Signature verification after round-trip
+    - Per VIRAL_GROWTH_AND_ONBOARDING.md: NFC enables instant mobile handshake
+
+- **2026-04-14**: Proximity Ignition QR code generation
+  - `pkg/identity/ignition/ignition.go`: Complete Proximity Ignition implementation
+    - `IgnitionData` struct with public key, addresses, one-time token, and signature
+    - `TokenManager` for one-time token generation with expiry and replay prevention
+    - `GenerateIgnitionData()` creates signed ignition data for QR display
+    - `Encode()`/`DecodeIgnitionData()` for URL-safe Base64 serialization
+    - `QRCodeImage()`/`QRCodePNG()` for visual QR code generation
+    - Signature verification for authenticity (Ed25519)
+  - `pkg/identity/ignition/ignition_test.go`: 16 tests + 2 benchmarks
+    - Token lifecycle tests (generate, validate, replay prevention, cleanup)
+    - Encode/decode round-trip tests with multiple addresses
+    - QR image generation tests (PNG format validation)
+    - Per RESONANCE_SYSTEM.md: tokens valid for 5 minutes, ~220 char encoded string
+
+- **2026-04-14**: Propagation latency tracking and validation
+  - `pkg/content/propagation/latency.go`: `PropagationMetrics` type for tracking per-hop and per-wave latency
+    - `RecordHopLatency()` and `RecordWaveHop()` for latency data collection
+    - `ThreeHopLatencies()` for extracting 3-hop cumulative latencies
+    - `MeetsTarget()` to validate <500ms requirement per TECHNICAL_IMPLEMENTATION.md §7.2
+    - `Stats()` returns violation counts and average latencies
+  - `pkg/content/propagation/latency_test.go`: Comprehensive test suite
+    - `TestSimulatedThreeHopPropagation` validates <500ms target across 3 hops
+    - `TestLatencyBudgetAnalysis` documents latency budget breakdown (~167ms per hop)
+    - Concurrent access tests for thread safety
+
+- **2026-04-14**: Oracle Pool and Shadow Play Resonance gating
+  - `pkg/anonymous/mechanics/oracle.go`: Added `NewOraclePoolGated()` function enforcing Resonance ≥100 (Phantom milestone)
+  - `pkg/anonymous/mechanics/shadowplay.go`: Added `NewShadowPlayGated()` function enforcing Resonance ≥200 (Revenant milestone)
+  - Tests for both gated constructors verifying threshold enforcement
+
+- **2026-04-14**: Complete Bbolt persistence for Anonymous Layer mechanics
+  - `pkg/store/typed_accessors.go`: Added typed accessors for all mechanics types:
+    - `CipherPuzzle`: Get, Put, Delete, List, ListActive
+    - `SpecterHunt`: Get, Put, Delete, List, ListActive
+    - `Territory`: Get, Put, Delete, List
+    - `OraclePool`: Get, Put, Delete, List, ListOpen
+    - `ForgeProject`: Get, Put, Delete, List
+    - `ShadowPlay`: Get, Put, Delete, List
+    - `PhantomCouncil`: Get, Put, Delete, List, ListActive
+    - `PhantomGift`: Get, Put, Delete, List, ListGiftsForRecipient
+    - `SpecterMark`: Get, Put, Delete, List, ListMarksForTarget
+  - `pkg/store/typed_accessors_test.go`: Comprehensive tests for all new accessors
 
 - **2026-04-13**: Pulse Map rendering implementation
   - `pkg/pulsemap/rendering/renderer.go`: Full `Renderer` type with camera transforms, node/edge drawing, glow effects, frustum culling, mouse interaction (pan/zoom/select), node focusing

@@ -14,24 +14,24 @@ import (
 // (different topics, different writing style, different activity schedule)
 // if they want strong unlinkability.
 type BehavioralGuidance struct {
-	mu            sync.RWMutex
-	surfaceStats  ActivityStats
-	specterStats  ActivityStats
+	mu              sync.RWMutex
+	surfaceStats    ActivityStats
+	specterStats    ActivityStats
 	recommendations []Recommendation
 }
 
 // ActivityStats tracks activity patterns for correlation risk assessment.
 type ActivityStats struct {
 	// Time-based patterns.
-	LastActivity   time.Time
-	ActiveHours    [24]int // Activity count per hour of day
-	ActiveDays     [7]int  // Activity count per day of week
-	
+	LastActivity time.Time
+	ActiveHours  [24]int // Activity count per hour of day
+	ActiveDays   [7]int  // Activity count per day of week
+
 	// Content patterns.
-	TopicCounts    map[string]int
-	AvgMessageLen  float64
-	TotalMessages  int
-	
+	TopicCounts   map[string]int
+	AvgMessageLen float64
+	TotalMessages int
+
 	// Timing patterns.
 	AvgResponseTime time.Duration
 	AvgPostInterval time.Duration
@@ -79,7 +79,7 @@ func NewBehavioralGuidance() *BehavioralGuidance {
 func (bg *BehavioralGuidance) RecordSurfaceActivity(topic string, messageLen int) {
 	bg.mu.Lock()
 	defer bg.mu.Unlock()
-	
+
 	bg.recordActivity(&bg.surfaceStats, topic, messageLen)
 }
 
@@ -87,33 +87,33 @@ func (bg *BehavioralGuidance) RecordSurfaceActivity(topic string, messageLen int
 func (bg *BehavioralGuidance) RecordSpecterActivity(topic string, messageLen int) {
 	bg.mu.Lock()
 	defer bg.mu.Unlock()
-	
+
 	bg.recordActivity(&bg.specterStats, topic, messageLen)
 }
 
 // recordActivity updates activity stats.
 func (bg *BehavioralGuidance) recordActivity(stats *ActivityStats, topic string, messageLen int) {
 	now := time.Now()
-	
+
 	// Update time-based patterns.
 	stats.ActiveHours[now.Hour()]++
 	stats.ActiveDays[now.Weekday()]++
-	
+
 	// Update content patterns.
 	stats.TopicCounts[topic]++
 	stats.TotalMessages++
-	
+
 	// Update average message length.
 	total := stats.AvgMessageLen * float64(stats.TotalMessages-1)
 	stats.AvgMessageLen = (total + float64(messageLen)) / float64(stats.TotalMessages)
-	
+
 	// Update timing patterns.
 	if !stats.LastActivity.IsZero() {
 		interval := now.Sub(stats.LastActivity)
 		avgTotal := stats.AvgPostInterval * time.Duration(stats.TotalMessages-1)
 		stats.AvgPostInterval = (avgTotal + interval) / time.Duration(stats.TotalMessages)
 	}
-	
+
 	stats.LastActivity = now
 }
 
@@ -125,18 +125,18 @@ func (bg *BehavioralGuidance) recordActivity(stats *ActivityStats, topic string,
 func (bg *BehavioralGuidance) AssessCorrelationRisk() CorrelationRisk {
 	bg.mu.RLock()
 	defer bg.mu.RUnlock()
-	
+
 	risk := 0
-	
+
 	// Check timing correlation.
 	risk += bg.assessTimingCorrelation()
-	
+
 	// Check topic overlap.
 	risk += bg.assessTopicOverlap()
-	
+
 	// Check message style similarity.
 	risk += bg.assessStyleSimilarity()
-	
+
 	if risk >= 6 {
 		return RiskHigh
 	} else if risk >= 3 {
@@ -148,18 +148,18 @@ func (bg *BehavioralGuidance) AssessCorrelationRisk() CorrelationRisk {
 // assessTimingCorrelation checks for similar activity timing patterns.
 func (bg *BehavioralGuidance) assessTimingCorrelation() int {
 	risk := 0
-	
+
 	// Compare active hours.
 	surfacePeak := bg.findPeakHours(bg.surfaceStats.ActiveHours[:])
 	specterPeak := bg.findPeakHours(bg.specterStats.ActiveHours[:])
-	
+
 	overlap := bg.countOverlap(surfacePeak, specterPeak)
 	if overlap > 2 {
 		risk += 3 // High timing correlation
 	} else if overlap > 0 {
 		risk += 1 // Some timing correlation
 	}
-	
+
 	return risk
 }
 
@@ -169,14 +169,14 @@ func (bg *BehavioralGuidance) findPeakHours(hours []int) []int {
 		hour  int
 		count int
 	}
-	
+
 	var hc []hourCount
 	for i, c := range hours {
 		if c > 0 {
 			hc = append(hc, hourCount{i, c})
 		}
 	}
-	
+
 	// Simple sort (bubble for small array).
 	for i := 0; i < len(hc); i++ {
 		for j := i + 1; j < len(hc); j++ {
@@ -185,7 +185,7 @@ func (bg *BehavioralGuidance) findPeakHours(hours []int) []int {
 			}
 		}
 	}
-	
+
 	// Take top 3.
 	var peaks []int
 	for i := 0; i < len(hc) && i < 3; i++ {
@@ -200,7 +200,7 @@ func (bg *BehavioralGuidance) countOverlap(a, b []int) int {
 	for _, v := range a {
 		aSet[v] = true
 	}
-	
+
 	count := 0
 	for _, v := range b {
 		if aSet[v] {
@@ -216,19 +216,19 @@ func (bg *BehavioralGuidance) assessTopicOverlap() int {
 	for topic := range bg.surfaceStats.TopicCounts {
 		surfaceTopics[topic] = true
 	}
-	
+
 	overlap := 0
 	for topic := range bg.specterStats.TopicCounts {
 		if surfaceTopics[topic] {
 			overlap++
 		}
 	}
-	
+
 	totalTopics := len(surfaceTopics) + len(bg.specterStats.TopicCounts) - overlap
 	if totalTopics == 0 {
 		return 0
 	}
-	
+
 	overlapRatio := float64(overlap) / float64(totalTopics)
 	if overlapRatio > 0.5 {
 		return 3 // High topic overlap
@@ -243,18 +243,18 @@ func (bg *BehavioralGuidance) assessStyleSimilarity() int {
 	if bg.surfaceStats.TotalMessages < 5 || bg.specterStats.TotalMessages < 5 {
 		return 0 // Not enough data
 	}
-	
+
 	// Compare average message length.
 	lenDiff := bg.surfaceStats.AvgMessageLen - bg.specterStats.AvgMessageLen
 	if lenDiff < 0 {
 		lenDiff = -lenDiff
 	}
-	
+
 	avgLen := (bg.surfaceStats.AvgMessageLen + bg.specterStats.AvgMessageLen) / 2
 	if avgLen == 0 {
 		return 0
 	}
-	
+
 	lenSimilarity := 1.0 - (lenDiff / avgLen)
 	if lenSimilarity > 0.8 {
 		return 2 // High style similarity
@@ -268,9 +268,9 @@ func (bg *BehavioralGuidance) assessStyleSimilarity() int {
 func (bg *BehavioralGuidance) GetRecommendations() []Recommendation {
 	bg.mu.RLock()
 	defer bg.mu.RUnlock()
-	
+
 	var recs []Recommendation
-	
+
 	// Always provide base recommendations per SECURITY_PRIVACY.md.
 	recs = append(recs, Recommendation{
 		Category:    "Timing",
@@ -278,35 +278,35 @@ func (bg *BehavioralGuidance) GetRecommendations() []Recommendation {
 		Description: "Use your Surface and Specter identities at different times of day to reduce timing correlation. Avoid posting to both identities within short time windows.",
 		Priority:    1,
 	})
-	
+
 	recs = append(recs, Recommendation{
 		Category:    "Topics",
 		Title:       "Diversify your topics",
 		Description: "Discuss different subjects on each identity. If you have professional discussions on Surface, use Specter for unrelated hobbies or interests.",
 		Priority:    2,
 	})
-	
+
 	recs = append(recs, Recommendation{
 		Category:    "Style",
 		Title:       "Vary your writing style",
 		Description: "Use different vocabulary, sentence structures, and punctuation patterns between identities. Consider using different languages if you're multilingual.",
 		Priority:    2,
 	})
-	
+
 	recs = append(recs, Recommendation{
 		Category:    "Connections",
 		Title:       "Separate social graphs",
 		Description: "Avoid connecting with the same people on both identities. Your Specter connections should be distinct from your Surface connections.",
 		Priority:    1,
 	})
-	
+
 	recs = append(recs, Recommendation{
 		Category:    "Devices",
 		Title:       "Consider device separation",
 		Description: "For maximum unlinkability, use different devices or network connections for each identity. A shared device can leak correlation through network timing.",
 		Priority:    3,
 	})
-	
+
 	// Add context-specific recommendations based on current risk.
 	risk := bg.assessTimingCorrelation()
 	if risk > 1 {
@@ -317,7 +317,7 @@ func (bg *BehavioralGuidance) GetRecommendations() []Recommendation {
 			Priority:    1,
 		})
 	}
-	
+
 	if bg.assessTopicOverlap() > 1 {
 		recs = append(recs, Recommendation{
 			Category:    "Warning",
@@ -326,7 +326,7 @@ func (bg *BehavioralGuidance) GetRecommendations() []Recommendation {
 			Priority:    1,
 		})
 	}
-	
+
 	return recs
 }
 
@@ -334,7 +334,7 @@ func (bg *BehavioralGuidance) GetRecommendations() []Recommendation {
 func (bg *BehavioralGuidance) GetActivitySummary() (surface, specter ActivityStats) {
 	bg.mu.RLock()
 	defer bg.mu.RUnlock()
-	
+
 	return bg.surfaceStats, bg.specterStats
 }
 
@@ -342,7 +342,7 @@ func (bg *BehavioralGuidance) GetActivitySummary() (surface, specter ActivitySta
 func (bg *BehavioralGuidance) Reset() {
 	bg.mu.Lock()
 	defer bg.mu.Unlock()
-	
+
 	bg.surfaceStats = ActivityStats{TopicCounts: make(map[string]int)}
 	bg.specterStats = ActivityStats{TopicCounts: make(map[string]int)}
 }

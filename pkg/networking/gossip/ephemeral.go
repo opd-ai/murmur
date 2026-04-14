@@ -232,10 +232,10 @@ func (m *EphemeralTopicManager) Stop() {
 
 // CouncilTopicManager manages encrypted council topics.
 type CouncilTopicManager struct {
-	ps      *PubSub
-	topics  map[string]*councilTopicEntry
-	mu      sync.RWMutex
-	stopCh  chan struct{}
+	ps     *PubSub
+	topics map[string]*councilTopicEntry
+	mu     sync.RWMutex
+	stopCh chan struct{}
 }
 
 // councilTopicEntry tracks a council topic's state.
@@ -418,7 +418,7 @@ func decryptCouncilMessage(msg *pubsub.Message, key []byte) *pubsub.Message {
 }
 
 // EncryptCouncilMessage encrypts a message for council publication.
-func EncryptCouncilMessage(data []byte, key []byte) ([]byte, error) {
+func EncryptCouncilMessage(data, key []byte) ([]byte, error) {
 	// Full implementation would use XChaCha20-Poly1305
 	// Placeholder: return data as-is
 	if len(key) == 0 {

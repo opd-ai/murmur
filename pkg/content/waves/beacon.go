@@ -339,7 +339,7 @@ func GetBeaconEventTimes(wave *pb.Wave) (start, end int64) {
 	}
 	start = sliceToInt64(wave.Metadata[BeaconEventStartKey])
 	end = sliceToInt64(wave.Metadata[BeaconEventEndKey])
-	return
+	return start, end
 }
 
 // GetBeaconSummaryStats returns summary statistics from beacon metadata.

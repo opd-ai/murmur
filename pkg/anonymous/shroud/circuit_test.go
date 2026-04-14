@@ -855,8 +855,8 @@ func TestRelayRandomDelay(t *testing.T) {
 
 	// Allow generous tolerance: mean should be within 50% of MixDelayMean.
 	// (Clamping affects the distribution, and statistical variance is high).
-	minExpected := MixDelayMean / 2  // 100ms
-	maxExpected := MixDelayMean * 2  // 400ms
+	minExpected := MixDelayMean / 2 // 100ms
+	maxExpected := MixDelayMean * 2 // 400ms
 
 	if meanDelay < minExpected || meanDelay > maxExpected {
 		t.Errorf("mean delay %v outside expected range [%v, %v]", meanDelay, minExpected, maxExpected)
@@ -2602,9 +2602,9 @@ func TestSelectRelayByCapacity(t *testing.T) {
 
 	// Test with capacity metrics - relay-3 has best score.
 	metrics := map[string]CapacityMetrics{
-		"relay-1": {MaxBandwidth: 1000, CurrentBandwidth: 900, MaxCircuits: 10, CurrentCircuits: 9},  // 10% available
-		"relay-2": {MaxBandwidth: 1000, CurrentBandwidth: 500, MaxCircuits: 10, CurrentCircuits: 5},  // 50% available
-		"relay-3": {MaxBandwidth: 1000, CurrentBandwidth: 100, MaxCircuits: 10, CurrentCircuits: 1},  // 90% available
+		"relay-1": {MaxBandwidth: 1000, CurrentBandwidth: 900, MaxCircuits: 10, CurrentCircuits: 9}, // 10% available
+		"relay-2": {MaxBandwidth: 1000, CurrentBandwidth: 500, MaxCircuits: 10, CurrentCircuits: 5}, // 50% available
+		"relay-3": {MaxBandwidth: 1000, CurrentBandwidth: 100, MaxCircuits: 10, CurrentCircuits: 1}, // 90% available
 	}
 
 	selected := SelectRelayByCapacity(relays, metrics, nil)
@@ -3564,13 +3564,13 @@ func TestRelayDiscoveryCleanup(t *testing.T) {
 
 	discovery := NewRelayDiscovery(beacon, "local-peer", nil)
 
-	// Add some relays directly with old timestamps.
+	// Add some relays directly with old timestamps using internal method.
 	for i := 0; i < 5; i++ {
 		info := &RelayInfo{
 			PeerID: fmt.Sprintf("old-peer-%d", i),
 			SeenAt: time.Now().Add(-1 * time.Hour), // Old.
 		}
-		beacon.AddRelay(info)
+		beacon.addRelayWithTime(info)
 	}
 
 	// Add a fresh relay.
@@ -3578,7 +3578,7 @@ func TestRelayDiscoveryCleanup(t *testing.T) {
 		PeerID: "fresh-peer",
 		SeenAt: time.Now(),
 	}
-	beacon.AddRelay(freshInfo)
+	beacon.addRelayWithTime(freshInfo)
 
 	if beacon.RelayCount() != 6 {
 		t.Fatalf("RelayCount = %d, want 6", beacon.RelayCount())

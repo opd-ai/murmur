@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/opd-ai/murmur/proto"
-	pb "google.golang.org/protobuf/proto"
 	"golang.org/x/crypto/curve25519"
+	pb "google.golang.org/protobuf/proto"
 )
 
 // Specter connection type constants.

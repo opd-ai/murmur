@@ -87,7 +87,7 @@ func SigilToEbitenImage(sigil *sigils.Sigil) *ebiten.Image {
 
 // RenderSigilAtNode draws a sigil image at the given node position.
 // The sigil is scaled to fit within the node radius.
-func RenderSigilAtNode(dst *ebiten.Image, sigilImg *ebiten.Image, x, y, nodeRadius float32) {
+func RenderSigilAtNode(dst, sigilImg *ebiten.Image, x, y, nodeRadius float32) {
 	if sigilImg == nil {
 		return
 	}
@@ -113,7 +113,7 @@ func RenderSigilAtNode(dst *ebiten.Image, sigilImg *ebiten.Image, x, y, nodeRadi
 
 // RenderSigilWithGlow draws a sigil with a glow effect around it.
 // Used for active or selected nodes to highlight their sigil.
-func RenderSigilWithGlow(dst *ebiten.Image, sigilImg *ebiten.Image, x, y, nodeRadius float32, glowColor color.RGBA, glowIntensity float32) {
+func RenderSigilWithGlow(dst, sigilImg *ebiten.Image, x, y, nodeRadius float32, glowColor color.RGBA, glowIntensity float32) {
 	if sigilImg == nil {
 		return
 	}
