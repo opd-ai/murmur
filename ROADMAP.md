@@ -532,7 +532,7 @@
 - [x] **Bbolt persistence** — MarkStore backed by `pkg/store`
 - [x] **Pulse Map visualization** — orbiting sigil icons on marked Surface nodes
 - [x] **UI: Mark placement panel** — choose mark type, select target node
-- [ ] **Voting mechanics** — community mark endorsement/challenge
+- [x] **Voting mechanics** — community mark endorsement/challenge
 
 ### Phantom Councils
 
@@ -552,16 +552,16 @@
 
 ### Surface Sparks
 
-- [ ] Wave Relay challenge — fastest relay earns bonus
-- [ ] Echo Races — competitive amplification chain building
-- [ ] Surface Spark event creation and lifecycle
+- [x] Wave Relay challenge — fastest relay earns bonus
+- [x] Echo Races — competitive amplification chain building
+- [x] Surface Spark event creation and lifecycle
 - [ ] Network propagation via GossipSub
 - [ ] Pulse Map visualization for active Sparks
 
 ### Echo Chains
 
-- [ ] Visible re-broadcast chain tracking
-- [ ] Chain length bonuses for participants
+- [x] Visible re-broadcast chain tracking
+- [x] Chain length bonuses for participants
 - [ ] Pulse Map visualization — animated amplification trail between nodes
 
 ### Pulse Beats
