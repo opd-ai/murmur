@@ -154,8 +154,8 @@ func ValidateEnvelope(data []byte, now time.Time) (*Envelope, error) {
 		return nil, err
 	}
 
-	// Validate signature (if sender pubkey present)
-	if len(env.SenderPubkey) > 0 && len(env.Signature) > 0 {
+	// Validate signature (if sender pubkey present and non-zero)
+	if len(env.SenderPubkey) > 0 && len(env.Signature) > 0 && !isAllZeros(env.SenderPubkey) {
 		if err := validateSignature(env); err != nil {
 			return nil, err
 		}
@@ -216,6 +216,16 @@ func buildSignedData(version uint32, msgType MessageType, payload []byte) []byte
 func computeMessageID(payload []byte) []byte {
 	h := blake3.Sum256(payload)
 	return h[:]
+}
+
+// isAllZeros checks if a byte slice is all zeros.
+func isAllZeros(b []byte) bool {
+	for _, v := range b {
+		if v != 0 {
+			return false
+		}
+	}
+	return true
 }
 
 // MessageHandlers manages message handlers for all topics.

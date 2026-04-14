@@ -6,6 +6,7 @@ import (
 	"time"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	pubsub_pb "github.com/libp2p/go-libp2p-pubsub/pb"
 	pb "github.com/opd-ai/murmur/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,7 +20,7 @@ func TestValidationError(t *testing.T) {
 
 func TestValidationConstants(t *testing.T) {
 	assert.Equal(t, 300*time.Second, MaxTimestampDrift)
-	assert.Equal(t, uint32(1), CurrentProtocolVersion)
+	assert.Equal(t, uint32(1), uint32(CurrentProtocolVersion))
 	assert.Equal(t, 32, PublicKeySize)
 	assert.Equal(t, 64, SignatureSize)
 	assert.Equal(t, 32, MessageIDSize)
@@ -268,7 +269,7 @@ func TestMessageHandlers_HandleMessage_Duplicate(t *testing.T) {
 	}
 	data, _ := proto.Marshal(msg)
 
-	psMsg := &pubsub.Message{Message: &pubsub.pb.Message{Data: data}}
+	psMsg := &pubsub.Message{Message: &pubsub_pb.Message{Data: data}}
 
 	// First call should succeed
 	err := h.HandleMessage(context.Background(), TopicWaves, psMsg)

@@ -104,12 +104,12 @@
 - [x] Topic subscriptions: `/murmur/waves/1`, `/murmur/identity/1`, `/murmur/shroud/1`, `/murmur/pulse/1`
 - [x] Peer scoring parameters (IP colocation penalty, invalid message penalty)
 - [x] Flood publish enabled
-- [ ] **Message handler for `/murmur/waves/1`** — receive, validate, store, relay Waves
-- [ ] **Message handler for `/murmur/identity/1`** — receive identity declarations and connections
-- [ ] **Message handler for `/murmur/shroud/1`** — receive Shroud relay advertisements
-- [ ] **Message handler for `/murmur/pulse/1`** — receive and process heartbeat pings
-- [ ] MurmurEnvelope validation pipeline (version, signature, timestamp ±300s, PoW, dedup)
-- [ ] Message deduplication via BLAKE3 message_id (Bloom filter, 30-day window)
+- [x] **Message handler for `/murmur/waves/1`** — receive, validate, store, relay Waves
+- [x] **Message handler for `/murmur/identity/1`** — receive identity declarations and connections
+- [x] **Message handler for `/murmur/shroud/1`** — receive Shroud relay advertisements
+- [x] **Message handler for `/murmur/pulse/1`** — receive and process heartbeat pings
+- [x] MurmurEnvelope validation pipeline (version, signature, timestamp ±300s, PoW, dedup)
+- [x] Message deduplication via BLAKE3 message_id (Bloom filter, 30-day window)
 - [ ] Peer scoring integration with message validation (reward valid, penalize invalid)
 - [ ] Additional topic: `/murmur/anonymous/waves/1.0` — Specter/Masked Waves
 - [ ] Additional topic: `/murmur/anonymous/mechanics/1.0` — Gifts, Marks, mini-game events, Councils
