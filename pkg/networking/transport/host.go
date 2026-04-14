@@ -1,6 +1,16 @@
 // Package transport provides libp2p host construction and transport configuration.
 // Per NETWORK_ARCHITECTURE.md, the transport layer uses Noise XX encryption,
 // QUIC and TCP transports, and yamux for stream multiplexing.
+//
+// Transport Fallback Chain (NETWORK_ARCHITECTURE.md §4):
+// The host tries transports in order of preference:
+//  1. QUIC (UDP, fastest, best for modern networks)
+//  2. TCP (reliable fallback, widely supported)
+//  3. WebSocket (for browser clients, requires HTTP upgrade)
+//  4. WebRTC (for browser-to-browser, uses ICE/STUN)
+//
+// libp2p handles fallback automatically: it attempts all available transports
+// when dialing a peer and uses whatever succeeds first.
 package transport
 
 import (
@@ -15,6 +25,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/routing"
+	"github.com/libp2p/go-libp2p/p2p/net/connmgr"
 	"github.com/libp2p/go-libp2p/p2p/security/noise"
 	libp2ptls "github.com/libp2p/go-libp2p/p2p/security/tls"
 	libp2pquic "github.com/libp2p/go-libp2p/p2p/transport/quic"
@@ -34,6 +45,21 @@ const (
 
 	// DefaultIdleTimeout is the idle timeout for connections.
 	DefaultIdleTimeout = 30 * time.Second
+
+	// MaxPeerConnections is the maximum number of simultaneous peer connections.
+	// Per NETWORK_ARCHITECTURE.md §7: "Each node maintains a maximum of 200 simultaneous peer connections."
+	MaxPeerConnections = 200
+
+	// LowWaterMark is the low watermark for connection pruning (80% of max).
+	// When connections fall below this, the connection manager stops pruning.
+	LowWaterMark = 160
+
+	// HighWaterMark is the high watermark for connection pruning (90% of max).
+	// When connections exceed this, the connection manager starts pruning.
+	HighWaterMark = 180
+
+	// ConnectionGracePeriod is the grace period before a connection is eligible for pruning.
+	ConnectionGracePeriod = 30 * time.Second
 )
 
 // Config holds configuration for constructing a libp2p host.
@@ -60,6 +86,14 @@ type Config struct {
 	// EnableWebRTC enables WebRTC transport for browser-to-browser direct connections.
 	// Per NETWORK_ARCHITECTURE.md, WebRTC is used for direct browser peer connections.
 	EnableWebRTC bool
+
+	// EnableConnectionManager enables the connection manager for enforcing connection limits.
+	// Per NETWORK_ARCHITECTURE.md, max 200 simultaneous peer connections.
+	EnableConnectionManager bool
+
+	// MaxConnections overrides the default MaxPeerConnections (200).
+	// Only used if EnableConnectionManager is true.
+	MaxConnections int
 }
 
 // DefaultConfig returns a Config with sensible defaults.
@@ -69,10 +103,12 @@ func DefaultConfig() Config {
 			"/ip4/0.0.0.0/tcp/0",
 			"/ip4/0.0.0.0/udp/0/quic-v1",
 		},
-		EnableDHT:       true,
-		DHTServerMode:   true,
-		EnableWebSocket: false, // Disabled by default, enable for nodes serving browsers
-		EnableWebRTC:    false, // Disabled by default, enable for browser-to-browser
+		EnableDHT:               true,
+		DHTServerMode:           true,
+		EnableWebSocket:         false, // Disabled by default, enable for nodes serving browsers
+		EnableWebRTC:            false, // Disabled by default, enable for browser-to-browser
+		EnableConnectionManager: true,  // Enabled by default per NETWORK_ARCHITECTURE.md
+		MaxConnections:          MaxPeerConnections,
 	}
 }
 
@@ -85,10 +121,12 @@ func DefaultConfigWithWebSocket() Config {
 			"/ip4/0.0.0.0/udp/0/quic-v1",
 			"/ip4/0.0.0.0/tcp/0/ws",
 		},
-		EnableDHT:       true,
-		DHTServerMode:   true,
-		EnableWebSocket: true,
-		EnableWebRTC:    false,
+		EnableDHT:               true,
+		DHTServerMode:           true,
+		EnableWebSocket:         true,
+		EnableWebRTC:            false,
+		EnableConnectionManager: true,
+		MaxConnections:          MaxPeerConnections,
 	}
 }
 
@@ -101,10 +139,12 @@ func DefaultConfigWithWebRTC() Config {
 			"/ip4/0.0.0.0/udp/0/quic-v1",
 			"/ip4/0.0.0.0/udp/0/webrtc-direct",
 		},
-		EnableDHT:       true,
-		DHTServerMode:   true,
-		EnableWebSocket: false,
-		EnableWebRTC:    true,
+		EnableDHT:               true,
+		DHTServerMode:           true,
+		EnableWebSocket:         false,
+		EnableWebRTC:            true,
+		EnableConnectionManager: true,
+		MaxConnections:          MaxPeerConnections,
 	}
 }
 
@@ -118,10 +158,12 @@ func DefaultConfigWithAllTransports() Config {
 			"/ip4/0.0.0.0/tcp/0/ws",
 			"/ip4/0.0.0.0/udp/0/webrtc-direct",
 		},
-		EnableDHT:       true,
-		DHTServerMode:   true,
-		EnableWebSocket: true,
-		EnableWebRTC:    true,
+		EnableDHT:               true,
+		DHTServerMode:           true,
+		EnableWebSocket:         true,
+		EnableWebRTC:            true,
+		EnableConnectionManager: true,
+		MaxConnections:          MaxPeerConnections,
 	}
 }
 
@@ -152,6 +194,34 @@ func NewHost(ctx context.Context, cfg Config) (*Host, error) {
 	var idht *dht.IpfsDHT
 	opts := buildBaseOptions(privKey, listenAddrs, cfg.EnableWebSocket, cfg.EnableWebRTC)
 
+	// Add connection manager if enabled.
+	// Per NETWORK_ARCHITECTURE.md §7: max 200 simultaneous peer connections.
+	if cfg.EnableConnectionManager {
+		maxConns := cfg.MaxConnections
+		if maxConns <= 0 {
+			maxConns = MaxPeerConnections
+		}
+		// Calculate watermarks: low=80%, high=90% of max.
+		lowWater := maxConns * 80 / 100
+		highWater := maxConns * 90 / 100
+		if lowWater < 1 {
+			lowWater = 1
+		}
+		if highWater <= lowWater {
+			highWater = lowWater + 1
+		}
+
+		cm, err := connmgr.NewConnManager(
+			lowWater,
+			highWater,
+			connmgr.WithGracePeriod(ConnectionGracePeriod),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create connection manager: %w", err)
+		}
+		opts = append(opts, libp2p.ConnectionManager(cm))
+	}
+
 	if cfg.EnableDHT {
 		opts = append(opts, buildDHTOption(ctx, cfg.DHTServerMode, &idht))
 	}
@@ -178,24 +248,28 @@ func parseListenAddresses(addrs []string) ([]multiaddr.Multiaddr, error) {
 }
 
 // buildBaseOptions returns common libp2p options for transport and security.
+// Transport Fallback Chain per NETWORK_ARCHITECTURE.md §4:
+// Transports are registered in preference order (QUIC → TCP → WebSocket → WebRTC).
+// libp2p will try each transport when dialing and use the first that succeeds.
 func buildBaseOptions(privKey crypto.PrivKey, listenAddrs []multiaddr.Multiaddr, enableWS, enableWebRTC bool) []libp2p.Option {
 	opts := []libp2p.Option{
 		libp2p.Identity(privKey),
 		libp2p.ListenAddrs(listenAddrs...),
-		libp2p.Transport(libp2pquic.NewTransport),
-		libp2p.Transport(tcp.NewTCPTransport),
+		// Transport fallback chain: QUIC (preferred) → TCP → WebSocket → WebRTC
+		libp2p.Transport(libp2pquic.NewTransport), // Fastest, modern networks
+		libp2p.Transport(tcp.NewTCPTransport),     // Reliable fallback
 		libp2p.Security(noise.ID, noise.New),
 		libp2p.Security(libp2ptls.ID, libp2ptls.New),
 		libp2p.ConnectionGater(nil),
 	}
 
-	// Add WebSocket transport if enabled.
+	// Add WebSocket transport if enabled (position 3 in fallback chain).
 	// Per NETWORK_ARCHITECTURE.md, WebSocket is used for browser client connectivity.
 	if enableWS {
 		opts = append(opts, libp2p.Transport(websocket.New))
 	}
 
-	// Add WebRTC transport if enabled.
+	// Add WebRTC transport if enabled (position 4 in fallback chain).
 	// Per NETWORK_ARCHITECTURE.md, WebRTC enables direct browser-to-browser connections.
 	if enableWebRTC {
 		opts = append(opts, libp2p.Transport(libp2pwebrtc.New))

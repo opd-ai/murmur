@@ -74,8 +74,8 @@
 - [x] TCP transport with yamux stream multiplexing
 - [x] QUIC transport (UDP, TLS 1.3, native multiplexing)
 - [x] WebSocket transport for browser clients (per NETWORK_ARCHITECTURE.md)
-- [ ] WebRTC transport for browser-to-browser direct connections (ICE/STUN/TURN)
-- [ ] Transport fallback chain: QUIC → TCP → WebSocket
+- [x] WebRTC transport for browser-to-browser direct connections (ICE/STUN/TURN)
+- [x] Transport fallback chain: QUIC → TCP → WebSocket
 - [ ] Connection limit enforcement (max 200 simultaneous peers per NETWORK_ARCHITECTURE.md)
 - [ ] Four-tier connection priority system (Social, Mesh, DHT, Opportunistic)
 

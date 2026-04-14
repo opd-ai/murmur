@@ -400,3 +400,129 @@ func TestNewHostWithWebSocket(t *testing.T) {
 
 	t.Logf("Host with WebSocket created, addresses: %v", addrs)
 }
+
+func TestDefaultConfigWithWebRTC(t *testing.T) {
+	cfg := DefaultConfigWithWebRTC()
+
+	if !cfg.EnableWebRTC {
+		t.Error("DefaultConfigWithWebRTC should have WebRTC enabled")
+	}
+
+	// Should have TCP, QUIC, and WebRTC
+	hasTCP := false
+	hasQUIC := false
+	hasWebRTC := false
+	for _, addr := range cfg.ListenAddrs {
+		if addr == "/ip4/0.0.0.0/tcp/0" {
+			hasTCP = true
+		}
+		if addr == "/ip4/0.0.0.0/udp/0/quic-v1" {
+			hasQUIC = true
+		}
+		if addr == "/ip4/0.0.0.0/udp/0/webrtc-direct" {
+			hasWebRTC = true
+		}
+	}
+
+	if !hasTCP {
+		t.Error("Config with WebRTC should include TCP listen address")
+	}
+	if !hasQUIC {
+		t.Error("Config with WebRTC should include QUIC listen address")
+	}
+	if !hasWebRTC {
+		t.Error("Config with WebRTC should include WebRTC listen address")
+	}
+}
+
+func TestNewHostWithWebRTC(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	_, priv, _ := ed25519.GenerateKey(rand.Reader)
+	cfg := DefaultConfigWithWebRTC()
+	cfg.PrivateKey = priv
+	cfg.EnableDHT = false
+
+	h, err := NewHost(ctx, cfg)
+	if err != nil {
+		t.Fatalf("NewHost with WebRTC failed: %v", err)
+	}
+	defer h.Close()
+
+	// Verify host has listen addresses including WebRTC
+	addrs := h.Addrs()
+	if len(addrs) == 0 {
+		t.Error("Host should have listen addresses")
+	}
+
+	t.Logf("Host with WebRTC created, addresses: %v", addrs)
+}
+
+func TestDefaultConfigWithAllTransports(t *testing.T) {
+	cfg := DefaultConfigWithAllTransports()
+
+	if !cfg.EnableWebSocket {
+		t.Error("DefaultConfigWithAllTransports should have WebSocket enabled")
+	}
+	if !cfg.EnableWebRTC {
+		t.Error("DefaultConfigWithAllTransports should have WebRTC enabled")
+	}
+
+	// Should have TCP, QUIC, WebSocket, and WebRTC
+	hasTCP := false
+	hasQUIC := false
+	hasWS := false
+	hasWebRTC := false
+	for _, addr := range cfg.ListenAddrs {
+		if addr == "/ip4/0.0.0.0/tcp/0" {
+			hasTCP = true
+		}
+		if addr == "/ip4/0.0.0.0/udp/0/quic-v1" {
+			hasQUIC = true
+		}
+		if addr == "/ip4/0.0.0.0/tcp/0/ws" {
+			hasWS = true
+		}
+		if addr == "/ip4/0.0.0.0/udp/0/webrtc-direct" {
+			hasWebRTC = true
+		}
+	}
+
+	if !hasTCP {
+		t.Error("Config with all transports should include TCP listen address")
+	}
+	if !hasQUIC {
+		t.Error("Config with all transports should include QUIC listen address")
+	}
+	if !hasWS {
+		t.Error("Config with all transports should include WebSocket listen address")
+	}
+	if !hasWebRTC {
+		t.Error("Config with all transports should include WebRTC listen address")
+	}
+}
+
+func TestNewHostWithAllTransports(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	_, priv, _ := ed25519.GenerateKey(rand.Reader)
+	cfg := DefaultConfigWithAllTransports()
+	cfg.PrivateKey = priv
+	cfg.EnableDHT = false
+
+	h, err := NewHost(ctx, cfg)
+	if err != nil {
+		t.Fatalf("NewHost with all transports failed: %v", err)
+	}
+	defer h.Close()
+
+	// Verify host has listen addresses
+	addrs := h.Addrs()
+	if len(addrs) == 0 {
+		t.Error("Host should have listen addresses")
+	}
+
+	t.Logf("Host with all transports created, addresses: %v", addrs)
+}
