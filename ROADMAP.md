@@ -592,7 +592,7 @@
 - [x] **Incremental layout** — 30 ticks/second background goroutine
 - [ ] **Performance**: 60fps with 500 nodes and 2000 edges (target per TECHNICAL_IMPLEMENTATION.md)
 - [x] **Viewport culling** — only compute forces for visible nodes
-- [ ] **Data update throttling** — 30Hz nodes, 10Hz state, 5Hz connections, 2Hz content
+- [x] **Data update throttling** — 30Hz nodes, 10Hz state, 5Hz connections, 2Hz content
 
 ### Node Rendering (`pkg/pulsemap/rendering/`)
 
@@ -603,8 +603,8 @@
 - [x] Edge drawing with age-based opacity and thickness
 - [x] NodeStyle with colors, rings, halos, activity
 - [x] ZoomLevel support (Macro, Meso, Micro)
-- [ ] **Sigil overlay** — render deterministic geometric pattern on node
-- [ ] **Specter node appearance** — translucency, particle emissions, cool-tone coloring
+- [x] **Sigil overlay** — render deterministic geometric pattern on node
+- [x] **Specter node appearance** — translucency, particle emissions, cool-tone coloring
 - [x] **Specter Mark sigils** — orbiting small icons around marked nodes
 - [x] **Phantom Gift overlays** — animated cosmetic effects on gifted nodes
 - [x] **Connection age visual encoding** — bright new, faded old transitions
