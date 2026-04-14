@@ -21,16 +21,17 @@ var (
 	BucketResonance = []byte("resonance")
 	BucketConfig    = []byte("config")
 	// Mechanics buckets for Anonymous Layer game state persistence.
-	BucketGifts       = []byte("gifts")
-	BucketMarks       = []byte("marks")
-	BucketPuzzles     = []byte("puzzles")
-	BucketHunts       = []byte("hunts")
-	BucketTerritories = []byte("territories")
-	BucketOracles     = []byte("oracles")
-	BucketForge       = []byte("forge")
-	BucketShadowPlay  = []byte("shadowplay")
-	BucketCouncils    = []byte("councils")
-	BucketDailyLimits = []byte("daily_limits")
+	BucketGifts        = []byte("gifts")
+	BucketMarks        = []byte("marks")
+	BucketPuzzles      = []byte("puzzles")
+	BucketHunts        = []byte("hunts")
+	BucketTerritories  = []byte("territories")
+	BucketOracles      = []byte("oracles")
+	BucketForge        = []byte("forge")
+	BucketShadowPlay   = []byte("shadowplay")
+	BucketCouncils     = []byte("councils")
+	BucketDailyLimits  = []byte("daily_limits")
+	BucketMaskedEvents = []byte("masked_events")
 )
 
 // DB wraps a Bbolt database with MURMUR-specific operations.
@@ -89,6 +90,7 @@ func (db *DB) initBuckets() error {
 		BucketShadowPlay,
 		BucketCouncils,
 		BucketDailyLimits,
+		BucketMaskedEvents,
 	}
 
 	return db.bolt.Update(func(tx *bbolt.Tx) error {

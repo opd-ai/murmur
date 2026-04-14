@@ -454,6 +454,48 @@ func (s *GiftStore) Count() int {
 	return count
 }
 
+// GetAllActiveRecipients returns hex keys of all recipients with active gifts.
+// Per ROADMAP.md line 521, this enables cross-layer visibility by listing
+// all Surface nodes that should display gift effects from the Anonymous Layer.
+func (s *GiftStore) GetAllActiveRecipients() []string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	recipients := make([]string, 0)
+	seen := make(map[string]bool)
+
+	for _, gift := range s.gifts {
+		if gift.IsExpired() {
+			continue
+		}
+		hex := keyToHex(gift.RecipientKey)
+		if !seen[hex] {
+			seen[hex] = true
+			recipients = append(recipients, hex)
+		}
+	}
+
+	return recipients
+}
+
+// GetGiftsByRecipientHex returns all active gifts for a recipient by hex key.
+// This is a convenience method for cross-layer bridge operations.
+func (s *GiftStore) GetGiftsByRecipientHex(recipientHex string) []*Gift {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	all := s.byRecipient[recipientHex]
+
+	var active []*Gift
+	for _, g := range all {
+		if !g.IsExpired() {
+			active = append(active, g)
+		}
+	}
+
+	return active
+}
+
 // GenerateGiftID creates a unique gift ID from random bytes.
 func GenerateGiftID() ([32]byte, error) {
 	var id [32]byte

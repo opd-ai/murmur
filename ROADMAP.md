@@ -490,21 +490,21 @@
 - [x] **Bbolt persistence** — ShadowPlayStore backed by `pkg/store`
 - [x] **Pulse Map visualization** — dark shimmering dome with lightning effects
 - [x] **UI: Shadow Play game interface** — role reveal, vote casting, round status, results
-- [ ] **Communication phase** — in-game discussion between rounds via encrypted group channel
+- [x] **Communication phase** — in-game discussion between rounds via encrypted group channel
 
 ### Masked Events
 
-- [ ] **Masked Event hosting** — create temporary anonymous gathering (Resonance ≥100)
-- [ ] Single-use Ed25519 keypair generation per event
-- [ ] Masked Pseudonym — event-themed two-word identifier
-- [ ] Masked Sigil generation from Masked key hash
-- [ ] Ephemeral per-event GossipSub topic: `/murmur/event/[event_id]/1.0`
-- [ ] Masked Wave (0x07) — 7-day TTL ephemeral Wave within event
-- [ ] Post-event keypair destruction and unlinkability guarantee
-- [ ] **Network propagation** — event announcements, join/leave, Masked Waves
-- [ ] **Bbolt persistence** — event metadata and lifecycle
-- [ ] **Pulse Map visualization** — translucent dome with identical featureless dots inside
-- [ ] **UI: Event lobby** — create event, join event, compose Masked Waves
+- [x] **Masked Event hosting** — create temporary anonymous gathering (Resonance ≥100)
+- [x] Single-use Ed25519 keypair generation per event
+- [x] Masked Pseudonym — event-themed two-word identifier
+- [x] Masked Sigil generation from Masked key hash
+- [x] Ephemeral per-event GossipSub topic: `/murmur/event/[event_id]/1.0`
+- [x] Masked Wave (0x07) — 7-day TTL ephemeral Wave within event
+- [x] Post-event keypair destruction and unlinkability guarantee
+- [x] **Network propagation** — event announcements, join/leave, Masked Waves
+- [x] **Bbolt persistence** — event metadata and lifecycle
+- [x] **Pulse Map visualization** — translucent dome with identical featureless dots inside
+- [x] **UI: Event lobby** — create event, join event, compose Masked Waves
 
 ### Phantom Gifts (`pkg/anonymous/mechanics/`)
 
@@ -516,8 +516,8 @@
 - [x] Ed25519 signature verification
 - [x] **Network propagation** — broadcast gifts via `/murmur/anonymous/mechanics/1.0`
 - [x] **Bbolt persistence** — GiftStore backed by `pkg/store`
-- [ ] **Pulse Map integration** — animated cosmetic effects on recipient nodes (3 tiers)
-- [ ] **UI: Gift sending panel** — select gift type, choose recipient, confirm send
+- [x] **Pulse Map integration** — animated cosmetic effects on recipient nodes (3 tiers)
+- [x] **UI: Gift sending panel** — select gift type, choose recipient, confirm send
 - [ ] **Cross-layer visibility** — Surface nodes see gift effects from Anonymous Layer
 
 ### Specter Marks
