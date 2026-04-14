@@ -591,7 +591,7 @@
 - [x] **Hierarchical aggregation** — cluster representatives for >500 visible nodes
 - [x] **Incremental layout** — 30 ticks/second background goroutine
 - [ ] **Performance**: 60fps with 500 nodes and 2000 edges (target per TECHNICAL_IMPLEMENTATION.md)
-- [ ] **Viewport culling** — only compute forces for visible nodes
+- [x] **Viewport culling** — only compute forces for visible nodes
 - [ ] **Data update throttling** — 30Hz nodes, 10Hz state, 5Hz connections, 2Hz content
 
 ### Node Rendering (`pkg/pulsemap/rendering/`)
