@@ -526,3 +526,85 @@ func TestNewHostWithAllTransports(t *testing.T) {
 
 	t.Logf("Host with all transports created, addresses: %v", addrs)
 }
+
+func TestConnectionManagerConstants(t *testing.T) {
+	// Verify connection limit constants per NETWORK_ARCHITECTURE.md
+	if MaxPeerConnections != 200 {
+		t.Errorf("MaxPeerConnections = %d, want 200 per NETWORK_ARCHITECTURE.md", MaxPeerConnections)
+	}
+
+	if LowWaterMark >= HighWaterMark {
+		t.Error("LowWaterMark should be less than HighWaterMark")
+	}
+
+	if HighWaterMark >= MaxPeerConnections {
+		t.Error("HighWaterMark should be less than MaxPeerConnections")
+	}
+}
+
+func TestNewHostWithConnectionManager(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	_, priv, _ := ed25519.GenerateKey(rand.Reader)
+	cfg := DefaultConfig()
+	cfg.PrivateKey = priv
+	cfg.EnableDHT = false
+	cfg.EnableConnectionManager = true
+
+	h, err := NewHost(ctx, cfg)
+	if err != nil {
+		t.Fatalf("NewHost with connection manager failed: %v", err)
+	}
+	defer h.Close()
+
+	// Host should be created successfully with connection manager
+	if h.Host == nil {
+		t.Error("Host.Host is nil")
+	}
+}
+
+func TestNewHostWithCustomMaxConnections(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	_, priv, _ := ed25519.GenerateKey(rand.Reader)
+	cfg := DefaultConfig()
+	cfg.PrivateKey = priv
+	cfg.EnableDHT = false
+	cfg.EnableConnectionManager = true
+	cfg.MaxConnections = 50 // Custom limit
+
+	h, err := NewHost(ctx, cfg)
+	if err != nil {
+		t.Fatalf("NewHost with custom max connections failed: %v", err)
+	}
+	defer h.Close()
+
+	// Host should be created successfully
+	if h.Host == nil {
+		t.Error("Host.Host is nil")
+	}
+}
+
+func TestNewHostWithoutConnectionManager(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	_, priv, _ := ed25519.GenerateKey(rand.Reader)
+	cfg := DefaultConfig()
+	cfg.PrivateKey = priv
+	cfg.EnableDHT = false
+	cfg.EnableConnectionManager = false
+
+	h, err := NewHost(ctx, cfg)
+	if err != nil {
+		t.Fatalf("NewHost without connection manager failed: %v", err)
+	}
+	defer h.Close()
+
+	// Host should be created successfully without connection manager
+	if h.Host == nil {
+		t.Error("Host.Host is nil")
+	}
+}
