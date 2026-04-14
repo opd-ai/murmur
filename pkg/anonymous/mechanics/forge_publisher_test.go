@@ -6,7 +6,6 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
-	"encoding/hex"
 	"testing"
 	"time"
 
@@ -348,19 +347,21 @@ func TestForgeReceiver_HandleContribution(t *testing.T) {
 	receiver := NewForgeReceiver(store)
 
 	// Create and store a forge first.
-	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
+	_, forgePrivKey, _ := ed25519.GenerateKey(rand.Reader)
 	var initiatorKey [32]byte
-	copy(initiatorKey[:], privKey.Public().(ed25519.PublicKey))
+	copy(initiatorKey[:], forgePrivKey.Public().(ed25519.PublicKey))
 
 	forge, _ := NewSigilForge(ForgeMicroFiction, "Test", initiatorKey, ForgeDuration30Min, ForgeMinResonance)
 	store.AddForge(forge)
 
-	// Publish entry.
-	mockPub := &mockPublisher{}
-	publisher := NewForgePublisher(mockPub, privKey)
-
+	// Create entry submitter keys (separate from forge initiator).
+	_, entryPrivKey, _ := ed25519.GenerateKey(rand.Reader)
 	var specterKey [32]byte
-	specterKey[0] = 42 // Different from initiator.
+	copy(specterKey[:], entryPrivKey.Public().(ed25519.PublicKey))
+
+	// Publish entry using entry submitter's key.
+	mockPub := &mockPublisher{}
+	publisher := NewForgePublisher(mockPub, entryPrivKey)
 
 	entry := &ForgeEntry{
 		ForgeID:      forge.ID,
@@ -402,7 +403,7 @@ func TestForgeReceiver_HandleForgeFinalized(t *testing.T) {
 	var initiatorKey [32]byte
 	copy(initiatorKey[:], privKey.Public().(ed25519.PublicKey))
 
-	forge, _ := NewSigilForge(ForgeSigilArt, "Test", initiatorKey, ForgeDuration30Min)
+	forge, _ := NewSigilForge(ForgeSigilArt, "Test", initiatorKey, ForgeDuration30Min, ForgeMinResonance)
 	store.AddForge(forge)
 
 	// Publish finalization.
@@ -421,8 +422,7 @@ func TestForgeReceiver_HandleForgeFinalized(t *testing.T) {
 	}
 
 	// Verify forge state changed.
-	forgeIDHex := hex.EncodeToString(forge.ID[:])
-	stored := store.GetForge(forgeIDHex)
+	stored := store.GetForge(forge.ID)
 	if stored.State != ForgeCompleted {
 		t.Errorf("expected state ForgeCompleted, got %v", stored.State)
 	}
@@ -438,7 +438,7 @@ func TestForgeReceiver_HandleForgeFailed(t *testing.T) {
 	var initiatorKey [32]byte
 	copy(initiatorKey[:], privKey.Public().(ed25519.PublicKey))
 
-	forge, _ := NewSigilForge(ForgeSigilArt, "Test", initiatorKey, ForgeDuration30Min)
+	forge, _ := NewSigilForge(ForgeSigilArt, "Test", initiatorKey, ForgeDuration30Min, ForgeMinResonance)
 	store.AddForge(forge)
 
 	// Publish failure.
@@ -457,8 +457,7 @@ func TestForgeReceiver_HandleForgeFailed(t *testing.T) {
 	}
 
 	// Verify forge state changed.
-	forgeIDHex := hex.EncodeToString(forge.ID[:])
-	stored := store.GetForge(forgeIDHex)
+	stored := store.GetForge(forge.ID)
 	if stored.State != ForgeExpired {
 		t.Errorf("expected state ForgeExpired, got %v", stored.State)
 	}
@@ -522,7 +521,7 @@ func TestForgeEventSignatureRoundTrip(t *testing.T) {
 	var initiatorKey [32]byte
 	copy(initiatorKey[:], privKey.Public().(ed25519.PublicKey))
 
-	forge, _ := NewSigilForge(ForgeMicroFiction, "Test", initiatorKey, ForgeDuration30Min)
+	forge, _ := NewSigilForge(ForgeMicroFiction, "Test", initiatorKey, ForgeDuration30Min, ForgeMinResonance)
 
 	err := publisher.PublishForgeCreated(context.Background(), forge)
 	if err != nil {
@@ -562,7 +561,7 @@ func BenchmarkForgePublisher_PublishForgeCreated(b *testing.B) {
 	var initiatorKey [32]byte
 	copy(initiatorKey[:], privKey.Public().(ed25519.PublicKey))
 
-	forge, _ := NewSigilForge(ForgeMicroFiction, "Benchmark prompt", initiatorKey, ForgeDuration30Min)
+	forge, _ := NewSigilForge(ForgeMicroFiction, "Benchmark prompt", initiatorKey, ForgeDuration30Min, ForgeMinResonance)
 
 	ctx := context.Background()
 	b.ResetTimer()
@@ -582,7 +581,7 @@ func BenchmarkForgeReceiver_HandleMessage(b *testing.B) {
 	var initiatorKey [32]byte
 	copy(initiatorKey[:], privKey.Public().(ed25519.PublicKey))
 
-	forge, _ := NewSigilForge(ForgeMicroFiction, "Benchmark", initiatorKey, ForgeDuration30Min)
+	forge, _ := NewSigilForge(ForgeMicroFiction, "Benchmark", initiatorKey, ForgeDuration30Min, ForgeMinResonance)
 
 	publisher.PublishForgeCreated(context.Background(), forge)
 	data := mockPub.published[0].data

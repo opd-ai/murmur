@@ -16,6 +16,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **2026-04-14**: Shadow Play network propagation
+  - `pkg/anonymous/mechanics/shadowplay_publisher.go`: Shadow Play event publishing/receiving
+    - `ShadowPlayPublisher`: Broadcasts shadow play events to GossipSub
+    - `PublishGameCreated()`: Announce new social deduction games
+    - `PublishCastJoin()`: Broadcast player joining the cast
+    - `PublishGameStarted()`: Announce game transition to performing
+    - `PublishGameEnded()`: Announce game completion with winner info
+    - `PublishGameCancelled()`: Announce game cancellation
+    - `ShadowPlayReceiver`: Handles incoming shadow play events
+    - Ed25519 signed events with BLAKE3 signature data
+    - Per ROADMAP.md line 489: "Network propagation — broadcast game state, votes, eliminations, outcomes"
+  - `pkg/anonymous/mechanics/shadowplay_publisher_test.go`: 22 tests + 2 benchmarks
+
+- **2026-04-14**: Sigil Forge network propagation
+  - `pkg/anonymous/mechanics/forge_publisher.go`: Sigil Forge event publishing/receiving
+    - `ForgePublisher`: Broadcasts forge events to GossipSub
+    - `PublishForgeCreated()`: Announce new collaborative art/fiction projects
+    - `PublishEntry()`: Broadcast forge entry submissions
+    - `PublishAmplification()`: Broadcast amplification votes for entries
+    - `PublishForgeFinalized()`: Announce forge completion with winning sigil
+    - `PublishForgeFailed()`: Announce forge failure (insufficient entries)
+    - `ForgeReceiver`: Handles incoming forge events
+    - Ed25519 signed events with BLAKE3 signature data
+    - Per ROADMAP.md line 474: "Network propagation — broadcast forge events, entries, votes"
+  - `pkg/anonymous/mechanics/forge_publisher_test.go`: 20 tests + 2 benchmarks
+
 - **2026-04-14**: Oracle Pools network propagation
   - `pkg/anonymous/mechanics/oracle_publisher.go`: Oracle pool event publishing/receiving
     - `OraclePublisher`: Broadcasts oracle events to GossipSub

@@ -471,7 +471,7 @@
 - [x] Evaluation with ranking
 - [x] Resonance bonuses: winner `4 * ln(1 + amplifications)`, participants `2 * ln(1 + own_amplifications)`
 - [x] **Resonance gating** — only Resonance ≥50 Specters can participate
-- [ ] **Network propagation** — broadcast forge events, entries, votes
+- [x] **Network propagation** — broadcast forge events, entries, votes
 - [x] **Bbolt persistence** — ForgeStore backed by `pkg/store`
 - [ ] **Pulse Map visualization** — anvil-and-flame icon with orbiting entries
 - [ ] **UI: Forge submission panel** — create/submit entries, view competitors
@@ -486,7 +486,7 @@
 - [x] Resonance bonuses: winners `5 * ln(1 + participants)`, losers `2 * ln(1 + participants)`
 - [x] ShadowPlayStore with state management
 - [x] **Resonance gating** — only Resonance ≥200 Specters can initiate Shadow Play
-- [ ] **Network propagation** — broadcast game state, votes, eliminations, outcomes
+- [x] **Network propagation** — broadcast game state, votes, eliminations, outcomes
 - [x] **Bbolt persistence** — ShadowPlayStore backed by `pkg/store`
 - [ ] **Pulse Map visualization** — dark shimmering dome with lightning effects
 - [ ] **UI: Shadow Play game interface** — role reveal, vote casting, round status, results
