@@ -87,16 +87,16 @@
 - [x] Peer Exchange (PEX) protocol — `/murmur/peer-exchange/1` stream handler
 - [x] PEX 5-minute periodic peer list sharing (per NETWORK_ARCHITECTURE.md)
 - [x] Bootstrap node list (8–12 hardcoded entry points)
-- [ ] Peer routing table persistence across restarts
+- [x] Peer routing table persistence across restarts
 
 ### NAT Traversal (`pkg/networking/relay/`)
 
 - [x] Circuit relay protocol handler
 - [x] Stream forwarding between relayed peers
-- [ ] AutoNAT service for NAT status detection
-- [ ] DCUtR (Direct Connection Upgrade through Relay) hole punching
-- [ ] Relay node capacity limits (max 128 concurrent, 128 KB/s per connection)
-- [ ] TURN server fallback for WebRTC ICE
+- [x] AutoNAT service for NAT status detection
+- [x] DCUtR (Direct Connection Upgrade through Relay) hole punching
+- [x] Relay node capacity limits (max 128 concurrent, 128 KB/s per connection)
+- [x] TURN server fallback for WebRTC ICE
 
 ### GossipSub (`pkg/networking/gossip/`)
 
