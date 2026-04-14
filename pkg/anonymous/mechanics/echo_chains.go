@@ -49,14 +49,14 @@ type EchoChainNode struct {
 
 // EchoChain represents a chain of amplifications.
 type EchoChain struct {
-	ID          [32]byte         // Unique chain ID (derived from original Wave).
-	OriginalID  [32]byte         // ID of the original Wave being amplified.
-	Nodes       []*EchoChainNode // Ordered list of chain participants.
-	Layer       EchoChainLayer   // Surface or Anonymous.
-	FormedAt    time.Time        // When chain reached minimum length.
-	ExpiresAt   time.Time        // When chain visual expires.
-	HasShimmer  bool             // True if chain length >= 5.
-	TotalBonus  float64          // Sum of all Resonance bonuses awarded.
+	ID         [32]byte         // Unique chain ID (derived from original Wave).
+	OriginalID [32]byte         // ID of the original Wave being amplified.
+	Nodes      []*EchoChainNode // Ordered list of chain participants.
+	Layer      EchoChainLayer   // Surface or Anonymous.
+	FormedAt   time.Time        // When chain reached minimum length.
+	ExpiresAt  time.Time        // When chain visual expires.
+	HasShimmer bool             // True if chain length >= 5.
+	TotalBonus float64          // Sum of all Resonance bonuses awarded.
 }
 
 // Length returns the number of nodes in the chain.
@@ -93,11 +93,11 @@ func EchoChainLayerString(layer EchoChainLayer) string {
 // EchoChainStore manages echo chain storage and tracking.
 type EchoChainStore struct {
 	mu            sync.RWMutex
-	chains        map[[32]byte]*EchoChain    // By chain ID.
-	byOriginal    map[[32]byte]*EchoChain    // By original Wave ID.
-	pendingChains map[[32]byte]*EchoChain    // Chains building but not yet formed.
-	nodeBonus     map[string]float64         // Accumulated bonus by node key (hex).
-	activeChains  map[[32]byte]bool          // Currently visible chains.
+	chains        map[[32]byte]*EchoChain // By chain ID.
+	byOriginal    map[[32]byte]*EchoChain // By original Wave ID.
+	pendingChains map[[32]byte]*EchoChain // Chains building but not yet formed.
+	nodeBonus     map[string]float64      // Accumulated bonus by node key (hex).
+	activeChains  map[[32]byte]bool       // Currently visible chains.
 }
 
 // NewEchoChainStore creates a new echo chain store.

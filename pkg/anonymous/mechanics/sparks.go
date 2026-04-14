@@ -79,12 +79,12 @@ type SparkResponse struct {
 
 // SparkResult holds the outcome of a Spark challenge.
 type SparkResult struct {
-	SparkID      [32]byte  // ID of the spark.
-	Type         SparkType // Type of spark.
-	WinnerID     []byte    // Winner's public key (nil if no winner).
-	ResponseTime time.Duration
+	SparkID        [32]byte  // ID of the spark.
+	Type           SparkType // Type of spark.
+	WinnerID       []byte    // Winner's public key (nil if no winner).
+	ResponseTime   time.Duration
 	TotalResponses int
-	CompletedAt  time.Time
+	CompletedAt    time.Time
 }
 
 // IsExpired returns true if the spark has passed its expiration time.
