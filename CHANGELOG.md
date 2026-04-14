@@ -74,6 +74,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `pkg/networking/transport/transport_test.go`: Added 10 tests for DHT modes, invalid addresses, close paths, config defaults (coverage: 60.5% → 90.7%)
   - All networking packages now exceed 70% coverage threshold
 
+- **2026-04-14**: Bootstrap node list and peer routing table persistence
+  - `pkg/networking/discovery/bootstrap.go`: Hardcoded 8 bootstrap nodes (NA-East, NA-West, Europe, Asia-Pacific) with `mustParseAddrInfo()` parser per NETWORK_ARCHITECTURE.md §3
+  - `pkg/networking/discovery/bootstrap_test.go`: 9 tests covering bootstrap node parsing, verification, and edge cases
+  - `pkg/networking/discovery/persistence.go`: `PeerTable` type for persisting peer routing table across restarts with Load/Save/Update methods using Bbolt
+  - `pkg/networking/discovery/persistence_test.go`: 16 tests for persistence layer (Load/Save/Update/Expiry/TTL)
+
 ### Changed
 
 - **2026-04-14**: Renamed `pkg/errors/` to `pkg/murerr/` to avoid shadowing Go's standard `errors` package

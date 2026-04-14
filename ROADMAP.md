@@ -86,7 +86,7 @@
 - [x] mDNS local network peer discovery
 - [x] Peer Exchange (PEX) protocol — `/murmur/peer-exchange/1` stream handler
 - [x] PEX 5-minute periodic peer list sharing (per NETWORK_ARCHITECTURE.md)
-- [ ] Bootstrap node list (8–12 hardcoded entry points)
+- [x] Bootstrap node list (8–12 hardcoded entry points)
 - [ ] Peer routing table persistence across restarts
 
 ### NAT Traversal (`pkg/networking/relay/`)
