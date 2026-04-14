@@ -244,14 +244,14 @@ func (t *UpdateThrottler) TriggerIfReady(category UpdateCategory) bool {
 
 // ThrottleStats contains statistics about throttling behavior.
 type ThrottleStats struct {
-	Category     UpdateCategory
-	UpdateCount  int64
-	DropCount    int64
-	TotalCount   int64
-	DropRatio    float64
-	Interval     time.Duration
-	IsPending    bool
-	TimeToNext   time.Duration
+	Category    UpdateCategory
+	UpdateCount int64
+	DropCount   int64
+	TotalCount  int64
+	DropRatio   float64
+	Interval    time.Duration
+	IsPending   bool
+	TimeToNext  time.Duration
 }
 
 // GetStats returns statistics for a category.
