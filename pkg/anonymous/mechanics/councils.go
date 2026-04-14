@@ -149,6 +149,8 @@ func VoteValueString(v VoteValue) string {
 var (
 	ErrCouncilInsufficientResonance = errors.New(
 		"insufficient resonance for council")
+	ErrCouncilRequiresFortress = errors.New(
+		"council creation requires Fortress mode")
 	ErrCouncilNameTooLong    = errors.New("council name too long")
 	ErrCouncilPurposeTooLong = errors.New("council purpose too long")
 	ErrCouncilInvalidSize    = errors.New(
@@ -311,13 +313,21 @@ func (c *PhantomCouncil) SetZKVerifier(v ZKClaimVerifier) {
 }
 
 // NewPhantomCouncil creates a new Phantom Council.
+// Per ANONYMOUS_GAME_MECHANICS.md, council creation requires:
+// - Fortress mode (isFortressMode must be true)
+// - Specter Resonance ≥200
 func NewPhantomCouncil(
 	creator [32]byte,
 	name, purpose string,
 	minResonance float64,
 	maxMembers int,
 	creatorResonance int,
+	isFortressMode bool,
 ) (*PhantomCouncil, error) {
+	// Validate Fortress mode requirement per ANONYMOUS_GAME_MECHANICS.md.
+	if !isFortressMode {
+		return nil, ErrCouncilRequiresFortress
+	}
 	// Validate creator resonance per RESONANCE_SYSTEM.md.
 	if creatorResonance < CouncilMinResonance {
 		return nil, ErrCouncilInsufficientResonance

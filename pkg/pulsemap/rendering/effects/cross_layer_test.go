@@ -229,12 +229,13 @@ func TestCrossLayerBridgeMultipleRecipients(t *testing.T) {
 	renderer := NewGiftRenderer()
 	bridge := NewCrossLayerGiftBridge(giftStore, renderer)
 
-	// Create gifts for multiple recipients.
-	_, senderPriv, _ := ed25519.GenerateKey(nil)
-	var senderPub [32]byte
-	copy(senderPub[:], senderPriv.Public().(ed25519.PublicKey)[:32])
-
+	// Create gifts for multiple recipients using different senders
+	// (MaxGiftsPerDay = 3, so we need multiple senders for 5 gifts).
 	for i := 0; i < 5; i++ {
+		_, senderPriv, _ := ed25519.GenerateKey(nil)
+		var senderPub [32]byte
+		copy(senderPub[:], senderPriv.Public().(ed25519.PublicKey)[:32])
+
 		recipientPub := make([]byte, 32)
 		recipientPub[0] = byte(10 + i)
 		_, _ = giftStore.CreateGift(senderPub, recipientPub, mechanics.EffectSoftGlowPulse, 25, senderPriv)

@@ -435,13 +435,15 @@ func TestPhantomCouncilEndToEnd(t *testing.T) {
 		rand.Read(specters[i][:])
 	}
 
-	// Create council (creator, name, purpose, minResonance, maxMembers)
+	// Create council (creator, name, purpose, minResonance, maxMembers, creatorResonance, isFortress)
 	council, err := NewPhantomCouncil(
 		specters[0], // Founder
 		"Test Governance Council",
 		"Testing council operations",
 		minResonance,
 		councilSize,
+		CouncilMinResonance, // Creator has sufficient resonance
+		true,                // Fortress mode required
 	)
 	if err != nil {
 		t.Fatalf("Failed to create council: %v", err)

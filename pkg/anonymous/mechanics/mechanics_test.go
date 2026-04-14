@@ -230,7 +230,7 @@ func TestMarkStoreCreateAndGet(t *testing.T) {
 	targetKey := make([]byte, 32)
 	rand.Read(targetKey)
 
-	mark, err := store.PlaceMark(markerKey, targetKey, MarkWatcher, "test note", 60, nil)
+	mark, err := store.PlaceMark(markerKey, targetKey, MarkWatcher, "test note", 100, nil)
 	if err != nil {
 		t.Fatalf("PlaceMark failed: %v", err)
 	}
@@ -258,7 +258,7 @@ func TestMarkStoreInsufficientResonance(t *testing.T) {
 	targetKey := make([]byte, 32)
 	rand.Read(targetKey)
 
-	_, err := store.PlaceMark(markerKey, targetKey, MarkWatcher, "", 30, nil)
+	_, err := store.PlaceMark(markerKey, targetKey, MarkWatcher, "", 50, nil)
 	if err != ErrMarkInsufficientResonance {
 		t.Errorf("Expected ErrMarkInsufficientResonance, got %v", err)
 	}
@@ -274,13 +274,13 @@ func TestMarkStoreDuplicatePrevention(t *testing.T) {
 	rand.Read(targetKey)
 
 	// Place first mark.
-	_, err := store.PlaceMark(markerKey, targetKey, MarkWatcher, "", 60, nil)
+	_, err := store.PlaceMark(markerKey, targetKey, MarkWatcher, "", 100, nil)
 	if err != nil {
 		t.Fatalf("PlaceMark failed: %v", err)
 	}
 
 	// Try to place second mark on same target.
-	_, err = store.PlaceMark(markerKey, targetKey, MarkAlly, "", 60, nil)
+	_, err = store.PlaceMark(markerKey, targetKey, MarkAlly, "", 100, nil)
 	if err != ErrMarkAlreadyPlaced {
 		t.Errorf("Expected ErrMarkAlreadyPlaced, got %v", err)
 	}
@@ -309,7 +309,7 @@ func TestMarkVerification(t *testing.T) {
 	targetKey := make([]byte, 32)
 	rand.Read(targetKey)
 
-	mark, err := store.PlaceMark(markerKey, targetKey, MarkAlly, "test", 60, priv)
+	mark, err := store.PlaceMark(markerKey, targetKey, MarkAlly, "test", 100, priv)
 	if err != nil {
 		t.Fatalf("PlaceMark failed: %v", err)
 	}
@@ -331,7 +331,7 @@ func TestMarkCategories(t *testing.T) {
 		var markerKey [32]byte
 		rand.Read(markerKey[:])
 
-		_, err := store.PlaceMark(markerKey, targetKey, cat, "", 60, nil)
+		_, err := store.PlaceMark(markerKey, targetKey, cat, "", 100, nil)
 		if err != nil {
 			t.Fatalf("PlaceMark failed: %v", err)
 		}
@@ -2095,6 +2095,7 @@ func TestNewPhantomCouncil(t *testing.T) {
 		200.0,
 		7,
 		CouncilMinResonance,
+		true, // Fortress mode
 	)
 	if err != nil {
 		t.Fatalf("NewPhantomCouncil failed: %v", err)
@@ -2120,13 +2121,13 @@ func TestCouncilInvalidSize(t *testing.T) {
 	rand.Read(creator[:])
 
 	// Too few max members.
-	_, err := NewPhantomCouncil(creator, "Test", "Test", 200.0, 2, CouncilMinResonance)
+	_, err := NewPhantomCouncil(creator, "Test", "Test", 200.0, 2, CouncilMinResonance, true)
 	if err != ErrCouncilInvalidSize {
 		t.Errorf("Expected ErrCouncilInvalidSize, got %v", err)
 	}
 
 	// Too many max members.
-	_, err = NewPhantomCouncil(creator, "Test", "Test", 200.0, 20, CouncilMinResonance)
+	_, err = NewPhantomCouncil(creator, "Test", "Test", 200.0, 20, CouncilMinResonance, true)
 	if err != ErrCouncilInvalidSize {
 		t.Errorf("Expected ErrCouncilInvalidSize, got %v", err)
 	}
@@ -2136,7 +2137,7 @@ func TestCouncilInvalidResonance(t *testing.T) {
 	var creator [32]byte
 	rand.Read(creator[:])
 
-	_, err := NewPhantomCouncil(creator, "Test", "Test", 100.0, 5, CouncilMinResonance)
+	_, err := NewPhantomCouncil(creator, "Test", "Test", 100.0, 5, CouncilMinResonance, true)
 	if err != ErrCouncilInvalidMinResonance {
 		t.Errorf("Expected ErrCouncilInvalidMinResonance, got %v", err)
 	}
@@ -2146,16 +2147,33 @@ func TestCouncilInsufficientCreatorResonance(t *testing.T) {
 	var creator [32]byte
 	rand.Read(creator[:])
 
-	// Creator resonance below minimum (200).
-	_, err := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance-1)
+	// Creator resonance below minimum (200) - but with Fortress mode.
+	_, err := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance-1, true)
 	if err != ErrCouncilInsufficientResonance {
 		t.Errorf("Expected ErrCouncilInsufficientResonance, got %v", err)
 	}
 
-	// Exactly at minimum should succeed.
-	_, err = NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance)
+	// Exactly at minimum should succeed with Fortress mode.
+	_, err = NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance, true)
 	if err != nil {
 		t.Errorf("Expected success at minimum resonance, got %v", err)
+	}
+}
+
+func TestCouncilRequiresFortressMode(t *testing.T) {
+	var creator [32]byte
+	rand.Read(creator[:])
+
+	// Attempt to create council without Fortress mode.
+	_, err := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance, false)
+	if err != ErrCouncilRequiresFortress {
+		t.Errorf("Expected ErrCouncilRequiresFortress, got %v", err)
+	}
+
+	// With Fortress mode should succeed.
+	_, err = NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance, true)
+	if err != nil {
+		t.Errorf("Expected success with Fortress mode, got %v", err)
 	}
 }
 
@@ -2168,7 +2186,7 @@ func TestCouncilNameTooLong(t *testing.T) {
 		longName[i] = 'a'
 	}
 
-	_, err := NewPhantomCouncil(creator, string(longName), "Test", 200.0, 5, CouncilMinResonance)
+	_, err := NewPhantomCouncil(creator, string(longName), "Test", 200.0, 5, CouncilMinResonance, true)
 	if err != ErrCouncilNameTooLong {
 		t.Errorf("Expected ErrCouncilNameTooLong, got %v", err)
 	}
@@ -2179,7 +2197,7 @@ func TestCouncilApplication(t *testing.T) {
 	rand.Read(creator[:])
 	rand.Read(applicant[:])
 
-	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance)
+	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance, true)
 
 	err := council.Apply(applicant, []byte("zk_proof_placeholder"))
 	if err != nil {
@@ -2198,7 +2216,7 @@ func TestCouncilAdmission(t *testing.T) {
 	rand.Read(applicant1[:])
 	rand.Read(applicant2[:])
 
-	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance)
+	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance, true)
 
 	// Apply and admit first applicant.
 	council.Apply(applicant1, nil)
@@ -2232,7 +2250,7 @@ func TestCouncilRejection(t *testing.T) {
 	rand.Read(creator[:])
 	rand.Read(applicant[:])
 
-	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance)
+	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance, true)
 
 	council.Apply(applicant, nil)
 	council.VoteOnApplication(creator, applicant, VoteAgainst)
@@ -2254,7 +2272,7 @@ func TestCouncilExpulsion(t *testing.T) {
 	rand.Read(member1[:])
 	rand.Read(member2[:])
 
-	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance)
+	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance, true)
 
 	// Admit two members.
 	council.Apply(member1, nil)
@@ -2284,7 +2302,7 @@ func TestCouncilLeave(t *testing.T) {
 	rand.Read(creator[:])
 	rand.Read(member1[:])
 
-	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance)
+	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance, true)
 
 	council.Apply(member1, nil)
 	council.VoteOnApplication(creator, member1, VoteFor)
@@ -2305,7 +2323,7 @@ func TestCouncilProposal(t *testing.T) {
 	rand.Read(member1[:])
 	rand.Read(member2[:])
 
-	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance)
+	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance, true)
 
 	// Build council with 3 members.
 	council.Apply(member1, nil)
@@ -2340,7 +2358,7 @@ func TestCouncilProposalFail(t *testing.T) {
 	rand.Read(member1[:])
 	rand.Read(member2[:])
 
-	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance)
+	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance, true)
 
 	// Build council.
 	council.Apply(member1, nil)
@@ -2370,7 +2388,7 @@ func TestCouncilStore(t *testing.T) {
 	var creator [32]byte
 	rand.Read(creator[:])
 
-	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance)
+	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance, true)
 	store.AddCouncil(council)
 
 	if store.Count() != 1 {
@@ -2510,7 +2528,7 @@ func TestCouncilZKVerification(t *testing.T) {
 	rand.Read(applicant[:])
 
 	// Create council with ZK verifier.
-	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance)
+	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance, true)
 	council.SetZKVerifier(&mockZKVerifier{shouldPass: true})
 
 	// Apply with valid ZK proof.
@@ -2531,7 +2549,7 @@ func TestCouncilZKVerificationFailure(t *testing.T) {
 	rand.Read(applicant[:])
 
 	// Create council with failing ZK verifier.
-	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance)
+	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance, true)
 	council.SetZKVerifier(&mockZKVerifier{shouldPass: false})
 
 	// Apply with invalid ZK proof.
@@ -2553,7 +2571,7 @@ func TestCouncilZKVerificationMissingProof(t *testing.T) {
 	rand.Read(applicant[:])
 
 	// Create council with ZK verifier that requires proof.
-	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance)
+	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance, true)
 	council.SetZKVerifier(&mockZKVerifier{shouldPass: true})
 
 	// Apply without ZK proof.
@@ -2575,7 +2593,7 @@ func TestCouncilWithoutZKVerifier(t *testing.T) {
 	rand.Read(applicant[:])
 
 	// Create council without ZK verifier (backward compatible).
-	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance)
+	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance, true)
 
 	// Apply without ZK proof should succeed.
 	err := council.Apply(applicant, nil)

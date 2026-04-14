@@ -518,7 +518,7 @@
 - [x] **Bbolt persistence** — GiftStore backed by `pkg/store`
 - [x] **Pulse Map integration** — animated cosmetic effects on recipient nodes (3 tiers)
 - [x] **UI: Gift sending panel** — select gift type, choose recipient, confirm send
-- [ ] **Cross-layer visibility** — Surface nodes see gift effects from Anonymous Layer
+- [x] **Cross-layer visibility** — Surface nodes see gift effects from Anonymous Layer
 
 ### Specter Marks
 
@@ -527,11 +527,11 @@
 - [x] Deduplication (1 mark per Specter per target)
 - [x] MarkStore with target/marker reverse indexes
 - [x] Dominant mark determination algorithm
-- [ ] **Resonance gating** — only Resonance ≥100 Specters can place Marks
+- [x] **Resonance gating** — only Resonance ≥100 Specters can place Marks
 - [x] **Network propagation** — broadcast marks via `/murmur/anonymous/mechanics/1.0`
 - [x] **Bbolt persistence** — MarkStore backed by `pkg/store`
-- [ ] **Pulse Map visualization** — orbiting sigil icons on marked Surface nodes
-- [ ] **UI: Mark placement panel** — choose mark type, select target node
+- [x] **Pulse Map visualization** — orbiting sigil icons on marked Surface nodes
+- [x] **UI: Mark placement panel** — choose mark type, select target node
 - [ ] **Voting mechanics** — community mark endorsement/challenge
 
 ### Phantom Councils
@@ -541,14 +541,14 @@
 - [x] Proposal voting (simple majority)
 - [x] Member status tracking (Pending, Active, Expelled, Departed)
 - [x] CouncilStore with state management
-- [ ] **Resonance gating** — Fortress mode + Resonance ≥200 for creation
-- [ ] **ZK Claim verification** — verify Resonance threshold via Bulletproofs before admission
-- [ ] **Encrypted GossipSub topic** — `/murmur/council/[council_id]/1.0` with group key
+- [x] **Resonance gating** — Fortress mode + Resonance ≥200 for creation
+- [x] **ZK Claim verification** — verify Resonance threshold via Bulletproofs before admission
+- [x] **Encrypted GossipSub topic** — `/murmur/council/[council_id]/1.0` with group key
 - [x] **Network propagation** — council creation, admission, proposals, votes
 - [x] **Bbolt persistence** — CouncilStore backed by `pkg/store`
 - [ ] **Pulse Map visualization** — constellation pattern connecting member nodes, unique color threads
 - [ ] **UI: Council management panel** — create council, invite members, propose, vote
-- [ ] **Council size constraints** — 3–13 members per spec
+- [x] **Council size constraints** — 3–13 members per spec
 
 ### Surface Sparks
 
@@ -572,7 +572,7 @@
 
 ### Specter Trophies
 
-- [ ] Achievement milestone tracking per Specter
+- [x] Achievement milestone tracking per Specter
 - [ ] Visual glyph unlocks at achievement thresholds
 - [ ] Trophy display on Specter node detail panel
 
@@ -587,9 +587,9 @@
 - [x] Coulomb repulsion + spring attraction forces
 - [x] Temperature-based convergence and damping
 - [x] Camera system with pan/zoom
-- [ ] **Double-buffered position swap** — `atomic.Pointer` for lock-free layout → render handoff
+- [x] **Double-buffered position swap** — `atomic.Pointer` for lock-free layout → render handoff
 - [ ] **Hierarchical aggregation** — cluster representatives for >500 visible nodes
-- [ ] **Incremental layout** — 30 ticks/second background goroutine
+- [x] **Incremental layout** — 30 ticks/second background goroutine
 - [ ] **Performance**: 60fps with 500 nodes and 2000 edges (target per TECHNICAL_IMPLEMENTATION.md)
 - [ ] **Viewport culling** — only compute forces for visible nodes
 - [ ] **Data update throttling** — 30Hz nodes, 10Hz state, 5Hz connections, 2Hz content
@@ -605,9 +605,9 @@
 - [x] ZoomLevel support (Macro, Meso, Micro)
 - [ ] **Sigil overlay** — render deterministic geometric pattern on node
 - [ ] **Specter node appearance** — translucency, particle emissions, cool-tone coloring
-- [ ] **Specter Mark sigils** — orbiting small icons around marked nodes
-- [ ] **Phantom Gift overlays** — animated cosmetic effects on gifted nodes
-- [ ] **Connection age visual encoding** — bright new, faded old transitions
+- [x] **Specter Mark sigils** — orbiting small icons around marked nodes
+- [x] **Phantom Gift overlays** — animated cosmetic effects on gifted nodes
+- [x] **Connection age visual encoding** — bright new, faded old transitions
 - [ ] **Interaction frequency thickness** — edge width proportional to message exchange rate
 - [ ] **Pulse animation** — Waves traveling along edges as light pulses
 - [ ] **Text labels** — display name/pseudonym at Micro zoom level
@@ -619,7 +619,7 @@
 - [x] Resonance-tiered effects (25, 50, 100 thresholds)
 - [ ] **Ripple propagation animation** — Wave publication visualization radiating outward
 - [ ] **Amplification trail** — visual connection between amplifier and original author
-- [ ] **Activity halo decay** — 60-minute intensity decay curve
+- [x] **Activity halo decay** — 60-minute intensity decay curve
 - [ ] **GPU particle system** — efficient ambient + mechanic-specific particle rendering
 - [ ] **Milestone visual effects** — Ember glow, Spark pulse, Flame trail, Blaze palette, Inferno aura, Corona layers
 - [ ] **Specter milestone effects** — Whisper trail, Shade glow, Wraith particles, through Abyss shader

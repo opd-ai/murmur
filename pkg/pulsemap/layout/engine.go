@@ -7,6 +7,7 @@ import (
 	"math"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 // BarnesHutThreshold is the node count above which Barnes-Hut is used.
@@ -184,6 +185,58 @@ func (e *Engine) Tick() {
 	e.applyCenterGravity(forces)
 	e.updateNodePositions(forces)
 	e.swapPositionBuffer()
+}
+
+// Start begins the background layout goroutine that runs at TicksPerSecond.
+// Per TECHNICAL_IMPLEMENTATION.md §8, this runs layout updates independently
+// of the render loop, with double-buffered position swaps.
+func (e *Engine) Start() {
+	e.mu.Lock()
+	if e.running {
+		e.mu.Unlock()
+		return
+	}
+	e.running = true
+	e.stopCh = make(chan struct{})
+	tickRate := e.params.TicksPerSecond
+	e.mu.Unlock()
+
+	go e.runLayoutLoop(tickRate)
+}
+
+// Stop halts the background layout goroutine.
+func (e *Engine) Stop() {
+	e.mu.Lock()
+	if !e.running {
+		e.mu.Unlock()
+		return
+	}
+	e.running = false
+	close(e.stopCh)
+	e.mu.Unlock()
+}
+
+// IsRunning returns whether the background layout is active.
+func (e *Engine) IsRunning() bool {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.running
+}
+
+// runLayoutLoop is the background goroutine that updates layout at fixed rate.
+func (e *Engine) runLayoutLoop(tickRate int) {
+	interval := time.Second / time.Duration(tickRate)
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-e.stopCh:
+			return
+		case <-ticker.C:
+			e.Tick()
+		}
+	}
 }
 
 // initializeForces creates and returns a zeroed force map for all nodes.

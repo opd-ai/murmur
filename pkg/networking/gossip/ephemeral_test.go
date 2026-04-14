@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/libp2p/go-libp2p"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	pb "github.com/libp2p/go-libp2p-pubsub/pb"
 )
 
 func TestEphemeralTopicManager_CreateEventTopic(t *testing.T) {
@@ -299,8 +301,12 @@ func TestCouncilTopicManager_Stop(t *testing.T) {
 func TestEncryptCouncilMessage(t *testing.T) {
 	data := []byte("test message")
 
-	// Test with valid key
-	key := []byte("valid-key")
+	// Test with valid 32-byte key (XChaCha20-Poly1305 requirement)
+	key := make([]byte, 32)
+	for i := range key {
+		key[i] = byte(i)
+	}
+
 	encrypted, err := EncryptCouncilMessage(data, key)
 	if err != nil {
 		t.Errorf("encryption failed: %v", err)
@@ -308,11 +314,94 @@ func TestEncryptCouncilMessage(t *testing.T) {
 	if encrypted == nil {
 		t.Error("expected non-nil encrypted data")
 	}
+	// Encrypted data should have nonce (24 bytes) + ciphertext (data + 16 byte tag)
+	expectedMinLen := 24 + len(data) + 16
+	if len(encrypted) < expectedMinLen {
+		t.Errorf("encrypted data too short: %d < %d", len(encrypted), expectedMinLen)
+	}
 
 	// Test with empty key
 	_, err = EncryptCouncilMessage(data, []byte{})
 	if err == nil {
 		t.Error("expected error with empty key")
+	}
+
+	// Test with invalid key size
+	_, err = EncryptCouncilMessage(data, []byte("short"))
+	if err == nil {
+		t.Error("expected error with invalid key size")
+	}
+}
+
+func TestEncryptDecryptCouncilMessageRoundTrip(t *testing.T) {
+	originalData := []byte("secret council message")
+
+	// Generate a valid 32-byte key
+	key := make([]byte, 32)
+	for i := range key {
+		key[i] = byte(i + 100)
+	}
+
+	// Encrypt
+	encrypted, err := EncryptCouncilMessage(originalData, key)
+	if err != nil {
+		t.Fatalf("encryption failed: %v", err)
+	}
+
+	// Create a mock pubsub.Message with encrypted data
+	msg := &pubsub.Message{Message: &pb.Message{Data: encrypted}}
+
+	// Decrypt
+	decrypted := decryptCouncilMessage(msg, key)
+	if decrypted == nil {
+		t.Fatal("decryption returned nil")
+	}
+
+	if string(decrypted.GetData()) != string(originalData) {
+		t.Errorf("round-trip failed: got %q, want %q", decrypted.GetData(), originalData)
+	}
+}
+
+func TestDecryptCouncilMessageFailures(t *testing.T) {
+	// Generate keys
+	key1 := make([]byte, 32)
+	key2 := make([]byte, 32)
+	for i := range key1 {
+		key1[i] = byte(i)
+		key2[i] = byte(i + 50) // Different key
+	}
+
+	data := []byte("test message")
+	encrypted, _ := EncryptCouncilMessage(data, key1)
+
+	// Test with wrong key
+	msg := &pubsub.Message{Message: &pb.Message{Data: encrypted}}
+	decrypted := decryptCouncilMessage(msg, key2)
+	if decrypted != nil {
+		t.Error("expected nil with wrong key")
+	}
+
+	// Test with empty key
+	decrypted = decryptCouncilMessage(msg, []byte{})
+	if decrypted != nil {
+		t.Error("expected nil with empty key")
+	}
+
+	// Test with truncated data
+	shortMsg := &pubsub.Message{Message: &pb.Message{Data: encrypted[:10]}}
+	decrypted = decryptCouncilMessage(shortMsg, key1)
+	if decrypted != nil {
+		t.Error("expected nil with truncated data")
+	}
+
+	// Test with tampered data
+	tampered := make([]byte, len(encrypted))
+	copy(tampered, encrypted)
+	tampered[30] ^= 0xFF // Flip bits in ciphertext
+	tamperedMsg := &pubsub.Message{Message: &pb.Message{Data: tampered}}
+	decrypted = decryptCouncilMessage(tamperedMsg, key1)
+	if decrypted != nil {
+		t.Error("expected nil with tampered data")
 	}
 }
 

@@ -14,8 +14,9 @@ import (
 
 // Mark thresholds per ANONYMOUS_GAME_MECHANICS.md.
 const (
-	// MarkMinResonance requires Resonance 50 (Wraith milestone).
-	MarkMinResonance = 50
+	// MarkMinResonance requires Resonance 100 (Phantom milestone).
+	// Per spec: "Placing a Mark requires Specter Resonance 100 or higher"
+	MarkMinResonance = 100
 
 	// MarkDuration is how long marks persist (30 days with decay).
 	MarkDuration = 30 * 24 * time.Hour
@@ -387,6 +388,21 @@ func (s *MarkStore) Count() int {
 		}
 	}
 	return count
+}
+
+// GetAllActiveMarks returns all non-expired marks.
+// Used by Pulse Map overlay synchronization.
+func (s *MarkStore) GetAllActiveMarks() []*Mark {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	active := make([]*Mark, 0, len(s.marks))
+	for _, mark := range s.marks {
+		if !mark.IsExpired() {
+			active = append(active, mark)
+		}
+	}
+	return active
 }
 
 // CountMarksByCategory returns counts of marks by category on a target.

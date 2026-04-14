@@ -341,6 +341,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `pkg/ui/panel_test.go`: 14 tests for UI components
   - Stub files for noebiten builds
 
+- **2025-01-15**: Phantom Council Fortress mode gating
+  - `pkg/anonymous/mechanics/councils.go`: Added `ErrCouncilRequiresFortress` error and `isFortressMode` parameter
+  - Councils can now only be created when in Fortress mode per ANONYMOUS_GAME_MECHANICS.md spec
+  - Fixed all `NewPhantomCouncil()` calls across tests (4 locations in mechanics_test.go, 1 in simulation)
+  - Per ROADMAP.md line 544
+
+- **2025-01-15**: Encrypted council GossipSub topics with XChaCha20-Poly1305
+  - `pkg/networking/gossip/ephemeral.go`: Implemented `EncryptCouncilMessage()` and `decryptCouncilMessage()`
+  - Uses XChaCha20-Poly1305 with 24-byte random nonces per DESIGN_DOCUMENT.md
+  - Added comprehensive round-trip and failure tests
+  - Per ROADMAP.md line 546
+
+- **2025-01-15**: Specter Trophies system
+  - `pkg/anonymous/mechanics/trophies.go`: Complete trophy tracking (~540 lines)
+    - 5 milestone trophies (First Shade through Abyss Walker)
+    - 7 activity trophies (First Gift, Ten Puzzles Solved, etc.)
+    - 5 rare trophies (Cartographer, Oracle, Chain Breaker, Ghost, Council Founder)
+    - `TrophyStore`, `TrophyEvaluator`, `ActivityCounters` types
+    - Resonance bonuses: +1 for activity trophies, +3 for rare trophies
+  - `pkg/anonymous/mechanics/trophies_test.go`: 20+ tests for trophy system
+  - Per ROADMAP.md line 575
+
+- **2025-01-15**: Incremental layout background goroutine
+  - `pkg/pulsemap/layout/engine.go`: Added `Start()`, `Stop()`, `IsRunning()`, `runLayoutLoop()`
+  - Background goroutine runs Tick() at configurable rate (default 30 ticks/second)
+  - Uses time.Ticker with graceful stop channel shutdown
+  - Per ROADMAP.md line 592
+
 ### Changed
 
 - **2026-04-13**: Renamed 30 stuttering files to descriptive names

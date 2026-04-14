@@ -5,10 +5,13 @@ package gossip
 
 import (
 	"context"
+	"crypto/rand"
 	"sync"
 	"time"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	pb "github.com/libp2p/go-libp2p-pubsub/pb"
+	"golang.org/x/crypto/chacha20poly1305"
 )
 
 // EphemeralTopicPrefix is the prefix for event-specific ephemeral topics.
@@ -409,20 +412,74 @@ func (m *CouncilTopicManager) Stop() {
 // decryptCouncilMessage decrypts a council message with the symmetric key.
 // Per DESIGN_DOCUMENT.md, councils use XChaCha20-Poly1305.
 func decryptCouncilMessage(msg *pubsub.Message, key []byte) *pubsub.Message {
-	// Full implementation would use chacha20poly1305
-	// Placeholder: return message as-is for structure validation
-	if len(key) == 0 {
+	if len(key) == 0 || msg == nil || msg.Message == nil {
 		return nil
 	}
-	return msg
+
+	msgData := msg.GetData()
+	if len(msgData) < chacha20poly1305.NonceSizeX {
+		return nil
+	}
+
+	aead, err := chacha20poly1305.NewX(key)
+	if err != nil {
+		return nil
+	}
+
+	nonce := msgData[:chacha20poly1305.NonceSizeX]
+	ciphertext := msgData[chacha20poly1305.NonceSizeX:]
+
+	plaintext, err := aead.Open(nil, nonce, ciphertext, nil)
+	if err != nil {
+		// Decryption failed - wrong key or tampered message
+		return nil
+	}
+
+	// Create new pb.Message with decrypted data, copying fields from original
+	pbMsg := &pb.Message{
+		Data: plaintext,
+	}
+	if msg.Message != nil {
+		pbMsg.From = msg.Message.From
+		pbMsg.Seqno = msg.Message.Seqno
+		pbMsg.Topic = msg.Message.Topic
+		pbMsg.Signature = msg.Message.Signature
+		pbMsg.Key = msg.Message.Key
+	}
+
+	// Return a copy with decrypted data
+	return &pubsub.Message{
+		Message:       pbMsg,
+		ID:            msg.ID,
+		ReceivedFrom:  msg.ReceivedFrom,
+		ValidatorData: msg.ValidatorData,
+		Local:         msg.Local,
+	}
 }
 
 // EncryptCouncilMessage encrypts a message for council publication.
+// Per DESIGN_DOCUMENT.md, councils use XChaCha20-Poly1305 with a random nonce.
 func EncryptCouncilMessage(data, key []byte) ([]byte, error) {
-	// Full implementation would use XChaCha20-Poly1305
-	// Placeholder: return data as-is
 	if len(key) == 0 {
 		return nil, ErrInvalidPayload
 	}
-	return data, nil
+
+	aead, err := chacha20poly1305.NewX(key)
+	if err != nil {
+		return nil, err
+	}
+
+	// Generate random nonce
+	nonce := make([]byte, chacha20poly1305.NonceSizeX)
+	if _, err := rand.Read(nonce); err != nil {
+		return nil, err
+	}
+
+	// Encrypt and prepend nonce
+	ciphertext := aead.Seal(nil, nonce, data, nil)
+	result := make([]byte, len(nonce)+len(ciphertext))
+	copy(result, nonce)
+	copy(result[len(nonce):], ciphertext)
+
+	return result, nil
 }

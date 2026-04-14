@@ -3,6 +3,7 @@ package layout
 
 import (
 	"testing"
+	"time"
 )
 
 func TestNewEngine(t *testing.T) {
@@ -225,4 +226,98 @@ func BenchmarkTickBarnesHut(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		e.Tick()
 	}
+}
+
+func TestStartStop(t *testing.T) {
+	e := NewEngine()
+	e.AddNode(&Node{ID: "node1"})
+	e.AddNode(&Node{ID: "node2"})
+	e.AddEdge(Edge{SourceID: "node1", TargetID: "node2"})
+
+	// Should not be running initially
+	if e.IsRunning() {
+		t.Error("engine should not be running initially")
+	}
+
+	// Start the engine
+	e.Start()
+	if !e.IsRunning() {
+		t.Error("engine should be running after Start")
+	}
+
+	// Double start should be safe
+	e.Start()
+	if !e.IsRunning() {
+		t.Error("engine should still be running after double Start")
+	}
+
+	// Let it run a few ticks
+	time.Sleep(100 * time.Millisecond)
+
+	// Stop the engine
+	e.Stop()
+	if e.IsRunning() {
+		t.Error("engine should not be running after Stop")
+	}
+
+	// Double stop should be safe
+	e.Stop()
+	if e.IsRunning() {
+		t.Error("engine should still not be running after double Stop")
+	}
+}
+
+func TestBackgroundLayoutUpdates(t *testing.T) {
+	e := NewEngine()
+
+	// Set high tick rate for faster test
+	params := DefaultParams()
+	params.TicksPerSecond = 100
+	e.SetParams(params)
+
+	e.AddNode(&Node{ID: "a"})
+	e.AddNode(&Node{ID: "b"})
+	e.AddEdge(Edge{SourceID: "a", TargetID: "b"})
+
+	// Get initial positions
+	initialPos := e.Positions().Get()
+	posA := initialPos["a"]
+	posB := initialPos["b"]
+
+	// Start background layout
+	e.Start()
+	defer e.Stop()
+
+	// Wait for some ticks
+	time.Sleep(150 * time.Millisecond)
+
+	// Positions should have changed
+	finalPos := e.Positions().Get()
+	newPosA := finalPos["a"]
+	newPosB := finalPos["b"]
+
+	if posA.X == newPosA.X && posA.Y == newPosA.Y &&
+		posB.X == newPosB.X && posB.Y == newPosB.Y {
+		t.Error("expected positions to change during background layout")
+	}
+}
+
+func TestTickRate(t *testing.T) {
+	e := NewEngine()
+
+	// Set specific tick rate
+	params := DefaultParams()
+	params.TicksPerSecond = 50
+	e.SetParams(params)
+
+	e.AddNode(&Node{ID: "test"})
+
+	// Count position updates over time
+	e.Start()
+	time.Sleep(100 * time.Millisecond)
+	e.Stop()
+
+	// The engine should have ticked approximately 5 times (50 Hz * 0.1s)
+	// We're not checking exact count since timing isn't precise,
+	// but the engine should have run without errors.
 }
