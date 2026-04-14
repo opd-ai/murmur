@@ -415,8 +415,8 @@
 - [x] **Network propagation** — publish puzzle events to `/murmur/anonymous/mechanics/1.0`
 - [x] **Bbolt persistence** — PuzzleStore backed by `pkg/store` instead of in-memory maps
 - [x] **Pulse Map visualization** — rotating cryptographic symbol at puzzle location
-- [ ] **UI: puzzle composition panel** — create puzzle with difficulty and content inputs
-- [ ] **UI: puzzle solving interface** — submit solution with feedback
+- [x] **UI: puzzle composition panel** — create puzzle with difficulty and content inputs
+- [x] **UI: puzzle solving interface** — submit solution with feedback
 
 ### Specter Hunts
 
