@@ -428,9 +428,9 @@
 - [x] Resonance bonus: `5.0 * ratio * fragmentsClaimed`
 - [x] **Resonance gating** — only Resonance ≥75 Specters can initiate Hunts
 - [x] **Actual proximity proof via DHT routing** — replace simplified logic with real topological proof
-- [ ] **Network propagation** — broadcast Hunt events, fragment claims, clue reveals
+- [x] **Network propagation** — broadcast Hunt events, fragment claims, clue reveals
 - [x] **Bbolt persistence** — HuntStore backed by `pkg/store`
-- [ ] **Pulse Map visualization** — scattered glowing fragments across map topology
+- [x] **Pulse Map visualization** — scattered glowing fragments across map topology
 - [ ] **UI: Hunt tracker overlay** — fragment locations, clue display, leaderboard
 
 ### Territory Drift

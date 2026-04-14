@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
+	"math/big"
 	"testing"
 	"time"
 )
@@ -213,16 +214,19 @@ func TestHuntReceiver_HandleFragmentClaim(t *testing.T) {
 	store.AddHunt(hunt)
 
 	// Create a proximity proof with valid attestation.
+	// Use a small XOR distance to ensure it's within HuntClaimProximityHops (3).
 	var claimerKey [32]byte
 	rand.Read(claimerKey[:])
 
 	_, attesterPriv, _ := ed25519.GenerateKey(rand.Reader)
+	// Small XOR distance = attester is close to target location = few hops.
+	smallDistance := big.NewInt(1) // BitLen()=1, hops = 1/42 = 0
 	att := NewProximityAttestation(
 		attesterPriv,
 		"attester-peer",
 		claimerKey,
 		hunt.Fragments[0].LocationHash,
-		ComputeXORDistance(PeerIDToHash("attester-peer"), hunt.Fragments[0].LocationHash),
+		smallDistance,
 	)
 
 	proof := NewDHTProximityProof(claimerKey, "claimer-peer", hunt.Fragments[0].LocationHash, 50)

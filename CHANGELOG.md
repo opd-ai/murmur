@@ -16,6 +16,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **2026-04-14**: Hunt Pulse Map visualization effects
+  - `pkg/pulsemap/rendering/effects/hunts.go`: Hunt fragment rendering (~340 lines)
+    - `HuntEffects`: Manages hunt fragment visuals on Pulse Map
+    - `FragmentVisual`: Fragment markers with position, state, claimer info
+    - Dim pulsing amber markers for unclaimed fragments
+    - Bright glow with claimer sigil for claimed fragments
+    - Connecting lines between fragments in active hunts
+    - Red pulse warning for expiring hunts
+    - Gold victory animation for completed hunts
+    - Clue level indicators (cyan dots)
+    - Per ROADMAP.md line 433: "Pulse Map visualization — scattered glowing fragments"
+  - `pkg/pulsemap/rendering/effects/hunts_stub.go`: Non-Ebitengine stub for headless testing
+  - `pkg/pulsemap/rendering/effects/hunts_test.go`: 14 tests + 2 benchmarks
+    - Fragment add/remove/claim operations
+    - Hunt state transitions
+    - Clue reveal tracking
+    - Hunt clearing
+    - Concurrent access safety
+
+- **2026-04-14**: Hunt network propagation for Specter Hunts
+  - `pkg/anonymous/mechanics/hunt_publisher.go`: Hunt event publishing and receiving (~530 lines)
+    - `HuntPublisher`: Publishes hunt events to `/murmur/anonymous/mechanics/1.0`
+    - Event types: HuntCreated, FragmentClaim, ClueReveal, HuntCompleted, HuntExpired
+    - Ed25519 signature verification on all events
+    - `HuntReceiver`: Handles incoming hunt events and updates local state
+    - Proto conversion functions for Hunt, Fragment, ProximityProof types
+    - Per ROADMAP.md line 431: "Network propagation — broadcast Hunt events, fragment claims, clue reveals"
+  - `proto/mechanics.proto`: Added Hunt, Fragment, ProximityProof, ProximityAttestation, HuntLeaderboardEntry messages
+  - `pkg/anonymous/mechanics/hunt_publisher_test.go`: 17 tests + 2 benchmarks
+    - All publish methods (HuntCreated, FragmentClaim, ClueReveal, Completed, Expired)
+    - Receiver handling for all event types
+    - Round-trip proto conversion tests
+    - Error case coverage (invalid signature, hunt not found, missing publisher/key)
+
 - **2026-04-14**: DHT-based proximity proofs for Specter Hunts
   - `pkg/anonymous/mechanics/proximity_proof.go`: Real topological proximity verification
     - `ProximityAttestation`: Signed statements from peers near target locations
