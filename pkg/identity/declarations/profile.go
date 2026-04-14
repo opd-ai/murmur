@@ -5,6 +5,7 @@ package declarations
 
 import (
 	"crypto/ed25519"
+	"crypto/sha256"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -111,7 +112,6 @@ func (d *Declaration) Verify() error {
 }
 
 // ValidateTimestamp checks if the timestamp is within acceptable bounds.
-// Per TECHNICAL_IMPLEMENTATION.md, timestamps must be within ±300 seconds.
 func (d *Declaration) ValidateTimestamp() error {
 	now := time.Now().Unix()
 	maxSkew := int64(MaxTimestampSkew.Seconds())
@@ -120,6 +120,129 @@ func (d *Declaration) ValidateTimestamp() error {
 	}
 	if d.Timestamp > now+maxSkew {
 		return ErrTimestampTooNew
+	}
+	return nil
+}
+
+// PoW constants for identity creation anti-spam.
+const (
+	// IdentityPoWDifficulty is the PoW difficulty for identity creation.
+	// Per DESIGN_DOCUMENT.md, 2-5 seconds compute time is target.
+	IdentityPoWDifficulty = 18
+
+	// PoWNonceSize is the size of the PoW nonce in bytes.
+	PoWNonceSize = 8
+)
+
+// Errors for PoW operations.
+var (
+	ErrInvalidIdentityPoW = errors.New("invalid identity proof of work")
+)
+
+// DeclarationWithPoW extends Declaration with Proof of Work for anti-spam.
+// Per DESIGN_DOCUMENT.md, identity creation requires PoW to prevent spam.
+type DeclarationWithPoW struct {
+	*Declaration
+
+	// PoWNonce is the Proof of Work nonce.
+	PoWNonce uint64
+}
+
+// NewWithPoW creates a new Declaration that will require PoW.
+func NewWithPoW(kp *keys.KeyPair, displayName string) (*DeclarationWithPoW, error) {
+	decl, err := New(kp, displayName)
+	if err != nil {
+		return nil, err
+	}
+	return &DeclarationWithPoW{Declaration: decl}, nil
+}
+
+// ComputePoW computes the Proof of Work nonce for the declaration.
+// This should take 2-5 seconds per DESIGN_DOCUMENT.md.
+func (d *DeclarationWithPoW) ComputePoW() error {
+	payload := d.powPayload()
+	target := computeIdentityPoWTarget(IdentityPoWDifficulty)
+
+	for nonce := uint64(0); ; nonce++ {
+		d.PoWNonce = nonce
+		if verifyIdentityPoWAttempt(payload, nonce, target) {
+			return nil
+		}
+	}
+}
+
+// VerifyPoW verifies the Proof of Work nonce.
+func (d *DeclarationWithPoW) VerifyPoW() error {
+	payload := d.powPayload()
+	target := computeIdentityPoWTarget(IdentityPoWDifficulty)
+
+	if !verifyIdentityPoWAttempt(payload, d.PoWNonce, target) {
+		return ErrInvalidIdentityPoW
+	}
+	return nil
+}
+
+// powPayload creates the data to hash for PoW.
+// Format: public_key || display_name || timestamp
+func (d *DeclarationWithPoW) powPayload() []byte {
+	size := len(d.PublicKey) + len(d.DisplayName) + 8
+	buf := make([]byte, 0, size)
+
+	buf = append(buf, d.PublicKey...)
+	buf = append(buf, []byte(d.DisplayName)...)
+
+	tsBuf := make([]byte, 8)
+	binary.BigEndian.PutUint64(tsBuf, uint64(d.Timestamp))
+	buf = append(buf, tsBuf...)
+
+	return buf
+}
+
+// computeIdentityPoWTarget computes the target value for the given difficulty.
+func computeIdentityPoWTarget(difficulty int) []byte {
+	// Target is 256-bit value with 'difficulty' leading zero bits.
+	target := make([]byte, 32)
+	for i := difficulty / 8; i < 32; i++ {
+		target[i] = 0xff
+	}
+	if remainder := difficulty % 8; remainder > 0 && difficulty/8 < 32 {
+		target[difficulty/8] = 0xff >> remainder
+	}
+	return target
+}
+
+// verifyIdentityPoWAttempt checks if sha256(payload || nonce) < target.
+func verifyIdentityPoWAttempt(payload []byte, nonce uint64, target []byte) bool {
+	nonceBuf := make([]byte, 8)
+	binary.BigEndian.PutUint64(nonceBuf, nonce)
+
+	hash := sha256Hash(append(payload, nonceBuf...))
+
+	// Compare hash against target.
+	for i := 0; i < 32; i++ {
+		if hash[i] < target[i] {
+			return true
+		}
+		if hash[i] > target[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// sha256Hash computes SHA-256 hash.
+func sha256Hash(data []byte) []byte {
+	h := sha256.Sum256(data)
+	return h[:]
+}
+
+// ValidateWithPoW performs full validation including PoW.
+func (d *DeclarationWithPoW) ValidateWithPoW() error {
+	if err := d.Validate(); err != nil {
+		return err
+	}
+	if err := d.VerifyPoW(); err != nil {
+		return err
 	}
 	return nil
 }

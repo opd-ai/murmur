@@ -59,9 +59,11 @@ func (m Mode) RequiresShroud() bool {
 
 // Errors for mode operations.
 var (
-	ErrInvalidTransition  = errors.New("invalid mode transition")
-	ErrCooldownActive     = errors.New("mode transition cooldown active")
-	ErrMissingRequirement = errors.New("missing requirement for mode")
+	ErrInvalidTransition      = errors.New("invalid mode transition")
+	ErrCooldownActive         = errors.New("mode transition cooldown active")
+	ErrMissingRequirement     = errors.New("missing requirement for mode")
+	ErrTrafficPaddingStartErr = errors.New("failed to start traffic padding")
+	ErrTrafficPaddingStopErr  = errors.New("failed to stop traffic padding")
 )
 
 // TransitionCooldown is the minimum time between mode transitions.
@@ -79,6 +81,11 @@ type Manager struct {
 	hasShroud        bool // Whether Shroud routing is available
 	listeners        []func(old, new Mode)
 	specterDestroyer func() error // Called when transitioning to non-Specter mode
+
+	// Traffic padding control per SHADOW_GRADIENT.md §Traffic Padding.
+	paddingEnabled bool
+	paddingStarter func() error // Called when entering Guarded/Fortress
+	paddingStopper func() error // Called when leaving Guarded/Fortress
 }
 
 // NewManager creates a new mode manager starting in Open mode.
@@ -169,6 +176,7 @@ var ErrSpecterDestructionFailed = errors.New("failed to destroy Specter identity
 // Transition attempts to switch to a new privacy mode.
 // Per SHADOW_GRADIENT.md, transitioning from a Specter-enabled mode
 // (Hybrid/Guarded/Fortress) to Open destroys the Specter identity.
+// Traffic padding is activated/deactivated when entering/leaving Guarded/Fortress.
 func (m *Manager) Transition(target Mode) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -190,6 +198,11 @@ func (m *Manager) Transition(target Mode) error {
 		}
 	}
 
+	// Handle traffic padding activation/deactivation per SHADOW_GRADIENT.md §Traffic Padding.
+	if err := m.handleTrafficPaddingTransition(old, target); err != nil {
+		return err
+	}
+
 	m.current = target
 	m.lastChange = time.Now()
 
@@ -198,6 +211,31 @@ func (m *Manager) Transition(target Mode) error {
 		go listener(old, target)
 	}
 
+	return nil
+}
+
+// handleTrafficPaddingTransition starts or stops traffic padding based on mode change.
+func (m *Manager) handleTrafficPaddingTransition(old, target Mode) error {
+	oldRequires := old.RequiresTrafficPadding()
+	newRequires := target.RequiresTrafficPadding()
+
+	if !oldRequires && newRequires {
+		// Entering Guarded/Fortress - start traffic padding.
+		if m.paddingStarter != nil {
+			if err := m.paddingStarter(); err != nil {
+				return ErrTrafficPaddingStartErr
+			}
+		}
+		m.paddingEnabled = true
+	} else if oldRequires && !newRequires {
+		// Leaving Guarded/Fortress - stop traffic padding.
+		if m.paddingStopper != nil {
+			if err := m.paddingStopper(); err != nil {
+				return ErrTrafficPaddingStopErr
+			}
+		}
+		m.paddingEnabled = false
+	}
 	return nil
 }
 
@@ -240,6 +278,27 @@ func (m *Manager) SetSpecterDestroyer(destroyer func() error) {
 	defer m.mu.Unlock()
 
 	m.specterDestroyer = destroyer
+}
+
+// SetTrafficPaddingCallbacks sets callbacks for traffic padding control.
+// Per SHADOW_GRADIENT.md §Traffic Padding, Guarded and Fortress modes require
+// constant-rate dummy packets (2/sec) to defeat traffic analysis.
+// The starter is called when entering Guarded/Fortress from Open/Hybrid.
+// The stopper is called when leaving Guarded/Fortress to Open/Hybrid.
+func (m *Manager) SetTrafficPaddingCallbacks(starter, stopper func() error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.paddingStarter = starter
+	m.paddingStopper = stopper
+}
+
+// IsTrafficPaddingEnabled returns true if traffic padding is currently active.
+func (m *Manager) IsTrafficPaddingEnabled() bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	return m.paddingEnabled
 }
 
 // OnTransition registers a callback for mode transitions.
@@ -286,10 +345,11 @@ func (m *Manager) AvailableModes() []Mode {
 
 // ModeCapabilities describes what a mode enables.
 type ModeCapabilities struct {
-	SurfaceAllowed bool
-	SpecterAllowed bool
-	ShroudRequired bool
-	AnonymityLevel int // 0=none, 1=low, 2=medium, 3=high
+	SurfaceAllowed       bool
+	SpecterAllowed       bool
+	ShroudRequired       bool
+	TrafficPaddingActive bool // Per SHADOW_GRADIENT.md, Guarded/Fortress use traffic padding
+	AnonymityLevel       int  // 0=none, 1=low, 2=medium, 3=high
 }
 
 // Capabilities returns the capabilities of a mode.
@@ -297,33 +357,43 @@ func (m Mode) Capabilities() ModeCapabilities {
 	switch m {
 	case Open:
 		return ModeCapabilities{
-			SurfaceAllowed: true,
-			SpecterAllowed: false,
-			ShroudRequired: false,
-			AnonymityLevel: 0,
+			SurfaceAllowed:       true,
+			SpecterAllowed:       false,
+			ShroudRequired:       false,
+			TrafficPaddingActive: false,
+			AnonymityLevel:       0,
 		}
 	case Hybrid:
 		return ModeCapabilities{
-			SurfaceAllowed: true,
-			SpecterAllowed: true,
-			ShroudRequired: false,
-			AnonymityLevel: 1,
+			SurfaceAllowed:       true,
+			SpecterAllowed:       true,
+			ShroudRequired:       false,
+			TrafficPaddingActive: false,
+			AnonymityLevel:       1,
 		}
 	case Guarded:
 		return ModeCapabilities{
-			SurfaceAllowed: true,
-			SpecterAllowed: true,
-			ShroudRequired: false,
-			AnonymityLevel: 2,
+			SurfaceAllowed:       true,
+			SpecterAllowed:       true,
+			ShroudRequired:       false,
+			TrafficPaddingActive: true, // Per SHADOW_GRADIENT.md §Traffic Padding
+			AnonymityLevel:       2,
 		}
 	case Fortress:
 		return ModeCapabilities{
-			SurfaceAllowed: false,
-			SpecterAllowed: true,
-			ShroudRequired: true,
-			AnonymityLevel: 3,
+			SurfaceAllowed:       false,
+			SpecterAllowed:       true,
+			ShroudRequired:       true,
+			TrafficPaddingActive: true, // Per SHADOW_GRADIENT.md §Traffic Padding
+			AnonymityLevel:       3,
 		}
 	default:
 		return ModeCapabilities{}
 	}
+}
+
+// RequiresTrafficPadding returns true if the mode requires traffic padding.
+// Per SHADOW_GRADIENT.md, Guarded and Fortress modes use constant-rate padding.
+func (m Mode) RequiresTrafficPadding() bool {
+	return m == Guarded || m == Fortress
 }

@@ -23,6 +23,15 @@ const (
 	ZoomMicro
 )
 
+// Specter visual constants per DESIGN_DOCUMENT.md §33.
+const (
+	SpecterBaseAlpha           = 0.7
+	SpecterParticleCount       = 5
+	SpecterParticleRadius      = 1.5
+	SpecterParticleOrbitRadius = 1.8
+	SpecterShimmerSpeed        = 2.0
+)
+
 // NodeStyle contains visual properties for a node.
 type NodeStyle struct {
 	CoreColor   color.RGBA
@@ -43,6 +52,7 @@ type EdgeStyle struct {
 	Age        float64
 	Active     bool
 	IsMiniGame bool
+	IsSpecter  bool
 }
 
 // ZoomLevelFromScale determines the zoom level from a scale factor.

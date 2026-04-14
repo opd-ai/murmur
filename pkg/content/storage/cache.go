@@ -17,10 +17,19 @@ import (
 )
 
 // GCInterval is the interval between garbage collection runs.
-const GCInterval = 60 * time.Second
+// Per TECHNICAL_IMPLEMENTATION.md, GC runs hourly.
+const GCInterval = time.Hour
+
+// GCTargetTime is the target maximum duration for garbage collection.
+// Per TECHNICAL_IMPLEMENTATION.md, GC should complete in <100ms.
+const GCTargetTime = 100 * time.Millisecond
 
 // DefaultCacheSize is the default maximum number of Waves to cache.
 const DefaultCacheSize = 10000
+
+// MaxContentWindow is the maximum age of content (30 days).
+// Per WAVES.md, Waves older than 30 days are garbage collected.
+const MaxContentWindow = 30 * 24 * time.Hour
 
 // Errors for storage operations.
 var (
@@ -234,6 +243,7 @@ func (c *Cache) evictExpiredLocked() int {
 }
 
 // GarbageCollect removes expired Waves from cache and database.
+// Per TECHNICAL_IMPLEMENTATION.md, this should complete in <100ms.
 func (c *Cache) GarbageCollect() (int, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -242,11 +252,56 @@ func (c *Cache) GarbageCollect() (int, error) {
 		return 0, ErrStoreClosed
 	}
 
-	expiredIDs := c.collectExpiredIDs()
-	c.removeFromMemory(expiredIDs)
-	c.removeFromDatabase(expiredIDs)
+	// Phase 1: Collect expired IDs from memory cache.
+	memoryExpired := c.collectExpiredIDs()
+	memoryExpiredSet := make(map[string]struct{}, len(memoryExpired))
+	for _, id := range memoryExpired {
+		memoryExpiredSet[string(id)] = struct{}{}
+	}
 
-	return len(expiredIDs), nil
+	// Phase 2: Scan database for expired waves not already found in memory.
+	dbExpired, err := c.collectExpiredFromDatabase(memoryExpiredSet)
+	if err != nil {
+		// Still clean up memory even if database scan fails.
+		c.removeFromMemory(memoryExpired)
+		c.removeFromDatabase(memoryExpired)
+		return len(memoryExpired), err
+	}
+
+	// Phase 3: Remove all expired waves from memory and database.
+	c.removeFromMemory(memoryExpired)
+	allExpired := append(memoryExpired, dbExpired...)
+	c.removeFromDatabase(allExpired)
+
+	return len(allExpired), nil
+}
+
+// collectExpiredFromDatabase scans the database for expired waves.
+// Returns IDs of waves that have expired and are not in skipSet.
+func (c *Cache) collectExpiredFromDatabase(skipSet map[string]struct{}) ([][]byte, error) {
+	var expiredIDs [][]byte
+
+	err := c.db.ForEach(store.BucketWaves, func(key, value []byte) error {
+		// Skip if already found in memory scan.
+		if _, ok := skipSet[string(key)]; ok {
+			return nil
+		}
+
+		wave := &pb.Wave{}
+		if err := proto.Unmarshal(value, wave); err != nil {
+			// Skip malformed entries.
+			return nil
+		}
+
+		if waves.IsExpired(wave) {
+			keyCopy := make([]byte, len(key))
+			copy(keyCopy, key)
+			expiredIDs = append(expiredIDs, keyCopy)
+		}
+		return nil
+	})
+
+	return expiredIDs, err
 }
 
 // collectExpiredIDs returns IDs of all expired waves in memory.

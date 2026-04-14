@@ -274,3 +274,151 @@ func TestValidate(t *testing.T) {
 		t.Errorf("Valid declaration failed validation: %v", err)
 	}
 }
+
+// TestDeclarationWithPoWStructure tests DeclarationWithPoW fields.
+func TestDeclarationWithPoWStructure(t *testing.T) {
+	kp, err := keys.GenerateKeyPair()
+	if err != nil {
+		t.Fatalf("Failed to generate keypair: %v", err)
+	}
+	defer kp.ZeroKeyPair()
+
+	decl, err := NewWithPoW(kp, "PoWTest")
+	if err != nil {
+		t.Fatalf("Failed to create declaration with PoW: %v", err)
+	}
+
+	// Verify embedded Declaration fields.
+	if len(decl.PublicKey) != ed25519.PublicKeySize {
+		t.Errorf("PublicKey should be %d bytes, got %d", ed25519.PublicKeySize, len(decl.PublicKey))
+	}
+	if decl.DisplayName != "PoWTest" {
+		t.Errorf("DisplayName should be 'PoWTest', got '%s'", decl.DisplayName)
+	}
+}
+
+// TestIdentityPoWComputation tests PoW computation and verification.
+// Uses reduced difficulty for faster test execution.
+func TestIdentityPoWComputation(t *testing.T) {
+	kp, err := keys.GenerateKeyPair()
+	if err != nil {
+		t.Fatalf("Failed to generate keypair: %v", err)
+	}
+	defer kp.ZeroKeyPair()
+
+	decl, err := NewWithPoW(kp, "PoWComputeTest")
+	if err != nil {
+		t.Fatalf("Failed to create declaration: %v", err)
+	}
+
+	// Sign the declaration first.
+	if err := decl.Sign(kp); err != nil {
+		t.Fatalf("Failed to sign declaration: %v", err)
+	}
+
+	// Compute PoW (may take a moment).
+	if err := decl.ComputePoW(); err != nil {
+		t.Fatalf("Failed to compute PoW: %v", err)
+	}
+
+	// Nonce should be set.
+	if decl.PoWNonce == 0 {
+		t.Log("Warning: PoW nonce is 0 (could be valid by chance)")
+	}
+
+	// Verify PoW.
+	if err := decl.VerifyPoW(); err != nil {
+		t.Errorf("PoW verification failed: %v", err)
+	}
+}
+
+// TestIdentityPoWVerificationFailure tests invalid PoW detection.
+func TestIdentityPoWVerificationFailure(t *testing.T) {
+	kp, err := keys.GenerateKeyPair()
+	if err != nil {
+		t.Fatalf("Failed to generate keypair: %v", err)
+	}
+	defer kp.ZeroKeyPair()
+
+	decl, err := NewWithPoW(kp, "PoWFailTest")
+	if err != nil {
+		t.Fatalf("Failed to create declaration: %v", err)
+	}
+
+	// Don't compute PoW - just set an invalid nonce.
+	decl.PoWNonce = 12345
+
+	// Verification should fail.
+	if err := decl.VerifyPoW(); err != ErrInvalidIdentityPoW {
+		t.Errorf("Expected ErrInvalidIdentityPoW, got %v", err)
+	}
+}
+
+// TestIdentityPoWTargetComputation tests target generation.
+func TestIdentityPoWTargetComputation(t *testing.T) {
+	tests := []struct {
+		difficulty   int
+		firstNonZero int  // Index of first byte that should be non-zero
+		firstByte    byte // Expected value of first non-zero byte
+	}{
+		{8, 1, 0xff},   // 1 byte of zeros
+		{16, 2, 0xff},  // 2 bytes of zeros
+		{18, 2, 0x3f},  // 2 bytes of zeros + 2 bits
+		{20, 2, 0x0f},  // 2 bytes of zeros + 4 bits
+		{24, 3, 0xff},  // 3 bytes of zeros
+	}
+
+	for _, tc := range tests {
+		target := computeIdentityPoWTarget(tc.difficulty)
+
+		// Check leading zeros.
+		for i := 0; i < tc.firstNonZero; i++ {
+			if target[i] != 0 {
+				t.Errorf("difficulty %d: byte %d should be 0, got %02x", tc.difficulty, i, target[i])
+			}
+		}
+
+		// Check first non-zero byte.
+		if target[tc.firstNonZero] != tc.firstByte {
+			t.Errorf("difficulty %d: byte %d should be %02x, got %02x",
+				tc.difficulty, tc.firstNonZero, tc.firstByte, target[tc.firstNonZero])
+		}
+	}
+}
+
+// TestValidateWithPoW tests full validation including PoW.
+func TestValidateWithPoW(t *testing.T) {
+	kp, err := keys.GenerateKeyPair()
+	if err != nil {
+		t.Fatalf("Failed to generate keypair: %v", err)
+	}
+	defer kp.ZeroKeyPair()
+
+	decl, err := NewWithPoW(kp, "FullValidateTest")
+	if err != nil {
+		t.Fatalf("Failed to create declaration: %v", err)
+	}
+
+	// Sign the declaration.
+	if err := decl.Sign(kp); err != nil {
+		t.Fatalf("Failed to sign declaration: %v", err)
+	}
+
+	// Compute PoW.
+	if err := decl.ComputePoW(); err != nil {
+		t.Fatalf("Failed to compute PoW: %v", err)
+	}
+
+	// Full validation should pass.
+	if err := decl.ValidateWithPoW(); err != nil {
+		t.Errorf("Full validation failed: %v", err)
+	}
+}
+
+// TestNewWithPoWNilKeyPair tests error handling for nil keypair.
+func TestNewWithPoWNilKeyPair(t *testing.T) {
+	_, err := NewWithPoW(nil, "Test")
+	if err != ErrNilKeyPair {
+		t.Errorf("Expected ErrNilKeyPair, got %v", err)
+	}
+}

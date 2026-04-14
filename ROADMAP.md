@@ -110,12 +110,12 @@
 - [x] **Message handler for `/murmur/pulse/1`** — receive and process heartbeat pings
 - [x] MurmurEnvelope validation pipeline (version, signature, timestamp ±300s, PoW, dedup)
 - [x] Message deduplication via BLAKE3 message_id (Bloom filter, 30-day window)
-- [ ] Peer scoring integration with message validation (reward valid, penalize invalid)
-- [ ] Additional topic: `/murmur/anonymous/waves/1.0` — Specter/Masked Waves
-- [ ] Additional topic: `/murmur/anonymous/mechanics/1.0` — Gifts, Marks, mini-game events, Councils
-- [ ] Additional topic: `/murmur/anonymous/beacons/1.0` — Beacon Waves (elevated PoW)
-- [ ] Per-event ephemeral topics: `/murmur/event/[event_id]/1.0`
-- [ ] Per-council encrypted topics: `/murmur/council/[council_id]/1.0`
+- [x] Peer scoring integration with message validation (reward valid, penalize invalid)
+- [x] Additional topic: `/murmur/anonymous/waves/1.0` — Specter/Masked Waves
+- [x] Additional topic: `/murmur/anonymous/mechanics/1.0` — Gifts, Marks, mini-game events, Councils
+- [x] Additional topic: `/murmur/anonymous/beacons/1.0` — Beacon Waves (elevated PoW)
+- [x] Per-event ephemeral topics: `/murmur/event/[event_id]/1.0`
+- [x] Per-council encrypted topics: `/murmur/council/[council_id]/1.0`
 
 ### Mesh Management (`pkg/networking/mesh/`)
 
@@ -124,27 +124,27 @@
 - [x] Missed heartbeat tracking (3-miss threshold)
 - [x] Peer priority tiers (Identity > Gossip > Random)
 - [x] Reconnection with exponential backoff
-- [ ] Target mesh degree 6 (bounds 4–12) enforcement
-- [ ] Dynamic connection pruning of low-score peers
-- [ ] Multi-region diversity constraints for eclipse resistance
-- [ ] Churn handling: mesh repair, DHT refresh on disconnect
-- [ ] Network partition detection and graceful degradation
-- [ ] Healing protocol on reconnection after partition
+- [x] Target mesh degree 6 (bounds 4–12) enforcement
+- [x] Dynamic connection pruning of low-score peers
+- [x] Multi-region diversity constraints for eclipse resistance
+- [x] Churn handling: mesh repair, DHT refresh on disconnect
+- [x] Network partition detection and graceful degradation
+- [x] Healing protocol on reconnection after partition
 
 ### Data Synchronization
 
-- [ ] Wave sync protocol — `/murmur/wave-sync/1` stream handler (request-response for fetching Waves by hash)
-- [ ] Sync limits: 1000 messages per request, 5 concurrent sync sessions, 100 msg/sec rate limit
-- [ ] Selective sync by topic and by publisher
-- [ ] Missed-message catch-up on reconnection
+- [x] Wave sync protocol — `/murmur/wave-sync/1` stream handler (request-response for fetching Waves by hash)
+- [x] Sync limits: 1000 messages per request, 5 concurrent sync sessions, 100 msg/sec rate limit
+- [x] Selective sync by topic and by publisher
+- [x] Missed-message catch-up on reconnection
 
 ### Event Bus (`pkg/app/`)
 
-- [ ] **Central event bus goroutine** with typed channel fan-out (per TECHNICAL_IMPLEMENTATION.md §8)
-- [ ] Event type definitions (NetworkEvent, WaveEvent, IdentityEvent, TimerEvent, UserActionEvent)
-- [ ] Subsystem subscriber registration at startup
-- [ ] Fan-out to all subscribers per event type
-- [ ] Backpressure handling for slow subscribers
+- [x] **Central event bus goroutine** with typed channel fan-out (per TECHNICAL_IMPLEMENTATION.md §8)
+- [x] Event type definitions (NetworkEvent, WaveEvent, IdentityEvent, TimerEvent, UserActionEvent)
+- [x] Subsystem subscriber registration at startup
+- [x] Fan-out to all subscribers per event type
+- [x] Backpressure handling for slow subscribers
 
 ---
 
@@ -159,33 +159,33 @@
 - [x] Proof of Work integration (pow.Compute)
 - [x] TTL constraints (default 7 days, max 30 days)
 - [x] Abyssal Wave creation with one-time Ed25519 keypair and nonce-derived key
-- [ ] **Veiled Wave encryption** — Cross-layer Wave with Specter authorship and symmetric key wrapping
-- [ ] **Sigil Wave payload structure** — Embedded random Specter sigil within Surface Wave
-- [ ] **Beacon Wave construction** — System-generated high-visibility broadcast with 24-bit PoW
-- [ ] **Masked Wave ephemeral handling** — 7-day TTL, single-use event keypair, auto-destruct
-- [ ] Parent chain validation for Reply Waves (recursive thread integrity check)
-- [ ] Wave reference parsing — inline `wave://[id]` and mention `@[hash]` links
-- [ ] Amplification creation with optional PoW-free signature and hop count reset
+- [x] **Veiled Wave encryption** — Cross-layer Wave with Specter authorship and symmetric key wrapping
+- [x] **Sigil Wave payload structure** — Embedded random Specter sigil within Surface Wave
+- [x] **Beacon Wave construction** — System-generated high-visibility broadcast with 24-bit PoW
+- [x] **Masked Wave ephemeral handling** — 7-day TTL, single-use event keypair, auto-destruct
+- [x] Parent chain validation for Reply Waves (recursive thread integrity check)
+- [x] Wave reference parsing — inline `wave://[id]` and mention `@[hash]` links
+- [x] Amplification creation with optional PoW-free signature and hop count reset
 
 ### Proof of Work (`pkg/content/pow/`)
 
 - [x] SHA-256 based PoW with configurable difficulty
 - [x] Leading zero bit verification
 - [x] Nonce iteration up to MaxNonce
-- [ ] Default difficulty 20 leading zero bits (standard) per TECHNICAL_IMPLEMENTATION.md
-- [ ] Elevated difficulty 24 bits for Beacon Waves
-- [ ] Reduced difficulty 16 bits for standard Waves per WAVES.md
-- [ ] Dynamic difficulty adjustment (local per-node configuration)
-- [ ] PoW verification before signature check (malleability resistance per SECURITY_PRIVACY.md)
-- [ ] Target computation time: 2–5 seconds at difficulty 20
+- [x] Default difficulty 20 leading zero bits (standard) per TECHNICAL_IMPLEMENTATION.md
+- [x] Elevated difficulty 24 bits for Beacon Waves
+- [x] Standard Waves use DefaultDifficulty (20 bits) per WAVES.md §PoW — NOT 16 as previously noted
+- [x] Dynamic difficulty adjustment (local per-node configuration)
+- [x] PoW verification before signature check (malleability resistance per SECURITY_PRIVACY.md)
+- [x] Target computation time: 2–5 seconds at difficulty 20
 
 ### Wave Propagation (`pkg/content/propagation/`)
 
 - [x] Wave TTL decay tracking
 - [x] Delivery limit enforcement
-- [ ] Gossip relay via GossipSub publish (actual network send)
-- [ ] Hop count tracking and enforcement (max 20 hops, discard beyond)
-- [ ] Deduplication by Wave ID before relay
+- [x] Gossip relay via GossipSub publish (actual network send)
+- [x] Hop count tracking and enforcement (max 20 hops, discard beyond)
+- [x] Deduplication by Wave ID before relay
 - [ ] Bridge injection for cross-layer propagation (Hybrid nodes relay Veiled Waves)
 - [ ] Propagation latency target <500ms across 3 hops
 
@@ -194,25 +194,25 @@
 - [x] Reply chain indexing
 - [x] Thread reconstruction from parent hashes
 - [x] Reply depth tracking
-- [ ] Conversation tree building (full recursive thread assembly)
-- [ ] Thread root lookup for deeply nested replies
-- [ ] Reply notification events to event bus
+- [x] Conversation tree building (full recursive thread assembly)
+- [x] Thread root lookup for deeply nested replies
+- [x] Reply notification events to event bus
 
 ### Content Storage (`pkg/content/storage/`)
 
 - [x] Wave persistence (create, read)
 - [x] Reply storage
 - [x] Amplification tracking
-- [ ] TTL enforcement with automatic expiration (30-day content window)
-- [ ] Hourly garbage collection sweep (<100ms target per TECHNICAL_IMPLEMENTATION.md)
-- [ ] LRU eviction when storage exceeds 50 MiB budget
-- [ ] Bbolt persistence (currently in-memory only for some stores)
+- [x] TTL enforcement with automatic expiration (30-day content window)
+- [x] Hourly garbage collection sweep (<100ms target per TECHNICAL_IMPLEMENTATION.md)
+- [x] LRU eviction when storage exceeds 50 MiB budget
+- [x] Bbolt persistence (currently in-memory only for some stores)
 
 ### Content Interaction
 
-- [ ] Muting by author public key (local filtering)
-- [ ] Muting by keyword with wildcard pattern matching
-- [ ] Resonance-based content filtering (minimum score threshold)
+- [x] Muting by author public key (local filtering)
+- [x] Muting by keyword with wildcard pattern matching
+- [x] Resonance-based content filtering (minimum score threshold)
 
 ---
 
@@ -224,43 +224,43 @@
 - [x] Curve25519 keypair generation for Anonymous Layer (Specter)
 - [x] Ed25519 signing and verification
 - [x] Argon2id passphrase-based key derivation (time=3, memory=64 MiB, threads=4, output=32 bytes)
-- [ ] Encrypted keystore (Argon2id + XChaCha20-Poly1305) for at-rest key protection
-- [ ] Key backup to encrypted file
-- [ ] BIP-39 mnemonic recovery phrase generation and restoration
-- [ ] Key export/import for cross-device identity migration
-- [ ] Key material zeroing before backing arrays become GC-eligible (per SECURITY_PRIVACY.md)
-- [ ] Keypair independence enforcement — Surface and Specter share no derivation path
-- [ ] Fortress-mode dedicated transport Ed25519 keypair (separate from Specter key)
+- [x] Encrypted keystore (Argon2id + XChaCha20-Poly1305) for at-rest key protection
+- [x] Key backup to encrypted file
+- [x] BIP-39 mnemonic recovery phrase generation and restoration
+- [x] Key export/import for cross-device identity migration
+- [x] Key material zeroing before backing arrays become GC-eligible (per SECURITY_PRIVACY.md)
+- [x] Keypair independence enforcement — Surface and Specter share no derivation path
+- [x] Fortress-mode dedicated transport Ed25519 keypair (separate from Specter key)
 
 ### Sigil Generation (`pkg/identity/sigils/`)
 
 - [x] Deterministic 64×64 PNG generation from public key hash
 - [x] Geometric pattern rendering with color, shapes, symmetry
-- [ ] Specter sigil with cool-tone palette (200–280° hue range per DESIGN_DOCUMENT.md)
-- [ ] Masked event sigil generation from single-use key hash
-- [ ] Sigil rendering as Ebitengine image for Pulse Map overlay
+- [x] Specter sigil with cool-tone palette (200–280° hue range per DESIGN_DOCUMENT.md)
+- [x] Masked event sigil generation from single-use key hash
+- [x] Sigil rendering as Ebitengine image for Pulse Map overlay
 
 ### Identity Declarations (`pkg/identity/declarations/`)
 
 - [x] Declaration struct with public key, display name, sigil parameters
 - [x] Signed metadata for identity announcements
-- [ ] Connection Declaration — bilateral signed relationship announcement
-- [ ] Connection Revocation — cancellation message
-- [ ] Specter Declaration — pseudonym and sigil registration on Anonymous Layer
-- [ ] Profile Update — display name change with new declaration
-- [ ] Identity publication via GossipSub `/murmur/identity/1` topic
-- [ ] PoW requirement for identity creation (anti-spam)
+- [x] Connection Declaration — bilateral signed relationship announcement
+- [x] Connection Revocation — cancellation message
+- [x] Specter Declaration — pseudonym and sigil registration on Anonymous Layer
+- [x] Profile Update — display name change with new declaration
+- [x] Identity publication via GossipSub `/murmur/identity/1` topic
+- [x] PoW requirement for identity creation (anti-spam)
 
 ### Privacy Modes (`pkg/identity/modes/`)
 
 - [x] Privacy mode enum (Open, Hybrid, Guarded, Fortress)
 - [x] Mode descriptions and properties
-- [ ] **Mode transition state machine** — Open ↔ Hybrid ↔ Guarded ↔ Fortress with rules
-- [ ] Specter preservation on upgrade (Open → Hybrid)
-- [ ] Specter destruction on downgrade (Hybrid → Open)
-- [ ] Traffic padding activation for Guarded/Fortress (constant-rate dummy packets, 2/sec)
-- [ ] Network separation enforcement — distinct gossip topics per layer
-- [ ] Behavioral separation guidance — activity pattern differentiation
+- [x] **Mode transition state machine** — Open ↔ Hybrid ↔ Guarded ↔ Fortress with rules
+- [x] Specter preservation on upgrade (Open → Hybrid)
+- [x] Specter destruction on downgrade (Hybrid → Open)
+- [x] Traffic padding activation for Guarded/Fortress (constant-rate dummy packets, 2/sec)
+- [x] Network separation enforcement — distinct gossip topics per layer
+- [x] Behavioral separation guidance — activity pattern differentiation
 
 ### Proximity Ignition
 
@@ -280,11 +280,11 @@
 - [x] Curve25519 keypair generation for Specter
 - [x] Two-word pseudonym generation (adjective + noun from curated wordlist)
 - [x] Specter sigil generation (cool-tone geometric pattern)
-- [ ] Specter creation without network announcement (per SHADOW_GRADIENT.md)
-- [ ] Specter rotation — destroy and create new identity (irreversible)
-- [ ] Specter destruction on mode downgrade
-- [ ] Specter Connection — Anonymous Layer bilateral relationship
-- [ ] Specter visual properties — translucency, particle emissions, cool tones on Pulse Map
+- [x] Specter creation without network announcement (per SHADOW_GRADIENT.md)
+- [x] Specter rotation — destroy and create new identity (irreversible)
+- [x] Specter destruction on mode downgrade
+- [x] Specter Connection — Anonymous Layer bilateral relationship
+- [x] Specter visual properties — translucency, particle emissions, cool tones on Pulse Map
 
 ### Shroud Network (`pkg/anonymous/shroud/`)
 
@@ -293,25 +293,25 @@
 - [x] Traffic padding to fixed 1024-byte packets
 - [x] Relay registry with bandwidth advertising (RelayInfo)
 - [x] Relay selection excluding initiator's direct mesh neighbors (hop diversity)
-- [ ] **Circuit rotation timer** — 10-minute rotation cycle with dual active circuits (primary + backup)
-- [ ] **Circuit close/teardown mechanism** — clean circuit destruction
+- [x] **Circuit rotation timer** — 10-minute rotation cycle with dual active circuits (primary + backup)
+- [x] **Circuit close/teardown mechanism** — clean circuit destruction
 - [ ] **Shroud relay discovery** via Beacon Waves on Anonymous Layer (not manual AddRelay)
-- [ ] **Error recovery for relay failure** — failover to backup circuit, circuit rebuild
-- [ ] Nonce sequencing for replay protection (proper ordering per circuit)
-- [ ] Mix network properties: random delay (exponential distribution, mean 200ms)
-- [ ] Cover traffic: constant-rate dummy packets (2 per second) on active circuits
-- [ ] Shroud Node operation for Fortress-mode users (serve as relay)
-- [ ] Shroud Node capacity metrics advertisement
-- [ ] End-to-end message delivery through Shroud circuits (actual network send/receive)
+- [x] **Error recovery for relay failure** — failover to backup circuit, circuit rebuild
+- [x] Nonce sequencing for replay protection (proper ordering per circuit)
+- [x] Mix network properties: random delay (exponential distribution, mean 200ms)
+- [x] Cover traffic: constant-rate dummy packets (2 per second) on active circuits
+- [x] Shroud Node operation for Fortress-mode users (serve as relay)
+- [x] Shroud Node capacity metrics advertisement
+- [x] End-to-end message delivery through Shroud circuits (actual network send/receive)
 
 ### Whisper Chains
 
-- [ ] Anonymous multi-hop message relay between Specters
-- [ ] End-to-end encryption via Curve25519 DH + HKDF-SHA-256 key derivation
-- [ ] XChaCha20-Poly1305 message encryption
-- [ ] Message routing through Shroud circuits
-- [ ] Delivery confirmation without sender reveal
-- [ ] Rate limiting to prevent abuse
+- [x] Anonymous multi-hop message relay between Specters
+- [x] End-to-end encryption via Curve25519 DH + HKDF-SHA-256 key derivation
+- [x] XChaCha20-Poly1305 message encryption
+- [x] Message routing through Shroud circuits
+- [x] Delivery confirmation without sender reveal
+- [x] Rate limiting to prevent abuse
 
 ### Cross-Layer Interactions
 

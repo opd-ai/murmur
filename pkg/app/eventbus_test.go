@@ -221,6 +221,7 @@ func TestEventBusAllEventTypes(t *testing.T) {
 	eb.EmitShroudRelayDiscovered("relay-peer")
 	eb.EmitTimerExpired("timer1", 1234567890)
 	eb.EmitUserAction("click", "node1", map[string]any{"x": 100, "y": 200})
+	eb.EmitReplyReceived(&pb.Wave{WaveId: []byte("parent")}, &pb.Wave{WaveId: []byte("reply")}, "peer6", 1)
 
 	// Collect all received events.
 	received := make(map[EventType]bool)
@@ -246,6 +247,7 @@ loop:
 		EventShroudRelayDiscovered,
 		EventTimerExpired,
 		EventUserAction,
+		EventReplyReceived,
 	}
 
 	for _, et := range expectedTypes {

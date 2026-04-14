@@ -154,31 +154,85 @@ func (s *Sigil) renderSpecter() {
 	s.drawBorder(s.extractGlowColor())
 }
 
-// extractSpecterColors derives spectral colors from the hash.
+// extractSpecterColors derives cool-tone spectral colors from the hash.
+// Per DESIGN_DOCUMENT.md, Specter sigils use the cool-tone palette (200–280° hue range).
 func (s *Sigil) extractSpecterColors() (bg, fg color.RGBA) {
-	bg = color.RGBA{
-		R: s.Hash[0] / 4,
-		G: s.Hash[1] / 4,
-		B: s.Hash[2]/2 + 64,
-		A: 255,
-	}
-	fg = color.RGBA{
-		R: s.Hash[3]/2 + 64,
-		G: s.Hash[4]/2 + 64,
-		B: s.Hash[5]/2 + 128,
-		A: 200,
-	}
+	// Background: cool-tone with low saturation.
+	bgHue := hueInRange(s.Hash[0], 200, 280)
+	bgSat := float64(s.Hash[1]) / 255.0 * 0.3 // Low saturation (0-30%).
+	bgLum := 0.15 + float64(s.Hash[2])/255.0*0.1
+	bg = hslToRGB(bgHue, bgSat, bgLum)
+
+	// Foreground: cool-tone with higher saturation and brightness.
+	fgHue := hueInRange(s.Hash[3], 200, 280)
+	fgSat := 0.5 + float64(s.Hash[4])/255.0*0.4 // Medium-high saturation (50-90%).
+	fgLum := 0.5 + float64(s.Hash[5])/255.0*0.3
+	fg = hslToRGB(fgHue, fgSat, fgLum)
+
 	return bg, fg
 }
 
 // extractGlowColor derives the spectral glow border color from the hash.
+// Per DESIGN_DOCUMENT.md, Specter sigils have a cool-tone glow.
 func (s *Sigil) extractGlowColor() color.RGBA {
+	hue := hueInRange(s.Hash[9], 200, 280)
+	sat := 0.7 + float64(s.Hash[10])/255.0*0.3
+	lum := 0.6 + float64(s.Hash[11])/255.0*0.2
+	return hslToRGB(hue, sat, lum)
+}
+
+// hueInRange maps a byte value to a hue within the specified range.
+func hueInRange(b byte, minHue, maxHue float64) float64 {
+	return minHue + (float64(b)/255.0)*(maxHue-minHue)
+}
+
+// hslToRGB converts HSL color values to RGBA.
+// h is hue in degrees (0-360), s and l are saturation/lightness (0-1).
+func hslToRGB(h, s, l float64) color.RGBA {
+	var r, g, b float64
+
+	if s == 0 {
+		r, g, b = l, l, l
+	} else {
+		var q float64
+		if l < 0.5 {
+			q = l * (1 + s)
+		} else {
+			q = l + s - l*s
+		}
+		p := 2*l - q
+
+		r = hueToRGB(p, q, h/360.0+1.0/3.0)
+		g = hueToRGB(p, q, h/360.0)
+		b = hueToRGB(p, q, h/360.0-1.0/3.0)
+	}
+
 	return color.RGBA{
-		R: s.Hash[9] / 2,
-		G: s.Hash[10] / 2,
-		B: s.Hash[11]/2 + 128,
+		R: uint8(r * 255),
+		G: uint8(g * 255),
+		B: uint8(b * 255),
 		A: 255,
 	}
+}
+
+// hueToRGB is a helper for HSL to RGB conversion.
+func hueToRGB(p, q, t float64) float64 {
+	if t < 0 {
+		t += 1
+	}
+	if t > 1 {
+		t -= 1
+	}
+	if t < 1.0/6.0 {
+		return p + (q-p)*6*t
+	}
+	if t < 1.0/2.0 {
+		return q
+	}
+	if t < 2.0/3.0 {
+		return p + (q-p)*(2.0/3.0-t)*6
+	}
+	return p
 }
 
 // fillGradientBackground fills with a vertical gradient effect.
@@ -228,4 +282,116 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// GenerateMaskedEvent creates a blank sigil for Masked Event participants.
+// Per DESIGN_DOCUMENT.md §26, Masked Events use identical blank nodes for all participants.
+// The eventID provides deterministic but event-specific styling.
+func GenerateMaskedEvent(eventID []byte) *Sigil {
+	// Derive event-specific hash for consistent styling within the event.
+	input := append([]byte("masked-event:"), eventID...)
+	hash := blake3.Sum256(input)
+
+	sigil := &Sigil{
+		Hash:  hash,
+		Image: image.NewRGBA(image.Rect(0, 0, Size, Size)),
+	}
+
+	sigil.renderMasked()
+	return sigil
+}
+
+// renderMasked generates a blank, featureless sigil for anonymity.
+// All Masked Event sigils look identical - a simple gradient with no distinguishing patterns.
+func (s *Sigil) renderMasked() {
+	// Use a neutral gray gradient for complete anonymity.
+	for y := 0; y < Size; y++ {
+		gray := uint8(40 + y*30/Size)
+		c := color.RGBA{R: gray, G: gray, B: gray + 10, A: 255}
+		for x := 0; x < Size; x++ {
+			s.Image.Set(x, y, c)
+		}
+	}
+
+	// Draw a subtle circular outline.
+	center := Size / 2
+	radius := Size/2 - 2
+	borderColor := color.RGBA{R: 80, G: 80, B: 90, A: 255}
+	s.drawCircle(center, center, radius, borderColor)
+}
+
+// drawCircle draws a circular outline at the given center and radius.
+func (s *Sigil) drawCircle(cx, cy, radius int, c color.RGBA) {
+	for angle := 0; angle < 360; angle++ {
+		// Use integer approximation for circle.
+		x := cx + (radius * cosApprox(angle)) / 100
+		y := cy + (radius * sinApprox(angle)) / 100
+		if x >= 0 && x < Size && y >= 0 && y < Size {
+			s.Image.Set(x, y, c)
+		}
+	}
+}
+
+// cosApprox returns cos(angle) * 100 using integer approximation.
+func cosApprox(angleDegrees int) int {
+	// Simple lookup table for common angles.
+	angle := angleDegrees % 360
+	if angle < 0 {
+		angle += 360
+	}
+
+	// Use symmetry to reduce lookup table size.
+	var val int
+	switch {
+	case angle <= 90:
+		val = cosTable[angle]
+	case angle <= 180:
+		val = -cosTable[180-angle]
+	case angle <= 270:
+		val = -cosTable[angle-180]
+	default:
+		val = cosTable[360-angle]
+	}
+	return val
+}
+
+// sinApprox returns sin(angle) * 100 using integer approximation.
+func sinApprox(angleDegrees int) int {
+	return cosApprox(angleDegrees - 90)
+}
+
+// cosTable holds cos(angle) * 100 for angles 0-90.
+var cosTable = [91]int{
+	100, 100, 100, 100, 99, 99, 99, 98, 98, 97, // 0-9
+	97, 96, 95, 95, 94, 93, 92, 91, 90, 89, // 10-19
+	88, 87, 86, 84, 83, 82, 80, 79, 77, 76, // 20-29
+	74, 72, 71, 69, 67, 65, 63, 61, 59, 57, // 30-39
+	55, 53, 51, 49, 47, 44, 42, 40, 37, 35, // 40-49
+	33, 30, 28, 26, 23, 21, 19, 16, 14, 11, // 50-59
+	9, 6, 4, 2, 0, -2, -5, -7, -10, -12, // 60-69
+	-15, -17, -19, -22, -24, -26, -29, -31, -33, -36, // 70-79
+	-38, -40, -42, -45, -47, -49, -51, -53, -55, -57, // 80-89
+	-59, // 90
+}
+
+// GenerateFromSingleUseKey creates a sigil from a single-use key hash.
+// Used for one-time event participation or ephemeral identities.
+func GenerateFromSingleUseKey(keyHash []byte) *Sigil {
+	// Use the key hash directly (already hashed).
+	var hash [32]byte
+	if len(keyHash) >= 32 {
+		copy(hash[:], keyHash[:32])
+	} else {
+		// If shorter, hash it to get consistent 32 bytes.
+		hash = blake3.Sum256(keyHash)
+	}
+
+	sigil := &Sigil{
+		Hash:  hash,
+		Image: image.NewRGBA(image.Rect(0, 0, Size, Size)),
+	}
+
+	// Use specter rendering for single-use keys.
+	sigil.renderSpecter()
+	return sigil
 }

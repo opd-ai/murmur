@@ -112,3 +112,174 @@ message Heartbeat {
   // Sequence number (monotonically increasing).
   uint64 sequence = 5;
 }
+
+// ConnectionDeclaration announces a bilateral relationship between two identities.
+// Per DESIGN_DOCUMENT.md §2.2, connections require signatures from both parties.
+message ConnectionDeclaration {
+  // Public key of the initiator (32 bytes Ed25519).
+  bytes initiator_public_key = 1;
+  
+  // Public key of the responder (32 bytes Ed25519).
+  bytes responder_public_key = 2;
+  
+  // Initiator's signature over the connection.
+  bytes initiator_signature = 3;
+  
+  // Responder's signature over the connection.
+  bytes responder_signature = 4;
+  
+  // Timestamp when connection was established.
+  int64 created_at = 5;
+  
+  // Connection type (e.g., friend, follow).
+  ConnectionType connection_type = 6;
+  
+  // Optional display name visible to the connected party.
+  string mutual_name = 7;
+}
+
+// ConnectionType defines the type of relationship.
+enum ConnectionType {
+  CONNECTION_TYPE_UNSPECIFIED = 0;
+  CONNECTION_TYPE_FRIEND = 1;      // Mutual friendship
+  CONNECTION_TYPE_FOLLOW = 2;      // One-way follow
+  CONNECTION_TYPE_BLOCK = 3;       // Block (local only, not broadcast)
+  CONNECTION_TYPE_TRUSTED = 4;     // Trusted contact (higher privileges)
+}
+
+// ConnectionRevocation cancels an existing connection.
+// Per DESIGN_DOCUMENT.md, revocation is unilateral - either party can revoke.
+message ConnectionRevocation {
+  // Public key of the revoking party.
+  bytes revoker_public_key = 1;
+  
+  // Public key of the other party.
+  bytes target_public_key = 2;
+  
+  // Signature of the revoker.
+  bytes signature = 3;
+  
+  // Timestamp of revocation.
+  int64 revoked_at = 4;
+  
+  // Original connection type being revoked.
+  ConnectionType connection_type = 5;
+  
+  // Optional reason code.
+  RevocationReason reason = 6;
+}
+
+// RevocationReason provides context for connection revocation.
+enum RevocationReason {
+  REVOCATION_REASON_UNSPECIFIED = 0;
+  REVOCATION_REASON_USER_REQUEST = 1;    // User-initiated
+  REVOCATION_REASON_INACTIVITY = 2;      // Connection timed out
+  REVOCATION_REASON_POLICY = 3;          // Policy violation detected
+  REVOCATION_REASON_KEY_ROTATION = 4;    // Key was rotated
+}
+
+// SpecterDeclaration registers a Specter identity on the Anonymous Layer.
+// Per DESIGN_DOCUMENT.md §26, Specters are pseudonymous identities.
+message SpecterDeclaration {
+  // Curve25519 public key for the Specter (32 bytes).
+  bytes public_key = 1;
+  
+  // Procedurally generated pseudonym.
+  string pseudonym = 2;
+  
+  // Specter sigil PNG (64x64, cool-tone palette).
+  bytes sigil_png = 3;
+  
+  // Creation timestamp.
+  int64 created_at = 4;
+  
+  // Proof of Work nonce (anti-spam).
+  uint64 pow_nonce = 5;
+  
+  // Signature over all fields except signature.
+  bytes signature = 6;
+  
+  // Initial Resonance (always starts at 0).
+  uint32 initial_resonance = 7;
+}
+
+// ProfileUpdate updates display name or other profile fields.
+// Per DESIGN_DOCUMENT.md, profile updates require new signatures.
+message ProfileUpdate {
+  // Ed25519 public key of the identity.
+  bytes public_key = 1;
+  
+  // New display name (empty string means unchanged).
+  string display_name = 2;
+  
+  // New bio (empty string means unchanged).
+  string bio = 3;
+  
+  // New sigil PNG (empty means unchanged).
+  bytes sigil_png = 4;
+  
+  // New privacy mode.
+  PrivacyMode privacy_mode = 5;
+  
+  // Update timestamp.
+  int64 updated_at = 6;
+  
+  // Version number (must be > previous).
+  uint32 version = 7;
+  
+  // Signature over all update fields.
+  bytes signature = 8;
+}
+
+// SpecterConnection represents a bilateral relationship between two Specter identities.
+// Per GLOSSARY.md, Specter connections are formed through signed mutual declarations
+// on the Anonymous Layer, similar to Surface Layer connections.
+message SpecterConnection {
+  // Curve25519 public key of the initiator (32 bytes).
+  bytes initiator_public_key = 1;
+  
+  // Curve25519 public key of the responder (32 bytes).
+  bytes responder_public_key = 2;
+  
+  // Initiator's signature over the connection (Ed25519-converted signing).
+  bytes initiator_signature = 3;
+  
+  // Responder's signature over the connection (Ed25519-converted signing).
+  bytes responder_signature = 4;
+  
+  // Timestamp when connection was established.
+  int64 created_at = 5;
+  
+  // Connection type for Specter relationships.
+  SpecterConnectionType connection_type = 6;
+  
+  // Optional shared secret hash (for connection verification).
+  bytes shared_secret_hash = 7;
+}
+
+// SpecterConnectionType defines the type of Specter relationship.
+enum SpecterConnectionType {
+  SPECTER_CONNECTION_TYPE_UNSPECIFIED = 0;
+  SPECTER_CONNECTION_TYPE_PEER = 1;        // Basic anonymous peer connection
+  SPECTER_CONNECTION_TYPE_CONFIDANT = 2;   // Trusted anonymous contact
+  SPECTER_CONNECTION_TYPE_BLOCKED = 3;     // Anonymous block (local only)
+}
+
+// SpecterConnectionRevocation cancels an existing Specter connection.
+// Per GLOSSARY.md, either party can revoke unilaterally.
+message SpecterConnectionRevocation {
+  // Curve25519 public key of the revoking Specter.
+  bytes revoker_public_key = 1;
+  
+  // Curve25519 public key of the other Specter.
+  bytes target_public_key = 2;
+  
+  // Signature of the revoker.
+  bytes signature = 3;
+  
+  // Timestamp of revocation.
+  int64 revoked_at = 4;
+  
+  // Original connection type being revoked.
+  SpecterConnectionType connection_type = 5;
+}

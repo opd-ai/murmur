@@ -41,6 +41,38 @@ message RelayAdvertisement {
   
   // Advertisement expiry (Unix seconds).
   int64 expires_at = 8;
+  
+  // Capacity metrics for relay selection.
+  RelayCapacityMetrics capacity = 9;
+}
+
+// RelayCapacityMetrics advertises relay capacity for load balancing.
+// Per TECHNICAL_IMPLEMENTATION.md, relays advertise capacity so circuits
+// can be balanced across the network.
+message RelayCapacityMetrics {
+  // Maximum bandwidth capacity (bytes/second).
+  uint64 max_bandwidth = 1;
+  
+  // Current bandwidth usage (bytes/second).
+  uint64 current_bandwidth = 2;
+  
+  // Maximum concurrent circuits.
+  uint32 max_circuits = 3;
+  
+  // Current active circuit count.
+  uint32 current_circuits = 4;
+  
+  // Uptime in seconds.
+  uint64 uptime_seconds = 5;
+  
+  // Average latency to this relay (ms), measured by advertising node.
+  uint32 avg_latency_ms = 6;
+  
+  // Total bytes relayed (for reputation).
+  uint64 total_bytes_relayed = 7;
+  
+  // Node version string for compatibility checks.
+  string version = 8;
 }
 
 // CircuitRequest initiates a Shroud circuit hop.

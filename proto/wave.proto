@@ -88,6 +88,10 @@ message Wave {
   
   // Wave ID (BLAKE3 hash of content + metadata).
   bytes wave_id = 10;
+  
+  // Type-specific metadata (key-value pairs).
+  // Used for veil flags, encryption parameters, event IDs, etc.
+  map<string, bytes> metadata = 11;
 }
 
 // Reply extends a Wave with threading information.

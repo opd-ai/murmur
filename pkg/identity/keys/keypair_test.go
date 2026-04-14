@@ -180,3 +180,130 @@ func TestKeyPairUniqueness(t *testing.T) {
 		t.Error("Two generated keypairs have identical public keys")
 	}
 }
+
+func TestGenerateIdentityBundle(t *testing.T) {
+	bundle, err := GenerateIdentityBundle()
+	if err != nil {
+		t.Fatalf("GenerateIdentityBundle() error = %v", err)
+	}
+	defer bundle.Zero()
+
+	// Both keypairs should exist.
+	if bundle.Surface == nil {
+		t.Error("Surface keypair is nil")
+	}
+	if bundle.Specter == nil {
+		t.Error("Specter keypair is nil")
+	}
+	if bundle.FortressTransport != nil {
+		t.Error("FortressTransport should be nil without Fortress mode")
+	}
+
+	// Keys should be valid sizes.
+	if len(bundle.Surface.PublicKey) != ed25519.PublicKeySize {
+		t.Errorf("Surface public key size = %d, want %d",
+			len(bundle.Surface.PublicKey), ed25519.PublicKeySize)
+	}
+	if len(bundle.Specter.PublicKey) != 32 {
+		t.Errorf("Specter public key size = %d, want 32", len(bundle.Specter.PublicKey))
+	}
+}
+
+func TestGenerateIdentityBundleWithFortress(t *testing.T) {
+	bundle, err := GenerateIdentityBundleWithFortress()
+	if err != nil {
+		t.Fatalf("GenerateIdentityBundleWithFortress() error = %v", err)
+	}
+	defer bundle.Zero()
+
+	// All three keypairs should exist.
+	if bundle.Surface == nil {
+		t.Error("Surface keypair is nil")
+	}
+	if bundle.Specter == nil {
+		t.Error("Specter keypair is nil")
+	}
+	if bundle.FortressTransport == nil {
+		t.Error("FortressTransport keypair is nil")
+	}
+}
+
+func TestIdentityBundleValidateIndependence(t *testing.T) {
+	bundle, err := GenerateIdentityBundle()
+	if err != nil {
+		t.Fatalf("GenerateIdentityBundle() error = %v", err)
+	}
+	defer bundle.Zero()
+
+	// Normal bundle should pass independence check.
+	if !bundle.ValidateIndependence() {
+		t.Error("Valid bundle failed independence check")
+	}
+
+	// Nil bundle should fail.
+	nilBundle := &IdentityBundle{}
+	if nilBundle.ValidateIndependence() {
+		t.Error("Nil keypairs should fail independence check")
+	}
+}
+
+func TestIdentityBundleZero(t *testing.T) {
+	bundle, err := GenerateIdentityBundleWithFortress()
+	if err != nil {
+		t.Fatalf("GenerateIdentityBundleWithFortress() error = %v", err)
+	}
+
+	// Save original key bytes to verify zeroing.
+	surfacePriv := make([]byte, len(bundle.Surface.PrivateKey))
+	copy(surfacePriv, bundle.Surface.PrivateKey)
+
+	specterPriv := make([]byte, len(bundle.Specter.PrivateKey))
+	copy(specterPriv, bundle.Specter.PrivateKey[:])
+
+	// Zero the bundle.
+	bundle.Zero()
+
+	// Check that private keys are zeroed.
+	for i, b := range bundle.Surface.PrivateKey {
+		if b != 0 {
+			t.Errorf("Surface private key[%d] not zeroed", i)
+			break
+		}
+	}
+
+	for i, b := range bundle.Specter.PrivateKey {
+		if b != 0 {
+			t.Errorf("Specter private key[%d] not zeroed", i)
+			break
+		}
+	}
+
+	for i, b := range bundle.FortressTransport.PrivateKey {
+		if b != 0 {
+			t.Errorf("Fortress private key[%d] not zeroed", i)
+			break
+		}
+	}
+}
+
+func TestIdentityBundleKeypairIndependence(t *testing.T) {
+	// Generate many bundles and verify keys are always independent.
+	for i := 0; i < 10; i++ {
+		bundle, err := GenerateIdentityBundleWithFortress()
+		if err != nil {
+			t.Fatalf("Iteration %d: GenerateIdentityBundleWithFortress() error = %v", i, err)
+		}
+
+		// Surface and Specter should be different.
+		if bytes.Equal(bundle.Surface.PublicKey[:32], bundle.Specter.PublicKey[:]) {
+			t.Errorf("Iteration %d: Surface and Specter public keys match", i)
+		}
+
+		// Surface and Fortress should be different.
+		if bytes.Equal(bundle.Surface.PublicKey, bundle.FortressTransport.PublicKey) {
+			t.Errorf("Iteration %d: Surface and Fortress public keys match", i)
+		}
+
+		bundle.Zero()
+	}
+}

@@ -53,6 +53,9 @@ const (
 
 	// EventUserAction indicates a user action from the UI.
 	EventUserAction
+
+	// EventReplyReceived indicates a reply to one of the user's Waves was received.
+	EventReplyReceived
 )
 
 // String returns a human-readable name for the event type.
@@ -84,6 +87,8 @@ func (et EventType) String() string {
 		return "TimerExpired"
 	case EventUserAction:
 		return "UserAction"
+	case EventReplyReceived:
+		return "ReplyReceived"
 	default:
 		return "Unknown"
 	}
@@ -179,6 +184,21 @@ type UserActionEvent struct {
 
 	// Data contains action-specific data.
 	Data map[string]any
+}
+
+// ReplyEvent contains details about a reply to a user's Wave.
+type ReplyEvent struct {
+	// ParentWave is the Wave that was replied to.
+	ParentWave *pb.Wave
+
+	// ReplyWave is the reply Wave.
+	ReplyWave *pb.Wave
+
+	// FromPeer is the peer ID the reply was received from.
+	FromPeer string
+
+	// ThreadDepth is the depth of the reply in the thread.
+	ThreadDepth int
 }
 
 // subscription represents a registered subscriber.
@@ -301,6 +321,7 @@ func (eb *EventBus) SubscribeAll(ch chan<- Event) func() {
 		EventMechanicStateChanged,
 		EventTimerExpired,
 		EventUserAction,
+		EventReplyReceived,
 	}, ch)
 }
 
@@ -448,4 +469,18 @@ func (eb *EventBus) IsClosed() bool {
 	eb.mu.RLock()
 	defer eb.mu.RUnlock()
 	return eb.closed
+}
+
+// EmitReplyReceived emits a ReplyReceived event.
+// This is called when a reply to one of the user's Waves is received.
+func (eb *EventBus) EmitReplyReceived(parentWave, replyWave *pb.Wave, fromPeer string, depth int) {
+	eb.Emit(Event{
+		Type: EventReplyReceived,
+		Payload: &ReplyEvent{
+			ParentWave:  parentWave,
+			ReplyWave:   replyWave,
+			FromPeer:    fromPeer,
+			ThreadDepth: depth,
+		},
+	})
 }

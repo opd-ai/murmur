@@ -23,6 +23,10 @@ message GossipMessage {
     ConnectionAnnouncement connection_announcement = 5;
     Heartbeat heartbeat = 6;
     RelayAdvertisement relay_advertisement = 7;
+    ConnectionDeclaration connection_declaration = 8;
+    ConnectionRevocation connection_revocation = 9;
+    ProfileUpdate profile_update = 10;
+    SpecterDeclaration specter_declaration = 11;
   }
 }
 

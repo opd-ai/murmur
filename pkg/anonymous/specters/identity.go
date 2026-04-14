@@ -24,24 +24,30 @@ const (
 
 // Errors for Specter operations.
 var (
-	ErrNilKeyPair     = errors.New("nil keypair")
-	ErrSuspended      = errors.New("specter is suspended")
-	ErrDeleted        = errors.New("specter is deleted")
-	ErrInvalidStatus  = errors.New("invalid status")
-	ErrEncryptionFail = errors.New("encryption failed")
-	ErrDecryptionFail = errors.New("decryption failed")
+	ErrNilKeyPair       = errors.New("nil keypair")
+	ErrSuspended        = errors.New("specter is suspended")
+	ErrDeleted          = errors.New("specter is deleted")
+	ErrInvalidStatus    = errors.New("invalid status")
+	ErrEncryptionFail   = errors.New("encryption failed")
+	ErrDecryptionFail   = errors.New("decryption failed")
+	ErrAlreadyAnnounced = errors.New("specter already announced")
+	ErrNotAnnounced     = errors.New("specter not announced")
+	ErrRotationFailed   = errors.New("specter rotation failed")
 )
 
 // Specter represents an anonymous identity in the Anonymous Layer.
 // Per DESIGN_DOCUMENT.md, Specters use independent Curve25519 keypairs
 // with no derivation relationship to Surface identities.
 type Specter struct {
-	mu         sync.RWMutex
-	PrivateKey [32]byte
-	PublicKey  [32]byte
-	Name       string
-	CreatedAt  time.Time
-	Status     string
+	mu           sync.RWMutex
+	PrivateKey   [32]byte
+	PublicKey    [32]byte
+	Name         string
+	CreatedAt    time.Time
+	Status       string
+	Announced    bool      // Whether this Specter has been announced to the network
+	RotationFrom [32]byte  // Public key of previous identity (for rotation tracking)
+	Version      int       // Identity version (increments on rotation)
 }
 
 // KeyPair holds a Curve25519 key pair for Shroud circuits.
@@ -74,6 +80,8 @@ func GenerateKeyPair() (*KeyPair, error) {
 }
 
 // NewSpecter creates a new Specter identity with an independent keypair.
+// Per SHADOW_GRADIENT.md, the Specter is created locally without network announcement.
+// Call Announce() to register the Specter on the Anonymous Layer.
 func NewSpecter() (*Specter, error) {
 	kp, err := GenerateKeyPair()
 	if err != nil {
@@ -85,6 +93,8 @@ func NewSpecter() (*Specter, error) {
 		PublicKey:  kp.Public,
 		CreatedAt:  time.Now(),
 		Status:     StatusActive,
+		Announced:  false, // Per SHADOW_GRADIENT.md: created without network announcement
+		Version:    1,
 	}
 
 	// Generate procedural name from public key.
@@ -94,6 +104,7 @@ func NewSpecter() (*Specter, error) {
 }
 
 // NewSpecterFromKeyPair creates a Specter from an existing keypair.
+// Per SHADOW_GRADIENT.md, the Specter is created locally without network announcement.
 func NewSpecterFromKeyPair(kp *KeyPair) (*Specter, error) {
 	if kp == nil {
 		return nil, ErrNilKeyPair
@@ -104,6 +115,8 @@ func NewSpecterFromKeyPair(kp *KeyPair) (*Specter, error) {
 		PublicKey:  kp.Public,
 		CreatedAt:  time.Now(),
 		Status:     StatusActive,
+		Announced:  false, // Per SHADOW_GRADIENT.md: created without network announcement
+		Version:    1,
 	}
 
 	s.Name = GenerateName(s.PublicKey[:])
@@ -157,6 +170,127 @@ func (s *Specter) Delete() {
 	}
 
 	s.Status = StatusDeleted
+}
+
+// MarkAnnounced marks the Specter as having been announced to the network.
+// Per SHADOW_GRADIENT.md, a Specter must be announced before it can be used
+// for network operations (Specter Waves, anonymous connections, etc.).
+func (s *Specter) MarkAnnounced() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.Status == StatusDeleted {
+		return ErrDeleted
+	}
+	if s.Announced {
+		return ErrAlreadyAnnounced
+	}
+
+	s.Announced = true
+	return nil
+}
+
+// IsAnnounced returns true if the Specter has been announced to the network.
+func (s *Specter) IsAnnounced() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.Announced
+}
+
+// Rotate creates a new Specter identity and destroys the current one.
+// Per SHADOW_GRADIENT.md, rotation is irreversible and generates a completely
+// new identity with no cryptographic link to the previous one.
+// Returns the new Specter (which needs to be announced separately).
+func (s *Specter) Rotate() (*Specter, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.Status == StatusDeleted {
+		return nil, ErrDeleted
+	}
+
+	// Save old public key for tracking.
+	var oldPubKey [32]byte
+	copy(oldPubKey[:], s.PublicKey[:])
+	oldVersion := s.Version
+
+	// Zero the old private key first.
+	for i := range s.PrivateKey {
+		s.PrivateKey[i] = 0
+	}
+	s.Status = StatusDeleted
+
+	// Create new Specter.
+	newSpecter, err := NewSpecter()
+	if err != nil {
+		return nil, ErrRotationFailed
+	}
+
+	// Track rotation lineage (not cryptographically linked, just for local reference).
+	newSpecter.RotationFrom = oldPubKey
+	newSpecter.Version = oldVersion + 1
+
+	return newSpecter, nil
+}
+
+// DestroyForModeDowngrade completely destroys the Specter for privacy mode downgrade.
+// Per SHADOW_GRADIENT.md, when transitioning from a Specter-enabled mode
+// (Hybrid/Guarded/Fortress) to Open mode, the Specter keypair must be
+// destroyed to prevent identity correlation.
+// This is more thorough than Delete() - it also zeros the public key.
+func (s *Specter) DestroyForModeDowngrade() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Zero the private key.
+	for i := range s.PrivateKey {
+		s.PrivateKey[i] = 0
+	}
+
+	// Zero the public key too.
+	for i := range s.PublicKey {
+		s.PublicKey[i] = 0
+	}
+
+	// Zero rotation tracking.
+	for i := range s.RotationFrom {
+		s.RotationFrom[i] = 0
+	}
+
+	// Clear identifiable information.
+	s.Name = ""
+	s.Status = StatusDeleted
+	s.Announced = false
+}
+
+// GetPublicKey returns a copy of the public key.
+func (s *Specter) GetPublicKey() [32]byte {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var key [32]byte
+	copy(key[:], s.PublicKey[:])
+	return key
+}
+
+// GetVersion returns the identity version (1 for original, 2+ for rotated).
+func (s *Specter) GetVersion() int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.Version
+}
+
+// GetRotationSource returns the public key of the previous identity, if any.
+// Returns zero value if this is the original identity (not rotated).
+func (s *Specter) GetRotationSource() [32]byte {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var key [32]byte
+	copy(key[:], s.RotationFrom[:])
+	return key
 }
 
 // DeriveSharedSecret performs X25519 key exchange.

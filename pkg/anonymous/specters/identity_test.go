@@ -334,3 +334,253 @@ func TestSpecterConcurrency(t *testing.T) {
 		<-done
 	}
 }
+
+// TestMarkAnnounced tests the announcement lifecycle of a Specter.
+func TestMarkAnnounced(t *testing.T) {
+	s, err := NewSpecter()
+	if err != nil {
+		t.Fatalf("NewSpecter failed: %v", err)
+	}
+
+	// New Specters should not be announced.
+	if s.IsAnnounced() {
+		t.Error("newly created Specter should not be announced")
+	}
+
+	// Mark as announced.
+	if err := s.MarkAnnounced(); err != nil {
+		t.Fatalf("MarkAnnounced failed: %v", err)
+	}
+
+	// Should now be announced.
+	if !s.IsAnnounced() {
+		t.Error("Specter should be announced after MarkAnnounced")
+	}
+
+	// Double-announce should fail.
+	if err := s.MarkAnnounced(); err != ErrAlreadyAnnounced {
+		t.Errorf("expected ErrAlreadyAnnounced, got %v", err)
+	}
+}
+
+// TestMarkAnnouncedDeleted tests that deleted Specters cannot be announced.
+func TestMarkAnnouncedDeleted(t *testing.T) {
+	s, _ := NewSpecter()
+
+	// Delete the Specter.
+	s.Delete()
+
+	// Should not be able to announce.
+	if err := s.MarkAnnounced(); err != ErrDeleted {
+		t.Errorf("expected ErrDeleted, got %v", err)
+	}
+}
+
+// TestRotate tests Specter identity rotation.
+func TestRotate(t *testing.T) {
+	s, err := NewSpecter()
+	if err != nil {
+		t.Fatalf("NewSpecter failed: %v", err)
+	}
+
+	// Save original keys.
+	originalPubKey := s.GetPublicKey()
+	originalVersion := s.GetVersion()
+
+	// Original version should be 1.
+	if originalVersion != 1 {
+		t.Errorf("original version should be 1, got %d", originalVersion)
+	}
+
+	// Rotate.
+	newSpecter, err := s.Rotate()
+	if err != nil {
+		t.Fatalf("Rotate failed: %v", err)
+	}
+
+	// Old Specter should be deleted.
+	if s.IsActive() {
+		t.Error("old Specter should be deleted after rotation")
+	}
+
+	// New Specter should be active.
+	if !newSpecter.IsActive() {
+		t.Error("new Specter should be active")
+	}
+
+	// New Specter should not be announced.
+	if newSpecter.IsAnnounced() {
+		t.Error("rotated Specter should not be announced")
+	}
+
+	// New Specter should have different keys.
+	newPubKey := newSpecter.GetPublicKey()
+	if newPubKey == originalPubKey {
+		t.Error("rotated Specter should have different public key")
+	}
+
+	// New Specter should have version 2.
+	if newSpecter.GetVersion() != 2 {
+		t.Errorf("rotated Specter version should be 2, got %d", newSpecter.GetVersion())
+	}
+
+	// New Specter should track rotation source.
+	rotationSource := newSpecter.GetRotationSource()
+	if rotationSource != originalPubKey {
+		t.Error("rotation source should be original public key")
+	}
+}
+
+// TestRotateDeleted tests that deleted Specters cannot be rotated.
+func TestRotateDeleted(t *testing.T) {
+	s, _ := NewSpecter()
+
+	// Delete the Specter.
+	s.Delete()
+
+	// Should not be able to rotate.
+	_, err := s.Rotate()
+	if err != ErrDeleted {
+		t.Errorf("expected ErrDeleted, got %v", err)
+	}
+}
+
+// TestRotateMultiple tests multiple rotation cycles.
+func TestRotateMultiple(t *testing.T) {
+	s, _ := NewSpecter()
+
+	// Rotate 3 times.
+	for i := 0; i < 3; i++ {
+		newS, err := s.Rotate()
+		if err != nil {
+			t.Fatalf("Rotate %d failed: %v", i, err)
+		}
+		s = newS
+	}
+
+	// Final version should be 4.
+	if s.GetVersion() != 4 {
+		t.Errorf("after 3 rotations, version should be 4, got %d", s.GetVersion())
+	}
+}
+
+// TestDestroyForModeDowngrade tests thorough destruction for privacy mode downgrade.
+func TestDestroyForModeDowngrade(t *testing.T) {
+	s, err := NewSpecter()
+	if err != nil {
+		t.Fatalf("NewSpecter failed: %v", err)
+	}
+
+	// Mark as announced first.
+	s.MarkAnnounced()
+
+	// Save original values.
+	originalPubKey := s.GetPublicKey()
+	originalName := s.Name
+
+	// Verify non-zero state.
+	if originalPubKey == [32]byte{} {
+		t.Error("public key should not be zero before destruction")
+	}
+	if originalName == "" {
+		t.Error("name should not be empty before destruction")
+	}
+
+	// Destroy for mode downgrade.
+	s.DestroyForModeDowngrade()
+
+	// Should no longer be active.
+	if s.IsActive() {
+		t.Error("Specter should not be active after destruction")
+	}
+
+	// Should no longer be announced.
+	if s.IsAnnounced() {
+		t.Error("Specter should not be announced after destruction")
+	}
+
+	// Public key should be zeroed.
+	pubKey := s.GetPublicKey()
+	if pubKey != [32]byte{} {
+		t.Error("public key should be zeroed after destruction")
+	}
+
+	// Private key should be zeroed.
+	var zeroPrivKey [32]byte
+	s.mu.RLock()
+	if s.PrivateKey != zeroPrivKey {
+		t.Error("private key should be zeroed after destruction")
+	}
+	s.mu.RUnlock()
+
+	// Name should be cleared.
+	if s.Name != "" {
+		t.Error("name should be empty after destruction")
+	}
+
+	// Rotation source should be zeroed.
+	rotationSource := s.GetRotationSource()
+	if rotationSource != [32]byte{} {
+		t.Error("rotation source should be zeroed after destruction")
+	}
+}
+
+// TestGetPublicKey tests that GetPublicKey returns a copy.
+func TestGetPublicKey(t *testing.T) {
+	s, _ := NewSpecter()
+
+	key1 := s.GetPublicKey()
+	key2 := s.GetPublicKey()
+
+	// Keys should be equal.
+	if key1 != key2 {
+		t.Error("GetPublicKey should return consistent values")
+	}
+
+	// Modifying returned key should not affect Specter.
+	key1[0] = ^key1[0]
+	key3 := s.GetPublicKey()
+	if key1 == key3 {
+		t.Error("GetPublicKey should return a copy, not a reference")
+	}
+}
+
+// TestGetVersionOriginal tests version for newly created Specters.
+func TestGetVersionOriginal(t *testing.T) {
+	s, _ := NewSpecter()
+
+	if s.GetVersion() != 1 {
+		t.Errorf("original Specter version should be 1, got %d", s.GetVersion())
+	}
+}
+
+// TestGetRotationSourceOriginal tests rotation source for non-rotated Specters.
+func TestGetRotationSourceOriginal(t *testing.T) {
+	s, _ := NewSpecter()
+
+	rotationSource := s.GetRotationSource()
+	if rotationSource != [32]byte{} {
+		t.Error("original Specter should have zero rotation source")
+	}
+}
+
+// TestSpecterLifecycleConcurrency tests concurrent lifecycle operations.
+func TestSpecterLifecycleConcurrency(t *testing.T) {
+	s, _ := NewSpecter()
+
+	// Multiple concurrent reads should not race.
+	done := make(chan bool)
+	for i := 0; i < 10; i++ {
+		go func() {
+			s.IsAnnounced()
+			s.GetPublicKey()
+			s.GetVersion()
+			s.GetRotationSource()
+			done <- true
+		}()
+	}
+
+	for i := 0; i < 10; i++ {
+		<-done
+	}
+}

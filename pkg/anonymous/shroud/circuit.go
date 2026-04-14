@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/zeebo/blake3"
@@ -27,6 +28,16 @@ const FixedPacketSize = 1024
 // Beacon advertisement interval.
 const BeaconInterval = 5 * time.Minute
 
+// Error recovery constants.
+const (
+	// MaxConsecutiveFailures is the threshold before marking a relay as bad.
+	MaxConsecutiveFailures = 3
+	// RelayPenaltyDuration is how long a failed relay is excluded.
+	RelayPenaltyDuration = 10 * time.Minute
+	// CircuitRebuildBackoff is the minimum delay between rebuild attempts.
+	CircuitRebuildBackoff = 5 * time.Second
+)
+
 // Errors for Shroud operations.
 var (
 	ErrInsufficientRelays = errors.New("insufficient relays for circuit")
@@ -34,7 +45,126 @@ var (
 	ErrDecryptionFailed   = errors.New("decryption failed")
 	ErrInvalidPacket      = errors.New("invalid packet")
 	ErrRelayNotFound      = errors.New("relay not found")
+	ErrRelayFailure       = errors.New("relay failure detected")
+	ErrAllCircuitsFailed  = errors.New("all circuits have failed")
+	ErrReplayDetected     = errors.New("replay attack detected")
 )
+
+// CircuitError categorizes circuit-related errors.
+type CircuitError struct {
+	Err       error
+	RelayID   string    // Which relay failed (if applicable).
+	CircuitID [16]byte  // Which circuit experienced the error.
+	Timestamp time.Time // When the error occurred.
+	Transient bool      // Whether the error might be temporary.
+}
+
+// Error implements the error interface.
+func (e *CircuitError) Error() string {
+	if e.RelayID != "" {
+		return "circuit error (relay " + e.RelayID + "): " + e.Err.Error()
+	}
+	return "circuit error: " + e.Err.Error()
+}
+
+// Unwrap returns the underlying error.
+func (e *CircuitError) Unwrap() error {
+	return e.Err
+}
+
+// NewCircuitError creates a new CircuitError.
+func NewCircuitError(err error, relayID string, circuitID [16]byte, transient bool) *CircuitError {
+	return &CircuitError{
+		Err:       err,
+		RelayID:   relayID,
+		CircuitID: circuitID,
+		Timestamp: time.Now(),
+		Transient: transient,
+	}
+}
+
+// RelayFailureTracker tracks relay failures for error recovery.
+type RelayFailureTracker struct {
+	mu           sync.RWMutex
+	failures     map[string]int       // Consecutive failure count per relay.
+	penaltyUntil map[string]time.Time // When penalty expires.
+}
+
+// NewRelayFailureTracker creates a new failure tracker.
+func NewRelayFailureTracker() *RelayFailureTracker {
+	return &RelayFailureTracker{
+		failures:     make(map[string]int),
+		penaltyUntil: make(map[string]time.Time),
+	}
+}
+
+// RecordFailure records a relay failure.
+// Returns true if the relay has exceeded the failure threshold.
+func (t *RelayFailureTracker) RecordFailure(relayID string) bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	t.failures[relayID]++
+	if t.failures[relayID] >= MaxConsecutiveFailures {
+		t.penaltyUntil[relayID] = time.Now().Add(RelayPenaltyDuration)
+		return true
+	}
+	return false
+}
+
+// RecordSuccess clears failure tracking for a relay.
+func (t *RelayFailureTracker) RecordSuccess(relayID string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	delete(t.failures, relayID)
+}
+
+// IsPenalized returns true if the relay is currently penalized.
+func (t *RelayFailureTracker) IsPenalized(relayID string) bool {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
+	until, ok := t.penaltyUntil[relayID]
+	if !ok {
+		return false
+	}
+
+	if time.Now().After(until) {
+		// Penalty expired, clean up (will be done on next write).
+		return false
+	}
+	return true
+}
+
+// PenalizedRelays returns the list of currently penalized relay IDs.
+func (t *RelayFailureTracker) PenalizedRelays() []string {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
+	now := time.Now()
+	var penalized []string
+	for relayID, until := range t.penaltyUntil {
+		if until.After(now) {
+			penalized = append(penalized, relayID)
+		}
+	}
+	return penalized
+}
+
+// CleanExpired removes expired penalty entries.
+func (t *RelayFailureTracker) CleanExpired() {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	now := time.Now()
+	for relayID, until := range t.penaltyUntil {
+		if until.Before(now) {
+			delete(t.penaltyUntil, relayID)
+			delete(t.failures, relayID)
+		}
+	}
+}
 
 // RelayInfo describes a Shroud relay node.
 type RelayInfo struct {
@@ -89,6 +219,15 @@ func (b *Beacon) EnableRelay(peerID string, bandwidth uint64) {
 		Bandwidth: bandwidth,
 		SeenAt:    time.Now(),
 	}
+}
+
+// DisableRelay removes this node from being a Shroud relay.
+func (b *Beacon) DisableRelay() {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	b.isRelay = false
+	b.selfInfo = nil
 }
 
 // IsRelay returns true if this node is a Shroud relay.
@@ -165,13 +304,134 @@ func (b *Beacon) SelfInfo() *RelayInfo {
 	return b.selfInfo
 }
 
+// TeardownFunc is called when a circuit is torn down.
+// It receives the circuit ID and the list of relay peer IDs.
+type TeardownFunc func(circuitID []byte, relayPeerIDs []string)
+
+// NonceSequencer handles nonce generation with replay protection.
+type NonceSequencer struct {
+	mu       sync.Mutex
+	sequence uint64   // Monotonic sequence number.
+	prefix   [8]byte  // Random prefix for nonce uniqueness.
+}
+
+// NewNonceSequencer creates a new nonce sequencer.
+func NewNonceSequencer() *NonceSequencer {
+	ns := &NonceSequencer{}
+	rand.Read(ns.prefix[:])
+	return ns
+}
+
+// Next returns the next nonce in sequence.
+// XChaCha20-Poly1305 uses 24-byte nonces: 8-byte prefix + 8-byte sequence + 8-byte random.
+func (ns *NonceSequencer) Next() []byte {
+	ns.mu.Lock()
+	defer ns.mu.Unlock()
+
+	ns.sequence++
+
+	nonce := make([]byte, 24)
+	copy(nonce[0:8], ns.prefix[:])
+
+	// Encode sequence as big-endian.
+	nonce[8] = byte(ns.sequence >> 56)
+	nonce[9] = byte(ns.sequence >> 48)
+	nonce[10] = byte(ns.sequence >> 40)
+	nonce[11] = byte(ns.sequence >> 32)
+	nonce[12] = byte(ns.sequence >> 24)
+	nonce[13] = byte(ns.sequence >> 16)
+	nonce[14] = byte(ns.sequence >> 8)
+	nonce[15] = byte(ns.sequence)
+
+	// Add randomness for additional unpredictability.
+	rand.Read(nonce[16:24])
+
+	return nonce
+}
+
+// Sequence returns the current sequence number.
+func (ns *NonceSequencer) Sequence() uint64 {
+	ns.mu.Lock()
+	defer ns.mu.Unlock()
+	return ns.sequence
+}
+
+// ReplayDetector tracks seen nonces to detect replays.
+type ReplayDetector struct {
+	mu      sync.RWMutex
+	window  uint64            // Window size for tracking.
+	minSeq  uint64            // Minimum accepted sequence.
+	seen    map[uint64]bool   // Seen sequences in current window.
+	maxSeen uint64            // Maximum seen sequence.
+}
+
+// NewReplayDetector creates a new replay detector with the given window size.
+func NewReplayDetector(windowSize uint64) *ReplayDetector {
+	return &ReplayDetector{
+		window: windowSize,
+		seen:   make(map[uint64]bool),
+	}
+}
+
+// Check checks if a sequence number is valid (not replayed, not too old).
+// Returns true if the sequence is acceptable.
+func (rd *ReplayDetector) Check(seq uint64) bool {
+	rd.mu.Lock()
+	defer rd.mu.Unlock()
+
+	// Reject if too old.
+	if seq < rd.minSeq {
+		return false
+	}
+
+	// Reject if already seen.
+	if rd.seen[seq] {
+		return false
+	}
+
+	// Accept and record.
+	rd.seen[seq] = true
+
+	// Update max seen.
+	if seq > rd.maxSeen {
+		rd.maxSeen = seq
+		// Slide window forward.
+		if rd.maxSeen > rd.window {
+			newMin := rd.maxSeen - rd.window
+			if newMin > rd.minSeq {
+				// Clean up old entries.
+				for s := range rd.seen {
+					if s < newMin {
+						delete(rd.seen, s)
+					}
+				}
+				rd.minSeq = newMin
+			}
+		}
+	}
+
+	return true
+}
+
+// MaxSeen returns the maximum seen sequence number.
+func (rd *ReplayDetector) MaxSeen() uint64 {
+	rd.mu.RLock()
+	defer rd.mu.RUnlock()
+	return rd.maxSeen
+}
+
 // Circuit represents a three-hop onion circuit.
 type Circuit struct {
-	mu         sync.RWMutex
-	hops       [CircuitLength]*RelayInfo
-	sharedKeys [CircuitLength][32]byte
-	createdAt  time.Time
-	closed     bool
+	mu              sync.RWMutex
+	circuitID       [16]byte // Random circuit identifier.
+	hops            [CircuitLength]*RelayInfo
+	sharedKeys      [CircuitLength][32]byte
+	createdAt       time.Time
+	closed          bool
+	onTeardown      TeardownFunc // Optional callback for cleanup notification.
+	destroySent     bool         // Whether DESTROY cells have been sent.
+	nonceSeq        *NonceSequencer  // Nonce sequencer for outgoing packets.
+	replayDetectors [CircuitLength]*ReplayDetector // Replay detection per hop.
 }
 
 // SelectRelays chooses three diverse relays for a circuit.
@@ -241,9 +501,24 @@ func pickRandomUnusedIndex(max int, used map[int]bool) int {
 
 // BuildCircuit creates a new Shroud circuit through the selected relays.
 func (b *Beacon) BuildCircuit(relays [CircuitLength]*RelayInfo) (*Circuit, error) {
+	var circuitID [16]byte
+	if _, err := rand.Read(circuitID[:]); err != nil {
+		return nil, err
+	}
+
+	// Replay window size: 1000 packets is reasonable for a 10-minute circuit lifetime.
+	const replayWindowSize = 1000
+
 	circuit := &Circuit{
+		circuitID: circuitID,
 		hops:      relays,
 		createdAt: time.Now(),
+		nonceSeq:  NewNonceSequencer(),
+	}
+
+	// Initialize replay detectors for each hop.
+	for i := 0; i < CircuitLength; i++ {
+		circuit.replayDetectors[i] = NewReplayDetector(replayWindowSize)
 	}
 
 	// Perform key agreement with each hop.
@@ -282,14 +557,15 @@ func (c *Circuit) Encrypt(plaintext []byte) ([]byte, error) {
 	data := padToSize(plaintext, FixedPacketSize)
 
 	// Encrypt in reverse order (outer layer first for decryption order).
+	// Use sequenced nonces for replay protection.
 	for i := CircuitLength - 1; i >= 0; i-- {
 		cipher, err := chacha20poly1305.NewX(c.sharedKeys[i][:])
 		if err != nil {
 			return nil, err
 		}
 
-		nonce := make([]byte, cipher.NonceSize())
-		rand.Read(nonce)
+		// Generate sequenced nonce for this hop.
+		nonce := c.nonceSeq.Next()
 
 		data = append(nonce, cipher.Seal(nil, nonce, data, nil)...)
 	}
@@ -319,6 +595,67 @@ func DecryptLayer(data []byte, key [32]byte) ([]byte, error) {
 	return plaintext, nil
 }
 
+// DecryptLayerWithReplayCheck decrypts and checks for replay attacks.
+// The hopIndex specifies which hop's replay detector to use.
+func (c *Circuit) DecryptLayerWithReplayCheck(data []byte, hopIndex int) ([]byte, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.closed {
+		return nil, ErrCircuitClosed
+	}
+
+	if hopIndex < 0 || hopIndex >= CircuitLength {
+		return nil, ErrRelayNotFound
+	}
+
+	cipher, err := chacha20poly1305.NewX(c.sharedKeys[hopIndex][:])
+	if err != nil {
+		return nil, ErrDecryptionFailed
+	}
+
+	if len(data) < cipher.NonceSize() {
+		return nil, ErrInvalidPacket
+	}
+
+	nonce := data[:cipher.NonceSize()]
+	ciphertext := data[cipher.NonceSize():]
+
+	// Extract sequence from nonce (bytes 8-15, big-endian).
+	seq := uint64(nonce[8])<<56 | uint64(nonce[9])<<48 |
+		uint64(nonce[10])<<40 | uint64(nonce[11])<<32 |
+		uint64(nonce[12])<<24 | uint64(nonce[13])<<16 |
+		uint64(nonce[14])<<8 | uint64(nonce[15])
+
+	// Check for replay.
+	if !c.replayDetectors[hopIndex].Check(seq) {
+		return nil, ErrReplayDetected
+	}
+
+	plaintext, err := cipher.Open(nil, nonce, ciphertext, nil)
+	if err != nil {
+		return nil, ErrDecryptionFailed
+	}
+
+	return plaintext, nil
+}
+
+// NonceSequence returns the current nonce sequence for this circuit.
+func (c *Circuit) NonceSequence() uint64 {
+	return c.nonceSeq.Sequence()
+}
+
+// ReplayDetectorMaxSeen returns the max seen sequence for a hop.
+func (c *Circuit) ReplayDetectorMaxSeen(hopIndex int) uint64 {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	if hopIndex < 0 || hopIndex >= CircuitLength {
+		return 0
+	}
+	return c.replayDetectors[hopIndex].MaxSeen()
+}
+
 // IsExpired returns true if the circuit should be rotated.
 func (c *Circuit) IsExpired() bool {
 	c.mu.RLock()
@@ -328,11 +665,24 @@ func (c *Circuit) IsExpired() bool {
 }
 
 // Close closes the circuit and zeroes key material.
+// If a teardown callback is set, it is invoked before key zeroing.
 func (c *Circuit) Close() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	if c.closed {
+		return // Already closed.
+	}
+
 	c.closed = true
+
+	// Invoke teardown callback if set and DESTROY not yet sent.
+	if c.onTeardown != nil && !c.destroySent {
+		c.destroySent = true
+		peerIDs := c.getRelayPeerIDs()
+		// Call teardown in goroutine to avoid holding lock.
+		go c.onTeardown(c.circuitID[:], peerIDs)
+	}
 
 	// Zero shared keys.
 	for i := range c.sharedKeys {
@@ -340,6 +690,110 @@ func (c *Circuit) Close() {
 			c.sharedKeys[i][j] = 0
 		}
 	}
+}
+
+// Teardown sends DESTROY cells to all relays and closes the circuit.
+// This provides a clean circuit destruction mechanism.
+func (c *Circuit) Teardown() {
+	c.Close()
+}
+
+// SetOnTeardown sets the callback invoked when the circuit is torn down.
+func (c *Circuit) SetOnTeardown(f TeardownFunc) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.onTeardown = f
+}
+
+// getRelayPeerIDs returns the peer IDs of all hops in the circuit.
+// Must be called with lock held.
+func (c *Circuit) getRelayPeerIDs() []string {
+	var peerIDs []string
+	for _, hop := range c.hops {
+		if hop != nil {
+			peerIDs = append(peerIDs, hop.PeerID)
+		}
+	}
+	return peerIDs
+}
+
+// CircuitID returns the unique identifier for this circuit.
+func (c *Circuit) CircuitID() [16]byte {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.circuitID
+}
+
+// Hops returns the relay info for each hop in the circuit.
+func (c *Circuit) Hops() [CircuitLength]*RelayInfo {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.hops
+}
+
+// IsClosed returns true if the circuit has been closed.
+func (c *Circuit) IsClosed() bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.closed
+}
+
+// CreatedAt returns when the circuit was created.
+func (c *Circuit) CreatedAt() time.Time {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.createdAt
+}
+
+// CreateDestroyCell creates a DESTROY cell for this circuit.
+// This cell should be sent to each relay to clean up circuit state.
+func (c *Circuit) CreateDestroyCell() ([]byte, error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	// DESTROY cell format: 1 byte type + 16 byte circuit ID + padding.
+	cell := make([]byte, FixedPacketSize)
+	cell[0] = 0x04 // ONION_CELL_TYPE_DESTROY
+	copy(cell[1:17], c.circuitID[:])
+
+	// Fill remaining with random padding.
+	rand.Read(cell[17:])
+
+	return cell, nil
+}
+
+// EncryptDestroyForHop encrypts a DESTROY cell for a specific hop.
+// hopIndex is 0-based (0 for entry, 1 for middle, 2 for exit).
+func (c *Circuit) EncryptDestroyForHop(hopIndex int) ([]byte, error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	if hopIndex < 0 || hopIndex >= CircuitLength {
+		return nil, ErrRelayNotFound
+	}
+
+	// Create base DESTROY cell.
+	cell := make([]byte, FixedPacketSize)
+	cell[0] = 0x04 // ONION_CELL_TYPE_DESTROY
+	copy(cell[1:17], c.circuitID[:])
+	rand.Read(cell[17:])
+
+	// Encrypt layers for all hops up to and including this one.
+	// Entry hop (0) needs 1 layer, middle hop (1) needs 2, exit hop (2) needs 3.
+	data := cell
+	for i := hopIndex; i >= 0; i-- {
+		cipher, err := chacha20poly1305.NewX(c.sharedKeys[i][:])
+		if err != nil {
+			return nil, err
+		}
+
+		nonce := make([]byte, cipher.NonceSize())
+		rand.Read(nonce)
+
+		data = append(nonce, cipher.Seal(nil, nonce, data, nil)...)
+	}
+
+	return data, nil
 }
 
 // padToSize pads data to a fixed size.
@@ -378,26 +832,39 @@ func unpadFromSize(data []byte) []byte {
 }
 
 // CircuitManager manages circuit lifecycle and rotation.
+// Per SECURITY_PRIVACY.md, maintains dual active circuits for resilience.
 type CircuitManager struct {
-	mu      sync.RWMutex
-	beacon  *Beacon
-	circuit *Circuit
-	exclude []string // Peer IDs to exclude from circuit selection.
+	mu                sync.RWMutex
+	beacon            *Beacon
+	primary           *Circuit // Primary active circuit.
+	backup            *Circuit // Backup circuit for failover.
+	exclude           []string // Peer IDs to exclude from circuit selection.
+	rotationCount     uint64   // Track number of rotations.
+	lastRotation      time.Time
+	lastRebuild       time.Time                      // Last rebuild attempt time.
+	failureTracker    *RelayFailureTracker           // Track relay failures.
+	onRotation        func(primary, backup *Circuit) // Optional callback on rotation.
+	onError           func(*CircuitError)            // Optional callback on errors.
+	rebuildAttempts   uint64                         // Count of rebuild attempts.
+	coverSender       CoverTrafficSender             // Callback for sending cover traffic.
+	coverConfig       CoverTrafficConfig             // Cover traffic configuration.
+	coverTrafficCount uint64                         // Count of cover packets sent.
 }
 
-// NewCircuitManager creates a circuit manager.
+// NewCircuitManager creates a circuit manager with dual circuit support.
 func NewCircuitManager(beacon *Beacon, excludePeers []string) *CircuitManager {
 	return &CircuitManager{
-		beacon:  beacon,
-		exclude: excludePeers,
+		beacon:         beacon,
+		exclude:        excludePeers,
+		failureTracker: NewRelayFailureTracker(),
 	}
 }
 
-// GetCircuit returns the current circuit, building a new one if needed.
+// GetCircuit returns the primary circuit, building a new one if needed.
 func (m *CircuitManager) GetCircuit() (*Circuit, error) {
 	m.mu.RLock()
-	if m.circuit != nil && !m.circuit.IsExpired() {
-		c := m.circuit
+	if m.primary != nil && !m.primary.IsExpired() {
+		c := m.primary
 		m.mu.RUnlock()
 		return c, nil
 	}
@@ -406,30 +873,132 @@ func (m *CircuitManager) GetCircuit() (*Circuit, error) {
 	return m.RotateCircuit()
 }
 
-// RotateCircuit builds a new circuit.
+// GetBackupCircuit returns the backup circuit.
+func (m *CircuitManager) GetBackupCircuit() *Circuit {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.backup
+}
+
+// GetPrimaryCircuit returns the primary circuit.
+func (m *CircuitManager) GetPrimaryCircuit() *Circuit {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.primary
+}
+
+// FailoverToBackup promotes the backup circuit to primary.
+// Returns the new primary circuit and an error if no backup is available.
+func (m *CircuitManager) FailoverToBackup() (*Circuit, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.backup == nil || m.backup.IsExpired() {
+		return nil, ErrCircuitClosed
+	}
+
+	// Close the failed primary.
+	if m.primary != nil {
+		m.primary.Close()
+	}
+
+	// Promote backup to primary.
+	m.primary = m.backup
+	m.backup = nil
+
+	// Try to build a new backup circuit asynchronously.
+	go m.buildBackupCircuitAsync()
+
+	return m.primary, nil
+}
+
+// RotateCircuit builds new primary and backup circuits.
+// The old primary becomes the new backup, and a fresh circuit becomes primary.
 func (m *CircuitManager) RotateCircuit() (*Circuit, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	// Close old circuit.
-	if m.circuit != nil {
-		m.circuit.Close()
-	}
-
-	// Select relays.
+	// Build new primary circuit.
 	relays, err := m.beacon.SelectRelays(m.exclude)
 	if err != nil {
 		return nil, err
 	}
 
-	// Build new circuit.
-	circuit, err := m.beacon.BuildCircuit(relays)
+	newPrimary, err := m.beacon.BuildCircuit(relays)
 	if err != nil {
 		return nil, err
 	}
 
-	m.circuit = circuit
-	return circuit, nil
+	// Close old backup if it exists.
+	if m.backup != nil {
+		m.backup.Close()
+	}
+
+	// Old primary becomes new backup (if still valid).
+	if m.primary != nil && !m.primary.IsExpired() {
+		m.backup = m.primary
+	} else if m.primary != nil {
+		m.primary.Close()
+		m.backup = nil
+	}
+
+	// New circuit becomes primary.
+	m.primary = newPrimary
+	m.rotationCount++
+	m.lastRotation = time.Now()
+
+	// Build backup circuit if we don't have one.
+	if m.backup == nil {
+		m.buildBackupCircuitLocked()
+	}
+
+	// Notify callback if set.
+	if m.onRotation != nil {
+		go m.onRotation(m.primary, m.backup)
+	}
+
+	return newPrimary, nil
+}
+
+// buildBackupCircuitLocked builds a backup circuit. Must be called with lock held.
+func (m *CircuitManager) buildBackupCircuitLocked() {
+	// Build backup with different relays than primary.
+	excludeForBackup := m.exclude
+	if m.primary != nil {
+		for _, hop := range m.primary.hops {
+			if hop != nil {
+				excludeForBackup = append(excludeForBackup, hop.PeerID)
+			}
+		}
+	}
+
+	relays, err := m.beacon.SelectRelays(excludeForBackup)
+	if err != nil {
+		// Not enough relays for diverse backup - try with original exclude list.
+		relays, err = m.beacon.SelectRelays(m.exclude)
+		if err != nil {
+			return // Can't build backup, continue without.
+		}
+	}
+
+	backup, err := m.beacon.BuildCircuit(relays)
+	if err != nil {
+		return
+	}
+
+	m.backup = backup
+}
+
+// buildBackupCircuitAsync builds a backup circuit asynchronously.
+func (m *CircuitManager) buildBackupCircuitAsync() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.backup != nil && !m.backup.IsExpired() {
+		return // Already have a valid backup.
+	}
+
+	m.buildBackupCircuitLocked()
 }
 
 // StartRotation runs periodic circuit rotation.
@@ -440,7 +1009,7 @@ func (m *CircuitManager) StartRotation(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			m.closeCircuit()
+			m.closeCircuits()
 			return
 		case <-ticker.C:
 			m.RotateCircuit()
@@ -448,11 +1017,1373 @@ func (m *CircuitManager) StartRotation(ctx context.Context) {
 	}
 }
 
-// closeCircuit safely closes the current circuit.
-func (m *CircuitManager) closeCircuit() {
+// SetOnRotation sets a callback that's invoked after each rotation.
+func (m *CircuitManager) SetOnRotation(callback func(primary, backup *Circuit)) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if m.circuit != nil {
-		m.circuit.Close()
+	m.onRotation = callback
+}
+
+// RotationCount returns the number of circuit rotations performed.
+func (m *CircuitManager) RotationCount() uint64 {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.rotationCount
+}
+
+// LastRotation returns the time of the last rotation.
+func (m *CircuitManager) LastRotation() time.Time {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.lastRotation
+}
+
+// HasBackup returns true if a backup circuit is available.
+func (m *CircuitManager) HasBackup() bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.backup != nil && !m.backup.IsExpired()
+}
+
+// closeCircuits safely closes both primary and backup circuits.
+func (m *CircuitManager) closeCircuits() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.primary != nil {
+		m.primary.Close()
 	}
+	if m.backup != nil {
+		m.backup.Close()
+	}
+}
+
+// closeCircuit safely closes the current circuit (legacy method for compatibility).
+func (m *CircuitManager) closeCircuit() {
+	m.closeCircuits()
+}
+
+// SetOnError sets a callback for circuit errors.
+func (m *CircuitManager) SetOnError(callback func(*CircuitError)) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.onError = callback
+}
+
+// ReportRelayFailure reports a relay failure for error tracking.
+// This triggers failover if the primary circuit uses the failed relay.
+func (m *CircuitManager) ReportRelayFailure(relayID string, err error) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	// Track the failure.
+	exceeded := m.failureTracker.RecordFailure(relayID)
+
+	// Create error for logging/callback.
+	var circuitID [16]byte
+	if m.primary != nil {
+		circuitID = m.primary.circuitID
+	}
+
+	circuitErr := NewCircuitError(ErrRelayFailure, relayID, circuitID, !exceeded)
+
+	// Notify error callback if set.
+	if m.onError != nil {
+		go m.onError(circuitErr)
+	}
+
+	// Check if primary circuit uses this relay.
+	if m.primary != nil && m.circuitUsesRelay(m.primary, relayID) {
+		return m.handlePrimaryFailure()
+	}
+
+	// Check if backup uses this relay - rebuild backup.
+	if m.backup != nil && m.circuitUsesRelay(m.backup, relayID) {
+		m.backup.Close()
+		m.backup = nil
+		go m.buildBackupCircuitAsync()
+	}
+
+	return nil
+}
+
+// circuitUsesRelay checks if a circuit includes the specified relay.
+// Must be called with lock held.
+func (m *CircuitManager) circuitUsesRelay(c *Circuit, relayID string) bool {
+	if c == nil {
+		return false
+	}
+	for _, hop := range c.hops {
+		if hop != nil && hop.PeerID == relayID {
+			return true
+		}
+	}
+	return false
+}
+
+// handlePrimaryFailure handles primary circuit failure.
+// Must be called with lock held.
+func (m *CircuitManager) handlePrimaryFailure() error {
+	// Close failed primary.
+	if m.primary != nil {
+		m.primary.Close()
+	}
+
+	// Try failover to backup.
+	if m.backup != nil && !m.backup.IsExpired() {
+		m.primary = m.backup
+		m.backup = nil
+		go m.buildBackupCircuitAsync()
+		return nil
+	}
+
+	// No backup available, need to rebuild.
+	m.primary = nil
+	return m.rebuildCircuitsLocked()
+}
+
+// rebuildCircuitsLocked rebuilds circuits after total failure.
+// Must be called with lock held.
+func (m *CircuitManager) rebuildCircuitsLocked() error {
+	// Check backoff.
+	if time.Since(m.lastRebuild) < CircuitRebuildBackoff {
+		return ErrAllCircuitsFailed
+	}
+
+	m.lastRebuild = time.Now()
+	m.rebuildAttempts++
+
+	// Get penalized relays to exclude.
+	penalized := m.failureTracker.PenalizedRelays()
+	exclude := append(m.exclude, penalized...)
+
+	// Try to build primary.
+	relays, err := m.beacon.SelectRelays(exclude)
+	if err != nil {
+		return err
+	}
+
+	primary, err := m.beacon.BuildCircuit(relays)
+	if err != nil {
+		return err
+	}
+
+	m.primary = primary
+	m.buildBackupCircuitLocked()
+
+	return nil
+}
+
+// RecoverFromError attempts to recover from a circuit error.
+// This is the main entry point for error recovery.
+func (m *CircuitManager) RecoverFromError(err *CircuitError) error {
+	if err == nil {
+		return nil
+	}
+
+	// For relay failures, use the specific handler.
+	if err.RelayID != "" {
+		return m.ReportRelayFailure(err.RelayID, err.Err)
+	}
+
+	// For other errors, attempt circuit rebuild.
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return m.rebuildCircuitsLocked()
+}
+
+// GetCircuitOrRecover gets the primary circuit, attempting recovery if needed.
+// This is a resilient version of GetCircuit that handles errors automatically.
+func (m *CircuitManager) GetCircuitOrRecover() (*Circuit, error) {
+	m.mu.RLock()
+	if m.primary != nil && !m.primary.IsExpired() {
+		c := m.primary
+		m.mu.RUnlock()
+		return c, nil
+	}
+	m.mu.RUnlock()
+
+	// Need to build or recover.
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	// Double-check after acquiring write lock.
+	if m.primary != nil && !m.primary.IsExpired() {
+		return m.primary, nil
+	}
+
+	// Try failover first.
+	if m.backup != nil && !m.backup.IsExpired() {
+		m.primary = m.backup
+		m.backup = nil
+		go m.buildBackupCircuitAsync()
+		return m.primary, nil
+	}
+
+	// Need full rebuild.
+	err := m.rebuildCircuitsLocked()
+	if err != nil {
+		return nil, err
+	}
+
+	return m.primary, nil
+}
+
+// FailureTracker returns the relay failure tracker.
+func (m *CircuitManager) FailureTracker() *RelayFailureTracker {
+	return m.failureTracker
+}
+
+// RebuildAttempts returns the number of rebuild attempts.
+func (m *CircuitManager) RebuildAttempts() uint64 {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.rebuildAttempts
+}
+
+// CircuitHealth represents the health status of the circuit manager.
+type CircuitHealth struct {
+	HasPrimary         bool
+	HasBackup          bool
+	PrimaryExpired     bool
+	BackupExpired      bool
+	RotationCount      uint64
+	RebuildAttempts    uint64
+	PenalizedRelays    int
+	LastRotation       time.Time
+	LastRebuild        time.Time
+	PrimaryCreatedAt   time.Time
+	BackupCreatedAt    time.Time
+	CoverTrafficSent   uint64
+}
+
+// Health returns the current health status of the circuit manager.
+func (m *CircuitManager) Health() CircuitHealth {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	health := CircuitHealth{
+		HasPrimary:       m.primary != nil,
+		HasBackup:        m.backup != nil,
+		RotationCount:    m.rotationCount,
+		RebuildAttempts:  m.rebuildAttempts,
+		PenalizedRelays:  len(m.failureTracker.PenalizedRelays()),
+		LastRotation:     m.lastRotation,
+		LastRebuild:      m.lastRebuild,
+		CoverTrafficSent: atomic.LoadUint64(&m.coverTrafficCount),
+	}
+
+	if m.primary != nil {
+		health.PrimaryExpired = m.primary.IsExpired()
+		health.PrimaryCreatedAt = m.primary.createdAt
+	}
+
+	if m.backup != nil {
+		health.BackupExpired = m.backup.IsExpired()
+		health.BackupCreatedAt = m.backup.createdAt
+	}
+
+	return health
+}
+
+// CoverTrafficSender is a callback for sending cover traffic through circuits.
+// The sender receives the encrypted packet and the entry relay's peer ID.
+type CoverTrafficSender func(peerID string, data []byte) error
+
+// CoverTrafficConfig holds configuration for cover traffic generation.
+type CoverTrafficConfig struct {
+	// Rate is the interval between cover packets (default: DummyPacketRate = 500ms).
+	Rate time.Duration
+	// Enabled controls whether cover traffic is active.
+	Enabled bool
+}
+
+// DefaultCoverTrafficConfig returns the default cover traffic configuration.
+// Per ROADMAP: constant-rate dummy packets (2 per second).
+func DefaultCoverTrafficConfig() CoverTrafficConfig {
+	return CoverTrafficConfig{
+		Rate:    DummyPacketRate, // 500ms = 2 per second.
+		Enabled: true,
+	}
+}
+
+// SetCoverTrafficSender sets the callback for sending cover traffic.
+func (m *CircuitManager) SetCoverTrafficSender(sender CoverTrafficSender) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.coverSender = sender
+}
+
+// SetCoverTrafficConfig updates the cover traffic configuration.
+func (m *CircuitManager) SetCoverTrafficConfig(config CoverTrafficConfig) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.coverConfig = config
+}
+
+// StartCoverTraffic begins constant-rate cover traffic generation.
+// Per SHADOW_GRADIENT.md §Traffic Padding, cover traffic maintains constant rate
+// to prevent traffic analysis attacks.
+func (m *CircuitManager) StartCoverTraffic(ctx context.Context) {
+	m.mu.RLock()
+	config := m.coverConfig
+	m.mu.RUnlock()
+
+	// Use default rate if not configured.
+	rate := config.Rate
+	if rate == 0 {
+		rate = DummyPacketRate
+	}
+
+	ticker := time.NewTicker(rate)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			m.sendCoverPacket()
+		}
+	}
+}
+
+// sendCoverPacket sends a single cover traffic packet through the primary circuit.
+func (m *CircuitManager) sendCoverPacket() {
+	m.mu.RLock()
+	config := m.coverConfig
+	sender := m.coverSender
+	primary := m.primary
+	m.mu.RUnlock()
+
+	// Check if cover traffic is enabled.
+	if !config.Enabled || sender == nil {
+		return
+	}
+
+	// Need a valid primary circuit.
+	if primary == nil || primary.IsClosed() {
+		return
+	}
+
+	// Generate cover packet: random payload marked as dummy (0x00 first byte).
+	payload := make([]byte, FixedPacketSize-100) // Leave room for encryption overhead.
+	rand.Read(payload)
+	payload[0] = 0x00 // Mark as dummy/cover traffic.
+
+	// Encrypt through the circuit.
+	encrypted, err := primary.Encrypt(payload)
+	if err != nil {
+		return
+	}
+
+	// Get entry relay's peer ID.
+	hops := primary.Hops()
+	if hops[0] == nil {
+		return
+	}
+	entryPeerID := hops[0].PeerID
+
+	// Send the cover packet.
+	if err := sender(entryPeerID, encrypted); err != nil {
+		return
+	}
+
+	atomic.AddUint64(&m.coverTrafficCount, 1)
+}
+
+// CoverTrafficCount returns the number of cover packets sent.
+func (m *CircuitManager) CoverTrafficCount() uint64 {
+	return atomic.LoadUint64(&m.coverTrafficCount)
+}
+
+// IsCoverPacket returns true if the packet is a cover/dummy packet.
+// Cover packets have 0x00 as their first byte after decryption.
+func IsCoverPacket(data []byte) bool {
+	if len(data) == 0 {
+		return false
+	}
+	return data[0] == 0x00
+}
+
+// MessageType identifies the type of message in Shroud packets.
+type MessageType byte
+
+const (
+	// MessageTypeDummy is a cover traffic/dummy packet.
+	MessageTypeDummy MessageType = 0x00
+	// MessageTypeData is an actual data message.
+	MessageTypeData MessageType = 0x01
+	// MessageTypeControl is a control message.
+	MessageTypeControl MessageType = 0x02
+)
+
+// Message represents a message to be sent through a Shroud circuit.
+type Message struct {
+	Type    MessageType
+	Dest    [32]byte // Destination public key (for routing at exit).
+	Payload []byte   // Actual message content.
+}
+
+// MessageHeader is the fixed-size header prepended to all messages.
+// Per SECURITY_PRIVACY.md, all messages have uniform size.
+type MessageHeader struct {
+	Type    MessageType // 1 byte
+	DestLen uint8       // 1 byte (0 for broadcast, 32 for directed)
+	DataLen uint16      // 2 bytes, big-endian
+}
+
+const messageHeaderSize = 4 // 1 + 1 + 2 bytes
+
+// EncodeMessage encodes a message with header for transmission.
+func EncodeMessage(msg *Message) ([]byte, error) {
+	if msg == nil {
+		return nil, errors.New("nil message")
+	}
+
+	// Calculate required size.
+	headerSize := messageHeaderSize
+	destSize := 0
+	if msg.Type == MessageTypeData && msg.Dest != [32]byte{} {
+		destSize = 32
+	}
+
+	totalSize := headerSize + destSize + len(msg.Payload)
+
+	// Check size limits.
+	if totalSize > FixedPacketSize-100 { // Leave room for encryption overhead.
+		return nil, errors.New("message too large")
+	}
+
+	// Allocate buffer.
+	buf := make([]byte, totalSize)
+
+	// Write header.
+	buf[0] = byte(msg.Type)
+	if destSize > 0 {
+		buf[1] = 32
+		copy(buf[headerSize:headerSize+32], msg.Dest[:])
+	} else {
+		buf[1] = 0
+	}
+	buf[2] = byte(len(msg.Payload) >> 8)
+	buf[3] = byte(len(msg.Payload) & 0xFF)
+
+	// Write payload.
+	copy(buf[headerSize+destSize:], msg.Payload)
+
+	return buf, nil
+}
+
+// DecodeMessage decodes a message from received data.
+func DecodeMessage(data []byte) (*Message, error) {
+	if len(data) < messageHeaderSize {
+		return nil, errors.New("message too short")
+	}
+
+	msg := &Message{
+		Type: MessageType(data[0]),
+	}
+
+	destLen := data[1]
+	dataLen := int(data[2])<<8 | int(data[3])
+
+	// Validate sizes.
+	expectedLen := messageHeaderSize + int(destLen) + dataLen
+	if len(data) < expectedLen {
+		return nil, errors.New("message truncated")
+	}
+
+	// Read destination if present.
+	offset := messageHeaderSize
+	if destLen == 32 {
+		copy(msg.Dest[:], data[offset:offset+32])
+		offset += 32
+	}
+
+	// Read payload.
+	msg.Payload = make([]byte, dataLen)
+	copy(msg.Payload, data[offset:offset+dataLen])
+
+	return msg, nil
+}
+
+// MessageSender handles sending messages through Shroud circuits.
+type MessageSender struct {
+	mu       sync.RWMutex
+	manager  *CircuitManager
+	sender   func(peerID string, data []byte) error
+	stats    MessageSenderStats
+	onError  func(error)
+}
+
+// MessageSenderStats tracks message sending statistics.
+type MessageSenderStats struct {
+	MessagesSent     uint64
+	MessagesDropped  uint64
+	BytesSent        uint64
+	LastSendTime     time.Time
+	LastError        error
+	LastErrorTime    time.Time
+}
+
+// NewMessageSender creates a new message sender.
+func NewMessageSender(manager *CircuitManager, sender func(peerID string, data []byte) error) *MessageSender {
+	return &MessageSender{
+		manager: manager,
+		sender:  sender,
+	}
+}
+
+// Send sends a message through the Shroud circuit.
+// This is the main entry point for end-to-end message delivery.
+func (s *MessageSender) Send(msg *Message) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Get circuit.
+	circuit, err := s.manager.GetCircuitOrRecover()
+	if err != nil {
+		s.handleError(err)
+		return err
+	}
+
+	// Encode message.
+	encoded, err := EncodeMessage(msg)
+	if err != nil {
+		s.handleError(err)
+		return err
+	}
+
+	// Encrypt through circuit.
+	encrypted, err := circuit.Encrypt(encoded)
+	if err != nil {
+		s.handleError(err)
+		return err
+	}
+
+	// Get entry relay.
+	hops := circuit.Hops()
+	if hops[0] == nil {
+		err := errors.New("no entry relay in circuit")
+		s.handleError(err)
+		return err
+	}
+
+	// Send to entry relay.
+	if err := s.sender(hops[0].PeerID, encrypted); err != nil {
+		s.handleError(err)
+		atomic.AddUint64(&s.stats.MessagesDropped, 1)
+		return err
+	}
+
+	// Update stats.
+	atomic.AddUint64(&s.stats.MessagesSent, 1)
+	atomic.AddUint64(&s.stats.BytesSent, uint64(len(encrypted)))
+	s.stats.LastSendTime = time.Now()
+
+	return nil
+}
+
+// SendTo sends a message to a specific destination through the Shroud circuit.
+func (s *MessageSender) SendTo(dest [32]byte, payload []byte) error {
+	msg := &Message{
+		Type:    MessageTypeData,
+		Dest:    dest,
+		Payload: payload,
+	}
+	return s.Send(msg)
+}
+
+// Broadcast sends a message without a specific destination.
+func (s *MessageSender) Broadcast(payload []byte) error {
+	msg := &Message{
+		Type:    MessageTypeData,
+		Payload: payload,
+	}
+	return s.Send(msg)
+}
+
+// handleError processes and tracks errors.
+func (s *MessageSender) handleError(err error) {
+	s.stats.LastError = err
+	s.stats.LastErrorTime = time.Now()
+	if s.onError != nil {
+		go s.onError(err)
+	}
+}
+
+// Stats returns current sender statistics.
+func (s *MessageSender) Stats() MessageSenderStats {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return MessageSenderStats{
+		MessagesSent:    atomic.LoadUint64(&s.stats.MessagesSent),
+		MessagesDropped: atomic.LoadUint64(&s.stats.MessagesDropped),
+		BytesSent:       atomic.LoadUint64(&s.stats.BytesSent),
+		LastSendTime:    s.stats.LastSendTime,
+		LastError:       s.stats.LastError,
+		LastErrorTime:   s.stats.LastErrorTime,
+	}
+}
+
+// SetOnError sets a callback for send errors.
+func (s *MessageSender) SetOnError(callback func(error)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.onError = callback
+}
+
+// MessageReceiver handles receiving and processing messages from Shroud circuits.
+type MessageReceiver struct {
+	mu       sync.RWMutex
+	handlers map[MessageType]MessageHandler
+	stats    MessageReceiverStats
+}
+
+// MessageHandler is called when a message is received.
+type MessageHandler func(msg *Message) error
+
+// MessageReceiverStats tracks message receiving statistics.
+type MessageReceiverStats struct {
+	MessagesReceived uint64
+	MessagesDropped  uint64
+	BytesReceived    uint64
+	LastReceiveTime  time.Time
+}
+
+// NewMessageReceiver creates a new message receiver.
+func NewMessageReceiver() *MessageReceiver {
+	return &MessageReceiver{
+		handlers: make(map[MessageType]MessageHandler),
+	}
+}
+
+// RegisterHandler registers a handler for a specific message type.
+func (r *MessageReceiver) RegisterHandler(msgType MessageType, handler MessageHandler) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.handlers[msgType] = handler
+}
+
+// HandlePacket processes a received packet, decoding and dispatching the message.
+// This should be called after the packet has been decrypted by all circuit layers.
+func (r *MessageReceiver) HandlePacket(data []byte) error {
+	// Strip padding.
+	data = unpadFromSize(data)
+
+	// Decode message.
+	msg, err := DecodeMessage(data)
+	if err != nil {
+		atomic.AddUint64(&r.stats.MessagesDropped, 1)
+		return err
+	}
+
+	// Skip dummy packets.
+	if msg.Type == MessageTypeDummy {
+		return nil
+	}
+
+	r.mu.RLock()
+	handler, ok := r.handlers[msg.Type]
+	r.mu.RUnlock()
+
+	if !ok {
+		// No handler registered, drop.
+		atomic.AddUint64(&r.stats.MessagesDropped, 1)
+		return nil
+	}
+
+	// Update stats.
+	atomic.AddUint64(&r.stats.MessagesReceived, 1)
+	atomic.AddUint64(&r.stats.BytesReceived, uint64(len(msg.Payload)))
+
+	r.mu.Lock()
+	r.stats.LastReceiveTime = time.Now()
+	r.mu.Unlock()
+
+	return handler(msg)
+}
+
+// Stats returns current receiver statistics.
+func (r *MessageReceiver) Stats() MessageReceiverStats {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	return MessageReceiverStats{
+		MessagesReceived: atomic.LoadUint64(&r.stats.MessagesReceived),
+		MessagesDropped:  atomic.LoadUint64(&r.stats.MessagesDropped),
+		BytesReceived:    atomic.LoadUint64(&r.stats.BytesReceived),
+		LastReceiveTime:  r.stats.LastReceiveTime,
+	}
+}
+
+// EndToEndDelivery wraps circuit manager with message send/receive capabilities.
+// This is the high-level API for Shroud message delivery.
+type EndToEndDelivery struct {
+	manager  *CircuitManager
+	sender   *MessageSender
+	receiver *MessageReceiver
+}
+
+// NewEndToEndDelivery creates an end-to-end delivery system.
+func NewEndToEndDelivery(manager *CircuitManager, networkSender func(peerID string, data []byte) error) *EndToEndDelivery {
+	return &EndToEndDelivery{
+		manager:  manager,
+		sender:   NewMessageSender(manager, networkSender),
+		receiver: NewMessageReceiver(),
+	}
+}
+
+// Send sends a message through the Shroud circuit.
+func (e *EndToEndDelivery) Send(msg *Message) error {
+	return e.sender.Send(msg)
+}
+
+// SendTo sends a message to a specific destination.
+func (e *EndToEndDelivery) SendTo(dest [32]byte, payload []byte) error {
+	return e.sender.SendTo(dest, payload)
+}
+
+// Broadcast sends a message to all.
+func (e *EndToEndDelivery) Broadcast(payload []byte) error {
+	return e.sender.Broadcast(payload)
+}
+
+// HandleIncoming processes an incoming packet.
+func (e *EndToEndDelivery) HandleIncoming(data []byte) error {
+	return e.receiver.HandlePacket(data)
+}
+
+// RegisterHandler registers a handler for a message type.
+func (e *EndToEndDelivery) RegisterHandler(msgType MessageType, handler MessageHandler) {
+	e.receiver.RegisterHandler(msgType, handler)
+}
+
+// Manager returns the circuit manager.
+func (e *EndToEndDelivery) Manager() *CircuitManager {
+	return e.manager
+}
+
+// Sender returns the message sender.
+func (e *EndToEndDelivery) Sender() *MessageSender {
+	return e.sender
+}
+
+// Receiver returns the message receiver.
+func (e *EndToEndDelivery) Receiver() *MessageReceiver {
+	return e.receiver
+}
+
+// BeaconWave constants for relay discovery.
+const (
+	// BeaconWaveType identifies a Shroud relay advertisement.
+	BeaconWaveType byte = 0x08 // Per WAVES.md, Beacon Wave type.
+
+	// BeaconWaveVersion is the current beacon wave protocol version.
+	BeaconWaveVersion byte = 1
+
+	// BeaconWaveTTL is the time-to-live for relay advertisements.
+	BeaconWaveTTL = 5 * time.Minute
+
+	// BeaconWaveInterval is the default advertisement broadcast interval.
+	BeaconWaveInterval = 60 * time.Second
+
+	// BeaconWaveMaxAge is the maximum age before a relay is considered stale.
+	BeaconWaveMaxAge = 10 * time.Minute
+)
+
+// BeaconWaveError defines beacon wave errors.
+var (
+	ErrBeaconWaveInvalid    = errors.New("invalid beacon wave")
+	ErrBeaconWaveExpired    = errors.New("beacon wave expired")
+	ErrBeaconWaveBadVersion = errors.New("unsupported beacon wave version")
+)
+
+// BeaconWave represents a Shroud relay advertisement.
+// Per ROADMAP line 298: Shroud relay discovery via Beacon Waves on Anonymous Layer.
+type BeaconWave struct {
+	// Version is the beacon wave protocol version.
+	Version byte
+
+	// Type is the wave type (BeaconWaveType).
+	Type byte
+
+	// RelayPeerID is the relay's libp2p peer ID.
+	RelayPeerID string
+
+	// PublicKey is the relay's Curve25519 public key.
+	PublicKey [32]byte
+
+	// Bandwidth is the advertised bandwidth capacity (bytes/sec).
+	Bandwidth uint64
+
+	// MaxCircuits is the maximum circuits this relay can handle.
+	MaxCircuits uint32
+
+	// CurrentLoad is the current circuit count.
+	CurrentLoad uint32
+
+	// Latency is the relay's estimated latency in milliseconds.
+	LatencyMs uint32
+
+	// Uptime is the relay's uptime in seconds.
+	Uptime uint64
+
+	// Timestamp is when this wave was created (Unix seconds).
+	Timestamp int64
+
+	// TTL is the time-to-live in seconds.
+	TTL uint32
+
+	// Signature signs (Version || Type || RelayPeerID || PublicKey || Bandwidth || MaxCircuits || CurrentLoad || LatencyMs || Uptime || Timestamp || TTL).
+	Signature []byte
+}
+
+// IsExpired returns true if the beacon wave has exceeded its TTL.
+func (b *BeaconWave) IsExpired() bool {
+	expiresAt := time.Unix(b.Timestamp, 0).Add(time.Duration(b.TTL) * time.Second)
+	return time.Now().After(expiresAt)
+}
+
+// LoadFactor returns the current load as a fraction of max capacity.
+func (b *BeaconWave) LoadFactor() float64 {
+	if b.MaxCircuits == 0 {
+		return 1.0
+	}
+	return float64(b.CurrentLoad) / float64(b.MaxCircuits)
+}
+
+// ToRelayInfo converts a BeaconWave to RelayInfo for the registry.
+func (b *BeaconWave) ToRelayInfo() *RelayInfo {
+	return &RelayInfo{
+		PeerID:    b.RelayPeerID,
+		PublicKey: b.PublicKey,
+		Bandwidth: b.Bandwidth,
+		SeenAt:    time.Unix(b.Timestamp, 0),
+	}
+}
+
+// EncodeBeaconWave encodes a BeaconWave for transmission.
+func EncodeBeaconWave(wave *BeaconWave) ([]byte, error) {
+	// Calculate size.
+	peerIDLen := len(wave.RelayPeerID)
+	sigLen := len(wave.Signature)
+
+	// Format: Version(1) + Type(1) + PeerIDLen(2) + PeerID + PublicKey(32) +
+	//         Bandwidth(8) + MaxCircuits(4) + CurrentLoad(4) + LatencyMs(4) +
+	//         Uptime(8) + Timestamp(8) + TTL(4) + SigLen(2) + Signature
+	headerSize := 1 + 1 + 2 + peerIDLen + 32 + 8 + 4 + 4 + 4 + 8 + 8 + 4 + 2 + sigLen
+
+	buf := make([]byte, headerSize)
+	offset := 0
+
+	// Version and Type.
+	buf[offset] = wave.Version
+	offset++
+	buf[offset] = wave.Type
+	offset++
+
+	// PeerID length and value.
+	buf[offset] = byte(peerIDLen >> 8)
+	buf[offset+1] = byte(peerIDLen & 0xFF)
+	offset += 2
+	copy(buf[offset:], wave.RelayPeerID)
+	offset += peerIDLen
+
+	// PublicKey.
+	copy(buf[offset:], wave.PublicKey[:])
+	offset += 32
+
+	// Bandwidth (big-endian).
+	for i := 7; i >= 0; i-- {
+		buf[offset+i] = byte(wave.Bandwidth & 0xFF)
+		wave.Bandwidth >>= 8
+	}
+	offset += 8
+
+	// MaxCircuits (big-endian).
+	for i := 3; i >= 0; i-- {
+		buf[offset+i] = byte(wave.MaxCircuits & 0xFF)
+		wave.MaxCircuits >>= 8
+	}
+	offset += 4
+
+	// CurrentLoad (big-endian).
+	for i := 3; i >= 0; i-- {
+		buf[offset+i] = byte(wave.CurrentLoad & 0xFF)
+		wave.CurrentLoad >>= 8
+	}
+	offset += 4
+
+	// LatencyMs (big-endian).
+	for i := 3; i >= 0; i-- {
+		buf[offset+i] = byte(wave.LatencyMs & 0xFF)
+		wave.LatencyMs >>= 8
+	}
+	offset += 4
+
+	// Uptime (big-endian).
+	for i := 7; i >= 0; i-- {
+		buf[offset+i] = byte(wave.Uptime & 0xFF)
+		wave.Uptime >>= 8
+	}
+	offset += 8
+
+	// Timestamp (big-endian).
+	ts := wave.Timestamp
+	for i := 7; i >= 0; i-- {
+		buf[offset+i] = byte(ts & 0xFF)
+		ts >>= 8
+	}
+	offset += 8
+
+	// TTL (big-endian).
+	ttl := wave.TTL
+	for i := 3; i >= 0; i-- {
+		buf[offset+i] = byte(ttl & 0xFF)
+		ttl >>= 8
+	}
+	offset += 4
+
+	// Signature length and value.
+	buf[offset] = byte(sigLen >> 8)
+	buf[offset+1] = byte(sigLen & 0xFF)
+	offset += 2
+	copy(buf[offset:], wave.Signature)
+
+	return buf, nil
+}
+
+// DecodeBeaconWave decodes a BeaconWave from bytes.
+func DecodeBeaconWave(data []byte) (*BeaconWave, error) {
+	if len(data) < 4 {
+		return nil, ErrBeaconWaveInvalid
+	}
+
+	wave := &BeaconWave{}
+	offset := 0
+
+	// Version and Type.
+	wave.Version = data[offset]
+	offset++
+	if wave.Version != BeaconWaveVersion {
+		return nil, ErrBeaconWaveBadVersion
+	}
+
+	wave.Type = data[offset]
+	offset++
+	if wave.Type != BeaconWaveType {
+		return nil, ErrBeaconWaveInvalid
+	}
+
+	// PeerID length.
+	if len(data) < offset+2 {
+		return nil, ErrBeaconWaveInvalid
+	}
+	peerIDLen := int(data[offset])<<8 | int(data[offset+1])
+	offset += 2
+
+	// PeerID.
+	if len(data) < offset+peerIDLen {
+		return nil, ErrBeaconWaveInvalid
+	}
+	wave.RelayPeerID = string(data[offset : offset+peerIDLen])
+	offset += peerIDLen
+
+	// PublicKey.
+	if len(data) < offset+32 {
+		return nil, ErrBeaconWaveInvalid
+	}
+	copy(wave.PublicKey[:], data[offset:offset+32])
+	offset += 32
+
+	// Bandwidth.
+	if len(data) < offset+8 {
+		return nil, ErrBeaconWaveInvalid
+	}
+	for i := 0; i < 8; i++ {
+		wave.Bandwidth = (wave.Bandwidth << 8) | uint64(data[offset+i])
+	}
+	offset += 8
+
+	// MaxCircuits.
+	if len(data) < offset+4 {
+		return nil, ErrBeaconWaveInvalid
+	}
+	for i := 0; i < 4; i++ {
+		wave.MaxCircuits = (wave.MaxCircuits << 8) | uint32(data[offset+i])
+	}
+	offset += 4
+
+	// CurrentLoad.
+	if len(data) < offset+4 {
+		return nil, ErrBeaconWaveInvalid
+	}
+	for i := 0; i < 4; i++ {
+		wave.CurrentLoad = (wave.CurrentLoad << 8) | uint32(data[offset+i])
+	}
+	offset += 4
+
+	// LatencyMs.
+	if len(data) < offset+4 {
+		return nil, ErrBeaconWaveInvalid
+	}
+	for i := 0; i < 4; i++ {
+		wave.LatencyMs = (wave.LatencyMs << 8) | uint32(data[offset+i])
+	}
+	offset += 4
+
+	// Uptime.
+	if len(data) < offset+8 {
+		return nil, ErrBeaconWaveInvalid
+	}
+	for i := 0; i < 8; i++ {
+		wave.Uptime = (wave.Uptime << 8) | uint64(data[offset+i])
+	}
+	offset += 8
+
+	// Timestamp.
+	if len(data) < offset+8 {
+		return nil, ErrBeaconWaveInvalid
+	}
+	for i := 0; i < 8; i++ {
+		wave.Timestamp = (wave.Timestamp << 8) | int64(data[offset+i])
+	}
+	offset += 8
+
+	// TTL.
+	if len(data) < offset+4 {
+		return nil, ErrBeaconWaveInvalid
+	}
+	for i := 0; i < 4; i++ {
+		wave.TTL = (wave.TTL << 8) | uint32(data[offset+i])
+	}
+	offset += 4
+
+	// Signature length.
+	if len(data) < offset+2 {
+		return nil, ErrBeaconWaveInvalid
+	}
+	sigLen := int(data[offset])<<8 | int(data[offset+1])
+	offset += 2
+
+	// Signature.
+	if len(data) < offset+sigLen {
+		return nil, ErrBeaconWaveInvalid
+	}
+	wave.Signature = make([]byte, sigLen)
+	copy(wave.Signature, data[offset:offset+sigLen])
+
+	return wave, nil
+}
+
+// BeaconWavePublisher handles publishing relay advertisements.
+type BeaconWavePublisher struct {
+	mu        sync.RWMutex
+	beacon    *Beacon
+	peerID    string
+	interval  time.Duration
+	publisher func(data []byte) error
+	stop      chan struct{}
+	running   atomic.Bool
+
+	// Current metrics.
+	maxCircuits  uint32
+	currentLoad  atomic.Uint32
+	latencyMs    uint32
+	startTime    time.Time
+}
+
+// NewBeaconWavePublisher creates a new beacon wave publisher.
+func NewBeaconWavePublisher(beacon *Beacon, peerID string, publisher func(data []byte) error) *BeaconWavePublisher {
+	return &BeaconWavePublisher{
+		beacon:    beacon,
+		peerID:    peerID,
+		interval:  BeaconWaveInterval,
+		publisher: publisher,
+		stop:      make(chan struct{}),
+		startTime: time.Now(),
+	}
+}
+
+// SetCapacity sets the relay's capacity metrics.
+func (p *BeaconWavePublisher) SetCapacity(maxCircuits uint32, latencyMs uint32) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.maxCircuits = maxCircuits
+	p.latencyMs = latencyMs
+}
+
+// SetCurrentLoad sets the current circuit count.
+func (p *BeaconWavePublisher) SetCurrentLoad(load uint32) {
+	p.currentLoad.Store(load)
+}
+
+// SetInterval sets the broadcast interval.
+func (p *BeaconWavePublisher) SetInterval(interval time.Duration) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.interval = interval
+}
+
+// Start begins periodic beacon wave broadcasting.
+func (p *BeaconWavePublisher) Start() {
+	if p.running.Swap(true) {
+		return // Already running.
+	}
+
+	go p.publishLoop()
+}
+
+// Stop stops beacon wave broadcasting.
+func (p *BeaconWavePublisher) Stop() {
+	if !p.running.Swap(false) {
+		return // Not running.
+	}
+
+	close(p.stop)
+}
+
+// PublishNow immediately publishes a beacon wave.
+func (p *BeaconWavePublisher) PublishNow() error {
+	wave, err := p.createBeaconWave()
+	if err != nil {
+		return err
+	}
+
+	encoded, err := EncodeBeaconWave(wave)
+	if err != nil {
+		return err
+	}
+
+	return p.publisher(encoded)
+}
+
+func (p *BeaconWavePublisher) publishLoop() {
+	p.mu.RLock()
+	interval := p.interval
+	p.mu.RUnlock()
+
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	// Publish immediately on start.
+	if err := p.PublishNow(); err != nil {
+		// Log error but continue.
+	}
+
+	for {
+		select {
+		case <-ticker.C:
+			if p.beacon.IsRelay() {
+				if err := p.PublishNow(); err != nil {
+					// Log error but continue.
+				}
+			}
+		case <-p.stop:
+			return
+		}
+	}
+}
+
+func (p *BeaconWavePublisher) createBeaconWave() (*BeaconWave, error) {
+	selfInfo := p.beacon.SelfInfo()
+	if selfInfo == nil {
+		return nil, errors.New("not configured as relay")
+	}
+
+	p.mu.RLock()
+	maxCircuits := p.maxCircuits
+	latencyMs := p.latencyMs
+	p.mu.RUnlock()
+
+	uptime := uint64(time.Since(p.startTime).Seconds())
+
+	wave := &BeaconWave{
+		Version:     BeaconWaveVersion,
+		Type:        BeaconWaveType,
+		RelayPeerID: p.peerID,
+		PublicKey:   selfInfo.PublicKey,
+		Bandwidth:   selfInfo.Bandwidth,
+		MaxCircuits: maxCircuits,
+		CurrentLoad: p.currentLoad.Load(),
+		LatencyMs:   latencyMs,
+		Uptime:      uptime,
+		Timestamp:   time.Now().Unix(),
+		TTL:         uint32(BeaconWaveTTL.Seconds()),
+	}
+
+	// Signature is optional (can be added if verification is needed).
+	wave.Signature = nil
+
+	return wave, nil
+}
+
+// BeaconWaveReceiver handles receiving and processing relay advertisements.
+type BeaconWaveReceiver struct {
+	mu       sync.RWMutex
+	beacon   *Beacon
+	selfID   string
+	stats    BeaconWaveStats
+	handlers []BeaconWaveHandler
+}
+
+// BeaconWaveHandler is called when a beacon wave is received.
+type BeaconWaveHandler func(wave *BeaconWave) error
+
+// BeaconWaveStats tracks beacon wave statistics.
+type BeaconWaveStats struct {
+	WavesReceived     uint64
+	WavesProcessed    uint64
+	WavesExpired      uint64
+	RelaysDiscovered  uint64
+	RelaysUpdated     uint64
+}
+
+// NewBeaconWaveReceiver creates a new beacon wave receiver.
+func NewBeaconWaveReceiver(beacon *Beacon, selfID string) *BeaconWaveReceiver {
+	return &BeaconWaveReceiver{
+		beacon: beacon,
+		selfID: selfID,
+	}
+}
+
+// HandleIncoming processes a received beacon wave.
+func (r *BeaconWaveReceiver) HandleIncoming(data []byte) error {
+	atomic.AddUint64(&r.stats.WavesReceived, 1)
+
+	wave, err := DecodeBeaconWave(data)
+	if err != nil {
+		return err
+	}
+
+	// Ignore our own advertisements.
+	if wave.RelayPeerID == r.selfID {
+		return nil
+	}
+
+	// Check expiry.
+	if wave.IsExpired() {
+		atomic.AddUint64(&r.stats.WavesExpired, 1)
+		return ErrBeaconWaveExpired
+	}
+
+	// Check if this is a new relay or an update.
+	_, existed := r.beacon.GetRelay(wave.RelayPeerID)
+
+	// Register the relay.
+	r.beacon.AddRelay(wave.ToRelayInfo())
+
+	if existed {
+		atomic.AddUint64(&r.stats.RelaysUpdated, 1)
+	} else {
+		atomic.AddUint64(&r.stats.RelaysDiscovered, 1)
+	}
+
+	atomic.AddUint64(&r.stats.WavesProcessed, 1)
+
+	// Call handlers.
+	r.mu.RLock()
+	handlers := r.handlers
+	r.mu.RUnlock()
+
+	for _, handler := range handlers {
+		if err := handler(wave); err != nil {
+			// Log but continue.
+		}
+	}
+
+	return nil
+}
+
+// RegisterHandler registers a handler for beacon waves.
+func (r *BeaconWaveReceiver) RegisterHandler(handler BeaconWaveHandler) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.handlers = append(r.handlers, handler)
+}
+
+// Stats returns beacon wave statistics.
+func (r *BeaconWaveReceiver) Stats() BeaconWaveStats {
+	return BeaconWaveStats{
+		WavesReceived:    atomic.LoadUint64(&r.stats.WavesReceived),
+		WavesProcessed:   atomic.LoadUint64(&r.stats.WavesProcessed),
+		WavesExpired:     atomic.LoadUint64(&r.stats.WavesExpired),
+		RelaysDiscovered: atomic.LoadUint64(&r.stats.RelaysDiscovered),
+		RelaysUpdated:    atomic.LoadUint64(&r.stats.RelaysUpdated),
+	}
+}
+
+// RelayDiscovery orchestrates Shroud relay discovery via Beacon Waves.
+type RelayDiscovery struct {
+	beacon    *Beacon
+	publisher *BeaconWavePublisher
+	receiver  *BeaconWaveReceiver
+}
+
+// NewRelayDiscovery creates a new relay discovery system.
+func NewRelayDiscovery(beacon *Beacon, peerID string, publisher func(data []byte) error) *RelayDiscovery {
+	return &RelayDiscovery{
+		beacon:    beacon,
+		publisher: NewBeaconWavePublisher(beacon, peerID, publisher),
+		receiver:  NewBeaconWaveReceiver(beacon, peerID),
+	}
+}
+
+// Start begins relay discovery (publishing and receiving).
+func (rd *RelayDiscovery) Start() {
+	rd.publisher.Start()
+}
+
+// Stop stops relay discovery.
+func (rd *RelayDiscovery) Stop() {
+	rd.publisher.Stop()
+}
+
+// HandleBeaconWave processes an incoming beacon wave.
+func (rd *RelayDiscovery) HandleBeaconWave(data []byte) error {
+	return rd.receiver.HandleIncoming(data)
+}
+
+// SetCapacity configures this node's relay capacity.
+func (rd *RelayDiscovery) SetCapacity(maxCircuits uint32, latencyMs uint32) {
+	rd.publisher.SetCapacity(maxCircuits, latencyMs)
+}
+
+// SetCurrentLoad updates the current circuit count.
+func (rd *RelayDiscovery) SetCurrentLoad(load uint32) {
+	rd.publisher.SetCurrentLoad(load)
+}
+
+// Publisher returns the beacon wave publisher.
+func (rd *RelayDiscovery) Publisher() *BeaconWavePublisher {
+	return rd.publisher
+}
+
+// Receiver returns the beacon wave receiver.
+func (rd *RelayDiscovery) Receiver() *BeaconWaveReceiver {
+	return rd.receiver
+}
+
+// Beacon returns the underlying beacon.
+func (rd *RelayDiscovery) Beacon() *Beacon {
+	return rd.beacon
+}
+
+// CleanupStaleRelays removes relays that haven't been seen recently.
+func (rd *RelayDiscovery) CleanupStaleRelays(maxAge time.Duration) int {
+	relays := rd.beacon.ListRelays()
+	removed := 0
+	cutoff := time.Now().Add(-maxAge)
+
+	for _, relay := range relays {
+		if relay.SeenAt.Before(cutoff) {
+			rd.beacon.RemoveRelay(relay.PeerID)
+			removed++
+		}
+	}
+
+	return removed
 }

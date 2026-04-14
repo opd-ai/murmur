@@ -214,3 +214,123 @@ func (kp *KeyPair) ZeroKeyPair() {
 func (kp *AnonymousKeyPair) ZeroAnonymousKeyPair() {
 	ZeroBytes(kp.PrivateKey[:])
 }
+
+// IdentityBundle contains both Surface and Anonymous Layer keypairs.
+// Per SECURITY_PRIVACY.md, these keypairs are cryptographically independent -
+// compromising one MUST NOT reveal the other.
+type IdentityBundle struct {
+	// Surface is the Ed25519 keypair for Surface Layer identity.
+	Surface *KeyPair
+	// Specter is the Curve25519 keypair for Anonymous Layer identity.
+	Specter *AnonymousKeyPair
+	// FortressTransport is an optional Ed25519 keypair for Fortress mode.
+	// Per SHADOW_GRADIENT.md, Fortress mode uses a dedicated transport key
+	// that is separate from both Surface and Specter keys.
+	FortressTransport *KeyPair
+}
+
+// GenerateIdentityBundle creates a complete identity bundle with independent keypairs.
+// Per SECURITY_PRIVACY.md, Surface and Specter keys share no derivation path.
+// Each key is generated from independent entropy sources.
+func GenerateIdentityBundle() (*IdentityBundle, error) {
+	// Generate Surface Layer identity (Ed25519).
+	surface, err := GenerateKeyPair()
+	if err != nil {
+		return nil, fmt.Errorf("generating surface keypair: %w", err)
+	}
+
+	// Generate Anonymous Layer identity (Curve25519).
+	// This is completely independent - no shared derivation path.
+	specter, err := GenerateAnonymousKeyPair()
+	if err != nil {
+		surface.ZeroKeyPair()
+		return nil, fmt.Errorf("generating specter keypair: %w", err)
+	}
+
+	return &IdentityBundle{
+		Surface: surface,
+		Specter: specter,
+	}, nil
+}
+
+// GenerateIdentityBundleWithFortress creates an identity bundle including Fortress transport key.
+// The Fortress transport key is a separate Ed25519 keypair used for transport
+// in Fortress mode, ensuring complete key isolation.
+func GenerateIdentityBundleWithFortress() (*IdentityBundle, error) {
+	bundle, err := GenerateIdentityBundle()
+	if err != nil {
+		return nil, err
+	}
+
+	// Generate dedicated Fortress transport key.
+	fortress, err := GenerateKeyPair()
+	if err != nil {
+		bundle.Zero()
+		return nil, fmt.Errorf("generating fortress transport keypair: %w", err)
+	}
+
+	bundle.FortressTransport = fortress
+	return bundle, nil
+}
+
+// Zero securely zeros all keypair material in the bundle.
+func (ib *IdentityBundle) Zero() {
+	if ib.Surface != nil {
+		ib.Surface.ZeroKeyPair()
+	}
+	if ib.Specter != nil {
+		ib.Specter.ZeroAnonymousKeyPair()
+	}
+	if ib.FortressTransport != nil {
+		ib.FortressTransport.ZeroKeyPair()
+	}
+}
+
+// ValidateIndependence verifies that keypairs share no derivation path.
+// This is a defensive check to ensure key generation didn't accidentally
+// introduce any correlation between keys.
+func (ib *IdentityBundle) ValidateIndependence() bool {
+	if ib.Surface == nil || ib.Specter == nil {
+		return false
+	}
+
+	// Surface Ed25519 public key should not match any portion of Specter public key.
+	// This is a sanity check - proper random generation should always pass.
+	surfacePub := ib.Surface.PublicKey
+	specterPub := ib.Specter.PublicKey[:]
+
+	// Check for exact match (should never happen with proper randomness).
+	if len(surfacePub) == len(specterPub) {
+		match := true
+		for i := range surfacePub {
+			if surfacePub[i] != specterPub[i] {
+				match = false
+				break
+			}
+		}
+		if match {
+			return false
+		}
+	}
+
+	// If Fortress key exists, verify it's also independent.
+	if ib.FortressTransport != nil {
+		fortressPub := ib.FortressTransport.PublicKey
+
+		// Fortress should not match Surface.
+		if len(fortressPub) == len(surfacePub) {
+			match := true
+			for i := range fortressPub {
+				if fortressPub[i] != surfacePub[i] {
+					match = false
+					break
+				}
+			}
+			if match {
+				return false
+			}
+		}
+	}
+
+	return true
+}

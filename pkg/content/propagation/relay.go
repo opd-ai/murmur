@@ -15,7 +15,8 @@ import (
 )
 
 // MaxHops is the maximum number of hops a Wave can traverse.
-const MaxHops = 10
+// Per WAVES.md, the default maximum is 20 hops.
+const MaxHops = 20
 
 // DefaultCacheDuration is how long to retain wave IDs for deduplication.
 const DefaultCacheDuration = 24 * time.Hour

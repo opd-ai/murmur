@@ -74,6 +74,25 @@ message ResonanceScore {
   uint64 observation_count = 6;
 }
 
+// ResonanceScoreDetails stores detailed tracking data for Resonance computation.
+// Per TECHNICAL_IMPLEMENTATION.md §6.4, this is persisted to Bbolt for recovery.
+message ResonanceScoreDetails {
+  // Raw signal values for score computation.
+  int32 publications = 1;
+  int32 consecutive_days = 2;
+  int32 puzzles_solved = 3;
+  int32 games_won = 4;
+  int32 games_lost = 5;
+  int32 gifts_given = 6;
+  int32 gifts_received = 7;
+  int32 endorsements = 8;
+  int32 high_tier_endorsements = 9;
+  
+  // Time tracking for decay.
+  int64 last_activity_unix = 10;
+  int64 created_at_unix = 11;
+}
+
 // ZKResonanceClaim is a zero-knowledge proof of Resonance threshold.
 // Per SECURITY_PRIVACY.md, claims use Pedersen commitments + Bulletproofs.
 message ZKResonanceClaim {
