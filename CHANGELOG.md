@@ -67,7 +67,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **2026-04-14**: Comprehensive test coverage improvements for networking packages
+- **2026-04-14**: Connection priority system for peer topology management
+  - `pkg/networking/transport/priority.go`: Four-tier connection priority system (Social/Mesh/DHT/Opportunistic) with libp2p connection manager tagging per NETWORK_ARCHITECTURE.md §7
+  - `pkg/networking/transport/priority_test.go`: Comprehensive tests for tier assignment, tag management, and priority enforcement (15 tests)
   - `pkg/networking/mesh/mesh_test.go`: Added 11 tests for priority-based pruning, heartbeat threshold, peer state management (coverage: 56.4% → 98.7%)
   - `pkg/networking/transport/transport_test.go`: Added 10 tests for DHT modes, invalid addresses, close paths, config defaults (coverage: 60.5% → 90.7%)
   - All networking packages now exceed 70% coverage threshold
