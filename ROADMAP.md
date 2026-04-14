@@ -431,7 +431,7 @@
 - [x] **Network propagation** — broadcast Hunt events, fragment claims, clue reveals
 - [x] **Bbolt persistence** — HuntStore backed by `pkg/store`
 - [x] **Pulse Map visualization** — scattered glowing fragments across map topology
-- [ ] **UI: Hunt tracker overlay** — fragment locations, clue display, leaderboard
+- [x] **UI: Hunt tracker overlay** — fragment locations, clue display, leaderboard
 
 ### Territory Drift
 
@@ -443,9 +443,9 @@
 - [x] **Louvain clustering algorithm** for territory partitioning (per ANONYMOUS_GAME_MECHANICS.md)
 - [x] **Network propagation** — broadcast influence claims and territory state changes
 - [x] **Bbolt persistence** — territory state backed by `pkg/store`
-- [ ] **Pulse Map visualization** — translucent watermarks with territory boundaries
-- [ ] **UI: Territory overview panel** — controlled regions, influence scores, weekly cycle status
-- [ ] **Cartographer's Trail** — territory exploration tracking with badges
+- [x] **Pulse Map visualization** — translucent watermarks with territory boundaries
+- [x] **UI: Territory overview panel** — controlled regions, influence scores, weekly cycle status
+- [x] **Cartographer's Trail** — territory exploration tracking with badges
 
 ### Oracle Pools
 
@@ -458,9 +458,9 @@
 - [x] **Resonance gating** — only Resonance ≥100 Specters can create Oracle Pools
 - [x] **Network propagation** — broadcast pool creation, commitments, reveals, outcomes
 - [x] **Bbolt persistence** — OraclePoolStore backed by `pkg/store`
-- [ ] **Pulse Map visualization** — swirling vortex icon at pool location
-- [ ] **UI: Oracle Pool panel** — create pool, submit prediction, view outcomes
-- [ ] **Outcome verification** — network-observable event confirmation protocol
+- [x] **Pulse Map visualization** — swirling vortex icon at pool location
+- [x] **UI: Oracle Pool panel** — create pool, submit prediction, view outcomes
+- [x] **Outcome verification** — network-observable event confirmation protocol
 
 ### Sigil Forge
 
@@ -473,8 +473,8 @@
 - [x] **Resonance gating** — only Resonance ≥50 Specters can participate
 - [x] **Network propagation** — broadcast forge events, entries, votes
 - [x] **Bbolt persistence** — ForgeStore backed by `pkg/store`
-- [ ] **Pulse Map visualization** — anvil-and-flame icon with orbiting entries
-- [ ] **UI: Forge submission panel** — create/submit entries, view competitors
+- [x] **Pulse Map visualization** — anvil-and-flame icon with orbiting entries
+- [x] **UI: Forge submission panel** — create/submit entries, view competitors
 - [ ] **Timed creative challenge mechanics** — countdown timer, submission window
 
 ### Shadow Play

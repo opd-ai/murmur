@@ -65,6 +65,11 @@ type Theme struct {
 	AccentPrimary   color.RGBA
 	AccentSecondary color.RGBA
 
+	// Status colors
+	Success   color.RGBA
+	Warning   color.RGBA
+	Selection color.RGBA
+
 	// Sizing
 	FontSize     int
 	Padding      int
@@ -89,6 +94,9 @@ func DefaultTheme() Theme {
 		TextError:        color.RGBA{255, 100, 100, 255},
 		AccentPrimary:    color.RGBA{80, 150, 220, 255},
 		AccentSecondary:  color.RGBA{100, 200, 160, 255},
+		Success:          color.RGBA{80, 200, 120, 255},
+		Warning:          color.RGBA{255, 180, 60, 255},
+		Selection:        color.RGBA{60, 80, 120, 180},
 		FontSize:         14,
 		Padding:          12,
 		BorderRadius:     6,
