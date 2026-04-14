@@ -567,14 +567,14 @@
 ### Pulse Beats
 
 - [x] Gamified notification events with visual indicators
-- [ ] Edge-of-viewport notification rendering
+- [x] Edge-of-viewport notification rendering
 - [x] Event aggregation and priority ordering
 
 ### Specter Trophies
 
 - [x] Achievement milestone tracking per Specter
 - [x] Visual glyph unlocks at achievement thresholds
-- [ ] Trophy display on Specter node detail panel
+- [x] Trophy display on Specter node detail panel
 
 ---
 
@@ -588,7 +588,7 @@
 - [x] Temperature-based convergence and damping
 - [x] Camera system with pan/zoom
 - [x] **Double-buffered position swap** — `atomic.Pointer` for lock-free layout → render handoff
-- [ ] **Hierarchical aggregation** — cluster representatives for >500 visible nodes
+- [x] **Hierarchical aggregation** — cluster representatives for >500 visible nodes
 - [x] **Incremental layout** — 30 ticks/second background goroutine
 - [ ] **Performance**: 60fps with 500 nodes and 2000 edges (target per TECHNICAL_IMPLEMENTATION.md)
 - [ ] **Viewport culling** — only compute forces for visible nodes
