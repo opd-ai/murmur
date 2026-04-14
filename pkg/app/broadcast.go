@@ -99,30 +99,12 @@ func (a *App) BroadcastIdentity(ctx context.Context, decl *pb.IdentityDeclaratio
 		decl.Signature = ed25519.Sign(identity.PrivateKey, sigData)
 	}
 
-	// Serialize the declaration.
+	// Serialize and publish.
 	payload, err := proto.Marshal(decl)
 	if err != nil {
 		return err
 	}
-
-	// Create and sign the envelope.
-	envelope, err := createSignedEnvelope(
-		pb.MessageType_MESSAGE_TYPE_IDENTITY,
-		payload,
-		identity,
-	)
-	if err != nil {
-		return err
-	}
-
-	// Serialize the envelope.
-	data, err := proto.Marshal(envelope)
-	if err != nil {
-		return err
-	}
-
-	// Publish to network.
-	return ps.Publish(ctx, gossip.TopicIdentity, data)
+	return createAndPublishEnvelope(ctx, ps, gossip.TopicIdentity, pb.MessageType_MESSAGE_TYPE_IDENTITY, payload, identity)
 }
 
 // BroadcastHeartbeat publishes a heartbeat to the network.
@@ -151,30 +133,12 @@ func (a *App) BroadcastHeartbeat(ctx context.Context) error {
 	sigData := heartbeatSignatureData(hb)
 	hb.Signature = ed25519.Sign(identity.PrivateKey, sigData)
 
-	// Serialize the heartbeat.
+	// Serialize and publish.
 	payload, err := proto.Marshal(hb)
 	if err != nil {
 		return err
 	}
-
-	// Create and sign the envelope.
-	envelope, err := createSignedEnvelope(
-		pb.MessageType_MESSAGE_TYPE_HEARTBEAT,
-		payload,
-		identity,
-	)
-	if err != nil {
-		return err
-	}
-
-	// Serialize the envelope.
-	data, err := proto.Marshal(envelope)
-	if err != nil {
-		return err
-	}
-
-	// Publish to network.
-	return ps.Publish(ctx, gossip.TopicPulse, data)
+	return createAndPublishEnvelope(ctx, ps, gossip.TopicPulse, pb.MessageType_MESSAGE_TYPE_HEARTBEAT, payload, identity)
 }
 
 // BroadcastRelayAdvertisement publishes a relay advertisement to the network.
@@ -208,30 +172,12 @@ func (a *App) BroadcastRelayAdvertisement(ctx context.Context) error {
 		return ErrNotRelay
 	}
 
-	// Serialize the advertisement.
+	// Serialize and publish.
 	payload, err := proto.Marshal(ad)
 	if err != nil {
 		return err
 	}
-
-	// Create and sign the envelope.
-	envelope, err := createSignedEnvelope(
-		pb.MessageType_MESSAGE_TYPE_SHROUD_AD,
-		payload,
-		identity,
-	)
-	if err != nil {
-		return err
-	}
-
-	// Serialize the envelope.
-	data, err := proto.Marshal(envelope)
-	if err != nil {
-		return err
-	}
-
-	// Publish to network.
-	return ps.Publish(ctx, gossip.TopicShroud, data)
+	return createAndPublishEnvelope(ctx, ps, gossip.TopicShroud, pb.MessageType_MESSAGE_TYPE_SHROUD_AD, payload, identity)
 }
 
 // CreateWave creates a new Wave with the application's identity and broadcasts it.
@@ -290,6 +236,29 @@ func createSignedEnvelope(msgType pb.MessageType, payload []byte, kp *keys.KeyPa
 	envelope.Signature = ed25519.Sign(kp.PrivateKey, sigData)
 
 	return envelope, nil
+}
+
+// createAndPublishEnvelope creates a signed envelope and publishes it to the given topic.
+// This is a convenience helper that combines envelope creation, marshaling, and publishing.
+func createAndPublishEnvelope(
+	ctx context.Context,
+	ps *gossip.PubSub,
+	topic string,
+	msgType pb.MessageType,
+	payload []byte,
+	identity *keys.KeyPair,
+) error {
+	envelope, err := createSignedEnvelope(msgType, payload, identity)
+	if err != nil {
+		return err
+	}
+
+	data, err := proto.Marshal(envelope)
+	if err != nil {
+		return err
+	}
+
+	return ps.Publish(ctx, topic, data)
 }
 
 // envelopeSignatureData returns the data to sign for an envelope.

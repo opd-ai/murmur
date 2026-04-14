@@ -78,109 +78,94 @@ func (pst *PeerScoreTracker) SetCallback(cb AppSpecificScoreCallback) {
 	pst.callback = cb
 }
 
-// RecordValidMessage records a valid message from a peer.
-func (pst *PeerScoreTracker) RecordValidMessage(p peer.ID) {
+// scoreEventType identifies the type of scoring event for the peer score tracker.
+type scoreEventType int
+
+const (
+	scoreValid scoreEventType = iota
+	scoreInvalidSignature
+	scoreInvalidTimestamp
+	scoreDuplicate
+	scoreInvalidPayload
+	scoreInvalidPoW
+	scoreExpiredTTL
+)
+
+// scoreEventConfig maps event types to their scoring weight and counter type.
+type scoreEventConfig struct {
+	weight      float64
+	isValid     bool // if true, increment ValidMessages; if false and not dup, increment InvalidMessages
+	isDuplicate bool // if true, increment DuplicateCount
+}
+
+var scoreEventConfigs = map[scoreEventType]scoreEventConfig{
+	scoreValid:            {weight: WeightValidMessage, isValid: true},
+	scoreInvalidSignature: {weight: WeightInvalidSignature},
+	scoreInvalidTimestamp: {weight: WeightInvalidTimestamp},
+	scoreDuplicate:        {weight: WeightDuplicateMessage, isDuplicate: true},
+	scoreInvalidPayload:   {weight: WeightInvalidPayload},
+	scoreInvalidPoW:       {weight: WeightInvalidPoW},
+	scoreExpiredTTL:       {weight: WeightExpiredTTL},
+}
+
+// recordEvent records a scoring event for a peer. This is the shared
+// implementation for all peer scoring methods.
+func (pst *PeerScoreTracker) recordEvent(p peer.ID, eventType scoreEventType) {
 	pst.mu.Lock()
 	defer pst.mu.Unlock()
 
+	cfg := scoreEventConfigs[eventType]
 	entry := pst.getOrCreateEntry(p)
-	entry.ValidMessages++
-	entry.Score += WeightValidMessage
+
+	if cfg.isValid {
+		entry.ValidMessages++
+	} else if cfg.isDuplicate {
+		entry.DuplicateCount++
+	} else {
+		entry.InvalidMessages++
+	}
+
+	entry.Score += cfg.weight
 	entry.LastSeen = time.Now()
 
 	if pst.callback != nil {
 		pst.callback(p, entry.Score)
 	}
+}
+
+// RecordValidMessage records a valid message from a peer.
+func (pst *PeerScoreTracker) RecordValidMessage(p peer.ID) {
+	pst.recordEvent(p, scoreValid)
 }
 
 // RecordInvalidSignature records an invalid signature from a peer.
 func (pst *PeerScoreTracker) RecordInvalidSignature(p peer.ID) {
-	pst.mu.Lock()
-	defer pst.mu.Unlock()
-
-	entry := pst.getOrCreateEntry(p)
-	entry.InvalidMessages++
-	entry.Score += WeightInvalidSignature
-	entry.LastSeen = time.Now()
-
-	if pst.callback != nil {
-		pst.callback(p, entry.Score)
-	}
+	pst.recordEvent(p, scoreInvalidSignature)
 }
 
 // RecordInvalidTimestamp records an invalid timestamp from a peer.
 func (pst *PeerScoreTracker) RecordInvalidTimestamp(p peer.ID) {
-	pst.mu.Lock()
-	defer pst.mu.Unlock()
-
-	entry := pst.getOrCreateEntry(p)
-	entry.InvalidMessages++
-	entry.Score += WeightInvalidTimestamp
-	entry.LastSeen = time.Now()
-
-	if pst.callback != nil {
-		pst.callback(p, entry.Score)
-	}
+	pst.recordEvent(p, scoreInvalidTimestamp)
 }
 
 // RecordDuplicateMessage records a duplicate message from a peer.
 func (pst *PeerScoreTracker) RecordDuplicateMessage(p peer.ID) {
-	pst.mu.Lock()
-	defer pst.mu.Unlock()
-
-	entry := pst.getOrCreateEntry(p)
-	entry.DuplicateCount++
-	entry.Score += WeightDuplicateMessage
-	entry.LastSeen = time.Now()
-
-	if pst.callback != nil {
-		pst.callback(p, entry.Score)
-	}
+	pst.recordEvent(p, scoreDuplicate)
 }
 
 // RecordInvalidPayload records an invalid payload from a peer.
 func (pst *PeerScoreTracker) RecordInvalidPayload(p peer.ID) {
-	pst.mu.Lock()
-	defer pst.mu.Unlock()
-
-	entry := pst.getOrCreateEntry(p)
-	entry.InvalidMessages++
-	entry.Score += WeightInvalidPayload
-	entry.LastSeen = time.Now()
-
-	if pst.callback != nil {
-		pst.callback(p, entry.Score)
-	}
+	pst.recordEvent(p, scoreInvalidPayload)
 }
 
 // RecordInvalidPoW records insufficient Proof of Work from a peer.
 func (pst *PeerScoreTracker) RecordInvalidPoW(p peer.ID) {
-	pst.mu.Lock()
-	defer pst.mu.Unlock()
-
-	entry := pst.getOrCreateEntry(p)
-	entry.InvalidMessages++
-	entry.Score += WeightInvalidPoW
-	entry.LastSeen = time.Now()
-
-	if pst.callback != nil {
-		pst.callback(p, entry.Score)
-	}
+	pst.recordEvent(p, scoreInvalidPoW)
 }
 
 // RecordExpiredTTL records an expired TTL message from a peer.
 func (pst *PeerScoreTracker) RecordExpiredTTL(p peer.ID) {
-	pst.mu.Lock()
-	defer pst.mu.Unlock()
-
-	entry := pst.getOrCreateEntry(p)
-	entry.InvalidMessages++
-	entry.Score += WeightExpiredTTL
-	entry.LastSeen = time.Now()
-
-	if pst.callback != nil {
-		pst.callback(p, entry.Score)
-	}
+	pst.recordEvent(p, scoreExpiredTTL)
 }
 
 // GetScore returns the current score for a peer.

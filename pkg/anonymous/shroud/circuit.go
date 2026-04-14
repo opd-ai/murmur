@@ -6,6 +6,7 @@ package shroud
 import (
 	"context"
 	"crypto/rand"
+	"encoding/binary"
 	"errors"
 	"sync"
 	"sync/atomic"
@@ -250,6 +251,18 @@ func (b *Beacon) AddRelay(info *RelayInfo) {
 	b.relays[info.PeerID] = info
 }
 
+// addRelayWithTime registers a relay with a specific SeenAt time (for testing).
+func (b *Beacon) addRelayWithTime(info *RelayInfo) {
+	if info == nil || info.PeerID == "" {
+		return
+	}
+
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	b.relays[info.PeerID] = info
+}
+
 // RemoveRelay removes a relay from the registry.
 func (b *Beacon) RemoveRelay(peerID string) {
 	b.mu.Lock()
@@ -311,8 +324,8 @@ type TeardownFunc func(circuitID []byte, relayPeerIDs []string)
 // NonceSequencer handles nonce generation with replay protection.
 type NonceSequencer struct {
 	mu       sync.Mutex
-	sequence uint64   // Monotonic sequence number.
-	prefix   [8]byte  // Random prefix for nonce uniqueness.
+	sequence uint64  // Monotonic sequence number.
+	prefix   [8]byte // Random prefix for nonce uniqueness.
 }
 
 // NewNonceSequencer creates a new nonce sequencer.
@@ -359,10 +372,10 @@ func (ns *NonceSequencer) Sequence() uint64 {
 // ReplayDetector tracks seen nonces to detect replays.
 type ReplayDetector struct {
 	mu      sync.RWMutex
-	window  uint64            // Window size for tracking.
-	minSeq  uint64            // Minimum accepted sequence.
-	seen    map[uint64]bool   // Seen sequences in current window.
-	maxSeen uint64            // Maximum seen sequence.
+	window  uint64          // Window size for tracking.
+	minSeq  uint64          // Minimum accepted sequence.
+	seen    map[uint64]bool // Seen sequences in current window.
+	maxSeen uint64          // Maximum seen sequence.
 }
 
 // NewReplayDetector creates a new replay detector with the given window size.
@@ -428,9 +441,9 @@ type Circuit struct {
 	sharedKeys      [CircuitLength][32]byte
 	createdAt       time.Time
 	closed          bool
-	onTeardown      TeardownFunc // Optional callback for cleanup notification.
-	destroySent     bool         // Whether DESTROY cells have been sent.
-	nonceSeq        *NonceSequencer  // Nonce sequencer for outgoing packets.
+	onTeardown      TeardownFunc                   // Optional callback for cleanup notification.
+	destroySent     bool                           // Whether DESTROY cells have been sent.
+	nonceSeq        *NonceSequencer                // Nonce sequencer for outgoing packets.
 	replayDetectors [CircuitLength]*ReplayDetector // Replay detection per hop.
 }
 
@@ -1243,18 +1256,18 @@ func (m *CircuitManager) RebuildAttempts() uint64 {
 
 // CircuitHealth represents the health status of the circuit manager.
 type CircuitHealth struct {
-	HasPrimary         bool
-	HasBackup          bool
-	PrimaryExpired     bool
-	BackupExpired      bool
-	RotationCount      uint64
-	RebuildAttempts    uint64
-	PenalizedRelays    int
-	LastRotation       time.Time
-	LastRebuild        time.Time
-	PrimaryCreatedAt   time.Time
-	BackupCreatedAt    time.Time
-	CoverTrafficSent   uint64
+	HasPrimary       bool
+	HasBackup        bool
+	PrimaryExpired   bool
+	BackupExpired    bool
+	RotationCount    uint64
+	RebuildAttempts  uint64
+	PenalizedRelays  int
+	LastRotation     time.Time
+	LastRebuild      time.Time
+	PrimaryCreatedAt time.Time
+	BackupCreatedAt  time.Time
+	CoverTrafficSent uint64
 }
 
 // Health returns the current health status of the circuit manager.
@@ -1510,21 +1523,21 @@ func DecodeMessage(data []byte) (*Message, error) {
 
 // MessageSender handles sending messages through Shroud circuits.
 type MessageSender struct {
-	mu       sync.RWMutex
-	manager  *CircuitManager
-	sender   func(peerID string, data []byte) error
-	stats    MessageSenderStats
-	onError  func(error)
+	mu      sync.RWMutex
+	manager *CircuitManager
+	sender  func(peerID string, data []byte) error
+	stats   MessageSenderStats
+	onError func(error)
 }
 
 // MessageSenderStats tracks message sending statistics.
 type MessageSenderStats struct {
-	MessagesSent     uint64
-	MessagesDropped  uint64
-	BytesSent        uint64
-	LastSendTime     time.Time
-	LastError        error
-	LastErrorTime    time.Time
+	MessagesSent    uint64
+	MessagesDropped uint64
+	BytesSent       uint64
+	LastSendTime    time.Time
+	LastError       error
+	LastErrorTime   time.Time
 }
 
 // NewMessageSender creates a new message sender.
@@ -1896,55 +1909,32 @@ func EncodeBeaconWave(wave *BeaconWave) ([]byte, error) {
 	copy(buf[offset:], wave.PublicKey[:])
 	offset += 32
 
-	// Bandwidth (big-endian).
-	for i := 7; i >= 0; i-- {
-		buf[offset+i] = byte(wave.Bandwidth & 0xFF)
-		wave.Bandwidth >>= 8
-	}
+	// Bandwidth (big-endian uint64).
+	binary.BigEndian.PutUint64(buf[offset:], wave.Bandwidth)
 	offset += 8
 
-	// MaxCircuits (big-endian).
-	for i := 3; i >= 0; i-- {
-		buf[offset+i] = byte(wave.MaxCircuits & 0xFF)
-		wave.MaxCircuits >>= 8
-	}
+	// MaxCircuits (big-endian uint32).
+	binary.BigEndian.PutUint32(buf[offset:], wave.MaxCircuits)
 	offset += 4
 
-	// CurrentLoad (big-endian).
-	for i := 3; i >= 0; i-- {
-		buf[offset+i] = byte(wave.CurrentLoad & 0xFF)
-		wave.CurrentLoad >>= 8
-	}
+	// CurrentLoad (big-endian uint32).
+	binary.BigEndian.PutUint32(buf[offset:], wave.CurrentLoad)
 	offset += 4
 
-	// LatencyMs (big-endian).
-	for i := 3; i >= 0; i-- {
-		buf[offset+i] = byte(wave.LatencyMs & 0xFF)
-		wave.LatencyMs >>= 8
-	}
+	// LatencyMs (big-endian uint32).
+	binary.BigEndian.PutUint32(buf[offset:], wave.LatencyMs)
 	offset += 4
 
-	// Uptime (big-endian).
-	for i := 7; i >= 0; i-- {
-		buf[offset+i] = byte(wave.Uptime & 0xFF)
-		wave.Uptime >>= 8
-	}
+	// Uptime (big-endian int64).
+	binary.BigEndian.PutUint64(buf[offset:], uint64(wave.Uptime))
 	offset += 8
 
-	// Timestamp (big-endian).
-	ts := wave.Timestamp
-	for i := 7; i >= 0; i-- {
-		buf[offset+i] = byte(ts & 0xFF)
-		ts >>= 8
-	}
+	// Timestamp (big-endian int64).
+	binary.BigEndian.PutUint64(buf[offset:], uint64(wave.Timestamp))
 	offset += 8
 
-	// TTL (big-endian).
-	ttl := wave.TTL
-	for i := 3; i >= 0; i-- {
-		buf[offset+i] = byte(ttl & 0xFF)
-		ttl >>= 8
-	}
+	// TTL (big-endian uint32).
+	binary.BigEndian.PutUint32(buf[offset:], wave.TTL)
 	offset += 4
 
 	// Signature length and value.
@@ -1962,121 +1952,153 @@ func DecodeBeaconWave(data []byte) (*BeaconWave, error) {
 		return nil, ErrBeaconWaveInvalid
 	}
 
+	reader := &beaconReader{data: data, offset: 0}
 	wave := &BeaconWave{}
-	offset := 0
 
-	// Version and Type.
-	wave.Version = data[offset]
-	offset++
-	if wave.Version != BeaconWaveVersion {
-		return nil, ErrBeaconWaveBadVersion
+	if err := reader.decodeHeader(wave); err != nil {
+		return nil, err
 	}
 
-	wave.Type = data[offset]
-	offset++
-	if wave.Type != BeaconWaveType {
-		return nil, ErrBeaconWaveInvalid
+	if err := reader.decodePeerID(wave); err != nil {
+		return nil, err
 	}
 
-	// PeerID length.
-	if len(data) < offset+2 {
-		return nil, ErrBeaconWaveInvalid
+	if err := reader.decodePublicKey(wave); err != nil {
+		return nil, err
 	}
-	peerIDLen := int(data[offset])<<8 | int(data[offset+1])
-	offset += 2
 
-	// PeerID.
-	if len(data) < offset+peerIDLen {
-		return nil, ErrBeaconWaveInvalid
+	if err := reader.decodeMetrics(wave); err != nil {
+		return nil, err
 	}
-	wave.RelayPeerID = string(data[offset : offset+peerIDLen])
-	offset += peerIDLen
 
-	// PublicKey.
-	if len(data) < offset+32 {
-		return nil, ErrBeaconWaveInvalid
+	if err := reader.decodeSignature(wave); err != nil {
+		return nil, err
 	}
-	copy(wave.PublicKey[:], data[offset:offset+32])
-	offset += 32
-
-	// Bandwidth.
-	if len(data) < offset+8 {
-		return nil, ErrBeaconWaveInvalid
-	}
-	for i := 0; i < 8; i++ {
-		wave.Bandwidth = (wave.Bandwidth << 8) | uint64(data[offset+i])
-	}
-	offset += 8
-
-	// MaxCircuits.
-	if len(data) < offset+4 {
-		return nil, ErrBeaconWaveInvalid
-	}
-	for i := 0; i < 4; i++ {
-		wave.MaxCircuits = (wave.MaxCircuits << 8) | uint32(data[offset+i])
-	}
-	offset += 4
-
-	// CurrentLoad.
-	if len(data) < offset+4 {
-		return nil, ErrBeaconWaveInvalid
-	}
-	for i := 0; i < 4; i++ {
-		wave.CurrentLoad = (wave.CurrentLoad << 8) | uint32(data[offset+i])
-	}
-	offset += 4
-
-	// LatencyMs.
-	if len(data) < offset+4 {
-		return nil, ErrBeaconWaveInvalid
-	}
-	for i := 0; i < 4; i++ {
-		wave.LatencyMs = (wave.LatencyMs << 8) | uint32(data[offset+i])
-	}
-	offset += 4
-
-	// Uptime.
-	if len(data) < offset+8 {
-		return nil, ErrBeaconWaveInvalid
-	}
-	for i := 0; i < 8; i++ {
-		wave.Uptime = (wave.Uptime << 8) | uint64(data[offset+i])
-	}
-	offset += 8
-
-	// Timestamp.
-	if len(data) < offset+8 {
-		return nil, ErrBeaconWaveInvalid
-	}
-	for i := 0; i < 8; i++ {
-		wave.Timestamp = (wave.Timestamp << 8) | int64(data[offset+i])
-	}
-	offset += 8
-
-	// TTL.
-	if len(data) < offset+4 {
-		return nil, ErrBeaconWaveInvalid
-	}
-	for i := 0; i < 4; i++ {
-		wave.TTL = (wave.TTL << 8) | uint32(data[offset+i])
-	}
-	offset += 4
-
-	// Signature length.
-	if len(data) < offset+2 {
-		return nil, ErrBeaconWaveInvalid
-	}
-	sigLen := int(data[offset])<<8 | int(data[offset+1])
-	offset += 2
-
-	// Signature.
-	if len(data) < offset+sigLen {
-		return nil, ErrBeaconWaveInvalid
-	}
-	wave.Signature = make([]byte, sigLen)
-	copy(wave.Signature, data[offset:offset+sigLen])
 
 	return wave, nil
+}
+
+// beaconReader provides sequential reading of BeaconWave fields.
+type beaconReader struct {
+	data   []byte
+	offset int
+}
+
+// decodeHeader reads version and type fields.
+func (r *beaconReader) decodeHeader(wave *BeaconWave) error {
+	wave.Version = r.data[r.offset]
+	r.offset++
+	if wave.Version != BeaconWaveVersion {
+		return ErrBeaconWaveBadVersion
+	}
+
+	wave.Type = r.data[r.offset]
+	r.offset++
+	if wave.Type != BeaconWaveType {
+		return ErrBeaconWaveInvalid
+	}
+	return nil
+}
+
+// decodePeerID reads the variable-length peer ID.
+func (r *beaconReader) decodePeerID(wave *BeaconWave) error {
+	if len(r.data) < r.offset+2 {
+		return ErrBeaconWaveInvalid
+	}
+	peerIDLen := int(r.data[r.offset])<<8 | int(r.data[r.offset+1])
+	r.offset += 2
+
+	if len(r.data) < r.offset+peerIDLen {
+		return ErrBeaconWaveInvalid
+	}
+	wave.RelayPeerID = string(r.data[r.offset : r.offset+peerIDLen])
+	r.offset += peerIDLen
+	return nil
+}
+
+// decodePublicKey reads the 32-byte public key.
+func (r *beaconReader) decodePublicKey(wave *BeaconWave) error {
+	if len(r.data) < r.offset+32 {
+		return ErrBeaconWaveInvalid
+	}
+	copy(wave.PublicKey[:], r.data[r.offset:r.offset+32])
+	r.offset += 32
+	return nil
+}
+
+// decodeMetrics reads bandwidth, circuit, and timing metrics.
+func (r *beaconReader) decodeMetrics(wave *BeaconWave) error {
+	var err error
+
+	wave.Bandwidth, err = r.readUint64()
+	if err != nil {
+		return err
+	}
+	wave.MaxCircuits, err = r.readUint32()
+	if err != nil {
+		return err
+	}
+	wave.CurrentLoad, err = r.readUint32()
+	if err != nil {
+		return err
+	}
+	wave.LatencyMs, err = r.readUint32()
+	if err != nil {
+		return err
+	}
+	wave.Uptime, err = r.readUint64()
+	if err != nil {
+		return err
+	}
+	ts, err := r.readUint64()
+	if err != nil {
+		return err
+	}
+	wave.Timestamp = int64(ts)
+	wave.TTL, err = r.readUint32()
+	return err
+}
+
+// decodeSignature reads the variable-length signature.
+func (r *beaconReader) decodeSignature(wave *BeaconWave) error {
+	if len(r.data) < r.offset+2 {
+		return ErrBeaconWaveInvalid
+	}
+	sigLen := int(r.data[r.offset])<<8 | int(r.data[r.offset+1])
+	r.offset += 2
+
+	if len(r.data) < r.offset+sigLen {
+		return ErrBeaconWaveInvalid
+	}
+	wave.Signature = make([]byte, sigLen)
+	copy(wave.Signature, r.data[r.offset:r.offset+sigLen])
+	return nil
+}
+
+// readUint64 reads a big-endian 8-byte unsigned integer.
+func (r *beaconReader) readUint64() (uint64, error) {
+	if len(r.data) < r.offset+8 {
+		return 0, ErrBeaconWaveInvalid
+	}
+	var val uint64
+	for i := 0; i < 8; i++ {
+		val = (val << 8) | uint64(r.data[r.offset+i])
+	}
+	r.offset += 8
+	return val, nil
+}
+
+// readUint32 reads a big-endian 4-byte unsigned integer.
+func (r *beaconReader) readUint32() (uint32, error) {
+	if len(r.data) < r.offset+4 {
+		return 0, ErrBeaconWaveInvalid
+	}
+	var val uint32
+	for i := 0; i < 4; i++ {
+		val = (val << 8) | uint32(r.data[r.offset+i])
+	}
+	r.offset += 4
+	return val, nil
 }
 
 // BeaconWavePublisher handles publishing relay advertisements.
@@ -2090,10 +2112,10 @@ type BeaconWavePublisher struct {
 	running   atomic.Bool
 
 	// Current metrics.
-	maxCircuits  uint32
-	currentLoad  atomic.Uint32
-	latencyMs    uint32
-	startTime    time.Time
+	maxCircuits uint32
+	currentLoad atomic.Uint32
+	latencyMs   uint32
+	startTime   time.Time
 }
 
 // NewBeaconWavePublisher creates a new beacon wave publisher.
@@ -2109,7 +2131,7 @@ func NewBeaconWavePublisher(beacon *Beacon, peerID string, publisher func(data [
 }
 
 // SetCapacity sets the relay's capacity metrics.
-func (p *BeaconWavePublisher) SetCapacity(maxCircuits uint32, latencyMs uint32) {
+func (p *BeaconWavePublisher) SetCapacity(maxCircuits, latencyMs uint32) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.maxCircuits = maxCircuits
@@ -2235,11 +2257,11 @@ type BeaconWaveHandler func(wave *BeaconWave) error
 
 // BeaconWaveStats tracks beacon wave statistics.
 type BeaconWaveStats struct {
-	WavesReceived     uint64
-	WavesProcessed    uint64
-	WavesExpired      uint64
-	RelaysDiscovered  uint64
-	RelaysUpdated     uint64
+	WavesReceived    uint64
+	WavesProcessed   uint64
+	WavesExpired     uint64
+	RelaysDiscovered uint64
+	RelaysUpdated    uint64
 }
 
 // NewBeaconWaveReceiver creates a new beacon wave receiver.
@@ -2348,7 +2370,7 @@ func (rd *RelayDiscovery) HandleBeaconWave(data []byte) error {
 }
 
 // SetCapacity configures this node's relay capacity.
-func (rd *RelayDiscovery) SetCapacity(maxCircuits uint32, latencyMs uint32) {
+func (rd *RelayDiscovery) SetCapacity(maxCircuits, latencyMs uint32) {
 	rd.publisher.SetCapacity(maxCircuits, latencyMs)
 }
 

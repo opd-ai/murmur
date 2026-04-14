@@ -322,11 +322,22 @@ func (r *Relay) sendDummyPacket() {
 // 1. Memoryless property - no timing correlation between packets
 // 2. Heavy right tail - occasional long delays disrupt traffic analysis
 func (r *Relay) randomDelay() time.Duration {
-	// Generate uniform random value in [0, 1).
+	return RandomExponentialDelay(MixDelayMean, MinMixDelay, MaxMixDelay)
+}
+
+// RandomExponentialDelay generates an exponential random delay with the given mean.
+// This is exported for use by other components needing mix network delays.
+func RandomExponentialDelay(mean, min, max time.Duration) time.Duration {
+	u := cryptoRandomFloat64()
+	delay := -float64(mean) * math.Log(u)
+	return clampDuration(delay, min, max)
+}
+
+// cryptoRandomFloat64 generates a cryptographically secure random float64 in (0, 1].
+func cryptoRandomFloat64() float64 {
 	var randomBytes [8]byte
 	rand.Read(randomBytes[:])
 
-	// Convert to uniform [0, 1).
 	u := float64(uint64(randomBytes[0])<<56|
 		uint64(randomBytes[1])<<48|
 		uint64(randomBytes[2])<<40|
@@ -340,49 +351,17 @@ func (r *Relay) randomDelay() time.Duration {
 	if u == 0 {
 		u = 1e-10
 	}
-
-	// Exponential distribution: -mean * ln(u).
-	delay := -float64(MixDelayMean) * math.Log(u)
-
-	// Clamp to [MinMixDelay, MaxMixDelay].
-	if delay < float64(MinMixDelay) {
-		delay = float64(MinMixDelay)
-	}
-	if delay > float64(MaxMixDelay) {
-		delay = float64(MaxMixDelay)
-	}
-
-	return time.Duration(delay)
+	return u
 }
 
-// RandomExponentialDelay generates an exponential random delay with the given mean.
-// This is exported for use by other components needing mix network delays.
-func RandomExponentialDelay(mean time.Duration, min, max time.Duration) time.Duration {
-	var randomBytes [8]byte
-	rand.Read(randomBytes[:])
-
-	u := float64(uint64(randomBytes[0])<<56|
-		uint64(randomBytes[1])<<48|
-		uint64(randomBytes[2])<<40|
-		uint64(randomBytes[3])<<32|
-		uint64(randomBytes[4])<<24|
-		uint64(randomBytes[5])<<16|
-		uint64(randomBytes[6])<<8|
-		uint64(randomBytes[7])) / float64(1<<64)
-
-	if u == 0 {
-		u = 1e-10
-	}
-
-	delay := -float64(mean) * math.Log(u)
-
+// clampDuration clamps a float64 delay value to the given duration range.
+func clampDuration(delay float64, min, max time.Duration) time.Duration {
 	if delay < float64(min) {
 		delay = float64(min)
 	}
 	if delay > float64(max) {
 		delay = float64(max)
 	}
-
 	return time.Duration(delay)
 }
 
@@ -458,8 +437,8 @@ type ShroudNodeConfig struct {
 // DefaultShroudNodeConfig returns the default configuration for Fortress-mode.
 func DefaultShroudNodeConfig() ShroudNodeConfig {
 	return ShroudNodeConfig{
-		MaxBandwidth:       1_000_000,   // 1 MB/sec
-		MaxCircuits:        100,         // 100 concurrent circuits
+		MaxBandwidth:       1_000_000, // 1 MB/sec
+		MaxCircuits:        100,       // 100 concurrent circuits
 		AdvertiseInterval:  BeaconInterval,
 		EnableMixing:       true,
 		EnableDummyTraffic: true,
@@ -763,12 +742,21 @@ func SelectRelayByCapacity(relays []*RelayInfo, metrics map[string]CapacityMetri
 		return nil
 	}
 
-	// Build exclude map.
+	excludeMap := buildExcludeMap(exclude)
+	return findBestRelay(relays, metrics, excludeMap)
+}
+
+// buildExcludeMap creates a lookup map for excluded peer IDs.
+func buildExcludeMap(exclude []string) map[string]bool {
 	excludeMap := make(map[string]bool)
 	for _, id := range exclude {
 		excludeMap[id] = true
 	}
+	return excludeMap
+}
 
+// findBestRelay iterates through relays to find the one with highest score.
+func findBestRelay(relays []*RelayInfo, metrics map[string]CapacityMetrics, excludeMap map[string]bool) *RelayInfo {
 	var bestRelay *RelayInfo
 	var bestScore float64 = -1
 
@@ -777,32 +765,7 @@ func SelectRelayByCapacity(relays []*RelayInfo, metrics map[string]CapacityMetri
 			continue
 		}
 
-		// Get capacity metrics if available.
-		m, ok := metrics[relay.PeerID]
-		if !ok {
-			// No metrics, use default moderate score.
-			if bestRelay == nil || 0.5 > bestScore {
-				bestRelay = relay
-				bestScore = 0.5
-			}
-			continue
-		}
-
-		score := m.LoadScore()
-
-		// Boost score for nodes with longer uptime (more reliable).
-		if m.UptimeSeconds > 3600 { // > 1 hour
-			score *= 1.1
-		}
-		if m.UptimeSeconds > 86400 { // > 1 day
-			score *= 1.1
-		}
-
-		// Clamp to 1.0 max.
-		if score > 1.0 {
-			score = 1.0
-		}
-
+		score := computeRelayScore(relay, metrics)
 		if score > bestScore {
 			bestRelay = relay
 			bestScore = score
@@ -810,4 +773,35 @@ func SelectRelayByCapacity(relays []*RelayInfo, metrics map[string]CapacityMetri
 	}
 
 	return bestRelay
+}
+
+// computeRelayScore calculates a relay's quality score.
+func computeRelayScore(relay *RelayInfo, metrics map[string]CapacityMetrics) float64 {
+	m, ok := metrics[relay.PeerID]
+	if !ok {
+		return 0.5 // Default score for relays without metrics.
+	}
+
+	score := m.LoadScore()
+	score = applyUptimeBonus(score, m.UptimeSeconds)
+	return clampScore(score)
+}
+
+// applyUptimeBonus boosts score for nodes with longer uptime.
+func applyUptimeBonus(score float64, uptimeSeconds uint64) float64 {
+	if uptimeSeconds > 3600 { // > 1 hour
+		score *= 1.1
+	}
+	if uptimeSeconds > 86400 { // > 1 day
+		score *= 1.1
+	}
+	return score
+}
+
+// clampScore limits score to maximum of 1.0.
+func clampScore(score float64) float64 {
+	if score > 1.0 {
+		return 1.0
+	}
+	return score
 }

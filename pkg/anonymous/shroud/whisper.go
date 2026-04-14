@@ -7,6 +7,7 @@ package shroud
 import (
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/binary"
 	"errors"
 	"io"
 	"sync"
@@ -230,7 +231,7 @@ func DecryptWhisper(msg *WhisperMessage, recipientPrivKey [32]byte) ([]byte, err
 type WhisperRouter struct {
 	mu         sync.RWMutex
 	delivery   *EndToEndDelivery
-	routes     map[[32]byte]*WhisperRoute // Destination pubkey -> route info.
+	routes     map[[32]byte]*WhisperRoute   // Destination pubkey -> route info.
 	pending    map[[32]byte]*WhisperMessage // MessageID -> pending message.
 	handlers   []WhisperHandler
 	stats      WhisperRouterStats
@@ -422,20 +423,12 @@ func encodeWhisperMessage(msg *WhisperMessage) ([]byte, error) {
 	copy(buf[offset:], msg.Nonce[:])
 	offset += 24
 
-	// Timestamp (big-endian).
-	ts := msg.Timestamp
-	for i := 7; i >= 0; i-- {
-		buf[offset+i] = byte(ts & 0xFF)
-		ts >>= 8
-	}
+	// Timestamp (big-endian int64).
+	binary.BigEndian.PutUint64(buf[offset:], uint64(msg.Timestamp))
 	offset += 8
 
-	// TTL (big-endian).
-	ttl := msg.TTL
-	for i := 3; i >= 0; i-- {
-		buf[offset+i] = byte(ttl & 0xFF)
-		ttl >>= 8
-	}
+	// TTL (big-endian uint32).
+	binary.BigEndian.PutUint32(buf[offset:], msg.TTL)
 	offset += 4
 
 	// HopCount.
@@ -443,8 +436,7 @@ func encodeWhisperMessage(msg *WhisperMessage) ([]byte, error) {
 	offset++
 
 	// Encrypted length (big-endian).
-	buf[offset] = byte(len(msg.Encrypted) >> 8)
-	buf[offset+1] = byte(len(msg.Encrypted) & 0xFF)
+	binary.BigEndian.PutUint16(buf[offset:], uint16(len(msg.Encrypted)))
 	offset += 2
 
 	// Encrypted payload.
@@ -544,7 +536,7 @@ type DeliveryConfirmationRequest struct {
 
 // NewDeliveryConfirmation creates a delivery confirmation for a received message.
 // Uses the recipient's ephemeral key to sign without revealing permanent identity.
-func NewDeliveryConfirmation(messageID [32]byte, recipientEphemeralKey [32]byte) (*DeliveryConfirmation, error) {
+func NewDeliveryConfirmation(messageID, recipientEphemeralKey [32]byte) (*DeliveryConfirmation, error) {
 	confirmation := &DeliveryConfirmation{
 		MessageID: messageID,
 		Timestamp: time.Now().Unix(),
@@ -602,17 +594,12 @@ func encodeDeliveryConfirmation(conf *DeliveryConfirmation) ([]byte, error) {
 	copy(buf[offset:], conf.ConfirmationHash[:])
 	offset += 32
 
-	// Timestamp (big-endian).
-	ts := conf.Timestamp
-	for i := 7; i >= 0; i-- {
-		buf[offset+i] = byte(ts & 0xFF)
-		ts >>= 8
-	}
+	// Timestamp (big-endian int64).
+	binary.BigEndian.PutUint64(buf[offset:], uint64(conf.Timestamp))
 	offset += 8
 
-	// Signature length.
-	buf[offset] = byte(len(conf.RecipientSignature) >> 8)
-	buf[offset+1] = byte(len(conf.RecipientSignature) & 0xFF)
+	// Signature length (big-endian).
+	binary.BigEndian.PutUint16(buf[offset:], uint16(len(conf.RecipientSignature)))
 	offset += 2
 
 	// Signature.
@@ -668,14 +655,14 @@ func decodeDeliveryConfirmation(data []byte) (*DeliveryConfirmation, error) {
 
 // PendingDelivery tracks a message awaiting confirmation.
 type PendingDelivery struct {
-	MessageID     [32]byte
-	Destination   [32]byte
-	SentAt        time.Time
-	RetryCount    int
-	LastRetry     time.Time
-	ResponseKey   [32]byte // Ephemeral key for confirmation response.
-	Confirmed     bool
-	ConfirmedAt   time.Time
+	MessageID   [32]byte
+	Destination [32]byte
+	SentAt      time.Time
+	RetryCount  int
+	LastRetry   time.Time
+	ResponseKey [32]byte // Ephemeral key for confirmation response.
+	Confirmed   bool
+	ConfirmedAt time.Time
 }
 
 // DeliveryTracker tracks pending deliveries and handles confirmations.
@@ -691,10 +678,10 @@ type DeliveryHandler func(messageID [32]byte, confirmed bool)
 
 // DeliveryStats tracks delivery statistics.
 type DeliveryStats struct {
-	MessagesSent      uint64
-	Confirmations     uint64
-	ConfirmationRate  float64
-	AverageLatency    time.Duration
+	MessagesSent     uint64
+	Confirmations    uint64
+	ConfirmationRate float64
+	AverageLatency   time.Duration
 }
 
 // NewDeliveryTracker creates a new delivery tracker.
