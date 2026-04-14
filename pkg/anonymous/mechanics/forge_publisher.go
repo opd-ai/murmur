@@ -299,8 +299,7 @@ func (r *ForgeReceiver) handleForgeCreated(event *pb.ForgeEvent) error {
 	}
 
 	// Add to store if not already present.
-	forgeIDHex := hex.EncodeToString(forge.ID[:])
-	if existing := r.forgeStore.GetForge(forgeIDHex); existing == nil {
+	if existing := r.forgeStore.GetForge(forge.ID); existing == nil {
 		r.forgeStore.AddForge(forge)
 	}
 
