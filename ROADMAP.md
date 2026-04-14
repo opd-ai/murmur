@@ -441,7 +441,7 @@
 - [x] TerritoryManager with influence computation
 - [x] Resonance score: `3 * ln(1 + controlled + 0.5 * contested)`
 - [x] **Louvain clustering algorithm** for territory partitioning (per ANONYMOUS_GAME_MECHANICS.md)
-- [ ] **Network propagation** — broadcast influence claims and territory state changes
+- [x] **Network propagation** — broadcast influence claims and territory state changes
 - [x] **Bbolt persistence** — territory state backed by `pkg/store`
 - [ ] **Pulse Map visualization** — translucent watermarks with territory boundaries
 - [ ] **UI: Territory overview panel** — controlled regions, influence scores, weekly cycle status
@@ -456,7 +456,7 @@
 - [x] Resonance bonus: `3 * ln(1 + participant_count / rank)`
 - [x] OraclePoolStore with state transitions
 - [x] **Resonance gating** — only Resonance ≥100 Specters can create Oracle Pools
-- [ ] **Network propagation** — broadcast pool creation, commitments, reveals, outcomes
+- [x] **Network propagation** — broadcast pool creation, commitments, reveals, outcomes
 - [x] **Bbolt persistence** — OraclePoolStore backed by `pkg/store`
 - [ ] **Pulse Map visualization** — swirling vortex icon at pool location
 - [ ] **UI: Oracle Pool panel** — create pool, submit prediction, view outcomes

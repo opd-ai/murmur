@@ -16,6 +16,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **2026-04-14**: Oracle Pools network propagation
+  - `pkg/anonymous/mechanics/oracle_publisher.go`: Oracle pool event publishing/receiving
+    - `OraclePublisher`: Broadcasts oracle events to GossipSub
+    - `PublishPoolCreated()`: Announce new prediction pools
+    - `PublishCommitment()`: Broadcast hashed prediction commitments
+    - `PublishReveal()`: Broadcast revealed predictions
+    - `PublishPoolClosed()`: Announce pool closed for predictions
+    - `PublishOutcome()`: Announce pool resolution and outcome
+    - `OracleReceiver`: Handles incoming oracle events
+    - Ed25519 signed events with BLAKE3 signature data
+    - Per ROADMAP.md line 459: "Network propagation — broadcast pool creation, commitments, reveals, outcomes"
+  - `pkg/anonymous/mechanics/oracle_publisher_test.go`: 22 tests + 2 benchmarks
+    - Publisher creation and configuration
+    - Pool creation, commitment, reveal, close, outcome publishing
+    - Receiver handling for all event types
+    - Signature verification round-trip
+    - Error handling (nil publisher, nil pool, missing signature)
+    - Double resolution protection
+
+- **2026-04-14**: Territory Drift network propagation
+  - `pkg/anonymous/mechanics/territory_publisher.go`: Territory event publishing/receiving
+    - `TerritoryPublisher`: Broadcasts territory events to GossipSub
+    - `PublishInfluenceClaim()`: Announce Specter influence claims
+    - `PublishControlChange()`: Announce controller changes
+    - `PublishTerritoryDrift()`: Announce territory boundary shifts
+    - `TerritoryReceiver`: Handles incoming territory events
+    - `TerritoryStore`: In-memory territory storage with CRUD operations
+    - Ed25519 signed events with BLAKE3 signature data
+    - Per ROADMAP.md line 444: "Network propagation — broadcast influence claims and territory state changes"
+  - `pkg/anonymous/mechanics/territory_publisher_test.go`: 22 tests + 2 benchmarks
+    - Publisher creation and configuration
+    - Influence claim publishing and receiving
+    - Control change events
+    - Territory drift events
+    - Signature verification round-trip
+    - Error handling (nil publisher, nil private key, invalid data)
+    - TerritoryStore operations (add, get, update, list, remove)
+
 - **2026-04-14**: Louvain community detection for Territory Drift
   - `pkg/anonymous/mechanics/louvain.go`: Louvain clustering algorithm (~420 lines)
     - `LouvainGraph`: Network graph with adjacency list representation
