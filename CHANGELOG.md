@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **2026-04-14**: Fix test failure in pkg/pulsemap/rendering/effects on headless environments
+  - `pkg/pulsemap/rendering/effects/hunts_test.go`: Added `noebiten` build tag so tests run with stub implementations
+  - `pkg/pulsemap/rendering/effects/puzzles_test.go`: Added `noebiten` build tag so tests run with stub implementations
+  - Tests for HuntEffects and PuzzleEffects now properly compile in headless CI environments
+  - Category: Cat 2 (Test Spec Error) — tests were missing build tags to select stub implementations
+
 - **2026-04-14**: Fix test failure in pkg/pulsemap/rendering on headless environments
   - `pkg/pulsemap/rendering/sigil_image_test.go`: Changed build tag from `!noebiten` to `ebitentest` to match the project's convention for Ebitengine-dependent tests (see `rendering_ebiten_test.go`)
   - Tests now properly skip in headless CI environments where no display is available

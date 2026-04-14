@@ -1,3 +1,9 @@
+// Package effects tests puzzle visualization logic.
+// These tests use stub implementations and don't require Ebitengine/display.
+//
+//go:build noebiten
+// +build noebiten
+
 package effects
 
 import (

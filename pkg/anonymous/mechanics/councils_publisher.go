@@ -104,7 +104,7 @@ func (c *CouncilPublisher) PublishProposal(ctx context.Context, councilID [32]by
 }
 
 // PublishVote broadcasts a vote event.
-func (c *CouncilPublisher) PublishVote(ctx context.Context, councilID [32]byte, proposalID [32]byte, voterKey [32]byte, vote VoteValue) error {
+func (c *CouncilPublisher) PublishVote(ctx context.Context, councilID, proposalID, voterKey [32]byte, vote VoteValue) error {
 	if c.publisher == nil {
 		return ErrPublisherNotSet
 	}
