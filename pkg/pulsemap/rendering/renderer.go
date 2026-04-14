@@ -1,0 +1,469 @@
+// Package rendering provides Ebitengine-based rendering for the Pulse Map.
+// This file contains the main Renderer type that coordinates layout, camera,
+// and drawing of nodes/edges.
+//
+//go:build !noebiten
+// +build !noebiten
+
+package rendering
+
+import (
+	"image/color"
+	"sync"
+
+	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/opd-ai/murmur/pkg/pulsemap/interaction"
+	"github.com/opd-ai/murmur/pkg/pulsemap/layout"
+	"github.com/opd-ai/murmur/pkg/pulsemap/rendering/effects"
+)
+
+// Renderer coordinates rendering of the Pulse Map.
+// It reads node positions from the layout engine's double-buffered positions
+// and transforms them to screen coordinates via the camera.
+type Renderer struct {
+	mu sync.RWMutex
+
+	// engine is the force-directed layout engine.
+	engine *layout.Engine
+
+	// camera handles viewport transformations.
+	camera *interaction.Camera
+
+	// input tracks user interaction state.
+	input *interaction.InputState
+
+	// shaders contains compiled Kage shaders for effects.
+	shaders *effects.Shaders
+
+	// nodeData maps node IDs to their visual properties.
+	nodeData map[string]*NodeData
+
+	// edges holds all edges to render.
+	edges []EdgeData
+
+	// backgroundColor is the Pulse Map background color.
+	backgroundColor color.RGBA
+
+	// screenWidth and screenHeight are the current screen dimensions.
+	screenWidth, screenHeight int
+
+	// time tracks elapsed time for animations.
+	time float32
+}
+
+// NodeData holds visual properties for a renderable node.
+type NodeData struct {
+	ID          string
+	PublicKey   []byte  // For color derivation
+	IsSpecter   bool    // True if this is a Specter node
+	Connections int     // Connection count
+	Activity    float64 // Activity metric
+	Resonance   float64 // Resonance score (Specters only)
+	HasRing     bool    // True if mode ring should be shown
+	RingColor   color.RGBA
+}
+
+// EdgeData holds visual properties for a renderable edge.
+type EdgeData struct {
+	SourceID string
+	TargetID string
+	Age      float64 // Connection age in days
+	Active   bool    // True if recently propagated a Wave
+}
+
+// NewRenderer creates a new Pulse Map renderer.
+func NewRenderer(engine *layout.Engine) (*Renderer, error) {
+	shaders, err := effects.LoadShaders()
+	if err != nil {
+		// Shaders may fail to load in some environments; continue without them.
+		shaders = nil
+	}
+
+	return &Renderer{
+		engine:          engine,
+		camera:          interaction.NewCamera(),
+		input:           interaction.NewInputState(),
+		shaders:         shaders,
+		nodeData:        make(map[string]*NodeData),
+		edges:           make([]EdgeData, 0),
+		backgroundColor: color.RGBA{10, 12, 18, 255}, // Dark background per PULSE_MAP.md
+		screenWidth:     800,
+		screenHeight:    600,
+	}, nil
+}
+
+// SetCamera sets the camera for viewport transformations.
+func (r *Renderer) SetCamera(camera *interaction.Camera) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.camera = camera
+}
+
+// Camera returns the current camera.
+func (r *Renderer) Camera() *interaction.Camera {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.camera
+}
+
+// InputState returns the input state tracker.
+func (r *Renderer) InputState() *interaction.InputState {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.input
+}
+
+// AddNode adds a node to be rendered.
+func (r *Renderer) AddNode(data *NodeData) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.nodeData[data.ID] = data
+}
+
+// RemoveNode removes a node from rendering.
+func (r *Renderer) RemoveNode(id string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.nodeData, id)
+}
+
+// AddEdge adds an edge to be rendered.
+func (r *Renderer) AddEdge(edge EdgeData) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.edges = append(r.edges, edge)
+}
+
+// ClearEdges removes all edges.
+func (r *Renderer) ClearEdges() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.edges = r.edges[:0]
+}
+
+// SetEdges replaces all edges.
+func (r *Renderer) SetEdges(edges []EdgeData) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.edges = edges
+}
+
+// Update performs per-frame updates.
+func (r *Renderer) Update() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	// Update animation time.
+	r.time += 1.0 / float32(TargetFPS)
+
+	// Update camera animations.
+	if r.camera != nil {
+		r.camera.Update()
+	}
+
+	return nil
+}
+
+// Draw renders the Pulse Map to the given screen.
+// This is the main draw loop called by Ebitengine.
+func (r *Renderer) Draw(screen *ebiten.Image) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	// Get screen dimensions.
+	w, h := screen.Bounds().Dx(), screen.Bounds().Dy()
+	r.screenWidth = w
+	r.screenHeight = h
+
+	// Clear to background color.
+	screen.Fill(r.backgroundColor)
+
+	if r.engine == nil || r.camera == nil {
+		return
+	}
+
+	// Get current node positions from the double-buffered layout.
+	positions := r.engine.Positions().Get()
+	if len(positions) == 0 {
+		return
+	}
+
+	// Compute visible bounds for culling.
+	minX, minY, maxX, maxY := r.camera.ViewBounds(float64(w), float64(h))
+
+	// Calculate zoom level for detail decisions.
+	zoom := ZoomLevelFromScale(r.camera.Scale)
+
+	// Draw edges first (below nodes).
+	r.drawEdges(screen, positions, zoom)
+
+	// Draw nodes on top.
+	r.drawNodes(screen, positions, minX, minY, maxX, maxY, zoom)
+}
+
+// drawEdges renders all edges between nodes.
+func (r *Renderer) drawEdges(screen *ebiten.Image, positions map[string]layout.Position, zoom ZoomLevel) {
+	screenW := float64(r.screenWidth)
+	screenH := float64(r.screenHeight)
+
+	for _, edge := range r.edges {
+		srcPos, srcOK := positions[edge.SourceID]
+		dstPos, dstOK := positions[edge.TargetID]
+		if !srcOK || !dstOK {
+			continue
+		}
+
+		// Transform world coordinates to screen coordinates.
+		srcScreenX, srcScreenY := r.camera.WorldToScreen(srcPos.X, srcPos.Y, screenW, screenH)
+		dstScreenX, dstScreenY := r.camera.WorldToScreen(dstPos.X, dstPos.Y, screenW, screenH)
+
+		// Cull edges completely outside screen (with margin).
+		margin := 50.0
+		if !r.lineIntersectsRect(srcScreenX, srcScreenY, dstScreenX, dstScreenY,
+			-margin, -margin, screenW+margin, screenH+margin) {
+			continue
+		}
+
+		// Build edge style from data.
+		style := EdgeStyle{
+			Color:  color.RGBA{100, 120, 140, 255}, // Default edge color
+			Age:    edge.Age,
+			Active: edge.Active,
+		}
+
+		RenderEdge(screen, float32(srcScreenX), float32(srcScreenY),
+			float32(dstScreenX), float32(dstScreenY), style, zoom)
+	}
+}
+
+// drawNodes renders all visible nodes.
+func (r *Renderer) drawNodes(screen *ebiten.Image, positions map[string]layout.Position,
+	minX, minY, maxX, maxY float64, zoom ZoomLevel,
+) {
+	screenW := float64(r.screenWidth)
+	screenH := float64(r.screenHeight)
+	margin := 50.0 // Render nodes slightly outside visible area for smooth scrolling.
+
+	for id, pos := range positions {
+		// Frustum culling in world space.
+		if pos.X < minX-margin || pos.X > maxX+margin ||
+			pos.Y < minY-margin || pos.Y > maxY+margin {
+			continue
+		}
+
+		// Get node visual data.
+		data, ok := r.nodeData[id]
+		if !ok {
+			// Node not in render data; use default style.
+			data = &NodeData{
+				ID:          id,
+				Connections: 1,
+			}
+		}
+
+		// Transform to screen coordinates.
+		screenX, screenY := r.camera.WorldToScreen(pos.X, pos.Y, screenW, screenH)
+
+		// Build node style.
+		style := r.buildNodeStyle(data)
+
+		// Render the node.
+		RenderNode(screen, float32(screenX), float32(screenY), style, zoom)
+
+		// Render glow effect for active/selected nodes.
+		if r.shaders != nil && (style.HasHalo || style.Selected) {
+			r.drawNodeGlow(screen, float32(screenX), float32(screenY), style)
+		}
+	}
+}
+
+// buildNodeStyle creates a NodeStyle from NodeData.
+func (r *Renderer) buildNodeStyle(data *NodeData) NodeStyle {
+	// Derive color from public key or use default.
+	var coreColor color.RGBA
+	if len(data.PublicKey) >= 3 {
+		coreColor = ColorFromHash(data.PublicKey, data.IsSpecter)
+	} else {
+		if data.IsSpecter {
+			coreColor = color.RGBA{100, 150, 200, 255} // Cool blue for Specters
+		} else {
+			coreColor = color.RGBA{200, 150, 100, 255} // Warm orange for Surface
+		}
+	}
+
+	style := NodeStyle{
+		CoreColor:   coreColor,
+		RingColor:   data.RingColor,
+		HasRing:     data.HasRing,
+		HasHalo:     data.Activity > 0,
+		HaloAlpha:   float32(data.Activity) / 100.0, // Normalize to 0-1
+		IsSpecter:   data.IsSpecter,
+		Selected:    r.input.SelectedNodeID == data.ID,
+		Connections: data.Connections,
+		Activity:    data.Activity,
+		Resonance:   data.Resonance,
+	}
+
+	// Clamp halo alpha.
+	if style.HaloAlpha > 1.0 {
+		style.HaloAlpha = 1.0
+	}
+
+	return style
+}
+
+// drawNodeGlow renders a glow effect around a node.
+func (r *Renderer) drawNodeGlow(screen *ebiten.Image, x, y float32, style NodeStyle) {
+	if r.shaders == nil || r.shaders.Glow == nil {
+		return
+	}
+
+	uniforms := effects.GlowUniforms{
+		Time:          r.time,
+		GlowIntensity: style.HaloAlpha,
+		GlowColor: [4]float32{
+			float32(style.CoreColor.R) / 255.0,
+			float32(style.CoreColor.G) / 255.0,
+			float32(style.CoreColor.B) / 255.0,
+			1.0,
+		},
+	}
+
+	// Glow size is 3x node radius.
+	radius := computeNodeRadius(style)
+	r.shaders.DrawGlow(screen, x, y, radius*6, uniforms)
+}
+
+// lineIntersectsRect checks if a line segment intersects a rectangle.
+// Uses Cohen-Sutherland-like approach for efficiency.
+func (r *Renderer) lineIntersectsRect(x1, y1, x2, y2, minX, minY, maxX, maxY float64) bool {
+	// Quick check: if both endpoints are on the same side of the rect, no intersection.
+	if (x1 < minX && x2 < minX) || (x1 > maxX && x2 > maxX) ||
+		(y1 < minY && y2 < minY) || (y1 > maxY && y2 > maxY) {
+		return false
+	}
+	return true
+}
+
+// Layout returns the preferred layout size for Ebitengine.
+// Per PULSE_MAP.md, the Pulse Map should be resizable.
+func (r *Renderer) Layout(outsideWidth, outsideHeight int) (int, int) {
+	return outsideWidth, outsideHeight
+}
+
+// HandleMouseDown processes mouse down events for interaction.
+func (r *Renderer) HandleMouseDown(x, y float64) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	// Check if clicking on a node.
+	nodeID := r.hitTestNodes(x, y)
+	if nodeID != "" {
+		r.input.SelectNode(nodeID)
+	} else {
+		r.input.ClearSelection()
+		r.input.StartDrag(x, y)
+	}
+}
+
+// HandleMouseUp processes mouse up events.
+func (r *Renderer) HandleMouseUp() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.input.EndDrag()
+}
+
+// HandleMouseMove processes mouse move events.
+func (r *Renderer) HandleMouseMove(x, y float64) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if r.input.Dragging && r.camera != nil {
+		dx, dy := r.input.UpdateDrag(x, y)
+		r.camera.Pan(dx, dy)
+	}
+}
+
+// HandleMouseWheel processes mouse wheel events for zooming.
+func (r *Renderer) HandleMouseWheel(x, y, deltaY float64) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if r.camera == nil {
+		return
+	}
+
+	// Zoom factor based on wheel delta.
+	factor := 1.0
+	if deltaY > 0 {
+		factor = 1.1
+	} else if deltaY < 0 {
+		factor = 0.9
+	}
+
+	r.camera.Zoom(factor, x, y, float64(r.screenWidth), float64(r.screenHeight))
+}
+
+// hitTestNodes finds the node at the given screen position.
+func (r *Renderer) hitTestNodes(screenX, screenY float64) string {
+	if r.engine == nil || r.camera == nil {
+		return ""
+	}
+
+	// Convert screen to world coordinates.
+	worldX, worldY := r.camera.ScreenToWorld(screenX, screenY,
+		float64(r.screenWidth), float64(r.screenHeight))
+
+	// Get current positions.
+	positions := r.engine.Positions().Get()
+
+	// Check each node for hit.
+	for id, pos := range positions {
+		data := r.nodeData[id]
+		if data == nil {
+			continue
+		}
+
+		// Calculate hit radius (slightly larger than visual for easier clicking).
+		style := r.buildNodeStyle(data)
+		radius := float64(computeNodeRadius(style)) * 1.5 / r.camera.Scale
+
+		if interaction.HitTest(pos.X, pos.Y, worldX, worldY, radius) {
+			return id
+		}
+	}
+
+	return ""
+}
+
+// SelectedNode returns the currently selected node ID.
+func (r *Renderer) SelectedNode() string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.input.SelectedNodeID
+}
+
+// FocusNode animates the camera to center on a node.
+func (r *Renderer) FocusNode(nodeID string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if r.engine == nil || r.camera == nil {
+		return
+	}
+
+	positions := r.engine.Positions().Get()
+	pos, ok := positions[nodeID]
+	if !ok {
+		return
+	}
+
+	r.camera.AnimateToWithZoom(pos.X, pos.Y, 1.5)
+}
+
+// SetBackgroundColor sets the Pulse Map background color.
+func (r *Renderer) SetBackgroundColor(c color.RGBA) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.backgroundColor = c
+}

@@ -34,10 +34,10 @@
 - [x] `pkg/config/` configuration loading with defaults (DataDir, ListenAddrs, BootstrapPeers)
 - [x] `pkg/errors/` custom error types with structured error handling
 - [x] `scripts/build-mobile.sh` Gomobile cross-compilation for Android APK and iOS xcframework
-- [ ] `Makefile` or `mage` build harness for `go build`, `go test`, `gofumpt`, `go vet`, `protoc` generation
-- [ ] CI pipeline (GitHub Actions) for lint, build, test on linux/amd64, darwin/amd64, windows/amd64
-- [ ] `go:embed` asset bundling for wordlists, shaders, default config, onboarding assets
-- [ ] Single static binary builds per target platform (linux/amd64, linux/arm64, darwin/amd64, darwin/arm64, windows/amd64)
+- [x] `Makefile` or `mage` build harness for `go build`, `go test`, `gofumpt`, `go vet`, `protoc` generation
+- [x] CI pipeline (GitHub Actions) for lint, build, test on linux/amd64, darwin/amd64, windows/amd64
+- [x] `go:embed` asset bundling for wordlists, shaders, default config, onboarding assets
+- [x] Single static binary builds per target platform (linux/amd64, linux/arm64, darwin/amd64, darwin/arm64, windows/amd64)
 
 ### Protocol Buffers
 
@@ -47,8 +47,8 @@
 - [x] `proto/gossip.proto` — GossipMessage, TopicSubscription, PeerScore, DeduplicationEntry
 - [x] `proto/shroud.proto` — RelayAdvertisement, CircuitConstruction, ShroudCell
 - [x] Generated `.pb.go` files checked into repository
-- [ ] Protobuf validation helpers (envelope signature verification, timestamp range checks)
-- [ ] Default message factories for each envelope type
+- [x] Protobuf validation helpers (envelope signature verification, timestamp range checks)
+- [x] Default message factories for each envelope type
 
 ### Storage Layer (`pkg/store/`)
 
@@ -56,12 +56,12 @@
 - [x] Bucket initialization (identity, peers, waves, threads, shroud, resonance, config)
 - [x] Raw CRUD: Put(bucket, key, value), Get(bucket, key), Delete(bucket, key)
 - [x] Batch transaction support
-- [ ] Typed accessor methods per bucket (e.g., `GetWave(id) (*pb.Wave, error)`)
-- [ ] Protobuf marshal/unmarshal helpers integrated into store
-- [ ] Prefix scan and iteration for range queries
-- [ ] Bucket-level statistics (key count, size)
-- [ ] Schema migration system for version upgrades
-- [ ] LRU eviction policy for space-bounded storage (per TECHNICAL_IMPLEMENTATION.md)
+- [x] Typed accessor methods per bucket (e.g., `GetWave(id) (*pb.Wave, error)`)
+- [x] Protobuf marshal/unmarshal helpers integrated into store
+- [x] Prefix scan and iteration for range queries
+- [x] Bucket-level statistics (key count, size)
+- [x] Schema migration system for version upgrades
+- [x] LRU eviction policy for space-bounded storage (per TECHNICAL_IMPLEMENTATION.md)
 
 ---
 
@@ -73,7 +73,7 @@
 - [x] Noise XX transport security protocol
 - [x] TCP transport with yamux stream multiplexing
 - [x] QUIC transport (UDP, TLS 1.3, native multiplexing)
-- [ ] WebSocket transport for browser clients (per NETWORK_ARCHITECTURE.md)
+- [x] WebSocket transport for browser clients (per NETWORK_ARCHITECTURE.md)
 - [ ] WebRTC transport for browser-to-browser direct connections (ICE/STUN/TURN)
 - [ ] Transport fallback chain: QUIC → TCP → WebSocket
 - [ ] Connection limit enforcement (max 200 simultaneous peers per NETWORK_ARCHITECTURE.md)

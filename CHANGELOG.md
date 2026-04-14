@@ -9,6 +9,87 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **2026-04-13**: Pulse Map rendering implementation
+  - `pkg/pulsemap/rendering/renderer.go`: Full `Renderer` type with camera transforms, node/edge drawing, glow effects, frustum culling, mouse interaction (pan/zoom/select), node focusing
+  - `pkg/pulsemap/rendering/renderer_stub.go`: Stub for noebiten builds
+  - `pkg/pulsemap/rendering/renderer_test.go`: 20 tests covering all renderer functionality
+
+- **2026-04-13**: UI panels for Wave composition and settings
+  - `pkg/ui/panel.go`: Core Panel interface, Theme system, DefaultTheme() with dark colors per PULSE_MAP.md
+  - `pkg/ui/compose.go`: ComposePanel for Wave creation with text input, character limit (2048 per WAVES.md), submit/cancel
+  - `pkg/ui/settings.go`: SettingsPanel with 4 categories (Network, Privacy, Display, Waves)
+  - `pkg/ui/panel_test.go`: 14 tests for UI components
+  - Stub files for noebiten builds
+
+### Changed
+
+- **2026-04-13**: Renamed 30 stuttering files to descriptive names
+  - `config/config.go` → `config/defaults.go`
+  - `resources/resources.go` → `resources/monitor.go`
+  - `ui/ui.go` → `ui/panel.go`
+  - `pow/pow.go` → `pow/work.go`
+  - `storage/storage.go` → `storage/cache.go`
+  - `threads/threads.go` → `threads/index.go`
+  - `waves/waves.go` → `waves/types.go`
+  - `transport/transport.go` → `transport/host.go`
+  - `gossip/gossip.go` → `gossip/pubsub.go`
+  - `discovery/discovery.go` → `discovery/dht.go`
+  - `mesh/mesh.go` → `mesh/manager.go`
+  - `relay/relay.go` → `relay/nat.go`
+  - `keys/keys.go` → `keys/keypair.go`
+  - `sigils/sigils.go` → `sigils/generator.go`
+  - `modes/modes.go` → `modes/state.go`
+  - `declarations/declarations.go` → `declarations/profile.go`
+  - `specters/specters.go` → `specters/identity.go`
+  - `shroud/shroud.go` → `shroud/circuit.go`
+  - `resonance/resonance.go` → `resonance/score.go`
+  - `layout/layout.go` → `layout/engine.go`
+  - `interaction/interaction.go` → `interaction/input.go`
+  - `rendering/rendering.go` → `rendering/draw.go`
+  - `overlays/overlays.go` → `overlays/layer.go`
+  - `effects/effects.go` → `effects/visual.go`
+  - `flow/flow.go` → `flow/controller.go`
+  - `tutorials/tutorials.go` → `tutorials/guide.go`
+  - `bootstrap/bootstrap.go` → `bootstrap/network.go`
+  - `screens/screens.go` → `screens/identity.go`
+  - `propagation/propagation.go` → `propagation/relay.go`
+  - `app/app.go` → `app/murmur.go`
+
+### Completed
+
+- **2026-04-13**: All AUDIT.md items completed and file deleted
+  - Pulse Map rendering stubs → full implementation
+  - UI panels (none existed) → ComposePanel + SettingsPanel
+  - Onboarding screens verified as already implemented
+  - Identifier naming violations verified as non-issues (package provides context)
+  - File naming stuttering → 30 files renamed
+  - Low cohesion files verified as acceptable design
+
+### Added
+
+- **2026-04-14**: Comprehensive test coverage improvements for networking packages
+  - `pkg/networking/mesh/mesh_test.go`: Added 11 tests for priority-based pruning, heartbeat threshold, peer state management (coverage: 56.4% → 98.7%)
+  - `pkg/networking/transport/transport_test.go`: Added 10 tests for DHT modes, invalid addresses, close paths, config defaults (coverage: 60.5% → 90.7%)
+  - All networking packages now exceed 70% coverage threshold
+
+### Changed
+
+- **2026-04-14**: Renamed `pkg/errors/` to `pkg/murerr/` to avoid shadowing Go's standard `errors` package
+
+### Completed
+
+- **2026-04-14**: All 8 PLAN.md implementation steps completed
+  - Step 1: GossipSub message handlers
+  - Step 2: Event bus for cross-subsystem communication
+  - Step 3: Wave publishing
+  - Step 4: Bbolt persistence for game mechanics
+  - Step 5: Resonance gating enforcement
+  - Step 6: Shroud circuit rotation timer
+  - Step 7: Networking package test coverage >70%
+  - Step 8: Overlays code duplication extraction
+
+- **2026-04-14**: PLAN.md deleted (all steps completed)
+
 - **2026-04-14**: Added mobile platform build support
   - `scripts/build-mobile.sh`: Gomobile build script for Android APK and iOS xcframework
   - `pkg/pulsemap/interaction/touch.go`: TouchState with pan, pinch-to-zoom, and tap gestures
