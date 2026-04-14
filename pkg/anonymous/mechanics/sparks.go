@@ -41,6 +41,7 @@ const (
 	SparkActive    SparkState = iota + 1 // Spark is accepting responses.
 	SparkCompleted                       // Spark has ended.
 	SparkExpired                         // Spark timed out.
+	SparkCancelled                       // Spark cancelled by initiator.
 )
 
 // Spark errors.
@@ -187,6 +188,29 @@ func (s *SparkStore) CreateSpark(
 	s.responses[id] = make([]*SparkResponse, 0)
 
 	return spark, nil
+}
+
+// AddSpark adds a pre-built spark received from the network.
+// This is used by SparkReceiver for network-received sparks.
+func (s *SparkStore) AddSpark(spark *Spark) error {
+	if spark == nil {
+		return ErrSparkInvalidType
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Check if spark already exists.
+	if _, ok := s.sparks[spark.ID]; ok {
+		return nil // Idempotent: already received this spark.
+	}
+
+	s.sparks[spark.ID] = spark
+	keyHex := keyToHex(spark.InitiatorID)
+	s.byInitiator[keyHex] = append(s.byInitiator[keyHex], spark)
+	s.responses[spark.ID] = make([]*SparkResponse, 0)
+
+	return nil
 }
 
 // RespondToSpark submits a response to a Spark challenge.

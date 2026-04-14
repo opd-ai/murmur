@@ -526,3 +526,64 @@ message MarkEvent {
   int64 timestamp = 2;
   bytes signature = 3;
 }
+
+// SurfaceSpark represents a competitive relay or echo race challenge.
+// Per ROADMAP.md lines 555-557, Surface Sparks are gamified wave interactions.
+message SurfaceSpark {
+  bytes id = 1;                               // 32-byte Spark ID.
+  SparkType spark_type = 2;                   // Type of spark (relay or echo race).
+  bytes initiator_pubkey = 3;                 // 32-byte initiator public key.
+  bytes original_wave_id = 4;                 // 32-byte ID of the wave being challenged.
+  string prompt = 5;                          // Optional prompt for relay challenges.
+  int64 created_at = 6;                       // Creation timestamp.
+  int64 expires_at = 7;                       // Expiration timestamp.
+  SparkState state = 8;                       // Current state.
+  bytes winner_pubkey = 9;                    // Winner's public key (for echo races).
+  int64 completed_at = 10;                    // Completion timestamp.
+}
+
+// SparkType identifies the type of Surface Spark.
+enum SparkType {
+  SPARK_TYPE_UNSPECIFIED = 0;
+  SPARK_TYPE_WAVE_RELAY = 1;                  // Wave relay challenge.
+  SPARK_TYPE_ECHO_RACE = 2;                   // Competitive amplification race.
+}
+
+// SparkState tracks the lifecycle of a Surface Spark.
+enum SparkState {
+  SPARK_STATE_UNSPECIFIED = 0;
+  SPARK_STATE_ACTIVE = 1;                     // Spark is active, accepting responses.
+  SPARK_STATE_COMPLETED = 2;                  // Spark completed (winner determined).
+  SPARK_STATE_EXPIRED = 3;                    // Spark expired without completion.
+  SPARK_STATE_CANCELLED = 4;                  // Spark cancelled by initiator.
+}
+
+// SparkResponse represents a response to a Surface Spark.
+message SparkResponse {
+  bytes spark_id = 1;                         // ID of the spark being responded to.
+  bytes responder_pubkey = 2;                 // Responder's public key.
+  bytes wave_id = 3;                          // ID of the response wave (relay) or amplification.
+  int64 responded_at = 4;                     // Response timestamp.
+  bytes signature = 5;                        // Signature for verification.
+}
+
+// SparkEventType identifies spark event actions.
+enum SparkEventType {
+  SPARK_EVENT_UNSPECIFIED = 0;
+  SPARK_EVENT_CREATED = 1;                    // Spark created.
+  SPARK_EVENT_RESPONSE = 2;                   // Response submitted.
+  SPARK_EVENT_COMPLETED = 3;                  // Spark completed (winner determined).
+  SPARK_EVENT_EXPIRED = 4;                    // Spark expired.
+  SPARK_EVENT_CANCELLED = 5;                  // Spark cancelled.
+}
+
+// SparkEvent wraps Surface Spark events for network propagation.
+message SparkEvent {
+  SparkEventType event_type = 1;
+  SurfaceSpark spark = 2;                     // Full spark (for CREATED).
+  bytes spark_id = 3;                         // Spark ID.
+  SparkResponse response = 4;                 // Response (for RESPONSE).
+  bytes winner_pubkey = 5;                    // Winner (for COMPLETED).
+  int64 timestamp = 6;
+  bytes signature = 7;
+}

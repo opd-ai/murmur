@@ -1,3 +1,8 @@
+// Package ui - Masked Event panel tests.
+//
+//go:build noebiten
+// +build noebiten
+
 package ui
 
 import (

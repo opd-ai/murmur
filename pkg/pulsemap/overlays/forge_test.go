@@ -1,3 +1,8 @@
+// Package overlays — Forge overlay tests.
+//
+//go:build noebiten
+// +build noebiten
+
 package overlays
 
 import (

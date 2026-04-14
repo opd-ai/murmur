@@ -1,3 +1,8 @@
+// Package overlays — Shadow Play overlay tests.
+//
+//go:build noebiten
+// +build noebiten
+
 package overlays
 
 import (

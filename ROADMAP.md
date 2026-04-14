@@ -546,8 +546,8 @@
 - [x] **Encrypted GossipSub topic** — `/murmur/council/[council_id]/1.0` with group key
 - [x] **Network propagation** — council creation, admission, proposals, votes
 - [x] **Bbolt persistence** — CouncilStore backed by `pkg/store`
-- [ ] **Pulse Map visualization** — constellation pattern connecting member nodes, unique color threads
-- [ ] **UI: Council management panel** — create council, invite members, propose, vote
+- [x] **Pulse Map visualization** — constellation pattern connecting member nodes, unique color threads
+- [x] **UI: Council management panel** — create council, invite members, propose, vote
 - [x] **Council size constraints** — 3–13 members per spec
 
 ### Surface Sparks
@@ -555,7 +555,7 @@
 - [x] Wave Relay challenge — fastest relay earns bonus
 - [x] Echo Races — competitive amplification chain building
 - [x] Surface Spark event creation and lifecycle
-- [ ] Network propagation via GossipSub
+- [x] Network propagation via GossipSub
 - [ ] Pulse Map visualization for active Sparks
 
 ### Echo Chains
@@ -566,14 +566,14 @@
 
 ### Pulse Beats
 
-- [ ] Gamified notification events with visual indicators
+- [x] Gamified notification events with visual indicators
 - [ ] Edge-of-viewport notification rendering
-- [ ] Event aggregation and priority ordering
+- [x] Event aggregation and priority ordering
 
 ### Specter Trophies
 
 - [x] Achievement milestone tracking per Specter
-- [ ] Visual glyph unlocks at achievement thresholds
+- [x] Visual glyph unlocks at achievement thresholds
 - [ ] Trophy display on Specter node detail panel
 
 ---

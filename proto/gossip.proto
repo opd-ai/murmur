@@ -38,6 +38,7 @@ message GossipMessage {
     CouncilEvent council_event = 18;
     GiftEvent gift_event = 19;
     MarkEvent mark_event = 20;
+    SparkEvent spark_event = 21;
   }
 }
 
