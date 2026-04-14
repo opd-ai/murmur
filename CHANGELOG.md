@@ -16,6 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **2026-04-14**: Specter Marks network propagation
+  - `pkg/anonymous/mechanics/marks_publisher.go`: Mark event publishing/receiving
+    - `MarkPublisher`: Broadcasts mark events to GossipSub
+    - `PublishMarkPlaced()`: Announce new specter marks on Surface nodes
+    - `MarkReceiver`: Handles incoming mark events
+    - Ed25519 signed events with BLAKE3 signature data
+    - Duplicate detection, expiration checks, marker-target constraint enforcement
+    - Per ROADMAP.md line 531: "Network propagation — broadcast marks via /murmur/anonymous/mechanics/1.0"
+  - `pkg/anonymous/mechanics/marks_publisher_test.go`: 22 tests + 2 benchmarks
+
 - **2026-04-14**: Phantom Gifts network propagation
   - `pkg/anonymous/mechanics/gifts_publisher.go`: Gift event publishing/receiving
     - `GiftPublisher`: Broadcasts gift events to GossipSub

@@ -528,7 +528,7 @@
 - [x] MarkStore with target/marker reverse indexes
 - [x] Dominant mark determination algorithm
 - [ ] **Resonance gating** — only Resonance ≥100 Specters can place Marks
-- [ ] **Network propagation** — broadcast marks via `/murmur/anonymous/mechanics/1.0`
+- [x] **Network propagation** — broadcast marks via `/murmur/anonymous/mechanics/1.0`
 - [x] **Bbolt persistence** — MarkStore backed by `pkg/store`
 - [ ] **Pulse Map visualization** — orbiting sigil icons on marked Surface nodes
 - [ ] **UI: Mark placement panel** — choose mark type, select target node
