@@ -76,7 +76,7 @@
 - [x] WebSocket transport for browser clients (per NETWORK_ARCHITECTURE.md)
 - [x] WebRTC transport for browser-to-browser direct connections (ICE/STUN/TURN)
 - [x] Transport fallback chain: QUIC → TCP → WebSocket
-- [ ] Connection limit enforcement (max 200 simultaneous peers per NETWORK_ARCHITECTURE.md)
+- [x] Connection limit enforcement (max 200 simultaneous peers per NETWORK_ARCHITECTURE.md)
 - [ ] Four-tier connection priority system (Social, Mesh, DHT, Opportunistic)
 
 ### Peer Discovery (`pkg/networking/discovery/`)
