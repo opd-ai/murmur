@@ -556,13 +556,13 @@
 - [x] Echo Races — competitive amplification chain building
 - [x] Surface Spark event creation and lifecycle
 - [x] Network propagation via GossipSub
-- [ ] Pulse Map visualization for active Sparks
+- [x] Pulse Map visualization for active Sparks
 
 ### Echo Chains
 
 - [x] Visible re-broadcast chain tracking
 - [x] Chain length bonuses for participants
-- [ ] Pulse Map visualization — animated amplification trail between nodes
+- [x] Pulse Map visualization — animated amplification trail between nodes
 
 ### Pulse Beats
 
