@@ -1130,7 +1130,7 @@ func TestOracleInvalidReveal(t *testing.T) {
 
 	value := 1.0
 	commitment := ComputeCommitmentHash(value, nonce)
-	pool.commitments[keyToHex(predictor[:])] = &Commitment{
+	pool.commitments[KeyToHex(predictor[:])] = &Commitment{
 		SpecterKey: predictor,
 		Hash:       commitment,
 	}
@@ -1161,7 +1161,7 @@ func TestOraclePoolResolution(t *testing.T) {
 		var predictor [32]byte
 		rand.Read(predictor[:])
 
-		pool.predictions[keyToHex(predictor[:])] = &Prediction{
+		pool.predictions[KeyToHex(predictor[:])] = &Prediction{
 			SpecterKey: predictor,
 			Value:      predValue,
 		}
@@ -1214,7 +1214,7 @@ func TestOracleBooleanResolution(t *testing.T) {
 			value = 0.0 // False.
 		}
 
-		pool.predictions[keyToHex(predictor[:])] = &Prediction{
+		pool.predictions[KeyToHex(predictor[:])] = &Prediction{
 			SpecterKey: predictor,
 			Value:      value,
 		}

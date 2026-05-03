@@ -13,6 +13,8 @@ import (
 	"sort"
 	"sync"
 	"time"
+
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
 )
 
 // Sigil Forge constants per ANONYMOUS_GAME_MECHANICS.md.
@@ -351,7 +353,7 @@ func (f *SigilForge) checkEntrySize(content []byte) error {
 
 // checkDuplicateEntry verifies specter hasn't already submitted.
 func (f *SigilForge) checkDuplicateEntry(specter [32]byte) error {
-	if _, exists := f.entryBySpecter[keyToHex(specter[:])]; exists {
+	if _, exists := f.entryBySpecter[mechanics.KeyToHex(specter[:])]; exists {
 		return ErrForgeDuplicateEntry
 	}
 	return nil
@@ -392,7 +394,7 @@ func (f *SigilForge) createEntry(specter [32]byte, content []byte, parentID [32]
 // registerEntry adds an entry to the forge's tracking.
 func (f *SigilForge) registerEntry(entry *ForgeEntry, specter [32]byte) {
 	f.Entries = append(f.Entries, entry)
-	f.entryBySpecter[keyToHex(specter[:])] = entry
+	f.entryBySpecter[mechanics.KeyToHex(specter[:])] = entry
 }
 
 // GetEntry retrieves an entry by ID.
@@ -413,7 +415,7 @@ func (f *SigilForge) GetEntryBySpecter(specter [32]byte) *ForgeEntry {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 
-	return f.entryBySpecter[keyToHex(specter[:])]
+	return f.entryBySpecter[mechanics.KeyToHex(specter[:])]
 }
 
 // AmplifyEntry adds an amplification to an entry.
@@ -438,7 +440,7 @@ func (f *SigilForge) AmplifyEntry(
 	}
 
 	// Check amplifier hasn't already amplified.
-	ampHex := keyToHex(amplifier[:])
+	ampHex := mechanics.KeyToHex(amplifier[:])
 	if entry.amplifierSet[ampHex] {
 		return nil // Silently ignore duplicate.
 	}

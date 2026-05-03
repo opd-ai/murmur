@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
+
 	"github.com/zeebo/blake3"
 	"google.golang.org/protobuf/proto"
 
@@ -25,17 +27,17 @@ var (
 // SparkPublisher handles publishing spark events to the anonymous mechanics topic.
 // Per TECHNICAL_IMPLEMENTATION.md, all mechanics events go to /murmur/anonymous/mechanics/1.0.
 type SparkPublisher struct {
-	publisher  Publisher
+	publisher  mechanics.Publisher
 	topic      string
 	privateKey ed25519.PrivateKey
 }
 
 // NewSparkPublisher creates a new spark publisher.
 // privateKey is used to sign events; it can be nil if only receiving events.
-func NewSparkPublisher(pub Publisher, privateKey ed25519.PrivateKey) *SparkPublisher {
+func NewSparkPublisher(pub mechanics.Publisher, privateKey ed25519.PrivateKey) *SparkPublisher {
 	return &SparkPublisher{
 		publisher:  pub,
-		topic:      TopicAnonymousMechanics,
+		topic:      mechanics.TopicAnonymousMechanics,
 		privateKey: privateKey,
 	}
 }
@@ -44,7 +46,7 @@ func NewSparkPublisher(pub Publisher, privateKey ed25519.PrivateKey) *SparkPubli
 // This announces a new Surface Spark to the network.
 func (p *SparkPublisher) PublishSparkCreated(ctx context.Context, spark *Spark) error {
 	if p.publisher == nil {
-		return ErrPublisherNotSet
+		return mechanics.ErrPublisherNotSet
 	}
 	if spark == nil {
 		return ErrInvalidSparkPub
@@ -69,7 +71,7 @@ func (p *SparkPublisher) PublishSparkResponse(
 	waveID [32]byte,
 ) error {
 	if p.publisher == nil {
-		return ErrPublisherNotSet
+		return mechanics.ErrPublisherNotSet
 	}
 
 	response := &pb.SparkResponse{
@@ -100,7 +102,7 @@ func (p *SparkPublisher) PublishSparkCompleted(
 	winnerKey []byte,
 ) error {
 	if p.publisher == nil {
-		return ErrPublisherNotSet
+		return mechanics.ErrPublisherNotSet
 	}
 
 	event := &pb.SparkEvent{
@@ -116,7 +118,7 @@ func (p *SparkPublisher) PublishSparkCompleted(
 // PublishSparkExpired publishes a spark expiration event.
 func (p *SparkPublisher) PublishSparkExpired(ctx context.Context, sparkID [32]byte) error {
 	if p.publisher == nil {
-		return ErrPublisherNotSet
+		return mechanics.ErrPublisherNotSet
 	}
 
 	event := &pb.SparkEvent{
@@ -131,7 +133,7 @@ func (p *SparkPublisher) PublishSparkExpired(ctx context.Context, sparkID [32]by
 // PublishSparkCancelled publishes a spark cancellation event.
 func (p *SparkPublisher) PublishSparkCancelled(ctx context.Context, sparkID [32]byte) error {
 	if p.publisher == nil {
-		return ErrPublisherNotSet
+		return mechanics.ErrPublisherNotSet
 	}
 
 	event := &pb.SparkEvent{
@@ -146,7 +148,7 @@ func (p *SparkPublisher) PublishSparkCancelled(ctx context.Context, sparkID [32]
 // signAndPublish signs the event and publishes it.
 func (p *SparkPublisher) signAndPublish(ctx context.Context, event *pb.SparkEvent) error {
 	if p.privateKey == nil {
-		return ErrMissingPrivateKey
+		return mechanics.ErrMissingPrivateKey
 	}
 
 	signedData := buildSparkSignedData(event)
@@ -285,15 +287,15 @@ func (r *SparkReceiver) HandleSparkEvent(
 // verifySparkEventSignature verifies the event signature.
 func verifySparkEventSignature(event *pb.SparkEvent, senderPubkey []byte) error {
 	if len(event.Signature) == 0 {
-		return ErrMissingSignature
+		return mechanics.ErrMissingSignature
 	}
 	if len(senderPubkey) != ed25519.PublicKeySize {
-		return ErrSignatureFailed
+		return mechanics.ErrSignatureFailed
 	}
 
 	signedData := buildSparkSignedData(event)
 	if !ed25519.Verify(senderPubkey, signedData, event.Signature) {
-		return ErrSignatureFailed
+		return mechanics.ErrSignatureFailed
 	}
 	return nil
 }
@@ -301,15 +303,15 @@ func verifySparkEventSignature(event *pb.SparkEvent, senderPubkey []byte) error 
 // verifySparkResponseSignature verifies a response signature.
 func verifySparkResponseSignature(response *pb.SparkResponse) error {
 	if len(response.Signature) == 0 {
-		return ErrMissingSignature
+		return mechanics.ErrMissingSignature
 	}
 	if len(response.ResponderPubkey) != ed25519.PublicKeySize {
-		return ErrSignatureFailed
+		return mechanics.ErrSignatureFailed
 	}
 
 	signedData := buildSparkResponseSignedData(response)
 	if !ed25519.Verify(response.ResponderPubkey, signedData, response.Signature) {
-		return ErrSignatureFailed
+		return mechanics.ErrSignatureFailed
 	}
 	return nil
 }

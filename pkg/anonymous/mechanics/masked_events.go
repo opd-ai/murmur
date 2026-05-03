@@ -402,7 +402,7 @@ func (e *MaskedEvent) Join(specterKey [32]byte) (*MaskedKeypair, error) {
 	defer e.mu.Unlock()
 
 	// Check if already joined.
-	specterHex := keyToHex(specterKey[:])
+	specterHex := KeyToHex(specterKey[:])
 	if e.specterJoins[specterHex] {
 		return nil, ErrMaskedEventAlreadyJoined
 	}
@@ -444,7 +444,7 @@ func (e *MaskedEvent) Join(specterKey [32]byte) (*MaskedKeypair, error) {
 	}
 
 	// Record participant.
-	pubKeyHex := keyToHex(pubKey[:])
+	pubKeyHex := KeyToHex(pubKey[:])
 	e.participants[pubKeyHex] = &MaskedParticipant{
 		MaskedPublicKey: pubKey,
 		Pseudonym:       pseudonym,
@@ -471,7 +471,7 @@ func (e *MaskedEvent) RegisterMaskedKey(maskedPubKey [32]byte, pseudonym string)
 		return ErrMaskedEventFull
 	}
 
-	pubKeyHex := keyToHex(maskedPubKey[:])
+	pubKeyHex := KeyToHex(maskedPubKey[:])
 	if _, exists := e.participants[pubKeyHex]; exists {
 		return ErrMaskedEventAlreadyJoined
 	}
@@ -489,7 +489,7 @@ func (e *MaskedEvent) RegisterMaskedKey(maskedPubKey [32]byte, pseudonym string)
 func (e *MaskedEvent) HasParticipant(maskedPubKey [32]byte) bool {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
-	_, exists := e.participants[keyToHex(maskedPubKey[:])]
+	_, exists := e.participants[KeyToHex(maskedPubKey[:])]
 	return exists
 }
 
@@ -497,7 +497,7 @@ func (e *MaskedEvent) HasParticipant(maskedPubKey [32]byte) bool {
 func (e *MaskedEvent) GetParticipant(maskedPubKey [32]byte) *MaskedParticipant {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
-	return e.participants[keyToHex(maskedPubKey[:])]
+	return e.participants[KeyToHex(maskedPubKey[:])]
 }
 
 // GetParticipants returns all participants.
@@ -516,7 +516,7 @@ func (e *MaskedEvent) RecordWave(maskedPubKey [32]byte) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	p, exists := e.participants[keyToHex(maskedPubKey[:])]
+	p, exists := e.participants[KeyToHex(maskedPubKey[:])]
 	if !exists {
 		return ErrMaskedEventNotJoined
 	}
@@ -529,7 +529,7 @@ func (e *MaskedEvent) RecordAmplification(maskedPubKey [32]byte) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	p, exists := e.participants[keyToHex(maskedPubKey[:])]
+	p, exists := e.participants[KeyToHex(maskedPubKey[:])]
 	if !exists {
 		return ErrMaskedEventNotJoined
 	}

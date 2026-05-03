@@ -1,6 +1,7 @@
 package sparks
 
 import (
+"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
@@ -12,23 +13,23 @@ import (
 	pb "github.com/opd-ai/murmur/proto"
 )
 
-func TestNewSparkPublisher(t *testing.T) {
-	pub := &mockPublisher{}
+func TestNewSparkmechanics.Publisher(t *testing.T) {
+	pub := &mockmechanics.Publisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
 
-	sp := NewSparkPublisher(pub, privKey)
+	sp := NewSparkmechanics.Publisher(pub, privKey)
 	if sp == nil {
-		t.Fatal("NewSparkPublisher returned nil")
+		t.Fatal("NewSparkmechanics.Publisher returned nil")
 	}
-	if sp.topic != TopicAnonymousMechanics {
-		t.Errorf("wrong topic: got %s, want %s", sp.topic, TopicAnonymousMechanics)
+	if sp.topic != mechanics.TopicAnonymousMechanics {
+		t.Errorf("wrong topic: got %s, want %s", sp.topic, mechanics.TopicAnonymousMechanics)
 	}
 }
 
 func TestPublishSparkCreated(t *testing.T) {
-	pub := &mockPublisher{}
+	pub := &mockmechanics.Publisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
-	sp := NewSparkPublisher(pub, privKey)
+	sp := NewSparkmechanics.Publisher(pub, privKey)
 
 	spark := &Spark{
 		Type:        SparkEchoRace,
@@ -65,9 +66,9 @@ func TestPublishSparkCreated(t *testing.T) {
 }
 
 func TestPublishSparkCreated_NilSpark(t *testing.T) {
-	pub := &mockPublisher{}
+	pub := &mockmechanics.Publisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
-	sp := NewSparkPublisher(pub, privKey)
+	sp := NewSparkmechanics.Publisher(pub, privKey)
 
 	err := sp.PublishSparkCreated(context.Background(), nil)
 	if err != ErrInvalidSparkPub {
@@ -75,9 +76,9 @@ func TestPublishSparkCreated_NilSpark(t *testing.T) {
 	}
 }
 
-func TestPublishSparkCreated_NilPublisher(t *testing.T) {
+func TestPublishSparkCreated_Nilmechanics.Publisher(t *testing.T) {
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
-	sp := NewSparkPublisher(nil, privKey)
+	sp := NewSparkmechanics.Publisher(nil, privKey)
 
 	spark := &Spark{
 		Type:  SparkEchoRace,
@@ -85,15 +86,15 @@ func TestPublishSparkCreated_NilPublisher(t *testing.T) {
 	}
 
 	err := sp.PublishSparkCreated(context.Background(), spark)
-	if err != ErrPublisherNotSet {
-		t.Errorf("expected ErrPublisherNotSet, got %v", err)
+	if err != mechanics.ErrPublisherNotSet {
+		t.Errorf("expected mechanics.ErrPublisherNotSet, got %v", err)
 	}
 }
 
 func TestPublishSparkResponse(t *testing.T) {
-	pub := &mockPublisher{}
+	pub := &mockmechanics.Publisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
-	sp := NewSparkPublisher(pub, privKey)
+	sp := NewSparkmechanics.Publisher(pub, privKey)
 
 	var sparkID, waveID [32]byte
 	responderKey := make([]byte, 32)
@@ -128,9 +129,9 @@ func TestPublishSparkResponse(t *testing.T) {
 }
 
 func TestPublishSparkCompleted(t *testing.T) {
-	pub := &mockPublisher{}
+	pub := &mockmechanics.Publisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
-	sp := NewSparkPublisher(pub, privKey)
+	sp := NewSparkmechanics.Publisher(pub, privKey)
 
 	var sparkID [32]byte
 	winnerKey := make([]byte, 32)
@@ -154,9 +155,9 @@ func TestPublishSparkCompleted(t *testing.T) {
 }
 
 func TestPublishSparkExpired(t *testing.T) {
-	pub := &mockPublisher{}
+	pub := &mockmechanics.Publisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
-	sp := NewSparkPublisher(pub, privKey)
+	sp := NewSparkmechanics.Publisher(pub, privKey)
 
 	var sparkID [32]byte
 	rand.Read(sparkID[:])
@@ -178,9 +179,9 @@ func TestPublishSparkExpired(t *testing.T) {
 }
 
 func TestPublishSparkCancelled(t *testing.T) {
-	pub := &mockPublisher{}
+	pub := &mockmechanics.Publisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
-	sp := NewSparkPublisher(pub, privKey)
+	sp := NewSparkmechanics.Publisher(pub, privKey)
 
 	var sparkID [32]byte
 	rand.Read(sparkID[:])
@@ -324,8 +325,8 @@ func TestSparkReceiver_HandleSparkEvent_InvalidSignature(t *testing.T) {
 	event.Signature = ed25519.Sign(otherPrivKey, signedData)
 
 	err := receiver.HandleSparkEvent(context.Background(), event, pubKey)
-	if err != ErrSignatureFailed {
-		t.Errorf("expected ErrSignatureFailed, got %v", err)
+	if err != mechanics.ErrSignatureFailed {
+		t.Errorf("expected mechanics.ErrSignatureFailed, got %v", err)
 	}
 }
 
@@ -449,9 +450,9 @@ func TestSparkAddSpark_Idempotent(t *testing.T) {
 }
 
 func BenchmarkSparkPublisher_PublishSparkCreated(b *testing.B) {
-	pub := &mockPublisher{}
+	pub := &mockmechanics.Publisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
-	sp := NewSparkPublisher(pub, privKey)
+	sp := NewSparkmechanics.Publisher(pub, privKey)
 
 	spark := &Spark{
 		Type:        SparkEchoRace,

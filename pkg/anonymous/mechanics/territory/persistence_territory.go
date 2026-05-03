@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
+
 	"github.com/opd-ai/murmur/pkg/store"
 	pb "github.com/opd-ai/murmur/proto"
 	"google.golang.org/protobuf/proto"
@@ -153,7 +155,7 @@ func protoToTerritory(pbTerritory *pb.Territory) *Territory {
 	// Convert contenders to influence map.
 	for _, pbContender := range pbTerritory.Contenders {
 		if len(pbContender.SpecterPubkey) == 32 {
-			hexKey := keyToHex(pbContender.SpecterPubkey)
+			hexKey := mechanics.KeyToHex(pbContender.SpecterPubkey)
 			territory.Influence[hexKey] = float64(pbContender.Influence)
 		}
 	}

@@ -9,6 +9,8 @@ package forge
 import (
 	"sync"
 	"time"
+
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
 )
 
 // ForgePhase represents the current phase of a timed forge challenge.

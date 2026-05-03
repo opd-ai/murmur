@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
+
 	"github.com/zeebo/blake3"
 	"google.golang.org/protobuf/proto"
 
@@ -16,19 +18,19 @@ import (
 )
 
 // GiftPublisher handles publishing gift events to the anonymous mechanics topic.
-// All gift events are broadcast on TopicAnonymousMechanics (/murmur/anonymous/mechanics/1.0).
+// All gift events are broadcast on mechanics.TopicAnonymousMechanics (/murmur/anonymous/mechanics/1.0).
 type GiftPublisher struct {
-	publisher  Publisher
+	publisher  mechanics.Publisher
 	topic      string
 	privateKey ed25519.PrivateKey
 }
 
 // NewGiftPublisher creates a new gift publisher.
 // privateKey is used to sign events; it can be nil if only receiving events.
-func NewGiftPublisher(pub Publisher, privateKey ed25519.PrivateKey) *GiftPublisher {
+func NewGiftPublisher(pub mechanics.Publisher, privateKey ed25519.PrivateKey) *GiftPublisher {
 	return &GiftPublisher{
 		publisher:  pub,
-		topic:      TopicAnonymousMechanics,
+		topic:      mechanics.TopicAnonymousMechanics,
 		privateKey: privateKey,
 	}
 }
@@ -36,7 +38,7 @@ func NewGiftPublisher(pub Publisher, privateKey ed25519.PrivateKey) *GiftPublish
 // PublishGiftCreated broadcasts a new gift announcement.
 func (g *GiftPublisher) PublishGiftCreated(ctx context.Context, gift *Gift) error {
 	if g.publisher == nil {
-		return ErrPublisherNotSet
+		return mechanics.ErrPublisherNotSet
 	}
 	if gift == nil {
 		return fmt.Errorf("gift cannot be nil")
@@ -54,7 +56,7 @@ func (g *GiftPublisher) PublishGiftCreated(ctx context.Context, gift *Gift) erro
 // signAndPublish signs the event and publishes it to the topic.
 func (g *GiftPublisher) signAndPublish(ctx context.Context, event *pb.GiftEvent) error {
 	if g.privateKey == nil {
-		return ErrMissingPrivateKey
+		return mechanics.ErrMissingPrivateKey
 	}
 
 	// Create signature over event data.
@@ -126,19 +128,19 @@ func (r *GiftReceiver) HandleMessage(data []byte) error {
 // verifyEventSignature checks the event signature.
 func (r *GiftReceiver) verifyEventSignature(event *pb.GiftEvent) error {
 	if len(event.Signature) == 0 {
-		return ErrMissingSignature
+		return mechanics.ErrMissingSignature
 	}
 
 	// The sender public key is the gift's sender.
 	if event.Gift == nil || len(event.Gift.SenderPubkey) != 32 {
-		return ErrSignatureFailed
+		return mechanics.ErrSignatureFailed
 	}
 
 	// For Phantom Gifts, the signature is verified using Ed25519.
 	// The Specter's Curve25519 key is converted or they use a separate signing key.
 	// We verify using the gift's own signature field if present.
 	if len(event.Gift.Signature) == 0 {
-		return ErrMissingSignature
+		return mechanics.ErrMissingSignature
 	}
 
 	sigData := r.eventSignatureData(event)
@@ -152,7 +154,7 @@ func (r *GiftReceiver) verifyEventSignature(event *pb.GiftEvent) error {
 		}
 	}
 
-	return ErrSignatureFailed
+	return mechanics.ErrSignatureFailed
 }
 
 // eventSignatureData creates the data that was signed.
@@ -209,11 +211,11 @@ func (r *GiftReceiver) addGiftToStore(gift *Gift) error {
 	r.giftStore.gifts[gift.ID] = gift
 
 	// Update sender index.
-	senderHex := keyToHex(gift.SenderPubKey[:])
+	senderHex := mechanics.KeyToHex(gift.SenderPubKey[:])
 	r.giftStore.bySender[senderHex] = append(r.giftStore.bySender[senderHex], gift)
 
 	// Update recipient index.
-	recipientHex := keyToHex(gift.RecipientKey)
+	recipientHex := mechanics.KeyToHex(gift.RecipientKey)
 	r.giftStore.byRecipient[recipientHex] = append(r.giftStore.byRecipient[recipientHex], gift)
 
 	return nil

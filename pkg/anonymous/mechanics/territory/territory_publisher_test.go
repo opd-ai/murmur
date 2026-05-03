@@ -8,6 +8,8 @@ import (
 	"crypto/rand"
 	"testing"
 
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
+
 	"google.golang.org/protobuf/proto"
 
 	pb "github.com/opd-ai/murmur/proto"
@@ -19,8 +21,8 @@ func TestNewTerritoryPublisher(t *testing.T) {
 	if pub == nil {
 		t.Fatal("expected non-nil publisher")
 	}
-	if pub.topic != TopicAnonymousMechanics {
-		t.Errorf("expected topic %s, got %s", TopicAnonymousMechanics, pub.topic)
+	if pub.topic != mechanics.TopicAnonymousMechanics {
+		t.Errorf("expected topic %s, got %s", mechanics.TopicAnonymousMechanics, pub.topic)
 	}
 }
 
@@ -72,8 +74,8 @@ func TestTerritoryPublisher_PublishInfluenceClaim_NoPublisher(t *testing.T) {
 
 	var specterKey [32]byte
 	err := pub.PublishInfluenceClaim(context.Background(), "test", specterKey, 10)
-	if err != ErrPublisherNotSet {
-		t.Errorf("expected ErrPublisherNotSet, got %v", err)
+	if err != mechanics.ErrPublisherNotSet {
+		t.Errorf("expected mechanics.ErrPublisherNotSet, got %v", err)
 	}
 }
 
@@ -84,8 +86,8 @@ func TestTerritoryPublisher_PublishInfluenceClaim_NoPrivateKey(t *testing.T) {
 
 	var specterKey [32]byte
 	err := pub.PublishInfluenceClaim(context.Background(), "test", specterKey, 10)
-	if err != ErrMissingPrivateKey {
-		t.Errorf("expected ErrMissingPrivateKey, got %v", err)
+	if err != mechanics.ErrMissingPrivateKey {
+		t.Errorf("expected mechanics.ErrMissingPrivateKey, got %v", err)
 	}
 }
 
@@ -347,8 +349,8 @@ func TestTerritoryReceiver_HandleMessage_MissingSignature(t *testing.T) {
 	data, _ := proto.Marshal(gossipMsg)
 
 	err := receiver.HandleMessage(data)
-	if err != ErrMissingSignature {
-		t.Errorf("expected ErrMissingSignature, got %v", err)
+	if err != mechanics.ErrMissingSignature {
+		t.Errorf("expected mechanics.ErrMissingSignature, got %v", err)
 	}
 }
 

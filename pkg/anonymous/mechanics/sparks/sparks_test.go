@@ -5,6 +5,8 @@ import (
 	"crypto/rand"
 	"testing"
 	"time"
+
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
 )
 
 func TestNewSparkStore(t *testing.T) {
@@ -115,7 +117,7 @@ func TestRespondToSpark_EchoRace(t *testing.T) {
 	if spark.WinnerID == nil {
 		t.Error("expected winner to be set")
 	}
-	if keyToHex(spark.WinnerID) != keyToHex(responderPub) {
+	if mechanics.KeyToHex(spark.WinnerID) != mechanics.KeyToHex(responderPub) {
 		t.Error("winner should be responder")
 	}
 	if spark.State != SparkCompleted {

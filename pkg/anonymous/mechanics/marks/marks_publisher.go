@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
+
 	"github.com/zeebo/blake3"
 	"google.golang.org/protobuf/proto"
 
@@ -16,19 +18,19 @@ import (
 )
 
 // MarkPublisher handles publishing mark events to the anonymous mechanics topic.
-// All mark events are broadcast on TopicAnonymousMechanics (/murmur/anonymous/mechanics/1.0).
+// All mark events are broadcast on mechanics.TopicAnonymousMechanics (/murmur/anonymous/mechanics/1.0).
 type MarkPublisher struct {
-	publisher  Publisher
+	publisher  mechanics.Publisher
 	topic      string
 	privateKey ed25519.PrivateKey
 }
 
 // NewMarkPublisher creates a new mark publisher.
 // privateKey is used to sign events; it can be nil if only receiving events.
-func NewMarkPublisher(pub Publisher, privateKey ed25519.PrivateKey) *MarkPublisher {
+func NewMarkPublisher(pub mechanics.Publisher, privateKey ed25519.PrivateKey) *MarkPublisher {
 	return &MarkPublisher{
 		publisher:  pub,
-		topic:      TopicAnonymousMechanics,
+		topic:      mechanics.TopicAnonymousMechanics,
 		privateKey: privateKey,
 	}
 }
@@ -36,7 +38,7 @@ func NewMarkPublisher(pub Publisher, privateKey ed25519.PrivateKey) *MarkPublish
 // PublishMarkPlaced broadcasts a new mark placement event.
 func (m *MarkPublisher) PublishMarkPlaced(ctx context.Context, mark *Mark) error {
 	if m.publisher == nil {
-		return ErrPublisherNotSet
+		return mechanics.ErrPublisherNotSet
 	}
 	if mark == nil {
 		return fmt.Errorf("mark cannot be nil")
@@ -54,7 +56,7 @@ func (m *MarkPublisher) PublishMarkPlaced(ctx context.Context, mark *Mark) error
 // signAndPublish signs the event and publishes it to the topic.
 func (m *MarkPublisher) signAndPublish(ctx context.Context, event *pb.MarkEvent) error {
 	if m.privateKey == nil {
-		return ErrMissingPrivateKey
+		return mechanics.ErrMissingPrivateKey
 	}
 
 	// Create signature over event data.
@@ -126,17 +128,17 @@ func (r *MarkReceiver) HandleMessage(data []byte) error {
 // verifyEventSignature checks the event signature.
 func (r *MarkReceiver) verifyEventSignature(event *pb.MarkEvent) error {
 	if len(event.Signature) == 0 {
-		return ErrMissingSignature
+		return mechanics.ErrMissingSignature
 	}
 
 	// The sender public key is the mark's specter pubkey.
 	if event.Mark == nil || len(event.Mark.SpecterPubkey) != 32 {
-		return ErrSignatureFailed
+		return mechanics.ErrSignatureFailed
 	}
 
 	// Verify the mark's own signature if present.
 	if len(event.Mark.Signature) == 0 {
-		return ErrMissingSignature
+		return mechanics.ErrMissingSignature
 	}
 
 	sigData := r.eventSignatureData(event)
@@ -148,7 +150,7 @@ func (r *MarkReceiver) verifyEventSignature(event *pb.MarkEvent) error {
 		}
 	}
 
-	return ErrSignatureFailed
+	return mechanics.ErrSignatureFailed
 }
 
 // eventSignatureData creates the data that was signed.
@@ -202,8 +204,8 @@ func (r *MarkReceiver) addMarkToStore(mark *Mark) error {
 	}
 
 	// Check marker-target constraint.
-	markerHex := keyToHex(mark.MarkerKey[:])
-	targetHex := keyToHex(mark.TargetKey)
+	markerHex := mechanics.KeyToHex(mark.MarkerKey[:])
+	targetHex := mechanics.KeyToHex(mark.TargetKey)
 
 	if targets, ok := r.markStore.markerTargets[markerHex]; ok {
 		if targets[targetHex] {

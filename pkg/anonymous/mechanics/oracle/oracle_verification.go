@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
+
 	"github.com/zeebo/blake3"
 )
 
@@ -259,7 +261,7 @@ func (v *OutcomeVerifier) SubmitObservation(obs *MetricObservation) error {
 		return ErrVerificationFailed
 	}
 
-	keyHex := keyToHex(obs.ObserverKey[:])
+	keyHex := mechanics.KeyToHex(obs.ObserverKey[:])
 	pv.observations[keyHex] = obs
 
 	// Check if we have enough observations to proceed to consensus.
@@ -285,7 +287,7 @@ func (v *OutcomeVerifier) SubmitVote(vote *OutcomeVote) error {
 		return ErrVerificationNotStarted
 	}
 
-	keyHex := keyToHex(vote.VoterKey[:])
+	keyHex := mechanics.KeyToHex(vote.VoterKey[:])
 	pv.votes[keyHex] = vote
 
 	// Update consensus if in consensus phase.

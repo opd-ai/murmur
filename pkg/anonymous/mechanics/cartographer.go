@@ -220,7 +220,7 @@ func NewCartographerManager() *CartographerManager {
 
 // GetOrCreateTrail gets or creates a trail for a Specter.
 func (m *CartographerManager) GetOrCreateTrail(specterKey [32]byte) *CartographerTrail {
-	hex := keyToHex(specterKey[:])
+	hex := KeyToHex(specterKey[:])
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -236,7 +236,7 @@ func (m *CartographerManager) GetOrCreateTrail(specterKey [32]byte) *Cartographe
 
 // GetTrail retrieves a trail for a Specter (nil if not found).
 func (m *CartographerManager) GetTrail(specterKey [32]byte) *CartographerTrail {
-	hex := keyToHex(specterKey[:])
+	hex := KeyToHex(specterKey[:])
 
 	m.mu.RLock()
 	defer m.mu.RUnlock()

@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
+
 	"github.com/zeebo/blake3"
 )
 
@@ -29,7 +31,6 @@ const (
 	HuntMaxFragments = 20
 
 	// Claim proximity (hops from target node).
-	HuntClaimProximityHops = 3
 
 	// Clue reveal interval.
 	HuntClueRevealInterval = 10 * time.Minute
@@ -241,7 +242,7 @@ func generatePartialHashClue(hash [32]byte, hexChars int) string {
 	if bytes > len(hash) {
 		bytes = len(hash)
 	}
-	return "Location prefix: " + keyToHex(hash[:bytes])
+	return "Location prefix: " + mechanics.KeyToHex(hash[:bytes])
 }
 
 // IsExpired returns true if the hunt has passed its time limit.
@@ -340,11 +341,11 @@ func (h *Hunt) GetVisibleClues(fragmentIndex int) []string {
 }
 
 // ClaimFragment attempts to claim a fragment.
-// The claimer must be within HuntClaimProximityHops of the target node.
+// The claimer must be within mechanics.HuntClaimProximityHops of the target node.
 func (h *Hunt) ClaimFragment(
 	fragmentIndex int,
 	claimerKey [32]byte,
-	proximityProof ProximityProof,
+	proximityProof mechanics.ProximityProof,
 ) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -361,7 +362,7 @@ func (h *Hunt) ClaimFragment(
 		return ErrFragmentClaimed
 	}
 
-	if !proximityProof.Verify(fragment.LocationHash, HuntClaimProximityHops) {
+	if !proximityProof.Verify(fragment.LocationHash, mechanics.HuntClaimProximityHops) {
 		return ErrNotInProximity
 	}
 
@@ -400,28 +401,7 @@ func (h *Hunt) checkCompletion() {
 	h.State = HuntCompleted
 }
 
-// ProximityProof proves the claimer is near a target location.
-type ProximityProof struct {
-	ClaimerPeerID  string   // Claimer's peer ID.
-	ConnectedPeers []string // Peers the claimer is connected to.
-	HopDistances   []int    // Hop distances from target.
-}
-
-// Verify checks if the proximity proof is valid.
-func (p ProximityProof) Verify(targetHash [32]byte, maxHops int) bool {
-	// Simplified verification: check if any connected peer
-	// is within maxHops of the target based on XOR distance.
-	// In production, this would use DHT routing to verify proximity.
-	if len(p.HopDistances) == 0 {
-		return false
-	}
-	for _, hops := range p.HopDistances {
-		if hops <= maxHops {
-			return true
-		}
-	}
-	return false
-}
+// mechanics.ProximityProof proves the claimer is near a target location.
 
 // GetLeaderboard returns the hunt participants sorted by claims.
 func (h *Hunt) GetLeaderboard() []HuntParticipant {
@@ -431,7 +411,7 @@ func (h *Hunt) GetLeaderboard() []HuntParticipant {
 	scores := make(map[string]int)
 	for _, f := range h.Fragments {
 		if f.Claimed && f.ClaimerKey != nil {
-			key := keyToHex(f.ClaimerKey[:])
+			key := mechanics.KeyToHex(f.ClaimerKey[:])
 			scores[key]++
 		}
 	}
@@ -439,7 +419,7 @@ func (h *Hunt) GetLeaderboard() []HuntParticipant {
 	participants := make([]HuntParticipant, 0, len(scores))
 	for key, claims := range scores {
 		var specterKey [32]byte
-		hexToKey(key, specterKey[:])
+		mechanics.HexToKey(key, specterKey[:])
 		participants = append(participants, HuntParticipant{
 			SpecterKey: specterKey,
 			Claims:     claims,
@@ -594,7 +574,7 @@ func (s *HuntStore) GarbageCollect(maxHistory int) int {
 	defer s.mu.Unlock()
 
 	var removed int
-	s.history, removed = GarbageCollectHistory(s.history, s.hunts, maxHistory, func(h *Hunt) [32]byte { return h.ID })
+	s.history, removed = mechanics.GarbageCollectHistory(s.history, s.hunts, maxHistory, func(h *Hunt) [32]byte { return h.ID })
 	return removed
 }
 

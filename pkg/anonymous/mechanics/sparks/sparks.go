@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
+
 	"github.com/zeebo/blake3"
 )
 
@@ -183,7 +185,7 @@ func (s *SparkStore) CreateSpark(
 	defer s.mu.Unlock()
 
 	s.sparks[id] = spark
-	keyHex := keyToHex(initiatorID)
+	keyHex := mechanics.KeyToHex(initiatorID)
 	s.byInitiator[keyHex] = append(s.byInitiator[keyHex], spark)
 	s.responses[id] = make([]*SparkResponse, 0)
 
@@ -206,7 +208,7 @@ func (s *SparkStore) AddSpark(spark *Spark) error {
 	}
 
 	s.sparks[spark.ID] = spark
-	keyHex := keyToHex(spark.InitiatorID)
+	keyHex := mechanics.KeyToHex(spark.InitiatorID)
 	s.byInitiator[keyHex] = append(s.byInitiator[keyHex], spark)
 	s.responses[spark.ID] = make([]*SparkResponse, 0)
 
@@ -244,7 +246,7 @@ func (s *SparkStore) RespondToSpark(
 	}
 
 	// Cannot respond to own spark.
-	if keyToHex(spark.InitiatorID) == keyToHex(responderID) {
+	if mechanics.KeyToHex(spark.InitiatorID) == mechanics.KeyToHex(responderID) {
 		return nil, ErrSparkSelfResponse
 	}
 
@@ -287,7 +289,7 @@ func (s *SparkStore) RespondToSpark(
 		spark.State = SparkCompleted
 
 		// Grant crown to winner.
-		winnerHex := keyToHex(responderID)
+		winnerHex := mechanics.KeyToHex(responderID)
 		s.crownHolders[winnerHex] = now.Add(SparkCrownDuration)
 
 		// Record result.
@@ -349,7 +351,7 @@ func (s *SparkStore) GetSparksByInitiator(initiatorID []byte) []*Spark {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	keyHex := keyToHex(initiatorID)
+	keyHex := mechanics.KeyToHex(initiatorID)
 	sparks := make([]*Spark, 0)
 	for _, spark := range s.byInitiator[keyHex] {
 		sparks = append(sparks, spark)
@@ -362,7 +364,7 @@ func (s *SparkStore) HasCrown(userID []byte) bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	keyHex := keyToHex(userID)
+	keyHex := mechanics.KeyToHex(userID)
 	expiry, ok := s.crownHolders[keyHex]
 	if !ok {
 		return false
@@ -375,7 +377,7 @@ func (s *SparkStore) GetCrownExpiry(userID []byte) time.Time {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	keyHex := keyToHex(userID)
+	keyHex := mechanics.KeyToHex(userID)
 	expiry, ok := s.crownHolders[keyHex]
 	if !ok {
 		return time.Time{}

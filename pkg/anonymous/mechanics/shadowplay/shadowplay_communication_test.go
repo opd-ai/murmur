@@ -4,6 +4,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
 )
 
 func TestDiscussionPhaseStateString(t *testing.T) {
@@ -160,7 +162,7 @@ func TestDiscussionPhase_SendMessage_MessageLimit(t *testing.T) {
 
 	// Manually set message count to limit using the full 32-byte key.
 	dp.mu.Lock()
-	dp.playerMessages[keyToHex(player[:])] = MaxMessagesPerPhase
+	dp.playerMessages[mechanics.KeyToHex(player[:])] = MaxMessagesPerPhase
 	dp.mu.Unlock()
 
 	_, err := dp.SendMessage(player, "Test")

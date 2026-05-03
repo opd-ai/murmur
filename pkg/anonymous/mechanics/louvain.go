@@ -477,40 +477,40 @@ func (l *Louvain) generateClusterID(comID int, members []string) string {
 	return hex.EncodeToString(h.Sum(nil)[:16]) // 32-char hex.
 }
 
-// UpdateTerritories integrates Louvain clusters into the territory system.
-// Returns newly created or updated Territory objects.
-func (l *Louvain) UpdateTerritories(manager *TerritoryManager, clusters []TerritoryCluster) []*Territory {
-	if manager == nil {
-		return nil
-	}
-
-	territories := make([]*Territory, 0, len(clusters))
-	for _, cluster := range clusters {
-		// Check if territory already exists.
-		existing := manager.GetTerritory(cluster.ID)
-		if existing != nil {
-			// Update centroid and members.
-			existing.CentroidX = cluster.CentroidX
-			existing.CentroidY = cluster.CentroidY
-			existing.MemberKeys = make([][]byte, len(cluster.Members))
-			for i, m := range cluster.Members {
-				existing.MemberKeys[i] = []byte(m)
-			}
-			territories = append(territories, existing)
-		} else {
-			// Create new territory.
-			t := NewTerritory(cluster.ID, cluster.CentroidX, cluster.CentroidY)
-			t.MemberKeys = make([][]byte, len(cluster.Members))
-			for i, m := range cluster.Members {
-				t.MemberKeys[i] = []byte(m)
-			}
-			manager.AddTerritory(t)
-			territories = append(territories, t)
-		}
-	}
-
-	return territories
-}
+// // UpdateTerritories integrates Louvain clusters into the territory system.
+// // Returns newly created or updated Territory objects.
+// func (l *Louvain) UpdateTerritories(manager *territory.TerritoryManager, clusters []TerritoryCluster) []*territory.Territory {
+// 	if manager == nil {
+// 		return nil
+// 	}
+//
+// 	territories := make([]*territory.Territory, 0, len(clusters))
+// 	for _, cluster := range clusters {
+// 		// Check if territory already exists.
+// 		existing := manager.GetTerritory(cluster.ID)
+// 		if existing != nil {
+// 			// Update centroid and members.
+// 			existing.CentroidX = cluster.CentroidX
+// 			existing.CentroidY = cluster.CentroidY
+// 			existing.MemberKeys = make([][]byte, len(cluster.Members))
+// 			for i, m := range cluster.Members {
+// 				existing.MemberKeys[i] = []byte(m)
+// 			}
+// 			territories = append(territories, existing)
+// 		} else {
+// 			// Create new territory.
+// 			t := NewTerritory(cluster.ID, cluster.CentroidX, cluster.CentroidY)
+// 			t.MemberKeys = make([][]byte, len(cluster.Members))
+// 			for i, m := range cluster.Members {
+// 				t.MemberKeys[i] = []byte(m)
+// 			}
+// 			manager.AddTerritory(t)
+// 			territories = append(territories, t)
+// 		}
+// 	}
+//
+// 	return territories
+// }
 
 // LouvainStats contains statistics about the community detection run.
 type LouvainStats struct {

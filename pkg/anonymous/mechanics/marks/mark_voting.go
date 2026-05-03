@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
+
 	"github.com/zeebo/blake3"
 )
 
@@ -131,7 +133,7 @@ func (s *MarkVoteStore) CanVote(voterKey, markID [32]byte, resonance int) error 
 	}
 
 	// Check if already voted.
-	voterHex := keyToHex(voterKey[:])
+	voterHex := mechanics.KeyToHex(voterKey[:])
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -178,7 +180,7 @@ func (s *MarkVoteStore) CastVote(voterKey, markID [32]byte, voteType MarkVoteTyp
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	voterHex := keyToHex(voterKey[:])
+	voterHex := mechanics.KeyToHex(voterKey[:])
 
 	// Initialize voter's mark map if needed.
 	if s.voterMarks[voterHex] == nil {
@@ -249,7 +251,7 @@ func (s *MarkVoteStore) GetVotesByVoter(voterKey [32]byte) []*MarkVote {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	voterHex := keyToHex(voterKey[:])
+	voterHex := mechanics.KeyToHex(voterKey[:])
 	votes := make([]*MarkVote, 0)
 	for _, v := range s.byVoter[voterHex] {
 		if !v.IsExpired() {
@@ -332,7 +334,7 @@ func (s *MarkVoteStore) RemoveVote(id [32]byte) error {
 	s.updateScoreLocked(vote.MarkID, vote.VoteType, -1)
 
 	// Remove from maps.
-	voterHex := keyToHex(vote.VoterKey[:])
+	voterHex := mechanics.KeyToHex(vote.VoterKey[:])
 	delete(s.votes, id)
 	delete(s.voterMarks[voterHex], vote.MarkID)
 
@@ -371,7 +373,7 @@ func (s *MarkVoteStore) PurgeExpiredVotes() int {
 
 	for _, id := range expired {
 		vote := s.votes[id]
-		voterHex := keyToHex(vote.VoterKey[:])
+		voterHex := mechanics.KeyToHex(vote.VoterKey[:])
 
 		// Update score.
 		s.updateScoreLocked(vote.MarkID, vote.VoteType, -1)
@@ -403,7 +405,7 @@ func (s *MarkVoteStore) CountVotesByType(markID [32]byte) (endorsements, challen
 
 // HasVoted checks if a voter has voted on a mark.
 func (s *MarkVoteStore) HasVoted(voterKey, markID [32]byte) bool {
-	voterHex := keyToHex(voterKey[:])
+	voterHex := mechanics.KeyToHex(voterKey[:])
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 

@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
+
 	"github.com/zeebo/blake3"
 	"google.golang.org/protobuf/proto"
 
@@ -16,19 +18,19 @@ import (
 )
 
 // CouncilPublisher handles publishing council events to the anonymous mechanics topic.
-// All council events are broadcast on TopicAnonymousMechanics (/murmur/anonymous/mechanics/1.0).
+// All council events are broadcast on mechanics.TopicAnonymousMechanics (/murmur/anonymous/mechanics/1.0).
 type CouncilPublisher struct {
-	publisher  Publisher
+	publisher  mechanics.Publisher
 	topic      string
 	privateKey ed25519.PrivateKey
 }
 
 // NewCouncilPublisher creates a new council publisher.
 // privateKey is used to sign events; it can be nil if only receiving events.
-func NewCouncilPublisher(pub Publisher, privateKey ed25519.PrivateKey) *CouncilPublisher {
+func NewCouncilPublisher(pub mechanics.Publisher, privateKey ed25519.PrivateKey) *CouncilPublisher {
 	return &CouncilPublisher{
 		publisher:  pub,
-		topic:      TopicAnonymousMechanics,
+		topic:      mechanics.TopicAnonymousMechanics,
 		privateKey: privateKey,
 	}
 }
@@ -36,7 +38,7 @@ func NewCouncilPublisher(pub Publisher, privateKey ed25519.PrivateKey) *CouncilP
 // PublishCouncilCreated broadcasts a new council creation event.
 func (c *CouncilPublisher) PublishCouncilCreated(ctx context.Context, council *PhantomCouncil) error {
 	if c.publisher == nil {
-		return ErrPublisherNotSet
+		return mechanics.ErrPublisherNotSet
 	}
 	if council == nil {
 		return fmt.Errorf("council cannot be nil")
@@ -56,7 +58,7 @@ func (c *CouncilPublisher) PublishCouncilCreated(ctx context.Context, council *P
 // PublishMemberJoined broadcasts a member join event.
 func (c *CouncilPublisher) PublishMemberJoined(ctx context.Context, councilID [32]byte, member *CouncilMember) error {
 	if c.publisher == nil {
-		return ErrPublisherNotSet
+		return mechanics.ErrPublisherNotSet
 	}
 	if member == nil {
 		return fmt.Errorf("member cannot be nil")
@@ -80,7 +82,7 @@ func (c *CouncilPublisher) PublishMemberJoined(ctx context.Context, councilID [3
 // PublishProposal broadcasts a new proposal event.
 func (c *CouncilPublisher) PublishProposal(ctx context.Context, councilID [32]byte, proposal *CouncilProposal) error {
 	if c.publisher == nil {
-		return ErrPublisherNotSet
+		return mechanics.ErrPublisherNotSet
 	}
 	if proposal == nil {
 		return fmt.Errorf("proposal cannot be nil")
@@ -106,7 +108,7 @@ func (c *CouncilPublisher) PublishProposal(ctx context.Context, councilID [32]by
 // PublishVote broadcasts a vote event.
 func (c *CouncilPublisher) PublishVote(ctx context.Context, councilID, proposalID, voterKey [32]byte, vote VoteValue) error {
 	if c.publisher == nil {
-		return ErrPublisherNotSet
+		return mechanics.ErrPublisherNotSet
 	}
 
 	voteChoice := pb.VoteChoice_VOTE_CHOICE_UNSPECIFIED
@@ -140,7 +142,7 @@ func (c *CouncilPublisher) PublishVote(ctx context.Context, councilID, proposalI
 // PublishProposalResolved broadcasts a proposal resolution event.
 func (c *CouncilPublisher) PublishProposalResolved(ctx context.Context, councilID [32]byte, proposal *CouncilProposal) error {
 	if c.publisher == nil {
-		return ErrPublisherNotSet
+		return mechanics.ErrPublisherNotSet
 	}
 	if proposal == nil {
 		return fmt.Errorf("proposal cannot be nil")
@@ -170,7 +172,7 @@ func (c *CouncilPublisher) PublishProposalResolved(ctx context.Context, councilI
 // PublishCouncilDissolved broadcasts a council dissolution event.
 func (c *CouncilPublisher) PublishCouncilDissolved(ctx context.Context, councilID [32]byte) error {
 	if c.publisher == nil {
-		return ErrPublisherNotSet
+		return mechanics.ErrPublisherNotSet
 	}
 
 	event := &pb.CouncilEvent{
@@ -185,7 +187,7 @@ func (c *CouncilPublisher) PublishCouncilDissolved(ctx context.Context, councilI
 // signAndPublish signs the event and publishes it to the topic.
 func (c *CouncilPublisher) signAndPublish(ctx context.Context, event *pb.CouncilEvent) error {
 	if c.privateKey == nil {
-		return ErrMissingPrivateKey
+		return mechanics.ErrMissingPrivateKey
 	}
 
 	// Create signature over event data.
@@ -262,7 +264,7 @@ func (r *CouncilReceiver) HandleMessage(data []byte) error {
 // verifyEventSignature checks the event signature.
 func (r *CouncilReceiver) verifyEventSignature(event *pb.CouncilEvent) error {
 	if len(event.Signature) == 0 {
-		return ErrMissingSignature
+		return mechanics.ErrMissingSignature
 	}
 
 	// For council events, we need to extract the sender's public key.
@@ -300,12 +302,12 @@ func (r *CouncilReceiver) verifyEventSignature(event *pb.CouncilEvent) error {
 	}
 
 	if len(senderPubkey) != ed25519.PublicKeySize {
-		return ErrSignatureFailed
+		return mechanics.ErrSignatureFailed
 	}
 
 	sigData := r.eventSignatureData(event)
 	if !ed25519.Verify(senderPubkey, sigData, event.Signature) {
-		return ErrSignatureFailed
+		return mechanics.ErrSignatureFailed
 	}
 
 	return nil

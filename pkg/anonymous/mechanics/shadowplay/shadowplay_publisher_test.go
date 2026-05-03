@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
+
 	"google.golang.org/protobuf/proto"
 
 	pb "github.com/opd-ai/murmur/proto"
@@ -20,8 +22,8 @@ func TestNewShadowPlayPublisher(t *testing.T) {
 	if pub == nil {
 		t.Fatal("expected non-nil publisher")
 	}
-	if pub.topic != TopicAnonymousMechanics {
-		t.Errorf("expected topic %s, got %s", TopicAnonymousMechanics, pub.topic)
+	if pub.topic != mechanics.TopicAnonymousMechanics {
+		t.Errorf("expected topic %s, got %s", mechanics.TopicAnonymousMechanics, pub.topic)
 	}
 }
 
@@ -77,8 +79,8 @@ func TestShadowPlayPublisher_PublishGameCreated_NoPublisher(t *testing.T) {
 	game, _ := NewShadowPlay(initiatorKey, ShadowPlayDuration30Min, ShadowPlayMinPlayers)
 
 	err := pub.PublishGameCreated(context.Background(), game)
-	if err != ErrPublisherNotSet {
-		t.Errorf("expected ErrPublisherNotSet, got %v", err)
+	if err != mechanics.ErrPublisherNotSet {
+		t.Errorf("expected mechanics.ErrPublisherNotSet, got %v", err)
 	}
 }
 
@@ -103,8 +105,8 @@ func TestShadowPlayPublisher_PublishGameCreated_NoPrivateKey(t *testing.T) {
 	game, _ := NewShadowPlay(initiatorKey, ShadowPlayDuration30Min, ShadowPlayMinPlayers)
 
 	err := pub.PublishGameCreated(context.Background(), game)
-	if err != ErrMissingPrivateKey {
-		t.Errorf("expected ErrMissingPrivateKey, got %v", err)
+	if err != mechanics.ErrMissingPrivateKey {
+		t.Errorf("expected mechanics.ErrMissingPrivateKey, got %v", err)
 	}
 }
 
@@ -528,8 +530,8 @@ func TestShadowPlayReceiver_HandleMessage_MissingSignature(t *testing.T) {
 	data, _ := proto.Marshal(gossipMsg)
 
 	err := receiver.HandleMessage(data)
-	if err != ErrMissingSignature {
-		t.Errorf("expected ErrMissingSignature, got %v", err)
+	if err != mechanics.ErrMissingSignature {
+		t.Errorf("expected mechanics.ErrMissingSignature, got %v", err)
 	}
 }
 

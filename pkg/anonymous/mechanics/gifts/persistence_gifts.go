@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
+
 	"github.com/opd-ai/murmur/pkg/store"
 	pb "github.com/opd-ai/murmur/proto"
 	"google.golang.org/protobuf/proto"
@@ -60,9 +62,9 @@ func (ps *PersistentGiftStore) loadFromDB() error {
 		// Add to in-memory store directly (bypassing persistence to avoid re-write).
 		ps.GiftStore.mu.Lock()
 		ps.GiftStore.gifts[gift.ID] = gift
-		senderHex := keyToHex(gift.SenderPubKey[:])
+		senderHex := mechanics.KeyToHex(gift.SenderPubKey[:])
 		ps.GiftStore.bySender[senderHex] = append(ps.GiftStore.bySender[senderHex], gift)
-		recipientHex := keyToHex(gift.RecipientKey)
+		recipientHex := mechanics.KeyToHex(gift.RecipientKey)
 		ps.GiftStore.byRecipient[recipientHex] = append(ps.GiftStore.byRecipient[recipientHex], gift)
 		ps.GiftStore.mu.Unlock()
 

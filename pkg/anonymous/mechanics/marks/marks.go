@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
+
 	"github.com/zeebo/blake3"
 )
 
@@ -145,8 +147,8 @@ func (s *MarkStore) CanPlaceMark(markerKey [32]byte, targetKey []byte, resonance
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	markerHex := keyToHex(markerKey[:])
-	targetHex := keyToHex(targetKey)
+	markerHex := mechanics.KeyToHex(markerKey[:])
+	targetHex := mechanics.KeyToHex(targetKey)
 
 	if targets, ok := s.markerTargets[markerHex]; ok {
 		if targets[targetHex] {
@@ -221,10 +223,10 @@ func (s *MarkStore) storeMark(mark *Mark) {
 
 	s.marks[mark.ID] = mark
 
-	markerHex := keyToHex(mark.MarkerKey[:])
+	markerHex := mechanics.KeyToHex(mark.MarkerKey[:])
 	s.byMarker[markerHex] = append(s.byMarker[markerHex], mark)
 
-	targetHex := keyToHex(mark.TargetKey)
+	targetHex := mechanics.KeyToHex(mark.TargetKey)
 	s.byTarget[targetHex] = append(s.byTarget[targetHex], mark)
 
 	if s.markerTargets[markerHex] == nil {
@@ -255,7 +257,7 @@ func (s *MarkStore) GetMarksOnTarget(targetKey []byte) []*Mark {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	hex := keyToHex(targetKey)
+	hex := mechanics.KeyToHex(targetKey)
 	all := s.byTarget[hex]
 
 	var active []*Mark
@@ -273,7 +275,7 @@ func (s *MarkStore) GetMarksByMarker(markerKey [32]byte) []*Mark {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	hex := keyToHex(markerKey[:])
+	hex := mechanics.KeyToHex(markerKey[:])
 	all := s.byMarker[hex]
 
 	var active []*Mark
@@ -299,8 +301,8 @@ func (s *MarkStore) RemoveMark(id [32]byte) error {
 	delete(s.marks, id)
 
 	// Update marker-target tracking.
-	markerHex := keyToHex(mark.MarkerKey[:])
-	targetHex := keyToHex(mark.TargetKey)
+	markerHex := mechanics.KeyToHex(mark.MarkerKey[:])
+	targetHex := mechanics.KeyToHex(mark.TargetKey)
 
 	if targets, ok := s.markerTargets[markerHex]; ok {
 		delete(targets, targetHex)
@@ -351,8 +353,8 @@ func (s *MarkStore) removeExpiredMarks() int {
 
 // cleanMarkerTargetTracking removes a mark from the marker-target relationship.
 func (s *MarkStore) cleanMarkerTargetTracking(mark *Mark) {
-	markerHex := keyToHex(mark.MarkerKey[:])
-	targetHex := keyToHex(mark.TargetKey)
+	markerHex := mechanics.KeyToHex(mark.MarkerKey[:])
+	targetHex := mechanics.KeyToHex(mark.TargetKey)
 
 	if targets, ok := s.markerTargets[markerHex]; ok {
 		delete(targets, targetHex)
@@ -368,10 +370,10 @@ func (s *MarkStore) rebuildMarkIndexes() {
 	s.byMarker = make(map[string][]*Mark)
 
 	for _, mark := range s.marks {
-		markerHex := keyToHex(mark.MarkerKey[:])
+		markerHex := mechanics.KeyToHex(mark.MarkerKey[:])
 		s.byMarker[markerHex] = append(s.byMarker[markerHex], mark)
 
-		targetHex := keyToHex(mark.TargetKey)
+		targetHex := mechanics.KeyToHex(mark.TargetKey)
 		s.byTarget[targetHex] = append(s.byTarget[targetHex], mark)
 	}
 }

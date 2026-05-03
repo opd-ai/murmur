@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
+
 	"github.com/zeebo/blake3"
 )
 
@@ -192,26 +194,12 @@ func NewGiftStore() *GiftStore {
 	}
 }
 
-// keyToHex converts a public key to a hex string for map keys.
-func keyToHex(key []byte) string {
-	if len(key) == 0 {
-		return ""
-	}
-	const hextable = "0123456789abcdef"
-	dst := make([]byte, len(key)*2)
-	for i, v := range key {
-		dst[i*2] = hextable[v>>4]
-		dst[i*2+1] = hextable[v&0x0f]
-	}
-	return string(dst)
-}
-
 // CanSendGift checks if a Specter can send a gift based on rate limits.
 func (s *GiftStore) CanSendGift(senderKey [32]byte) bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	hex := keyToHex(senderKey[:])
+	hex := mechanics.KeyToHex(senderKey[:])
 	timestamps := s.dailyLimits[hex]
 
 	// Count gifts in the last 24 hours.
@@ -305,11 +293,11 @@ func (s *GiftStore) storeGift(gift *Gift, senderKey [32]byte, recipientKey []byt
 
 	s.gifts[gift.ID] = gift
 
-	senderHex := keyToHex(senderKey[:])
+	senderHex := mechanics.KeyToHex(senderKey[:])
 	s.bySender[senderHex] = append(s.bySender[senderHex], gift)
 	s.dailyLimits[senderHex] = append(s.dailyLimits[senderHex], gift.CreatedAt)
 
-	recipientHex := keyToHex(recipientKey)
+	recipientHex := mechanics.KeyToHex(recipientKey)
 	s.byRecipient[recipientHex] = append(s.byRecipient[recipientHex], gift)
 }
 
@@ -335,7 +323,7 @@ func (s *GiftStore) GetGiftsForRecipient(recipientKey []byte) []*Gift {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	hex := keyToHex(recipientKey)
+	hex := mechanics.KeyToHex(recipientKey)
 	all := s.byRecipient[hex]
 
 	var active []*Gift
@@ -353,7 +341,7 @@ func (s *GiftStore) GetGiftsBySender(senderKey [32]byte) []*Gift {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	hex := keyToHex(senderKey[:])
+	hex := mechanics.KeyToHex(senderKey[:])
 	all := s.bySender[hex]
 
 	var active []*Gift
@@ -432,10 +420,10 @@ func (s *GiftStore) rebuildIndexes() {
 	s.bySender = make(map[string][]*Gift)
 
 	for _, gift := range s.gifts {
-		senderHex := keyToHex(gift.SenderPubKey[:])
+		senderHex := mechanics.KeyToHex(gift.SenderPubKey[:])
 		s.bySender[senderHex] = append(s.bySender[senderHex], gift)
 
-		recipientHex := keyToHex(gift.RecipientKey)
+		recipientHex := mechanics.KeyToHex(gift.RecipientKey)
 		s.byRecipient[recipientHex] = append(s.byRecipient[recipientHex], gift)
 	}
 }
@@ -468,7 +456,7 @@ func (s *GiftStore) GetAllActiveRecipients() []string {
 		if gift.IsExpired() {
 			continue
 		}
-		hex := keyToHex(gift.RecipientKey)
+		hex := mechanics.KeyToHex(gift.RecipientKey)
 		if !seen[hex] {
 			seen[hex] = true
 			recipients = append(recipients, hex)

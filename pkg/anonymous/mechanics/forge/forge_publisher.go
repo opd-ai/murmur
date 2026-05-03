@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
+
 	"github.com/zeebo/blake3"
 	"google.golang.org/protobuf/proto"
 
@@ -17,19 +19,19 @@ import (
 )
 
 // ForgePublisher handles publishing forge events to the anonymous mechanics topic.
-// All forge events are broadcast on TopicAnonymousMechanics (/murmur/anonymous/mechanics/1.0).
+// All forge events are broadcast on mechanics.TopicAnonymousMechanics (/murmur/anonymous/mechanics/1.0).
 type ForgePublisher struct {
-	publisher  Publisher
+	publisher  mechanics.Publisher
 	topic      string
 	privateKey ed25519.PrivateKey
 }
 
 // NewForgePublisher creates a new forge publisher.
 // privateKey is used to sign events; it can be nil if only receiving events.
-func NewForgePublisher(pub Publisher, privateKey ed25519.PrivateKey) *ForgePublisher {
+func NewForgePublisher(pub mechanics.Publisher, privateKey ed25519.PrivateKey) *ForgePublisher {
 	return &ForgePublisher{
 		publisher:  pub,
-		topic:      TopicAnonymousMechanics,
+		topic:      mechanics.TopicAnonymousMechanics,
 		privateKey: privateKey,
 	}
 }
@@ -38,7 +40,7 @@ func NewForgePublisher(pub Publisher, privateKey ed25519.PrivateKey) *ForgePubli
 // Per ANONYMOUS_GAME_MECHANICS.md, forge creation requires Resonance ≥50.
 func (f *ForgePublisher) PublishForgeCreated(ctx context.Context, forge *SigilForge) error {
 	if f.publisher == nil {
-		return ErrPublisherNotSet
+		return mechanics.ErrPublisherNotSet
 	}
 	if forge == nil {
 		return fmt.Errorf("forge cannot be nil")
@@ -62,7 +64,7 @@ func (f *ForgePublisher) PublishEntry(
 	entry *ForgeEntry,
 ) error {
 	if f.publisher == nil {
-		return ErrPublisherNotSet
+		return mechanics.ErrPublisherNotSet
 	}
 	if entry == nil {
 		return fmt.Errorf("entry cannot be nil")
@@ -93,7 +95,7 @@ func (f *ForgePublisher) PublishAmplification(
 	amplifierKey [32]byte,
 ) error {
 	if f.publisher == nil {
-		return ErrPublisherNotSet
+		return mechanics.ErrPublisherNotSet
 	}
 
 	// Use contribution with entry ID reference.
@@ -120,7 +122,7 @@ func (f *ForgePublisher) PublishForgeFinalized(
 	winningSigil []byte,
 ) error {
 	if f.publisher == nil {
-		return ErrPublisherNotSet
+		return mechanics.ErrPublisherNotSet
 	}
 	if forge == nil {
 		return fmt.Errorf("forge cannot be nil")
@@ -141,7 +143,7 @@ func (f *ForgePublisher) PublishForgeFinalized(
 // PublishForgeFailed broadcasts that a forge failed (not enough entries).
 func (f *ForgePublisher) PublishForgeFailed(ctx context.Context, forgeID [32]byte) error {
 	if f.publisher == nil {
-		return ErrPublisherNotSet
+		return mechanics.ErrPublisherNotSet
 	}
 
 	event := &pb.ForgeEvent{
@@ -156,7 +158,7 @@ func (f *ForgePublisher) PublishForgeFailed(ctx context.Context, forgeID [32]byt
 // signAndPublish signs the event and publishes it to the topic.
 func (f *ForgePublisher) signAndPublish(ctx context.Context, event *pb.ForgeEvent) error {
 	if f.privateKey == nil {
-		return ErrMissingPrivateKey
+		return mechanics.ErrMissingPrivateKey
 	}
 
 	// Create signature over event data.
@@ -228,7 +230,7 @@ func (r *ForgeReceiver) HandleMessage(data []byte) error {
 // verifyEventSignature checks the event signature.
 func (r *ForgeReceiver) verifyEventSignature(event *pb.ForgeEvent) error {
 	if len(event.Signature) == 0 {
-		return ErrMissingSignature
+		return mechanics.ErrMissingSignature
 	}
 
 	// For forge creation, verify against creator's pubkey.
@@ -236,7 +238,7 @@ func (r *ForgeReceiver) verifyEventSignature(event *pb.ForgeEvent) error {
 		if event.Project != nil && len(event.Project.CreatorPubkey) == ed25519.PublicKeySize {
 			sigData := r.eventSignatureData(event)
 			if !ed25519.Verify(event.Project.CreatorPubkey, sigData, event.Signature) {
-				return ErrSignatureFailed
+				return mechanics.ErrSignatureFailed
 			}
 		}
 		return nil
@@ -247,7 +249,7 @@ func (r *ForgeReceiver) verifyEventSignature(event *pb.ForgeEvent) error {
 		if event.Contribution != nil && len(event.Contribution.SpecterPubkey) == ed25519.PublicKeySize {
 			sigData := r.eventSignatureData(event)
 			if !ed25519.Verify(event.Contribution.SpecterPubkey, sigData, event.Signature) {
-				return ErrSignatureFailed
+				return mechanics.ErrSignatureFailed
 			}
 		}
 		return nil

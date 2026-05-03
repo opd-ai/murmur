@@ -7,6 +7,8 @@ import (
 	"math"
 	"sync"
 	"time"
+
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
 )
 
 // Territory constants per ANONYMOUS_GAME_MECHANICS.md.
@@ -110,7 +112,7 @@ func (t *Territory) ComputeInfluence() {
 	activity := make(map[string]float64)
 	for _, event := range t.events {
 		if event.Timestamp.After(cutoff) {
-			hex := keyToHex(event.SpecterKey[:])
+			hex := mechanics.KeyToHex(event.SpecterKey[:])
 			activity[hex] += event.Amount
 		}
 	}
@@ -184,7 +186,7 @@ func (t *Territory) setContestedState(contenders []string) {
 	t.Contenders = make([][32]byte, 0, len(contenders))
 	for _, hex := range contenders {
 		var key [32]byte
-		hexToKey(hex, key[:])
+		mechanics.HexToKey(hex, key[:])
 		t.Contenders = append(t.Contenders, key)
 	}
 }
@@ -193,37 +195,19 @@ func (t *Territory) setContestedState(contenders []string) {
 func (t *Territory) setControlledState(topKey string) {
 	t.State = TerritoryControlled
 	var key [32]byte
-	hexToKey(topKey, key[:])
+	mechanics.HexToKey(topKey, key[:])
 	t.Controller = &key
 	t.Contenders = nil
 }
 
-// hexToKey converts a hex string back to a byte array.
-func hexToKey(hex string, dst []byte) {
-	for i := 0; i < len(dst) && i*2+1 < len(hex); i++ {
-		dst[i] = hexDigit(hex[i*2])<<4 | hexDigit(hex[i*2+1])
-	}
-}
-
-func hexDigit(c byte) byte {
-	switch {
-	case c >= '0' && c <= '9':
-		return c - '0'
-	case c >= 'a' && c <= 'f':
-		return c - 'a' + 10
-	case c >= 'A' && c <= 'F':
-		return c - 'A' + 10
-	default:
-		return 0
-	}
-}
+// mechanics.HexToKey converts a hex string back to a byte array.
 
 // GetInfluence returns a Specter's current influence in this territory.
 func (t *Territory) GetInfluence(specterKey [32]byte) float64 {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 
-	hex := keyToHex(specterKey[:])
+	hex := mechanics.KeyToHex(specterKey[:])
 	return t.Influence[hex]
 }
 
@@ -333,12 +317,12 @@ func (m *TerritoryManager) GetControlledTerritories(specterKey [32]byte) []*Terr
 	defer m.mu.RUnlock()
 
 	var result []*Territory
-	hex := keyToHex(specterKey[:])
+	hex := mechanics.KeyToHex(specterKey[:])
 
 	for _, t := range m.territories {
 		t.mu.RLock()
 		if t.Controller != nil {
-			ctrlHex := keyToHex(t.Controller[:])
+			ctrlHex := mechanics.KeyToHex(t.Controller[:])
 			if ctrlHex == hex {
 				result = append(result, t)
 			}
@@ -355,12 +339,12 @@ func (m *TerritoryManager) GetContestedTerritories(specterKey [32]byte) []*Terri
 	defer m.mu.RUnlock()
 
 	var result []*Territory
-	hex := keyToHex(specterKey[:])
+	hex := mechanics.KeyToHex(specterKey[:])
 
 	for _, t := range m.territories {
 		t.mu.RLock()
 		for _, contender := range t.Contenders {
-			if keyToHex(contender[:]) == hex {
+			if mechanics.KeyToHex(contender[:]) == hex {
 				result = append(result, t)
 				break
 			}

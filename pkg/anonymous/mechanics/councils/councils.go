@@ -10,6 +10,8 @@ import (
 	"errors"
 	"sync"
 	"time"
+
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
 )
 
 // Phantom Council constants per ANONYMOUS_GAME_MECHANICS.md.
@@ -301,12 +303,12 @@ type PhantomCouncil struct {
 
 	// zkVerifier is an optional ZK claim verifier for admission.
 	// Per ROADMAP.md line 400: "ZK claims used for Council admission".
-	zkVerifier ZKClaimVerifier
+	zkVerifier mechanics.ZKClaimVerifier
 }
 
 // SetZKVerifier sets the ZK claim verifier for admission.
 // Per ROADMAP.md line 400: "ZK claims used for Council admission".
-func (c *PhantomCouncil) SetZKVerifier(v ZKClaimVerifier) {
+func (c *PhantomCouncil) SetZKVerifier(v mechanics.ZKClaimVerifier) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.zkVerifier = v
@@ -379,7 +381,7 @@ func initCouncil(creator [32]byte, name, purpose string, minResonance float64, m
 func addFoundingMember(council *PhantomCouncil, creator [32]byte) {
 	member := &CouncilMember{SpecterKey: creator, Status: MemberActive, JoinedAt: time.Now()}
 	council.Members = append(council.Members, member)
-	council.memberByKey[keyToHex(creator[:])] = member
+	council.memberByKey[mechanics.KeyToHex(creator[:])] = member
 }
 
 // IsActive returns true if council is active.
@@ -429,7 +431,7 @@ func (c *PhantomCouncil) IsMember(specter [32]byte) bool {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	member := c.memberByKey[keyToHex(specter[:])]
+	member := c.memberByKey[mechanics.KeyToHex(specter[:])]
 	return member != nil && member.Status == MemberActive
 }
 
@@ -462,10 +464,10 @@ func (c *PhantomCouncil) verifyZKProofLocked(zkProof []byte) error {
 		return nil
 	}
 	if len(zkProof) == 0 {
-		return ErrMissingZKClaim
+		return mechanics.ErrMissingZKClaim
 	}
 	if err := c.zkVerifier.VerifyResonanceClaim(zkProof, int64(c.MinResonance)); err != nil {
-		return ErrInvalidZKClaim
+		return mechanics.ErrInvalidZKClaim
 	}
 	return nil
 }
@@ -484,7 +486,7 @@ func (c *PhantomCouncil) validateApplicantLocked(applicant [32]byte) error {
 
 // isActiveMemberLocked checks if the applicant is already an active member.
 func (c *PhantomCouncil) isActiveMemberLocked(applicant [32]byte) bool {
-	member := c.memberByKey[keyToHex(applicant[:])]
+	member := c.memberByKey[mechanics.KeyToHex(applicant[:])]
 	return member != nil && member.Status == MemberActive
 }
 
@@ -502,7 +504,7 @@ func (c *PhantomCouncil) isAtCapacityLocked() bool {
 // createApplicationLocked creates and registers a new application.
 // Idempotent: returns early if application already exists.
 func (c *PhantomCouncil) createApplicationLocked(applicant [32]byte, zkProof []byte) {
-	key := keyToHex(applicant[:])
+	key := mechanics.KeyToHex(applicant[:])
 	if c.applicationByKey[key] != nil {
 		return // Idempotent
 	}
@@ -528,19 +530,19 @@ func (c *PhantomCouncil) VoteOnApplication(
 	defer c.mu.Unlock()
 
 	// Verify voter is a member.
-	voterMember := c.memberByKey[keyToHex(voter[:])]
+	voterMember := c.memberByKey[mechanics.KeyToHex(voter[:])]
 	if voterMember == nil || voterMember.Status != MemberActive {
 		return ErrCouncilNotMember
 	}
 
 	// Find application.
-	app := c.applicationByKey[keyToHex(applicant[:])]
+	app := c.applicationByKey[mechanics.KeyToHex(applicant[:])]
 	if app == nil || app.Resolved {
 		return ErrCouncilNotPending
 	}
 
 	// Check for duplicate vote.
-	voterHex := keyToHex(voter[:])
+	voterHex := mechanics.KeyToHex(voter[:])
 	if _, exists := app.Votes[voterHex]; exists {
 		return ErrCouncilAlreadyVoted
 	}
@@ -589,7 +591,7 @@ func (c *PhantomCouncil) isEligibleVoter(m *CouncilMember, excludeKey *[32]byte)
 
 // tallyMemberVote records a member's vote if they have voted.
 func (c *PhantomCouncil) tallyMemberVote(m *CouncilMember, votes map[string]VoteValue, counts *voteCounts) {
-	vote, voted := votes[keyToHex(m.SpecterKey[:])]
+	vote, voted := votes[mechanics.KeyToHex(m.SpecterKey[:])]
 	if !voted {
 		return
 	}
@@ -642,7 +644,7 @@ func (c *PhantomCouncil) admitMember(specter [32]byte) {
 	}
 
 	c.Members = append(c.Members, member)
-	c.memberByKey[keyToHex(specter[:])] = member
+	c.memberByKey[mechanics.KeyToHex(specter[:])] = member
 
 	// Update council state.
 	c.updateState()
@@ -685,7 +687,7 @@ func (c *PhantomCouncil) InitiateExpulsion(
 	}
 
 	// Initiator automatically votes for expulsion.
-	ev.Votes[keyToHex(initiator[:])] = VoteFor
+	ev.Votes[mechanics.KeyToHex(initiator[:])] = VoteFor
 
 	c.ExpulsionVotes = append(c.ExpulsionVotes, ev)
 
@@ -737,7 +739,7 @@ func (c *PhantomCouncil) findPendingExpulsion(target [32]byte) *ExpulsionVote {
 
 // recordVote adds a vote to the vote map if not already voted.
 func (c *PhantomCouncil) recordVote(votes map[string]VoteValue, voter [32]byte, vote VoteValue) error {
-	voterHex := keyToHex(voter[:])
+	voterHex := mechanics.KeyToHex(voter[:])
 	if _, exists := votes[voterHex]; exists {
 		return ErrCouncilAlreadyVoted
 	}
@@ -789,7 +791,7 @@ func (c *PhantomCouncil) resolveExpulsion(ev *ExpulsionVote, counts voteCounts, 
 
 // expelMember removes a member from the council.
 func (c *PhantomCouncil) expelMember(specter [32]byte) {
-	member := c.memberByKey[keyToHex(specter[:])]
+	member := c.memberByKey[mechanics.KeyToHex(specter[:])]
 	if member != nil {
 		member.Status = MemberExpelled
 		member.DepartedAt = time.Now()
@@ -807,7 +809,7 @@ func (c *PhantomCouncil) Leave(specter [32]byte) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	member := c.memberByKey[keyToHex(specter[:])]
+	member := c.memberByKey[mechanics.KeyToHex(specter[:])]
 	if member == nil || member.Status != MemberActive {
 		return ErrCouncilNotMember
 	}
@@ -823,7 +825,7 @@ func (c *PhantomCouncil) Leave(specter [32]byte) error {
 
 // isMemberLocked checks membership without acquiring lock.
 func (c *PhantomCouncil) isMemberLocked(specter [32]byte) bool {
-	member := c.memberByKey[keyToHex(specter[:])]
+	member := c.memberByKey[mechanics.KeyToHex(specter[:])]
 	return member != nil && member.Status == MemberActive
 }
 

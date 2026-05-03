@@ -12,6 +12,8 @@ import (
 	"math"
 	"sync"
 	"time"
+
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
 )
 
 // Shadow Play constants per ANONYMOUS_GAME_MECHANICS.md.
@@ -231,9 +233,9 @@ func NewShadowPlayGated(
 	initiator [32]byte,
 	duration time.Duration,
 	maxPlayers int,
-	gate ResonanceGate,
+	gate mechanics.ResonanceGate,
 ) (*ShadowPlay, error) {
-	if err := CheckResonanceGate(gate, initiator, ShadowPlayMinResonance); err != nil {
+	if err := mechanics.CheckResonanceGate(gate, initiator, ShadowPlayMinResonance); err != nil {
 		return nil, ErrShadowPlayInsufficientResonance
 	}
 	return NewShadowPlay(initiator, duration, maxPlayers)
@@ -276,7 +278,7 @@ func (s *ShadowPlay) Join(specter [32]byte) error {
 	}
 
 	// Check for duplicate.
-	specterHex := keyToHex(specter[:])
+	specterHex := mechanics.KeyToHex(specter[:])
 	if _, exists := s.playerByKey[specterHex]; exists {
 		return nil // Already joined, idempotent.
 	}
@@ -377,7 +379,7 @@ func (s *ShadowPlay) DeriveRole(specter [32]byte) (PlayerRole, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	player := s.playerByKey[keyToHex(specter[:])]
+	player := s.playerByKey[mechanics.KeyToHex(specter[:])]
 	if player == nil {
 		return RoleEcho, ErrShadowPlayNotPlayer
 	}
@@ -441,7 +443,7 @@ func (s *ShadowPlay) Vote(voter, target [32]byte) error {
 
 // validateVoter checks that the voter is a valid, active player who hasn't voted.
 func (s *ShadowPlay) validateVoter(voter [32]byte) (*Player, error) {
-	voterPlayer := s.playerByKey[keyToHex(voter[:])]
+	voterPlayer := s.playerByKey[mechanics.KeyToHex(voter[:])]
 	if voterPlayer == nil {
 		return nil, ErrShadowPlayNotPlayer
 	}
@@ -456,7 +458,7 @@ func (s *ShadowPlay) validateVoter(voter [32]byte) (*Player, error) {
 
 // validateVoteTarget checks that the target is a valid, active player.
 func (s *ShadowPlay) validateVoteTarget(target [32]byte) error {
-	targetPlayer := s.playerByKey[keyToHex(target[:])]
+	targetPlayer := s.playerByKey[mechanics.KeyToHex(target[:])]
 	if targetPlayer == nil {
 		return ErrShadowPlayNotPlayer
 	}
@@ -493,7 +495,7 @@ func (s *ShadowPlay) countPlayerVotes() map[string]int {
 		if player.IsEliminated || player.VotedFor == nil {
 			continue
 		}
-		counts[keyToHex(player.VotedFor[:])]++
+		counts[mechanics.KeyToHex(player.VotedFor[:])]++
 	}
 	return counts
 }
@@ -589,7 +591,7 @@ func (s *ShadowPlay) GetPlayer(specter [32]byte) *Player {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	return s.playerByKey[keyToHex(specter[:])]
+	return s.playerByKey[mechanics.KeyToHex(specter[:])]
 }
 
 // GetActivePlayers returns all non-eliminated players.

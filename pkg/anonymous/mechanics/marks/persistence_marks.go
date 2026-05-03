@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
+
 	"github.com/opd-ai/murmur/pkg/store"
 	pb "github.com/opd-ai/murmur/proto"
 	"google.golang.org/protobuf/proto"
@@ -48,8 +50,8 @@ func (ps *PersistentMarkStore) loadFromDB() error {
 
 		ps.MarkStore.mu.Lock()
 		ps.MarkStore.marks[mark.ID] = mark
-		markerHex := keyToHex(mark.MarkerKey[:])
-		targetHex := keyToHex(mark.TargetKey)
+		markerHex := mechanics.KeyToHex(mark.MarkerKey[:])
+		targetHex := mechanics.KeyToHex(mark.TargetKey)
 		ps.MarkStore.byMarker[markerHex] = append(ps.MarkStore.byMarker[markerHex], mark)
 		ps.MarkStore.byTarget[targetHex] = append(ps.MarkStore.byTarget[targetHex], mark)
 		if ps.MarkStore.markerTargets[markerHex] == nil {

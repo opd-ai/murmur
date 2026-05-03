@@ -13,6 +13,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
+
 	"github.com/zeebo/blake3"
 )
 
@@ -149,9 +151,9 @@ func NewOraclePoolGated(
 	creatorKey [32]byte,
 	deadline time.Time,
 	resolutionTime time.Time,
-	gate ResonanceGate,
+	gate mechanics.ResonanceGate,
 ) (*OraclePool, error) {
-	if err := CheckResonanceGate(gate, creatorKey, OracleMinResonance); err != nil {
+	if err := mechanics.CheckResonanceGate(gate, creatorKey, OracleMinResonance); err != nil {
 		return nil, ErrOracleInsufficientRes
 	}
 	return NewOraclePool(question, predictionType, resolutionMethod,
@@ -203,7 +205,7 @@ func (p *OraclePool) SubmitCommitment(specterKey, commitmentHash [32]byte) error
 		return ErrOraclePoolClosed
 	}
 
-	keyHex := keyToHex(specterKey[:])
+	keyHex := mechanics.KeyToHex(specterKey[:])
 	if _, exists := p.commitments[keyHex]; exists {
 		return ErrOraclePredictionExists
 	}
@@ -231,7 +233,7 @@ func (p *OraclePool) RevealPrediction(specterKey [32]byte, value float64, nonce 
 		return ErrOracleRevealNotOpen
 	}
 
-	keyHex := keyToHex(specterKey[:])
+	keyHex := mechanics.KeyToHex(specterKey[:])
 	commitment, exists := p.commitments[keyHex]
 	if !exists {
 		return ErrOracleCommitmentRequired
@@ -382,7 +384,7 @@ func (p *OraclePool) GetPrediction(specterKey [32]byte) *Prediction {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	keyHex := keyToHex(specterKey[:])
+	keyHex := mechanics.KeyToHex(specterKey[:])
 	return p.predictions[keyHex]
 }
 
@@ -391,7 +393,7 @@ func (p *OraclePool) GetCommitment(specterKey [32]byte) *Commitment {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	keyHex := keyToHex(specterKey[:])
+	keyHex := mechanics.KeyToHex(specterKey[:])
 	return p.commitments[keyHex]
 }
 
@@ -582,7 +584,7 @@ func (s *OraclePoolStore) GarbageCollect(maxHistory int) int {
 	defer s.mu.Unlock()
 
 	var removed int
-	s.history, removed = GarbageCollectHistory(s.history, s.pools, maxHistory, func(p *OraclePool) [32]byte { return p.ID })
+	s.history, removed = mechanics.GarbageCollectHistory(s.history, s.pools, maxHistory, func(p *OraclePool) [32]byte { return p.ID })
 	return removed
 }
 

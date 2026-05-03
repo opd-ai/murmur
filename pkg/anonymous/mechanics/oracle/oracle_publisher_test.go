@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
+
 	"google.golang.org/protobuf/proto"
 
 	pb "github.com/opd-ai/murmur/proto"
@@ -20,8 +22,8 @@ func TestNewOraclePublisher(t *testing.T) {
 	if pub == nil {
 		t.Fatal("expected non-nil publisher")
 	}
-	if pub.topic != TopicAnonymousMechanics {
-		t.Errorf("expected topic %s, got %s", TopicAnonymousMechanics, pub.topic)
+	if pub.topic != mechanics.TopicAnonymousMechanics {
+		t.Errorf("expected topic %s, got %s", mechanics.TopicAnonymousMechanics, pub.topic)
 	}
 }
 
@@ -88,8 +90,8 @@ func TestOraclePublisher_PublishPoolCreated_NoPublisher(t *testing.T) {
 		time.Now().Add(time.Hour), time.Now().Add(2*time.Hour))
 
 	err := pub.PublishPoolCreated(context.Background(), pool)
-	if err != ErrPublisherNotSet {
-		t.Errorf("expected ErrPublisherNotSet, got %v", err)
+	if err != mechanics.ErrPublisherNotSet {
+		t.Errorf("expected mechanics.ErrPublisherNotSet, got %v", err)
 	}
 }
 
@@ -115,8 +117,8 @@ func TestOraclePublisher_PublishPoolCreated_NoPrivateKey(t *testing.T) {
 		time.Now().Add(time.Hour), time.Now().Add(2*time.Hour))
 
 	err := pub.PublishPoolCreated(context.Background(), pool)
-	if err != ErrMissingPrivateKey {
-		t.Errorf("expected ErrMissingPrivateKey, got %v", err)
+	if err != mechanics.ErrMissingPrivateKey {
+		t.Errorf("expected mechanics.ErrMissingPrivateKey, got %v", err)
 	}
 }
 
@@ -447,8 +449,8 @@ func TestOracleReceiver_HandleMessage_MissingSignature(t *testing.T) {
 	data, _ := proto.Marshal(gossipMsg)
 
 	err := receiver.HandleMessage(data)
-	if err != ErrMissingSignature {
-		t.Errorf("expected ErrMissingSignature, got %v", err)
+	if err != mechanics.ErrMissingSignature {
+		t.Errorf("expected mechanics.ErrMissingSignature, got %v", err)
 	}
 }
 

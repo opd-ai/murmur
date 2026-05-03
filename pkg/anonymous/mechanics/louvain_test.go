@@ -296,46 +296,46 @@ func TestLouvain_ComputeStats(t *testing.T) {
 	}
 }
 
-func TestLouvain_UpdateTerritories(t *testing.T) {
-	g := NewLouvainGraph()
-	g.AddNode("a", 0, 0)
-	g.AddNode("b", 1, 0)
-	g.AddEdge("a", "b", 1.0)
-
-	l := NewLouvain(g)
-	clusters, _ := l.DetectTerritories()
-
-	manager := NewTerritoryManager()
-	territories := l.UpdateTerritories(manager, clusters)
-
-	if len(territories) == 0 {
-		t.Error("expected at least 1 territory")
-	}
-
-	// Territory should be retrievable from manager.
-	for _, terr := range territories {
-		retrieved := manager.GetTerritory(terr.ID)
-		if retrieved == nil {
-			t.Errorf("territory %s not found in manager", terr.ID)
-		}
-	}
-}
-
-func TestLouvain_UpdateTerritories_NilManager(t *testing.T) {
-	g := NewLouvainGraph()
-	g.AddNode("a", 0, 0)
-	g.AddNode("b", 1, 0)
-	g.AddEdge("a", "b", 1.0)
-
-	l := NewLouvain(g)
-	clusters, _ := l.DetectTerritories()
-
-	// Should not panic with nil manager.
-	territories := l.UpdateTerritories(nil, clusters)
-	if territories != nil {
-		t.Error("expected nil for nil manager")
-	}
-}
+// func TestLouvain_UpdateTerritories(t *testing.T) {
+// 	g := NewLouvainGraph()
+// 	g.AddNode("a", 0, 0)
+// 	g.AddNode("b", 1, 0)
+// 	g.AddEdge("a", "b", 1.0)
+//
+// 	l := NewLouvain(g)
+// 	clusters, _ := l.DetectTerritories()
+//
+// 	manager := NewTerritoryManager()
+// 	territories := l.UpdateTerritories(manager, clusters)
+//
+// 	if len(territories) == 0 {
+// 		t.Error("expected at least 1 territory")
+// 	}
+//
+// 	// Territory should be retrievable from manager.
+// 	for _, terr := range territories {
+// 		retrieved := manager.GetTerritory(terr.ID)
+// 		if retrieved == nil {
+// 			t.Errorf("territory %s not found in manager", terr.ID)
+// 		}
+// 	}
+// }
+//
+// func TestLouvain_UpdateTerritories_NilManager(t *testing.T) {
+// 	g := NewLouvainGraph()
+// 	g.AddNode("a", 0, 0)
+// 	g.AddNode("b", 1, 0)
+// 	g.AddEdge("a", "b", 1.0)
+//
+// 	l := NewLouvain(g)
+// 	clusters, _ := l.DetectTerritories()
+//
+// 	// Should not panic with nil manager.
+// 	territories := l.UpdateTerritories(nil, clusters)
+// 	if territories != nil {
+// 		t.Error("expected nil for nil manager")
+// 	}
+// }
 
 func TestLouvainGraph_Concurrent(t *testing.T) {
 	g := NewLouvainGraph()

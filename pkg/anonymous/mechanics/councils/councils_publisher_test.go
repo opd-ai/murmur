@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
+
 	pb "github.com/opd-ai/murmur/proto"
 	"google.golang.org/protobuf/proto"
 )
@@ -22,8 +24,8 @@ func TestCouncilPublisher_Creation(t *testing.T) {
 	if pub == nil {
 		t.Fatal("NewCouncilPublisher returned nil")
 	}
-	if pub.topic != TopicAnonymousMechanics {
-		t.Errorf("wrong topic: got %s, want %s", pub.topic, TopicAnonymousMechanics)
+	if pub.topic != mechanics.TopicAnonymousMechanics {
+		t.Errorf("wrong topic: got %s, want %s", pub.topic, mechanics.TopicAnonymousMechanics)
 	}
 }
 
@@ -38,8 +40,8 @@ func TestCouncilPublisher_NilPublisher(t *testing.T) {
 	}
 
 	err := pub.PublishCouncilCreated(context.Background(), council)
-	if err != ErrPublisherNotSet {
-		t.Errorf("expected ErrPublisherNotSet, got %v", err)
+	if err != mechanics.ErrPublisherNotSet {
+		t.Errorf("expected mechanics.ErrPublisherNotSet, got %v", err)
 	}
 }
 
@@ -66,8 +68,8 @@ func TestCouncilPublisher_NilPrivateKey(t *testing.T) {
 	}
 
 	err := pub.PublishCouncilCreated(context.Background(), council)
-	if err != ErrMissingPrivateKey {
-		t.Errorf("expected ErrMissingPrivateKey, got %v", err)
+	if err != mechanics.ErrMissingPrivateKey {
+		t.Errorf("expected mechanics.ErrMissingPrivateKey, got %v", err)
 	}
 }
 
@@ -102,7 +104,7 @@ func TestCouncilPublisher_PublishCouncilCreated(t *testing.T) {
 	}
 
 	// Verify topic.
-	if mockPub.published[0].topic != TopicAnonymousMechanics {
+	if mockPub.published[0].topic != mechanics.TopicAnonymousMechanics {
 		t.Errorf("wrong topic: got %s", mockPub.published[0].topic)
 	}
 
@@ -371,8 +373,8 @@ func TestCouncilReceiver_HandleMessage_MissingSignature(t *testing.T) {
 
 	data, _ := proto.Marshal(gossipMsg)
 	err := receiver.HandleMessage(data)
-	if err != ErrMissingSignature {
-		t.Errorf("expected ErrMissingSignature, got %v", err)
+	if err != mechanics.ErrMissingSignature {
+		t.Errorf("expected mechanics.ErrMissingSignature, got %v", err)
 	}
 }
 

@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
+
 	"github.com/zeebo/blake3"
 	"google.golang.org/protobuf/proto"
 
@@ -16,19 +18,19 @@ import (
 )
 
 // TerritoryPublisher handles publishing territory events to the anonymous mechanics topic.
-// All territory events are broadcast on TopicAnonymousMechanics (/murmur/anonymous/mechanics/1.0).
+// All territory events are broadcast on mechanics.TopicAnonymousMechanics (/murmur/anonymous/mechanics/1.0).
 type TerritoryPublisher struct {
-	publisher  Publisher
+	publisher  mechanics.Publisher
 	topic      string
 	privateKey ed25519.PrivateKey
 }
 
 // NewTerritoryPublisher creates a new territory publisher.
 // privateKey is used to sign events; it can be nil if only receiving events.
-func NewTerritoryPublisher(pub Publisher, privateKey ed25519.PrivateKey) *TerritoryPublisher {
+func NewTerritoryPublisher(pub mechanics.Publisher, privateKey ed25519.PrivateKey) *TerritoryPublisher {
 	return &TerritoryPublisher{
 		publisher:  pub,
-		topic:      TopicAnonymousMechanics,
+		topic:      mechanics.TopicAnonymousMechanics,
 		privateKey: privateKey,
 	}
 }
@@ -42,7 +44,7 @@ func (t *TerritoryPublisher) PublishInfluenceClaim(
 	influenceAmount uint32,
 ) error {
 	if t.publisher == nil {
-		return ErrPublisherNotSet
+		return mechanics.ErrPublisherNotSet
 	}
 
 	event := &pb.TerritoryEvent{
@@ -63,7 +65,7 @@ func (t *TerritoryPublisher) PublishControlChange(
 	territory *Territory,
 ) error {
 	if t.publisher == nil {
-		return ErrPublisherNotSet
+		return mechanics.ErrPublisherNotSet
 	}
 	if territory == nil {
 		return fmt.Errorf("territory cannot be nil")
@@ -92,7 +94,7 @@ func (t *TerritoryPublisher) PublishTerritoryDrift(
 	territory *Territory,
 ) error {
 	if t.publisher == nil {
-		return ErrPublisherNotSet
+		return mechanics.ErrPublisherNotSet
 	}
 	if territory == nil {
 		return fmt.Errorf("territory cannot be nil")
@@ -112,7 +114,7 @@ func (t *TerritoryPublisher) PublishTerritoryDrift(
 // signAndPublish signs the event and publishes it to the topic.
 func (t *TerritoryPublisher) signAndPublish(ctx context.Context, event *pb.TerritoryEvent) error {
 	if t.privateKey == nil {
-		return ErrMissingPrivateKey
+		return mechanics.ErrMissingPrivateKey
 	}
 
 	// Create signature over event data.
@@ -182,18 +184,18 @@ func (r *TerritoryReceiver) HandleMessage(data []byte) error {
 // verifyEventSignature checks the event signature.
 func (r *TerritoryReceiver) verifyEventSignature(event *pb.TerritoryEvent) error {
 	if len(event.Signature) == 0 {
-		return ErrMissingSignature
+		return mechanics.ErrMissingSignature
 	}
 
 	// For influence claims, verify against the Specter's pubkey.
 	if event.EventType == pb.TerritoryEventType_TERRITORY_EVENT_INFLUENCE {
 		if len(event.SpecterPubkey) != ed25519.PublicKeySize {
-			return ErrSignatureFailed
+			return mechanics.ErrSignatureFailed
 		}
 
 		sigData := r.eventSignatureData(event)
 		if !ed25519.Verify(event.SpecterPubkey, sigData, event.Signature) {
-			return ErrSignatureFailed
+			return mechanics.ErrSignatureFailed
 		}
 		return nil
 	}

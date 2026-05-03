@@ -26,6 +26,9 @@ var (
 // ProximityProofTTL is how long a proximity attestation remains valid.
 const ProximityProofTTL = 5 * time.Minute
 
+// HuntClaimProximityHops is the maximum number of hops allowed for hunt claims.
+const HuntClaimProximityHops = 3
+
 // ProximityAttestation is a signed statement from a peer that
 // they observed the claimer near a target location.
 type ProximityAttestation struct {
@@ -312,6 +315,30 @@ func (v *ProximityVerifier) GetNearbyPeers(targetHash [32]byte, maxHops int) []s
 }
 
 // LegacyProximityProofAdapter adapts DHTProximityProof to the existing
+// ProximityProof is a legacy format for proximity verification used by Specter Hunts.
+// This is the simple format that predates DHTProximityProof.
+type ProximityProof struct {
+	ClaimerPeerID  string   // Claimer's peer ID.
+	ConnectedPeers []string // Peers the claimer is connected to.
+	HopDistances   []int    // Hop distances from target.
+}
+
+// Verify checks if the proximity proof is valid.
+func (p ProximityProof) Verify(targetHash [32]byte, maxHops int) bool {
+	// Simplified verification: check if any connected peer
+	// is within maxHops of the target based on XOR distance.
+	// In production, this would use DHT routing to verify proximity.
+	if len(p.HopDistances) == 0 {
+		return false
+	}
+	for _, hops := range p.HopDistances {
+		if hops <= maxHops {
+			return true
+		}
+	}
+	return false
+}
+
 // ProximityProof interface used by Hunt.ClaimFragment.
 type LegacyProximityProofAdapter struct {
 	DHTProof *DHTProximityProof

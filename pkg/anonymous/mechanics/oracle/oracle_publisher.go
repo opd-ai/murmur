@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
+
 	"github.com/zeebo/blake3"
 	"google.golang.org/protobuf/proto"
 
@@ -16,19 +18,19 @@ import (
 )
 
 // OraclePublisher handles publishing oracle pool events to the anonymous mechanics topic.
-// All oracle events are broadcast on TopicAnonymousMechanics (/murmur/anonymous/mechanics/1.0).
+// All oracle events are broadcast on mechanics.TopicAnonymousMechanics (/murmur/anonymous/mechanics/1.0).
 type OraclePublisher struct {
-	publisher  Publisher
+	publisher  mechanics.Publisher
 	topic      string
 	privateKey ed25519.PrivateKey
 }
 
 // NewOraclePublisher creates a new oracle pool publisher.
 // privateKey is used to sign events; it can be nil if only receiving events.
-func NewOraclePublisher(pub Publisher, privateKey ed25519.PrivateKey) *OraclePublisher {
+func NewOraclePublisher(pub mechanics.Publisher, privateKey ed25519.PrivateKey) *OraclePublisher {
 	return &OraclePublisher{
 		publisher:  pub,
-		topic:      TopicAnonymousMechanics,
+		topic:      mechanics.TopicAnonymousMechanics,
 		privateKey: privateKey,
 	}
 }
@@ -37,7 +39,7 @@ func NewOraclePublisher(pub Publisher, privateKey ed25519.PrivateKey) *OraclePub
 // Per ANONYMOUS_GAME_MECHANICS.md, pool creation requires Resonance ≥100.
 func (o *OraclePublisher) PublishPoolCreated(ctx context.Context, pool *OraclePool) error {
 	if o.publisher == nil {
-		return ErrPublisherNotSet
+		return mechanics.ErrPublisherNotSet
 	}
 	if pool == nil {
 		return fmt.Errorf("oracle pool cannot be nil")
@@ -63,7 +65,7 @@ func (o *OraclePublisher) PublishCommitment(
 	commitmentHash [32]byte,
 ) error {
 	if o.publisher == nil {
-		return ErrPublisherNotSet
+		return mechanics.ErrPublisherNotSet
 	}
 
 	// Create a prediction with only the commitment (value = 0 placeholder).
@@ -93,7 +95,7 @@ func (o *OraclePublisher) PublishReveal(
 	nonce [32]byte,
 ) error {
 	if o.publisher == nil {
-		return ErrPublisherNotSet
+		return mechanics.ErrPublisherNotSet
 	}
 
 	// Stake is 0 (stake-free predictions per spec).
@@ -117,7 +119,7 @@ func (o *OraclePublisher) PublishReveal(
 // PublishPoolClosed broadcasts that a pool has closed for predictions.
 func (o *OraclePublisher) PublishPoolClosed(ctx context.Context, poolID [32]byte) error {
 	if o.publisher == nil {
-		return ErrPublisherNotSet
+		return mechanics.ErrPublisherNotSet
 	}
 
 	event := &pb.OracleEvent{
@@ -136,7 +138,7 @@ func (o *OraclePublisher) PublishOutcome(
 	outcome float64,
 ) error {
 	if o.publisher == nil {
-		return ErrPublisherNotSet
+		return mechanics.ErrPublisherNotSet
 	}
 	if pool == nil {
 		return fmt.Errorf("oracle pool cannot be nil")
@@ -157,7 +159,7 @@ func (o *OraclePublisher) PublishOutcome(
 // signAndPublish signs the event and publishes it to the topic.
 func (o *OraclePublisher) signAndPublish(ctx context.Context, event *pb.OracleEvent) error {
 	if o.privateKey == nil {
-		return ErrMissingPrivateKey
+		return mechanics.ErrMissingPrivateKey
 	}
 
 	// Create signature over event data.
@@ -226,7 +228,7 @@ func (r *OracleReceiver) HandleMessage(data []byte) error {
 // verifyEventSignature checks the event signature.
 func (r *OracleReceiver) verifyEventSignature(event *pb.OracleEvent) error {
 	if len(event.Signature) == 0 {
-		return ErrMissingSignature
+		return mechanics.ErrMissingSignature
 	}
 
 	// For pool creation, verify against creator's pubkey.
@@ -234,7 +236,7 @@ func (r *OracleReceiver) verifyEventSignature(event *pb.OracleEvent) error {
 		if event.Pool != nil && len(event.Pool.CreatorPubkey) == ed25519.PublicKeySize {
 			sigData := r.eventSignatureData(event)
 			if !ed25519.Verify(event.Pool.CreatorPubkey, sigData, event.Signature) {
-				return ErrSignatureFailed
+				return mechanics.ErrSignatureFailed
 			}
 		}
 		return nil
@@ -245,7 +247,7 @@ func (r *OracleReceiver) verifyEventSignature(event *pb.OracleEvent) error {
 		if event.Prediction != nil && len(event.Prediction.SpecterPubkey) == ed25519.PublicKeySize {
 			sigData := r.eventSignatureData(event)
 			if !ed25519.Verify(event.Prediction.SpecterPubkey, sigData, event.Signature) {
-				return ErrSignatureFailed
+				return mechanics.ErrSignatureFailed
 			}
 		}
 		return nil

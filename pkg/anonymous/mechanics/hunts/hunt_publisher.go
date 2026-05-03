@@ -12,23 +12,24 @@ import (
 	"github.com/zeebo/blake3"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
 	pb "github.com/opd-ai/murmur/proto"
 )
 
 // HuntPublisher handles publishing hunt events to the anonymous mechanics topic.
-// All hunt events are broadcast on TopicAnonymousMechanics (/murmur/anonymous/mechanics/1.0).
+// All hunt events are broadcast on mechanics.TopicAnonymousMechanics (/murmur/anonymous/mechanics/1.0).
 type HuntPublisher struct {
-	publisher  Publisher
+	publisher  mechanics.Publisher
 	topic      string
 	privateKey ed25519.PrivateKey
 }
 
 // NewHuntPublisher creates a new hunt publisher.
 // privateKey is used to sign events; it can be nil if only receiving events.
-func NewHuntPublisher(pub Publisher, privateKey ed25519.PrivateKey) *HuntPublisher {
+func NewHuntPublisher(pub mechanics.Publisher, privateKey ed25519.PrivateKey) *HuntPublisher {
 	return &HuntPublisher{
 		publisher:  pub,
-		topic:      TopicAnonymousMechanics,
+		topic:      mechanics.TopicAnonymousMechanics,
 		privateKey: privateKey,
 	}
 }
@@ -36,7 +37,7 @@ func NewHuntPublisher(pub Publisher, privateKey ed25519.PrivateKey) *HuntPublish
 // PublishHuntCreated broadcasts a new hunt announcement.
 func (h *HuntPublisher) PublishHuntCreated(ctx context.Context, hunt *Hunt) error {
 	if h.publisher == nil {
-		return ErrPublisherNotSet
+		return mechanics.ErrPublisherNotSet
 	}
 	if hunt == nil {
 		return fmt.Errorf("hunt cannot be nil")
@@ -60,10 +61,10 @@ func (h *HuntPublisher) PublishFragmentClaim(
 	huntID [32]byte,
 	fragmentIndex int,
 	claimerKey [32]byte,
-	proof *DHTProximityProof,
+	proof *mechanics.DHTProximityProof,
 ) error {
 	if h.publisher == nil {
-		return ErrPublisherNotSet
+		return mechanics.ErrPublisherNotSet
 	}
 
 	event := &pb.HuntEvent{
@@ -91,7 +92,7 @@ func (h *HuntPublisher) PublishClueReveal(
 	clueText string,
 ) error {
 	if h.publisher == nil {
-		return ErrPublisherNotSet
+		return mechanics.ErrPublisherNotSet
 	}
 
 	event := &pb.HuntEvent{
@@ -109,7 +110,7 @@ func (h *HuntPublisher) PublishClueReveal(
 // PublishHuntCompleted broadcasts a hunt completion event.
 func (h *HuntPublisher) PublishHuntCompleted(ctx context.Context, hunt *Hunt) error {
 	if h.publisher == nil {
-		return ErrPublisherNotSet
+		return mechanics.ErrPublisherNotSet
 	}
 	if hunt == nil {
 		return fmt.Errorf("hunt cannot be nil")
@@ -138,7 +139,7 @@ func (h *HuntPublisher) PublishHuntCompleted(ctx context.Context, hunt *Hunt) er
 // PublishHuntExpired broadcasts a hunt expiration event.
 func (h *HuntPublisher) PublishHuntExpired(ctx context.Context, huntID [32]byte) error {
 	if h.publisher == nil {
-		return ErrPublisherNotSet
+		return mechanics.ErrPublisherNotSet
 	}
 
 	event := &pb.HuntEvent{
@@ -153,7 +154,7 @@ func (h *HuntPublisher) PublishHuntExpired(ctx context.Context, huntID [32]byte)
 // signAndPublish signs the event and publishes it to the topic.
 func (h *HuntPublisher) signAndPublish(ctx context.Context, event *pb.HuntEvent) error {
 	if h.privateKey == nil {
-		return ErrMissingPrivateKey
+		return mechanics.ErrMissingPrivateKey
 	}
 
 	// Create signature over event data.
@@ -227,15 +228,15 @@ func (r *HuntReceiver) HandleMessage(data []byte) error {
 // verifyEventSignature checks the event signature.
 func (r *HuntReceiver) verifyEventSignature(event *pb.HuntEvent) error {
 	if len(event.Signature) == 0 {
-		return ErrMissingSignature
+		return mechanics.ErrMissingSignature
 	}
 	if len(event.SenderPubkey) != ed25519.PublicKeySize {
-		return ErrSignatureFailed
+		return mechanics.ErrSignatureFailed
 	}
 
 	sigData := r.eventSignatureData(event)
 	if !ed25519.Verify(event.SenderPubkey, sigData, event.Signature) {
-		return ErrSignatureFailed
+		return mechanics.ErrSignatureFailed
 	}
 
 	return nil
@@ -476,8 +477,8 @@ func networkProtoToFragment(pbFrag *pb.Fragment) *Fragment {
 	return frag
 }
 
-// proximityProofToProto converts a DHTProximityProof to protobuf.
-func proximityProofToProto(proof *DHTProximityProof) *pb.ProximityProof {
+// proximityProofToProto converts a mechanics.DHTProximityProof to protobuf.
+func proximityProofToProto(proof *mechanics.DHTProximityProof) *pb.ProximityProof {
 	if proof == nil {
 		return nil
 	}
@@ -490,9 +491,9 @@ func proximityProofToProto(proof *DHTProximityProof) *pb.ProximityProof {
 		Timestamp:        proof.Timestamp,
 	}
 
-	pbProof.Attestations = make([]*pb.ProximityAttestation, len(proof.Attestations))
+	pbProof.Attestations = make([]*pb.mechanics.ProximityAttestation, len(proof.Attestations))
 	for i, att := range proof.Attestations {
-		pbProof.Attestations[i] = &pb.ProximityAttestation{
+		pbProof.Attestations[i] = &pb.mechanics.ProximityAttestation{
 			AttesterPubkey: att.AttesterPubKey[:],
 			AttesterPeerId: att.AttesterPeerID,
 			ClaimerPubkey:  att.ClaimerPubKey[:],
@@ -507,15 +508,15 @@ func proximityProofToProto(proof *DHTProximityProof) *pb.ProximityProof {
 }
 
 // protoToProximityProof converts a protobuf ProximityProof to native format.
-func protoToProximityProof(pbProof *pb.ProximityProof, claimerKey [32]byte) *DHTProximityProof {
+func protoToProximityProof(pbProof *pb.ProximityProof, claimerKey [32]byte) *mechanics.DHTProximityProof {
 	if pbProof == nil {
-		return NewDHTProximityProof(claimerKey, "", [32]byte{}, 0)
+		return mechanics.NewDHTProximityProof(claimerKey, "", [32]byte{}, 0)
 	}
 
 	var targetHash [32]byte
 	copy(targetHash[:], pbProof.TargetHash)
 
-	proof := &DHTProximityProof{
+	proof := &mechanics.DHTProximityProof{
 		ClaimerPubKey:    claimerKey,
 		ClaimerPeerID:    pbProof.ClaimerPeerId,
 		TargetHash:       targetHash,
@@ -523,7 +524,7 @@ func protoToProximityProof(pbProof *pb.ProximityProof, claimerKey [32]byte) *DHT
 		Timestamp:        pbProof.Timestamp,
 	}
 
-	proof.Attestations = make([]ProximityAttestation, len(pbProof.Attestations))
+	proof.Attestations = make([]mechanics.ProximityAttestation, len(pbProof.Attestations))
 	for i, pbAtt := range pbProof.Attestations {
 		var attesterPubKey, attClaimerPubKey, attTargetHash [32]byte
 		var signature [64]byte
@@ -533,7 +534,7 @@ func protoToProximityProof(pbProof *pb.ProximityProof, claimerKey [32]byte) *DHT
 		copy(attTargetHash[:], pbAtt.TargetHash)
 		copy(signature[:], pbAtt.Signature)
 
-		proof.Attestations[i] = ProximityAttestation{
+		proof.Attestations[i] = mechanics.ProximityAttestation{
 			AttesterPubKey: attesterPubKey,
 			AttesterPeerID: pbAtt.AttesterPeerId,
 			ClaimerPubKey:  attClaimerPubKey,

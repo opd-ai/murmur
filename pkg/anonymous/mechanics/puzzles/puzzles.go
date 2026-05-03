@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
+
 	"github.com/zeebo/blake3"
 )
 
@@ -216,9 +218,9 @@ func NewPuzzleGated(
 	difficulty uint8,
 	duration time.Duration,
 	initiatorKey [32]byte,
-	gate ResonanceGate,
+	gate mechanics.ResonanceGate,
 ) (*Puzzle, error) {
-	if err := CheckResonanceGate(gate, initiatorKey, PuzzleMinResonance); err != nil {
+	if err := mechanics.CheckResonanceGate(gate, initiatorKey, PuzzleMinResonance); err != nil {
 		return nil, ErrPuzzleInsufficientRes
 	}
 	return NewPuzzle(puzzleType, seed, difficulty, duration, initiatorKey)
@@ -483,7 +485,7 @@ func (s *PuzzleStore) GarbageCollect(maxHistory int) int {
 	defer s.mu.Unlock()
 
 	var removed int
-	s.history, removed = GarbageCollectHistory(s.history, s.puzzles, maxHistory, func(p *Puzzle) [32]byte { return p.ID })
+	s.history, removed = mechanics.GarbageCollectHistory(s.history, s.puzzles, maxHistory, func(p *Puzzle) [32]byte { return p.ID })
 	return removed
 }
 

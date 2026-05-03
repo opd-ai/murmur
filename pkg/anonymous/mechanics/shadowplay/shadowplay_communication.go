@@ -13,6 +13,8 @@ import (
 	"errors"
 	"sync"
 	"time"
+
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
 )
 
 // Communication phase constants.
@@ -143,7 +145,7 @@ type DiscussionPhase struct {
 func NewDiscussionPhase(gameID [32]byte, round int, players [][32]byte) *DiscussionPhase {
 	participants := make(map[string]bool)
 	for _, p := range players {
-		participants[keyToHex(p[:])] = true
+		participants[mechanics.KeyToHex(p[:])] = true
 	}
 
 	now := time.Now()
@@ -260,7 +262,7 @@ func (dp *DiscussionPhase) validateSendMessage(sender [32]byte, content string) 
 	}
 
 	// Check sender is participant.
-	senderHex := keyToHex(sender[:])
+	senderHex := mechanics.KeyToHex(sender[:])
 	if !dp.participants[senderHex] {
 		return ErrDiscussionNotPlayer
 	}
@@ -313,7 +315,7 @@ func (dp *DiscussionPhase) createMessage(sender [32]byte, content string) *Discu
 
 // recordMessage tracks the message.
 func (dp *DiscussionPhase) recordMessage(sender [32]byte, msg *DiscussionMessage) {
-	senderHex := keyToHex(sender[:])
+	senderHex := mechanics.KeyToHex(sender[:])
 	dp.Messages = append(dp.Messages, msg)
 	dp.playerMessages[senderHex]++
 	dp.lastMessage[senderHex] = msg.SentAt
@@ -355,7 +357,7 @@ func (dp *DiscussionPhase) MessageCount() int {
 func (dp *DiscussionPhase) PlayerMessageCount(player [32]byte) int {
 	dp.mu.RLock()
 	defer dp.mu.RUnlock()
-	return dp.playerMessages[keyToHex(player[:])]
+	return dp.playerMessages[mechanics.KeyToHex(player[:])]
 }
 
 // TimeRemaining returns the time until discussion ends.
@@ -388,14 +390,14 @@ func (dp *DiscussionPhase) GetState() DiscussionPhaseState {
 func (dp *DiscussionPhase) AddParticipant(player [32]byte) {
 	dp.mu.Lock()
 	defer dp.mu.Unlock()
-	dp.participants[keyToHex(player[:])] = true
+	dp.participants[mechanics.KeyToHex(player[:])] = true
 }
 
 // RemoveParticipant removes a player (e.g., when eliminated).
 func (dp *DiscussionPhase) RemoveParticipant(player [32]byte) {
 	dp.mu.Lock()
 	defer dp.mu.Unlock()
-	delete(dp.participants, keyToHex(player[:]))
+	delete(dp.participants, mechanics.KeyToHex(player[:]))
 }
 
 // ParticipantCount returns the number of active participants.

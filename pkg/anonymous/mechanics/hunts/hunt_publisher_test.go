@@ -1,6 +1,7 @@
 package hunts
 
 import (
+"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
@@ -9,25 +10,25 @@ import (
 	"time"
 )
 
-func TestNewHuntPublisher(t *testing.T) {
+func TestNewHuntmechanics.Publisher(t *testing.T) {
 	pub, priv, _ := ed25519.GenerateKey(rand.Reader)
 	_ = pub
 
-	mockPub := &mockPublisher{}
-	hp := NewHuntPublisher(mockPub, priv)
+	mockPub := &mockmechanics.Publisher{}
+	hp := NewHuntmechanics.Publisher(mockPub, priv)
 
 	if hp == nil {
-		t.Fatal("expected HuntPublisher, got nil")
+		t.Fatal("expected Huntmechanics.Publisher, got nil")
 	}
-	if hp.topic != TopicAnonymousMechanics {
-		t.Errorf("expected topic %s, got %s", TopicAnonymousMechanics, hp.topic)
+	if hp.topic != mechanics.TopicAnonymousMechanics {
+		t.Errorf("expected topic %s, got %s", mechanics.TopicAnonymousMechanics, hp.topic)
 	}
 }
 
 func TestHuntPublisher_PublishHuntCreated(t *testing.T) {
 	_, priv, _ := ed25519.GenerateKey(rand.Reader)
-	mockPub := &mockPublisher{}
-	hp := NewHuntPublisher(mockPub, priv)
+	mockPub := &mockmechanics.Publisher{}
+	hp := NewHuntmechanics.Publisher(mockPub, priv)
 
 	var seed, initiatorKey [32]byte
 	rand.Read(seed[:])
@@ -50,8 +51,8 @@ func TestHuntPublisher_PublishHuntCreated(t *testing.T) {
 
 func TestHuntPublisher_PublishFragmentClaim(t *testing.T) {
 	_, priv, _ := ed25519.GenerateKey(rand.Reader)
-	mockPub := &mockPublisher{}
-	hp := NewHuntPublisher(mockPub, priv)
+	mockPub := &mockmechanics.Publisher{}
+	hp := NewHuntmechanics.Publisher(mockPub, priv)
 
 	var huntID, claimerKey [32]byte
 	rand.Read(huntID[:])
@@ -69,8 +70,8 @@ func TestHuntPublisher_PublishFragmentClaim(t *testing.T) {
 
 func TestHuntPublisher_PublishClueReveal(t *testing.T) {
 	_, priv, _ := ed25519.GenerateKey(rand.Reader)
-	mockPub := &mockPublisher{}
-	hp := NewHuntPublisher(mockPub, priv)
+	mockPub := &mockmechanics.Publisher{}
+	hp := NewHuntmechanics.Publisher(mockPub, priv)
 
 	var huntID [32]byte
 	rand.Read(huntID[:])
@@ -87,8 +88,8 @@ func TestHuntPublisher_PublishClueReveal(t *testing.T) {
 
 func TestHuntPublisher_PublishHuntCompleted(t *testing.T) {
 	_, priv, _ := ed25519.GenerateKey(rand.Reader)
-	mockPub := &mockPublisher{}
-	hp := NewHuntPublisher(mockPub, priv)
+	mockPub := &mockmechanics.Publisher{}
+	hp := NewHuntmechanics.Publisher(mockPub, priv)
 
 	var seed, initiatorKey [32]byte
 	rand.Read(seed[:])
@@ -108,8 +109,8 @@ func TestHuntPublisher_PublishHuntCompleted(t *testing.T) {
 
 func TestHuntPublisher_PublishHuntExpired(t *testing.T) {
 	_, priv, _ := ed25519.GenerateKey(rand.Reader)
-	mockPub := &mockPublisher{}
-	hp := NewHuntPublisher(mockPub, priv)
+	mockPub := &mockmechanics.Publisher{}
+	hp := NewHuntmechanics.Publisher(mockPub, priv)
 
 	var huntID [32]byte
 	rand.Read(huntID[:])
@@ -124,9 +125,9 @@ func TestHuntPublisher_PublishHuntExpired(t *testing.T) {
 	}
 }
 
-func TestHuntPublisher_NoPublisher(t *testing.T) {
+func TestHuntPublisher_Nomechanics.Publisher(t *testing.T) {
 	_, priv, _ := ed25519.GenerateKey(rand.Reader)
-	hp := NewHuntPublisher(nil, priv)
+	hp := NewHuntmechanics.Publisher(nil, priv)
 
 	var seed, initiatorKey [32]byte
 	rand.Read(seed[:])
@@ -135,14 +136,14 @@ func TestHuntPublisher_NoPublisher(t *testing.T) {
 	hunt, _ := NewHunt("Test Hunt", seed, initiatorKey, HuntDuration30Min, 5, 100)
 
 	err := hp.PublishHuntCreated(context.Background(), hunt)
-	if err != ErrPublisherNotSet {
-		t.Errorf("expected ErrPublisherNotSet, got %v", err)
+	if err != mechanics.ErrPublisherNotSet {
+		t.Errorf("expected mechanics.ErrPublisherNotSet, got %v", err)
 	}
 }
 
 func TestHuntPublisher_NoPrivateKey(t *testing.T) {
-	mockPub := &mockPublisher{}
-	hp := NewHuntPublisher(mockPub, nil)
+	mockPub := &mockmechanics.Publisher{}
+	hp := NewHuntmechanics.Publisher(mockPub, nil)
 
 	var seed, initiatorKey [32]byte
 	rand.Read(seed[:])
@@ -151,8 +152,8 @@ func TestHuntPublisher_NoPrivateKey(t *testing.T) {
 	hunt, _ := NewHunt("Test Hunt", seed, initiatorKey, HuntDuration30Min, 5, 100)
 
 	err := hp.PublishHuntCreated(context.Background(), hunt)
-	if err != ErrMissingPrivateKey {
-		t.Errorf("expected ErrMissingPrivateKey, got %v", err)
+	if err != mechanics.ErrMissingPrivateKey {
+		t.Errorf("expected mechanics.ErrMissingPrivateKey, got %v", err)
 	}
 }
 
@@ -170,8 +171,8 @@ func TestNewHuntReceiver(t *testing.T) {
 
 func TestHuntReceiver_HandleHuntCreated(t *testing.T) {
 	_, priv, _ := ed25519.GenerateKey(rand.Reader)
-	mockPub := &mockPublisher{}
-	hp := NewHuntPublisher(mockPub, priv)
+	mockPub := &mockmechanics.Publisher{}
+	hp := NewHuntmechanics.Publisher(mockPub, priv)
 
 	store := NewHuntStore()
 	receiver := NewHuntReceiver(store)
@@ -199,8 +200,8 @@ func TestHuntReceiver_HandleHuntCreated(t *testing.T) {
 
 func TestHuntReceiver_HandleFragmentClaim(t *testing.T) {
 	_, priv, _ := ed25519.GenerateKey(rand.Reader)
-	mockPub := &mockPublisher{}
-	hp := NewHuntPublisher(mockPub, priv)
+	mockPub := &mockmechanics.Publisher{}
+	hp := NewHuntmechanics.Publisher(mockPub, priv)
 
 	store := NewHuntStore()
 	receiver := NewHuntReceiver(store)
@@ -214,7 +215,7 @@ func TestHuntReceiver_HandleFragmentClaim(t *testing.T) {
 	store.AddHunt(hunt)
 
 	// Create a proximity proof with valid attestation.
-	// Use a small XOR distance to ensure it's within HuntClaimProximityHops (3).
+	// Use a small XOR distance to ensure it's within mechanics.HuntClaimProximityHops (3).
 	var claimerKey [32]byte
 	rand.Read(claimerKey[:])
 
@@ -249,8 +250,8 @@ func TestHuntReceiver_HandleFragmentClaim(t *testing.T) {
 
 func TestHuntReceiver_HandleClueReveal(t *testing.T) {
 	_, priv, _ := ed25519.GenerateKey(rand.Reader)
-	mockPub := &mockPublisher{}
-	hp := NewHuntPublisher(mockPub, priv)
+	mockPub := &mockmechanics.Publisher{}
+	hp := NewHuntmechanics.Publisher(mockPub, priv)
 
 	store := NewHuntStore()
 	receiver := NewHuntReceiver(store)
@@ -275,8 +276,8 @@ func TestHuntReceiver_HandleClueReveal(t *testing.T) {
 
 func TestHuntReceiver_HandleHuntCompleted(t *testing.T) {
 	_, priv, _ := ed25519.GenerateKey(rand.Reader)
-	mockPub := &mockPublisher{}
-	hp := NewHuntPublisher(mockPub, priv)
+	mockPub := &mockmechanics.Publisher{}
+	hp := NewHuntmechanics.Publisher(mockPub, priv)
 
 	store := NewHuntStore()
 	receiver := NewHuntReceiver(store)
@@ -306,8 +307,8 @@ func TestHuntReceiver_HandleHuntCompleted(t *testing.T) {
 
 func TestHuntReceiver_HandleHuntExpired(t *testing.T) {
 	_, priv, _ := ed25519.GenerateKey(rand.Reader)
-	mockPub := &mockPublisher{}
-	hp := NewHuntPublisher(mockPub, priv)
+	mockPub := &mockmechanics.Publisher{}
+	hp := NewHuntmechanics.Publisher(mockPub, priv)
 
 	store := NewHuntStore()
 	receiver := NewHuntReceiver(store)
@@ -337,8 +338,8 @@ func TestHuntReceiver_HandleHuntExpired(t *testing.T) {
 
 func TestHuntReceiver_InvalidSignature(t *testing.T) {
 	_, priv, _ := ed25519.GenerateKey(rand.Reader)
-	mockPub := &mockPublisher{}
-	hp := NewHuntPublisher(mockPub, priv)
+	mockPub := &mockmechanics.Publisher{}
+	hp := NewHuntmechanics.Publisher(mockPub, priv)
 
 	store := NewHuntStore()
 	receiver := NewHuntReceiver(store)
@@ -366,8 +367,8 @@ func TestHuntReceiver_InvalidSignature(t *testing.T) {
 
 func TestHuntReceiver_HuntNotFound(t *testing.T) {
 	_, priv, _ := ed25519.GenerateKey(rand.Reader)
-	mockPub := &mockPublisher{}
-	hp := NewHuntPublisher(mockPub, priv)
+	mockPub := &mockmechanics.Publisher{}
+	hp := NewHuntmechanics.Publisher(mockPub, priv)
 
 	store := NewHuntStore()
 	receiver := NewHuntReceiver(store)
@@ -494,8 +495,8 @@ func TestProximityProofRoundTrip(t *testing.T) {
 
 func BenchmarkHuntPublisher_PublishHuntCreated(b *testing.B) {
 	_, priv, _ := ed25519.GenerateKey(rand.Reader)
-	mockPub := &mockPublisher{}
-	hp := NewHuntPublisher(mockPub, priv)
+	mockPub := &mockmechanics.Publisher{}
+	hp := NewHuntmechanics.Publisher(mockPub, priv)
 
 	var seed, initiatorKey [32]byte
 	rand.Read(seed[:])
@@ -511,8 +512,8 @@ func BenchmarkHuntPublisher_PublishHuntCreated(b *testing.B) {
 
 func BenchmarkHuntReceiver_HandleMessage(b *testing.B) {
 	_, priv, _ := ed25519.GenerateKey(rand.Reader)
-	mockPub := &mockPublisher{}
-	hp := NewHuntPublisher(mockPub, priv)
+	mockPub := &mockmechanics.Publisher{}
+	hp := NewHuntmechanics.Publisher(mockPub, priv)
 
 	store := NewHuntStore()
 	receiver := NewHuntReceiver(store)

@@ -143,9 +143,9 @@ func (s *EchoChainStore) RecordAmplification(
 	}
 
 	// Check for duplicate amplifier.
-	amplifierHex := keyToHex(amplifierID)
+	amplifierHex := KeyToHex(amplifierID)
 	for _, node := range chain.Nodes {
-		if keyToHex(node.NodeID) == amplifierHex {
+		if KeyToHex(node.NodeID) == amplifierHex {
 			return nil, ErrChainDuplicate
 		}
 	}
@@ -193,7 +193,7 @@ func (s *EchoChainStore) RecordAmplification(
 func (s *EchoChainStore) awardBonusesLocked(chain *EchoChain) {
 	bonus := CalculateEchoChainBonus(len(chain.Nodes))
 	for _, node := range chain.Nodes {
-		nodeHex := keyToHex(node.NodeID)
+		nodeHex := KeyToHex(node.NodeID)
 		s.nodeBonus[nodeHex] += bonus
 		chain.TotalBonus += bonus
 	}
@@ -246,7 +246,7 @@ func (s *EchoChainStore) GetNodeBonus(nodeID []byte) float64 {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	nodeHex := keyToHex(nodeID)
+	nodeHex := KeyToHex(nodeID)
 	return s.nodeBonus[nodeHex]
 }
 
@@ -277,9 +277,9 @@ func (s *EchoChainStore) IsNodeInChain(chainID [32]byte, nodeID []byte) bool {
 		return false
 	}
 
-	nodeHex := keyToHex(nodeID)
+	nodeHex := KeyToHex(nodeID)
 	for _, node := range chain.Nodes {
-		if keyToHex(node.NodeID) == nodeHex {
+		if KeyToHex(node.NodeID) == nodeHex {
 			return true
 		}
 	}
@@ -394,12 +394,12 @@ func (s *EchoChainStore) GetChainsContainingNode(nodeID []byte) []*EchoChain {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	nodeHex := keyToHex(nodeID)
+	nodeHex := KeyToHex(nodeID)
 	chains := make([]*EchoChain, 0)
 
 	for _, chain := range s.chains {
 		for _, node := range chain.Nodes {
-			if keyToHex(node.NodeID) == nodeHex {
+			if KeyToHex(node.NodeID) == nodeHex {
 				chains = append(chains, chain)
 				break
 			}

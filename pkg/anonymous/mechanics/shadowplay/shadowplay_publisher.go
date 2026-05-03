@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
+
 	"github.com/zeebo/blake3"
 	"google.golang.org/protobuf/proto"
 
@@ -16,19 +18,19 @@ import (
 )
 
 // ShadowPlayPublisher handles publishing Shadow Play events to the anonymous mechanics topic.
-// All shadow play events are broadcast on TopicAnonymousMechanics (/murmur/anonymous/mechanics/1.0).
+// All shadow play events are broadcast on mechanics.TopicAnonymousMechanics (/murmur/anonymous/mechanics/1.0).
 type ShadowPlayPublisher struct {
-	publisher  Publisher
+	publisher  mechanics.Publisher
 	topic      string
 	privateKey ed25519.PrivateKey
 }
 
 // NewShadowPlayPublisher creates a new shadow play publisher.
 // privateKey is used to sign events; it can be nil if only receiving events.
-func NewShadowPlayPublisher(pub Publisher, privateKey ed25519.PrivateKey) *ShadowPlayPublisher {
+func NewShadowPlayPublisher(pub mechanics.Publisher, privateKey ed25519.PrivateKey) *ShadowPlayPublisher {
 	return &ShadowPlayPublisher{
 		publisher:  pub,
-		topic:      TopicAnonymousMechanics,
+		topic:      mechanics.TopicAnonymousMechanics,
 		privateKey: privateKey,
 	}
 }
@@ -40,13 +42,13 @@ func (s *ShadowPlayPublisher) PublishGameCreated(
 	game *ShadowPlay,
 ) error {
 	if s.publisher == nil {
-		return ErrPublisherNotSet
+		return mechanics.ErrPublisherNotSet
 	}
 	if game == nil {
 		return fmt.Errorf("game cannot be nil")
 	}
 	if s.privateKey == nil {
-		return ErrMissingPrivateKey
+		return mechanics.ErrMissingPrivateKey
 	}
 
 	pbPlay := shadowPlayToProto(game)
@@ -68,13 +70,13 @@ func (s *ShadowPlayPublisher) PublishCastJoin(
 	player *Player,
 ) error {
 	if s.publisher == nil {
-		return ErrPublisherNotSet
+		return mechanics.ErrPublisherNotSet
 	}
 	if player == nil {
 		return fmt.Errorf("player cannot be nil")
 	}
 	if s.privateKey == nil {
-		return ErrMissingPrivateKey
+		return mechanics.ErrMissingPrivateKey
 	}
 
 	roleStr := "Echo"
@@ -105,13 +107,13 @@ func (s *ShadowPlayPublisher) PublishGameStarted(
 	game *ShadowPlay,
 ) error {
 	if s.publisher == nil {
-		return ErrPublisherNotSet
+		return mechanics.ErrPublisherNotSet
 	}
 	if game == nil {
 		return fmt.Errorf("game cannot be nil")
 	}
 	if s.privateKey == nil {
-		return ErrMissingPrivateKey
+		return mechanics.ErrMissingPrivateKey
 	}
 
 	pbPlay := shadowPlayToProto(game)
@@ -132,13 +134,13 @@ func (s *ShadowPlayPublisher) PublishGameEnded(
 	game *ShadowPlay,
 ) error {
 	if s.publisher == nil {
-		return ErrPublisherNotSet
+		return mechanics.ErrPublisherNotSet
 	}
 	if game == nil {
 		return fmt.Errorf("game cannot be nil")
 	}
 	if s.privateKey == nil {
-		return ErrMissingPrivateKey
+		return mechanics.ErrMissingPrivateKey
 	}
 
 	pbPlay := shadowPlayToProto(game)
@@ -159,10 +161,10 @@ func (s *ShadowPlayPublisher) PublishGameCancelled(
 	gameID [32]byte,
 ) error {
 	if s.publisher == nil {
-		return ErrPublisherNotSet
+		return mechanics.ErrPublisherNotSet
 	}
 	if s.privateKey == nil {
-		return ErrMissingPrivateKey
+		return mechanics.ErrMissingPrivateKey
 	}
 
 	event := &pb.ShadowPlayEvent{
@@ -244,14 +246,14 @@ func (r *ShadowPlayReceiver) HandleMessage(data []byte) error {
 // verifyEventSignature verifies the event signature.
 func (r *ShadowPlayReceiver) verifyEventSignature(event *pb.ShadowPlayEvent) error {
 	if len(event.Signature) == 0 {
-		return ErrMissingSignature
+		return mechanics.ErrMissingSignature
 	}
 
 	// For created/started/ended events, verify using director's key from play.
 	if event.Play != nil && len(event.Play.DirectorPubkey) == ed25519.PublicKeySize {
 		sigData := r.eventSignatureData(event)
 		if !ed25519.Verify(event.Play.DirectorPubkey, sigData, event.Signature) {
-			return ErrSignatureFailed
+			return mechanics.ErrSignatureFailed
 		}
 		return nil
 	}
@@ -260,7 +262,7 @@ func (r *ShadowPlayReceiver) verifyEventSignature(event *pb.ShadowPlayEvent) err
 	if event.Actor != nil && len(event.Actor.SpecterPubkey) == ed25519.PublicKeySize {
 		sigData := r.eventSignatureData(event)
 		if !ed25519.Verify(event.Actor.SpecterPubkey, sigData, event.Signature) {
-			return ErrSignatureFailed
+			return mechanics.ErrSignatureFailed
 		}
 		return nil
 	}
@@ -273,13 +275,13 @@ func (r *ShadowPlayReceiver) verifyEventSignature(event *pb.ShadowPlayEvent) err
 		if game != nil {
 			sigData := r.eventSignatureData(event)
 			if !ed25519.Verify(game.InitiatorKey[:], sigData, event.Signature) {
-				return ErrSignatureFailed
+				return mechanics.ErrSignatureFailed
 			}
 			return nil
 		}
 	}
 
-	return ErrMissingSignature
+	return mechanics.ErrMissingSignature
 }
 
 // eventSignatureData creates the data that was signed.

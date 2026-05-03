@@ -3,6 +3,8 @@ package oracle
 import (
 	"testing"
 	"time"
+
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
 )
 
 func TestOutcomeVerifierBasic(t *testing.T) {

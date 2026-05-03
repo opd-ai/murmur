@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
+
 	pb "github.com/opd-ai/murmur/proto"
 	"google.golang.org/protobuf/proto"
 )
@@ -22,8 +24,8 @@ func TestMarkPublisher_Creation(t *testing.T) {
 	if pub == nil {
 		t.Fatal("NewMarkPublisher returned nil")
 	}
-	if pub.topic != TopicAnonymousMechanics {
-		t.Errorf("wrong topic: got %s, want %s", pub.topic, TopicAnonymousMechanics)
+	if pub.topic != mechanics.TopicAnonymousMechanics {
+		t.Errorf("wrong topic: got %s, want %s", pub.topic, mechanics.TopicAnonymousMechanics)
 	}
 }
 
@@ -39,8 +41,8 @@ func TestMarkPublisher_NilPublisher(t *testing.T) {
 	}
 
 	err := pub.PublishMarkPlaced(context.Background(), mark)
-	if err != ErrPublisherNotSet {
-		t.Errorf("expected ErrPublisherNotSet, got %v", err)
+	if err != mechanics.ErrPublisherNotSet {
+		t.Errorf("expected mechanics.ErrPublisherNotSet, got %v", err)
 	}
 }
 
@@ -68,8 +70,8 @@ func TestMarkPublisher_NilPrivateKey(t *testing.T) {
 	}
 
 	err := pub.PublishMarkPlaced(context.Background(), mark)
-	if err != ErrMissingPrivateKey {
-		t.Errorf("expected ErrMissingPrivateKey, got %v", err)
+	if err != mechanics.ErrMissingPrivateKey {
+		t.Errorf("expected mechanics.ErrMissingPrivateKey, got %v", err)
 	}
 }
 
@@ -104,7 +106,7 @@ func TestMarkPublisher_PublishMarkPlaced(t *testing.T) {
 	}
 
 	// Verify topic.
-	if mockPub.published[0].topic != TopicAnonymousMechanics {
+	if mockPub.published[0].topic != mechanics.TopicAnonymousMechanics {
 		t.Errorf("wrong topic: got %s", mockPub.published[0].topic)
 	}
 
@@ -239,8 +241,8 @@ func TestMarkReceiver_HandleMessage_MissingSignature(t *testing.T) {
 
 	data, _ := proto.Marshal(gossipMsg)
 	err := receiver.HandleMessage(data)
-	if err != ErrMissingSignature {
-		t.Errorf("expected ErrMissingSignature, got %v", err)
+	if err != mechanics.ErrMissingSignature {
+		t.Errorf("expected mechanics.ErrMissingSignature, got %v", err)
 	}
 }
 
@@ -446,8 +448,8 @@ func TestMarkReceiver_HandleMessage_InvalidSignature(t *testing.T) {
 
 	data, _ := proto.Marshal(gossipMsg)
 	err := receiver.HandleMessage(data)
-	if err != ErrSignatureFailed {
-		t.Errorf("expected ErrSignatureFailed, got %v", err)
+	if err != mechanics.ErrSignatureFailed {
+		t.Errorf("expected mechanics.ErrSignatureFailed, got %v", err)
 	}
 }
 
@@ -474,8 +476,8 @@ func TestMarkReceiver_HandleMessage_MissingMark(t *testing.T) {
 
 	data, _ := proto.Marshal(gossipMsg)
 	err := receiver.HandleMessage(data)
-	if err != ErrSignatureFailed {
-		t.Errorf("expected ErrSignatureFailed for nil mark, got %v", err)
+	if err != mechanics.ErrSignatureFailed {
+		t.Errorf("expected mechanics.ErrSignatureFailed for nil mark, got %v", err)
 	}
 }
 
