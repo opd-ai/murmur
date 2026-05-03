@@ -386,19 +386,31 @@ func (p *ForgePanel) getTitle() string {
 
 func (p *ForgePanel) drawViewMode(screen *ebiten.Image, x, y, w, h, padding int) {
 	if p.forge == nil {
-		if defaultFont != nil {
-			op := &text.DrawOptions{}
-			op.GeoM.Translate(float64(x+padding), float64(y+padding))
-			op.ColorScale.ScaleWithColor(p.theme.TextSecondary)
-			text.Draw(screen, "No forge selected", defaultFont, op)
-		}
+		p.drawNoForgeMessage(screen, x, y, padding)
 		p.drawViewHints(screen, x, y+h-60, padding)
 		return
 	}
 
 	lineY := y + padding
+	lineY = p.drawForgeTypeAndPrompt(screen, x, lineY, padding)
+	lineY = p.drawTimeStatus(screen, x, lineY, padding)
+	lineY = p.drawEntryCount(screen, x, lineY, padding)
+	p.drawWinnerIfEnded(screen, x, lineY, padding)
+	p.drawViewHints(screen, x, y+h-60, padding)
+}
 
-	// Forge type and status.
+// drawNoForgeMessage renders the "No forge selected" message.
+func (p *ForgePanel) drawNoForgeMessage(screen *ebiten.Image, x, y, padding int) {
+	if defaultFont != nil {
+		op := &text.DrawOptions{}
+		op.GeoM.Translate(float64(x+padding), float64(y+padding))
+		op.ColorScale.ScaleWithColor(p.theme.TextSecondary)
+		text.Draw(screen, "No forge selected", defaultFont, op)
+	}
+}
+
+// drawForgeTypeAndPrompt renders forge type and prompt text.
+func (p *ForgePanel) drawForgeTypeAndPrompt(screen *ebiten.Image, x, lineY, padding int) int {
 	if defaultFont != nil {
 		typeText := fmt.Sprintf("Type: %s", forgeTypeString(p.forge.Type))
 		op := &text.DrawOptions{}
@@ -408,7 +420,6 @@ func (p *ForgePanel) drawViewMode(screen *ebiten.Image, x, y, w, h, padding int)
 	}
 	lineY += 25
 
-	// Prompt.
 	if defaultFont != nil {
 		promptText := "Prompt: " + truncateString(p.forge.Prompt, 50)
 		op := &text.DrawOptions{}
@@ -416,39 +427,53 @@ func (p *ForgePanel) drawViewMode(screen *ebiten.Image, x, y, w, h, padding int)
 		op.ColorScale.ScaleWithColor(p.theme.TextSecondary)
 		text.Draw(screen, promptText, defaultFont, op)
 	}
-	lineY += 25
+	return lineY + 25
+}
 
-	// Time remaining.
+// drawTimeStatus renders remaining time or "Forge has ended" message.
+func (p *ForgePanel) drawTimeStatus(screen *ebiten.Image, x, lineY, padding int) int {
 	if p.forge.IsActive {
-		remaining := time.Until(p.forge.EndTime)
-		if remaining < 0 {
-			remaining = 0
-		}
-		mins := int(remaining.Minutes())
-		secs := int(remaining.Seconds()) % 60
-
-		if defaultFont != nil {
-			timeText := fmt.Sprintf("Time remaining: %02d:%02d", mins, secs)
-			timeColor := p.theme.TextPrimary
-			if remaining < 5*time.Minute {
-				timeColor = p.theme.TextError // Urgent.
-			}
-			op := &text.DrawOptions{}
-			op.GeoM.Translate(float64(x+padding), float64(lineY))
-			op.ColorScale.ScaleWithColor(timeColor)
-			text.Draw(screen, timeText, defaultFont, op)
-		}
-	} else {
-		if defaultFont != nil {
-			op := &text.DrawOptions{}
-			op.GeoM.Translate(float64(x+padding), float64(lineY))
-			op.ColorScale.ScaleWithColor(p.theme.TextSecondary)
-			text.Draw(screen, "Forge has ended", defaultFont, op)
-		}
+		return p.drawRemainingTime(screen, x, lineY, padding)
 	}
-	lineY += 25
+	return p.drawEndedMessage(screen, x, lineY, padding)
+}
 
-	// Entry count.
+// drawRemainingTime renders the countdown timer for active forges.
+func (p *ForgePanel) drawRemainingTime(screen *ebiten.Image, x, lineY, padding int) int {
+	remaining := time.Until(p.forge.EndTime)
+	if remaining < 0 {
+		remaining = 0
+	}
+	mins := int(remaining.Minutes())
+	secs := int(remaining.Seconds()) % 60
+
+	if defaultFont != nil {
+		timeText := fmt.Sprintf("Time remaining: %02d:%02d", mins, secs)
+		timeColor := p.theme.TextPrimary
+		if remaining < 5*time.Minute {
+			timeColor = p.theme.TextError
+		}
+		op := &text.DrawOptions{}
+		op.GeoM.Translate(float64(x+padding), float64(lineY))
+		op.ColorScale.ScaleWithColor(timeColor)
+		text.Draw(screen, timeText, defaultFont, op)
+	}
+	return lineY + 25
+}
+
+// drawEndedMessage renders "Forge has ended" for inactive forges.
+func (p *ForgePanel) drawEndedMessage(screen *ebiten.Image, x, lineY, padding int) int {
+	if defaultFont != nil {
+		op := &text.DrawOptions{}
+		op.GeoM.Translate(float64(x+padding), float64(lineY))
+		op.ColorScale.ScaleWithColor(p.theme.TextSecondary)
+		text.Draw(screen, "Forge has ended", defaultFont, op)
+	}
+	return lineY + 25
+}
+
+// drawEntryCount renders the number of entries.
+func (p *ForgePanel) drawEntryCount(screen *ebiten.Image, x, lineY, padding int) int {
 	if defaultFont != nil {
 		entryText := fmt.Sprintf("Entries: %d", len(p.forge.Entries))
 		op := &text.DrawOptions{}
@@ -456,26 +481,26 @@ func (p *ForgePanel) drawViewMode(screen *ebiten.Image, x, y, w, h, padding int)
 		op.ColorScale.ScaleWithColor(p.theme.TextSecondary)
 		text.Draw(screen, entryText, defaultFont, op)
 	}
-	lineY += 35
+	return lineY + 35
+}
 
-	// Winner (if forge ended).
-	if !p.forge.IsActive {
-		for _, e := range p.forge.Entries {
-			if e.IsWinner {
-				if defaultFont != nil {
-					winText := fmt.Sprintf("Winner: %s (%d amps)",
-						e.SpecterName, e.Amplifications)
-					op := &text.DrawOptions{}
-					op.GeoM.Translate(float64(x+padding), float64(lineY))
-					op.ColorScale.ScaleWithColor(p.theme.AccentPrimary)
-					text.Draw(screen, winText, defaultFont, op)
-				}
-				break
+// drawWinnerIfEnded renders the winner information if forge has ended.
+func (p *ForgePanel) drawWinnerIfEnded(screen *ebiten.Image, x, lineY, padding int) {
+	if p.forge.IsActive {
+		return
+	}
+	for _, e := range p.forge.Entries {
+		if e.IsWinner {
+			if defaultFont != nil {
+				winText := fmt.Sprintf("Winner: %s (%d amps)", e.SpecterName, e.Amplifications)
+				op := &text.DrawOptions{}
+				op.GeoM.Translate(float64(x+padding), float64(lineY))
+				op.ColorScale.ScaleWithColor(p.theme.AccentPrimary)
+				text.Draw(screen, winText, defaultFont, op)
 			}
+			break
 		}
 	}
-
-	p.drawViewHints(screen, x, y+h-60, padding)
 }
 
 func (p *ForgePanel) drawViewHints(screen *ebiten.Image, x, y, padding int) {

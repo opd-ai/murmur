@@ -16,6 +16,7 @@ import (
 	"github.com/opd-ai/murmur/pkg/anonymous/shroud"
 	"github.com/opd-ai/murmur/pkg/content/storage"
 	"github.com/opd-ai/murmur/pkg/identity/keys"
+	"github.com/opd-ai/murmur/pkg/murerr"
 	"github.com/opd-ai/murmur/pkg/networking/gossip"
 	"github.com/opd-ai/murmur/pkg/networking/transport"
 	"github.com/opd-ai/murmur/pkg/store"
@@ -42,6 +43,10 @@ type Config struct {
 	// SkipUI controls whether the Pulse Map UI is started.
 	// Set true for headless operation or testing.
 	SkipUI bool
+
+	// CLIMode enables interactive command-line interface.
+	// When true, starts a REPL for Wave creation and peer management.
+	CLIMode bool
 
 	// EnableRelay enables this node as a Shroud relay.
 	// Relays help route anonymous traffic for others.
@@ -180,29 +185,29 @@ func (a *App) Run() error {
 
 	// Initialize subsystems in dependency order.
 	if err := a.initStorage(); err != nil {
-		return fmt.Errorf("initializing storage: %w", err)
+		return murerr.WrapStorageError(err)
 	}
 	fmt.Println("  [1/7] Storage initialized")
 
 	if err := a.initIdentity(); err != nil {
-		return fmt.Errorf("initializing identity: %w", err)
+		return murerr.WrapIdentityError(err)
 	}
 	fmt.Println("  [2/7] Identity initialized")
 
 	if err := a.initNetworking(); err != nil {
-		return fmt.Errorf("initializing networking: %w", err)
+		return murerr.WrapNetworkError(err)
 	}
 	fmt.Println("  [3/7] Networking initialized")
 
 	// Initialize content subsystem (Wave cache and handlers).
 	if err := a.initContent(); err != nil {
-		return fmt.Errorf("initializing content: %w", err)
+		return murerr.WrapContentError(err)
 	}
 	fmt.Println("  [4/7] Content initialized")
 
 	// Initialize Shroud beacon and circuit manager.
 	if err := a.initBeacon(); err != nil {
-		return fmt.Errorf("initializing beacon: %w", err)
+		return murerr.WrapBeaconError(err)
 	}
 	if a.config.EnableRelay {
 		fmt.Println("  [5/7] Shroud initialized (relay mode)")
@@ -229,12 +234,17 @@ func (a *App) Run() error {
 		a.startOnboarding()
 	}
 
+	// Start CLI mode if requested.
+	if a.config.CLIMode {
+		return a.runCLI()
+	}
+
 	// Start Pulse Map UI unless SkipUI is set.
 	if !a.config.SkipUI {
 		return a.runUI()
 	}
 
-	// If SkipUI, block until context is canceled (headless mode).
+	// If SkipUI and not CLI mode, block until context is canceled (headless mode).
 	<-a.ctx.Done()
 
 	return nil

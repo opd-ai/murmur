@@ -392,3 +392,80 @@ func TestEventBusClose(t *testing.T) {
 	// Emit after close should not panic.
 	eb.EmitPeerConnected("peer", nil)
 }
+
+// TestEventBusSlowSubscriber tests that slow subscribers don't block fast ones.
+// Per AUDIT.md remediation and ROADMAP.md:147 backpressure handling claim,
+// the event bus must not allow slow subscribers to stall the entire system.
+func TestEventBusSlowSubscriber(t *testing.T) {
+	eb := NewEventBus(EventBusConfig{BufferSize: 16})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		eb.Start(ctx)
+	}()
+
+	// Create fast subscriber with buffered channel.
+	fastCh := make(chan Event, 100)
+	fastUnsub := eb.Subscribe([]EventType{EventPeerConnected}, fastCh)
+	defer fastUnsub()
+
+	// Create slow subscriber with small unbuffered channel that will block.
+	slowCh := make(chan Event) // Unbuffered = will block immediately
+	slowUnsub := eb.Subscribe([]EventType{EventPeerConnected}, slowCh)
+	defer slowUnsub()
+
+	// Emit many events rapidly.
+	const numEvents = 50
+	for i := 0; i < numEvents; i++ {
+		eb.EmitPeerConnected("test-peer", nil)
+	}
+
+	// Give dispatch goroutine time to process.
+	time.Sleep(100 * time.Millisecond)
+
+	// Fast subscriber should have received most/all events.
+	fastReceived := 0
+	fastDone := false
+	for !fastDone {
+		select {
+		case <-fastCh:
+			fastReceived++
+		case <-time.After(50 * time.Millisecond):
+			fastDone = true
+		}
+	}
+
+	// Slow subscriber should have received at most 1 event (or dropped all).
+	slowReceived := 0
+	slowDone := false
+	for !slowDone {
+		select {
+		case <-slowCh:
+			slowReceived++
+		case <-time.After(50 * time.Millisecond):
+			slowDone = true
+		}
+	}
+
+	// Verify fast subscriber got events.
+	if fastReceived == 0 {
+		t.Error("fast subscriber received no events")
+	}
+
+	// Verify slow subscriber didn't block the system (fast subscriber still worked).
+	// The key assertion is that fastReceived > slowReceived, proving non-blocking.
+	if fastReceived <= slowReceived {
+		t.Errorf("fast subscriber (%d) did not receive more events than slow subscriber (%d); slow subscriber may have blocked dispatch",
+			fastReceived, slowReceived)
+	}
+
+	t.Logf("Fast subscriber received %d/%d events", fastReceived, numEvents)
+	t.Logf("Slow subscriber received %d/%d events (expected drops)", slowReceived, numEvents)
+
+	cancel()
+	wg.Wait()
+}

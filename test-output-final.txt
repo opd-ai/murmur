@@ -1,0 +1,44 @@
+ok  	github.com/opd-ai/murmur/cmd/murmur	1.349s
+ok  	github.com/opd-ai/murmur/pkg/anonymous/mechanics	10.695s
+ok  	github.com/opd-ai/murmur/pkg/anonymous/resonance	8.073s
+ok  	github.com/opd-ai/murmur/pkg/anonymous/shroud	8.520s
+ok  	github.com/opd-ai/murmur/pkg/anonymous/specters	1.195s
+ok  	github.com/opd-ai/murmur/pkg/app	5.419s
+ok  	github.com/opd-ai/murmur/pkg/assets	1.078s
+?   	github.com/opd-ai/murmur/pkg/cli	[no test files]
+ok  	github.com/opd-ai/murmur/pkg/config	1.020s
+ok  	github.com/opd-ai/murmur/pkg/content/filtering	1.025s
+ok  	github.com/opd-ai/murmur/pkg/content/pow	1.031s
+ok  	github.com/opd-ai/murmur/pkg/content/propagation	2.005s
+ok  	github.com/opd-ai/murmur/pkg/content/storage	1.170s
+ok  	github.com/opd-ai/murmur/pkg/content/threads	1.044s
+ok  	github.com/opd-ai/murmur/pkg/content/waves	1.150s
+ok  	github.com/opd-ai/murmur/pkg/identity/declarations	1.588s
+ok  	github.com/opd-ai/murmur/pkg/identity/ignition	1.205s
+ok  	github.com/opd-ai/murmur/pkg/identity/keys	1.755s
+ok  	github.com/opd-ai/murmur/pkg/identity/modes	1.213s
+ok  	github.com/opd-ai/murmur/pkg/identity/sigils	1.089s
+ok  	github.com/opd-ai/murmur/pkg/murerr	1.027s
+ok  	github.com/opd-ai/murmur/pkg/networking	2.265s
+ok  	github.com/opd-ai/murmur/pkg/networking/discovery	1.981s
+ok  	github.com/opd-ai/murmur/pkg/networking/gossip	2.072s
+ok  	github.com/opd-ai/murmur/pkg/networking/mesh	4.746s
+ok  	github.com/opd-ai/murmur/pkg/networking/relay	2.007s
+ok  	github.com/opd-ai/murmur/pkg/networking/sync	1.434s
+ok  	github.com/opd-ai/murmur/pkg/networking/transport	1.535s
+ok  	github.com/opd-ai/murmur/pkg/onboarding/bootstrap	5.411s
+ok  	github.com/opd-ai/murmur/pkg/onboarding/flow	1.166s
+?   	github.com/opd-ai/murmur/pkg/onboarding/screens	[no test files]
+ok  	github.com/opd-ai/murmur/pkg/onboarding/tutorials	1.249s
+?   	github.com/opd-ai/murmur/pkg/pulsemap	[no test files]
+ok  	github.com/opd-ai/murmur/pkg/pulsemap/interaction	1.023s
+ok  	github.com/opd-ai/murmur/pkg/pulsemap/layout	1.520s
+ok  	github.com/opd-ai/murmur/pkg/pulsemap/overlays	1.140s
+?   	github.com/opd-ai/murmur/pkg/pulsemap/rendering	[no test files]
+?   	github.com/opd-ai/murmur/pkg/pulsemap/rendering/effects	[no test files]
+ok  	github.com/opd-ai/murmur/pkg/resources	1.121s
+ok  	github.com/opd-ai/murmur/pkg/security	1.042s
+ok  	github.com/opd-ai/murmur/pkg/store	1.082s
+ok  	github.com/opd-ai/murmur/pkg/ui	1.058s
+ok  	github.com/opd-ai/murmur/proto	1.043s
+?   	github.com/opd-ai/murmur/proto/proto	[no test files]

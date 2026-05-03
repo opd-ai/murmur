@@ -375,73 +375,102 @@ func (o *PulseBeatOverlay) drawEdgeIndicator(screen *ebiten.Image, centerX, cent
 
 // findEdgeIntersection finds where a ray from center intersects the screen edge.
 func (o *PulseBeatOverlay) findEdgeIntersection(centerX, centerY, dirX, dirY, screenW, screenH, margin float32) (float32, float32) {
-	// Calculate intersection with each edge.
-	var tMin float32 = 1e9
-
-	// Left edge.
-	if dirX < 0 {
-		t := (margin - centerX) / dirX
-		if t > 0 && t < tMin {
-			y := centerY + t*dirY
-			if y >= margin && y <= screenH-margin {
-				tMin = t
-			}
-		}
-	}
-
-	// Right edge.
-	if dirX > 0 {
-		t := (screenW - margin - centerX) / dirX
-		if t > 0 && t < tMin {
-			y := centerY + t*dirY
-			if y >= margin && y <= screenH-margin {
-				tMin = t
-			}
-		}
-	}
-
-	// Top edge.
-	if dirY < 0 {
-		t := (margin - centerY) / dirY
-		if t > 0 && t < tMin {
-			x := centerX + t*dirX
-			if x >= margin && x <= screenW-margin {
-				tMin = t
-			}
-		}
-	}
-
-	// Bottom edge.
-	if dirY > 0 {
-		t := (screenH - margin - centerY) / dirY
-		if t > 0 && t < tMin {
-			x := centerX + t*dirX
-			if x >= margin && x <= screenW-margin {
-				tMin = t
-			}
-		}
-	}
+	tMin := o.findMinEdgeIntersectionParam(centerX, centerY, dirX, dirY, screenW, screenH, margin)
 
 	if tMin == 1e9 {
-		// Fallback to corner.
-		x := centerX + dirX*100
-		y := centerY + dirY*100
-		if x < margin {
-			x = margin
-		}
-		if x > screenW-margin {
-			x = screenW - margin
-		}
-		if y < margin {
-			y = margin
-		}
-		if y > screenH-margin {
-			y = screenH - margin
-		}
-		return x, y
+		return o.clampToMarginBounds(centerX+dirX*100, centerY+dirY*100, screenW, screenH, margin)
 	}
 
 	return centerX + tMin*dirX, centerY + tMin*dirY
+}
+
+// findMinEdgeIntersectionParam computes the minimum ray parameter for edge intersection.
+func (o *PulseBeatOverlay) findMinEdgeIntersectionParam(centerX, centerY, dirX, dirY, screenW, screenH, margin float32) float32 {
+	tMin := float32(1e9)
+
+	tMin = o.tryIntersectLeftEdge(centerX, centerY, dirX, dirY, screenH, margin, tMin)
+	tMin = o.tryIntersectRightEdge(centerX, centerY, dirX, dirY, screenW, screenH, margin, tMin)
+	tMin = o.tryIntersectTopEdge(centerX, centerY, dirX, dirY, screenW, margin, tMin)
+	tMin = o.tryIntersectBottomEdge(centerX, centerY, dirX, dirY, screenW, screenH, margin, tMin)
+
+	return tMin
+}
+
+// tryIntersectLeftEdge checks intersection with left screen edge.
+func (o *PulseBeatOverlay) tryIntersectLeftEdge(centerX, centerY, dirX, dirY, screenH, margin, tMin float32) float32 {
+	if dirX >= 0 {
+		return tMin
+	}
+	t := (margin - centerX) / dirX
+	if t > 0 && t < tMin {
+		y := centerY + t*dirY
+		if y >= margin && y <= screenH-margin {
+			return t
+		}
+	}
+	return tMin
+}
+
+// tryIntersectRightEdge checks intersection with right screen edge.
+func (o *PulseBeatOverlay) tryIntersectRightEdge(centerX, centerY, dirX, dirY, screenW, screenH, margin, tMin float32) float32 {
+	if dirX <= 0 {
+		return tMin
+	}
+	t := (screenW - margin - centerX) / dirX
+	if t > 0 && t < tMin {
+		y := centerY + t*dirY
+		if y >= margin && y <= screenH-margin {
+			return t
+		}
+	}
+	return tMin
+}
+
+// tryIntersectTopEdge checks intersection with top screen edge.
+func (o *PulseBeatOverlay) tryIntersectTopEdge(centerX, centerY, dirX, dirY, screenW, margin, tMin float32) float32 {
+	if dirY >= 0 {
+		return tMin
+	}
+	t := (margin - centerY) / dirY
+	if t > 0 && t < tMin {
+		x := centerX + t*dirX
+		if x >= margin && x <= screenW-margin {
+			return t
+		}
+	}
+	return tMin
+}
+
+// tryIntersectBottomEdge checks intersection with bottom screen edge.
+func (o *PulseBeatOverlay) tryIntersectBottomEdge(centerX, centerY, dirX, dirY, screenW, screenH, margin, tMin float32) float32 {
+	if dirY <= 0 {
+		return tMin
+	}
+	t := (screenH - margin - centerY) / dirY
+	if t > 0 && t < tMin {
+		x := centerX + t*dirX
+		if x >= margin && x <= screenW-margin {
+			return t
+		}
+	}
+	return tMin
+}
+
+// clampToMarginBounds clamps a point to stay within margin bounds.
+func (o *PulseBeatOverlay) clampToMarginBounds(x, y, screenW, screenH, margin float32) (float32, float32) {
+	if x < margin {
+		x = margin
+	}
+	if x > screenW-margin {
+		x = screenW - margin
+	}
+	if y < margin {
+		y = margin
+	}
+	if y > screenH-margin {
+		y = screenH - margin
+	}
+	return x, y
 }
 
 // drawBeatGlyph draws the beat indicator with glyph, background, and pointer.

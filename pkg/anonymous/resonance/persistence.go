@@ -103,31 +103,7 @@ func (ps *PersistentScorer) RemoveScore(specterID string) {
 func (ps *PersistentScorer) TopSpecters(n int) []string {
 	ps.mu.RLock()
 	defer ps.mu.RUnlock()
-
-	type specterScore struct {
-		id    string
-		score int
-	}
-
-	var all []specterScore
-	for id, s := range ps.scores {
-		all = append(all, specterScore{id: id, score: s.Compute()})
-	}
-
-	// Simple insertion sort for small n.
-	result := make([]string, 0, n)
-	for i := 0; i < n && i < len(all); i++ {
-		maxIdx := i
-		for j := i + 1; j < len(all); j++ {
-			if all[j].score > all[maxIdx].score {
-				maxIdx = j
-			}
-		}
-		all[i], all[maxIdx] = all[maxIdx], all[i]
-		result = append(result, all[i].id)
-	}
-
-	return result
+	return topNSpectersByScore(ps.scores, n)
 }
 
 // Count returns the number of tracked Specters.

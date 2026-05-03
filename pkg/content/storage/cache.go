@@ -351,6 +351,38 @@ func (c *Cache) StartGC(ctx context.Context, interval time.Duration) context.Can
 	return cancel
 }
 
+// List returns up to limit Waves from the cache, sorted by timestamp (newest first).
+func (c *Cache) List(limit int) ([]*pb.Wave, error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	if c.closed {
+		return nil, ErrStoreClosed
+	}
+
+	waveList := make([]*pb.Wave, 0, len(c.memory))
+	for _, wave := range c.memory {
+		if !waves.IsExpired(wave) {
+			waveList = append(waveList, wave)
+		}
+	}
+
+	// Sort by timestamp descending (newest first).
+	for i := 0; i < len(waveList); i++ {
+		for j := i + 1; j < len(waveList); j++ {
+			if waveList[i].CreatedAt < waveList[j].CreatedAt {
+				waveList[i], waveList[j] = waveList[j], waveList[i]
+			}
+		}
+	}
+
+	if len(waveList) > limit {
+		waveList = waveList[:limit]
+	}
+
+	return waveList, nil
+}
+
 // Close closes the cache.
 func (c *Cache) Close() error {
 	c.mu.Lock()

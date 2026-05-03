@@ -396,18 +396,21 @@ func (sc *Scorer) RemoveScore(specterID string) {
 	delete(sc.scores, specterID)
 }
 
-// TopSpecters returns the top N Specters by Resonance score.
-func (sc *Scorer) TopSpecters(n int) []string {
-	sc.mu.RLock()
-	defer sc.mu.RUnlock()
+// scoreComputer is an interface for any score type that can compute an integer score.
+type scoreComputer interface {
+	Compute() int
+}
 
+// topNSpectersByScore is a helper that extracts the top N specters from a scores map.
+// It uses selection sort, which is efficient for small N.
+func topNSpectersByScore[T scoreComputer](scoresMap map[string]T, n int) []string {
 	type specterScore struct {
 		id    string
 		score int
 	}
 
 	var all []specterScore
-	for id, s := range sc.scores {
+	for id, s := range scoresMap {
 		all = append(all, specterScore{id: id, score: s.Compute()})
 	}
 
@@ -425,6 +428,13 @@ func (sc *Scorer) TopSpecters(n int) []string {
 	}
 
 	return result
+}
+
+// TopSpecters returns the top N Specters by Resonance score.
+func (sc *Scorer) TopSpecters(n int) []string {
+	sc.mu.RLock()
+	defer sc.mu.RUnlock()
+	return topNSpectersByScore(sc.scores, n)
 }
 
 // Count returns the number of tracked Specters.

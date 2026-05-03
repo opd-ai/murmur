@@ -312,7 +312,13 @@ func (mp *MaskedEventPanel) handleCreateInput() {
 		return
 	}
 
-	// Navigate fields.
+	mp.handleFieldNavigation()
+	mp.handleFieldEditing()
+	mp.handleFormSubmit()
+}
+
+// handleFieldNavigation processes Tab/Up/Down keys to move between form fields.
+func (mp *MaskedEventPanel) handleFieldNavigation() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyTab) || inpututil.IsKeyJustPressed(ebiten.KeyDown) {
 		mp.createFieldIdx = (mp.createFieldIdx + 1) % 3
 	}
@@ -322,44 +328,59 @@ func (mp *MaskedEventPanel) handleCreateInput() {
 			mp.createFieldIdx = 2
 		}
 	}
+}
 
-	// Edit field based on index.
+// handleFieldEditing processes input for the currently selected form field.
+func (mp *MaskedEventPanel) handleFieldEditing() {
 	switch mp.createFieldIdx {
-	case 0: // Topic.
+	case 0:
 		mp.handleTextInput(&mp.createTopic, 256)
-	case 1: // Duration.
-		if inpututil.IsKeyJustPressed(ebiten.KeyLeft) && mp.createDuration > 0 {
-			mp.createDuration--
-		}
-		if inpututil.IsKeyJustPressed(ebiten.KeyRight) && mp.createDuration < len(validDurations)-1 {
-			mp.createDuration++
-		}
-	case 2: // Max participants.
-		if inpututil.IsKeyJustPressed(ebiten.KeyLeft) && mp.createMaxParticipants > 0 {
-			mp.createMaxParticipants -= 5
-			if mp.createMaxParticipants < 0 {
-				mp.createMaxParticipants = 0
-			}
-		}
-		if inpututil.IsKeyJustPressed(ebiten.KeyRight) {
-			mp.createMaxParticipants += 5
-			if mp.createMaxParticipants > 100 {
-				mp.createMaxParticipants = 100
-			}
-		}
+	case 1:
+		mp.handleDurationFieldInput()
+	case 2:
+		mp.handleMaxParticipantsFieldInput()
 	}
+}
 
-	// Submit.
-	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) {
-		if mp.createTopic == "" {
-			mp.errorMessage = "Topic is required"
-			return
-		}
-		if mp.onCreate != nil {
-			mp.onCreate(mp.createTopic, validDurations[mp.createDuration], mp.createMaxParticipants)
-		}
-		mp.mode = MaskedEventModeList
+// handleDurationFieldInput adjusts duration field with left/right arrows.
+func (mp *MaskedEventPanel) handleDurationFieldInput() {
+	if inpututil.IsKeyJustPressed(ebiten.KeyLeft) && mp.createDuration > 0 {
+		mp.createDuration--
 	}
+	if inpututil.IsKeyJustPressed(ebiten.KeyRight) && mp.createDuration < len(validDurations)-1 {
+		mp.createDuration++
+	}
+}
+
+// handleMaxParticipantsFieldInput adjusts max participants with left/right arrows.
+func (mp *MaskedEventPanel) handleMaxParticipantsFieldInput() {
+	if inpututil.IsKeyJustPressed(ebiten.KeyLeft) && mp.createMaxParticipants > 0 {
+		mp.createMaxParticipants -= 5
+		if mp.createMaxParticipants < 0 {
+			mp.createMaxParticipants = 0
+		}
+	}
+	if inpututil.IsKeyJustPressed(ebiten.KeyRight) {
+		mp.createMaxParticipants += 5
+		if mp.createMaxParticipants > 100 {
+			mp.createMaxParticipants = 100
+		}
+	}
+}
+
+// handleFormSubmit validates and submits the create event form.
+func (mp *MaskedEventPanel) handleFormSubmit() {
+	if !inpututil.IsKeyJustPressed(ebiten.KeyEnter) {
+		return
+	}
+	if mp.createTopic == "" {
+		mp.errorMessage = "Topic is required"
+		return
+	}
+	if mp.onCreate != nil {
+		mp.onCreate(mp.createTopic, validDurations[mp.createDuration], mp.createMaxParticipants)
+	}
+	mp.mode = MaskedEventModeList
 }
 
 // handleJoinInput processes input in join confirmation mode.

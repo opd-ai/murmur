@@ -157,96 +157,132 @@ func (l *Louvain) DetectCommunities() (map[int][]string, error) {
 	l.graph.mu.Lock()
 	defer l.graph.mu.Unlock()
 
-	if len(l.graph.nodes) == 0 {
-		return nil, ErrNoNodes
-	}
-	if l.graph.totalWeight == 0 {
-		return nil, ErrNoEdges
+	if err := l.validateGraph(); err != nil {
+		return nil, err
 	}
 
-	// Phase 1: Initial assignment - each node in its own community.
+	community := l.initializeCommunities()
+	degree := l.computeNodeDegrees()
+
+	community = l.optimizeCommunities(community, degree)
+
+	return l.renumberCommunitiesAndUpdate(community), nil
+}
+
+// validateGraph checks graph prerequisites for community detection.
+func (l *Louvain) validateGraph() error {
+	if len(l.graph.nodes) == 0 {
+		return ErrNoNodes
+	}
+	if l.graph.totalWeight == 0 {
+		return ErrNoEdges
+	}
+	return nil
+}
+
+// initializeCommunities assigns each node to its own community.
+func (l *Louvain) initializeCommunities() map[string]int {
 	community := make(map[string]int)
 	for i, nodeID := range l.graph.nodeOrder {
 		community[nodeID] = i
 	}
+	return community
+}
 
-	// Precompute degree (weighted) for each node.
+// computeNodeDegrees precomputes weighted degree for each node.
+func (l *Louvain) computeNodeDegrees() map[string]float64 {
 	degree := make(map[string]float64)
 	for nodeID, edges := range l.graph.edges {
 		for _, e := range edges {
 			degree[nodeID] += e.Weight
 		}
 	}
+	return degree
+}
 
-	m := l.graph.totalWeight // Total edge weight.
+// optimizeCommunities iteratively moves nodes to improve modularity.
+func (l *Louvain) optimizeCommunities(community map[string]int, degree map[string]float64) map[string]int {
+	m := l.graph.totalWeight
 	m2 := 2 * m
 
-	// Main loop: iterate until no improvement.
 	improved := true
 	iterations := 0
 	for improved && iterations < l.maxIterations {
 		improved = false
 		iterations++
 
-		// Try moving each node to neighbor's community.
 		for _, nodeID := range l.graph.nodeOrder {
-			currentCom := community[nodeID]
-			bestCom := currentCom
-			bestDelta := 0.0
-
-			ki := degree[nodeID] // Degree of node i.
-
-			// Sum of weights from node i to nodes in community c.
-			kiIn := make(map[int]float64)
-			for _, e := range l.graph.edges[nodeID] {
-				neighborCom := community[e.Target]
-				kiIn[neighborCom] += e.Weight
-			}
-
-			// Sum of degrees in each neighboring community.
-			sigmaTot := make(map[int]float64)
-			for neighborNodeID, neighborCom := range community {
-				sigmaTot[neighborCom] += degree[neighborNodeID]
-			}
-
-			// Current community stats (before removing node).
-			sigmaTotCurrent := sigmaTot[currentCom] - ki
-			kiInCurrent := kiIn[currentCom]
-
-			// Try each neighboring community.
-			for neighborCom := range kiIn {
-				if neighborCom == currentCom {
-					continue
-				}
-
-				sigmaTotNeighbor := sigmaTot[neighborCom]
-				kiInNeighbor := kiIn[neighborCom]
-
-				// Compute modularity delta.
-				// Remove from current: -kiInCurrent/m + ki*sigmaTotCurrent/(m2*m)
-				// Add to neighbor: kiInNeighbor/m - ki*(sigmaTotNeighbor+ki)/(m2*m)
-				removeFromCurrent := -kiInCurrent/m + l.resolution*ki*sigmaTotCurrent/(m2*m)
-				addToNeighbor := kiInNeighbor/m - l.resolution*ki*(sigmaTotNeighbor+ki)/(m2*m)
-				delta := removeFromCurrent + addToNeighbor
-
-				if delta > bestDelta {
-					bestDelta = delta
-					bestCom = neighborCom
-				}
-			}
-
-			// Move node if it improves modularity.
-			if bestCom != currentCom && bestDelta > l.minModularity {
-				community[nodeID] = bestCom
+			if l.tryMoveNodeToBestCommunity(nodeID, community, degree, m, m2) {
 				improved = true
 			}
 		}
 	}
+	return community
+}
 
-	// Phase 2: Renumber communities to be contiguous 0, 1, 2, ...
+// tryMoveNodeToBestCommunity attempts to move a node to improve modularity.
+func (l *Louvain) tryMoveNodeToBestCommunity(nodeID string, community map[string]int, degree map[string]float64, m, m2 float64) bool {
+	currentCom := community[nodeID]
+	bestCom := currentCom
+	bestDelta := 0.0
+
+	ki := degree[nodeID]
+	kiIn := l.computeNodeCommunityWeights(nodeID, community)
+	sigmaTot := l.computeCommunityTotalDegrees(community, degree)
+
+	sigmaTotCurrent := sigmaTot[currentCom] - ki
+	kiInCurrent := kiIn[currentCom]
+
+	for neighborCom := range kiIn {
+		if neighborCom == currentCom {
+			continue
+		}
+
+		delta := l.computeModularityDelta(ki, kiInCurrent, kiIn[neighborCom], sigmaTotCurrent, sigmaTot[neighborCom], m, m2)
+
+		if delta > bestDelta {
+			bestDelta = delta
+			bestCom = neighborCom
+		}
+	}
+
+	if bestCom != currentCom && bestDelta > l.minModularity {
+		community[nodeID] = bestCom
+		return true
+	}
+	return false
+}
+
+// computeNodeCommunityWeights sums edge weights from a node to each community.
+func (l *Louvain) computeNodeCommunityWeights(nodeID string, community map[string]int) map[int]float64 {
+	kiIn := make(map[int]float64)
+	for _, e := range l.graph.edges[nodeID] {
+		neighborCom := community[e.Target]
+		kiIn[neighborCom] += e.Weight
+	}
+	return kiIn
+}
+
+// computeCommunityTotalDegrees sums node degrees for each community.
+func (l *Louvain) computeCommunityTotalDegrees(community map[string]int, degree map[string]float64) map[int]float64 {
+	sigmaTot := make(map[int]float64)
+	for nodeID, com := range community {
+		sigmaTot[com] += degree[nodeID]
+	}
+	return sigmaTot
+}
+
+// computeModularityDelta calculates modularity change for moving a node between communities.
+func (l *Louvain) computeModularityDelta(ki, kiInCurrent, kiInNeighbor, sigmaTotCurrent, sigmaTotNeighbor, m, m2 float64) float64 {
+	removeFromCurrent := -kiInCurrent/m + l.resolution*ki*sigmaTotCurrent/(m2*m)
+	addToNeighbor := kiInNeighbor/m - l.resolution*ki*(sigmaTotNeighbor+ki)/(m2*m)
+	return removeFromCurrent + addToNeighbor
+}
+
+// renumberCommunitiesAndUpdate renumbers communities to be contiguous 0, 1, 2, ... and updates nodes.
+func (l *Louvain) renumberCommunitiesAndUpdate(community map[string]int) map[int][]string {
 	result := l.collectCommunities(community)
 
-	// Update node community assignments.
 	comIndex := make(map[int]int)
 	idx := 0
 	for oldCom := range result {
@@ -263,7 +299,7 @@ func (l *Louvain) DetectCommunities() (map[int][]string, error) {
 		}
 	}
 
-	return finalResult, nil
+	return finalResult
 }
 
 // communityTotalWeight computes the total weight of edges incident to a community.

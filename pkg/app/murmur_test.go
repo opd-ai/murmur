@@ -17,6 +17,7 @@ func TestNew(t *testing.T) {
 	app, err := New(Config{
 		Version: "0.0.0-test",
 		DataDir: tmpDir,
+		SkipUI:  true,
 	})
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
@@ -35,7 +36,7 @@ func TestAppContext(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	application, err := New(Config{DataDir: tmpDir})
+	application, err := New(Config{DataDir: tmpDir, SkipUI: true})
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
@@ -74,7 +75,7 @@ func TestAppDoubleRun(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	app, err := New(Config{DataDir: tmpDir})
+	app, err := New(Config{DataDir: tmpDir, SkipUI: true})
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
@@ -114,6 +115,7 @@ func TestAppSubsystemsInit(t *testing.T) {
 	app, err := New(Config{
 		Version: "0.0.0-test",
 		DataDir: tmpDir,
+		SkipUI:  true,
 	})
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
@@ -171,7 +173,7 @@ func TestAppSubsystemsPersistence(t *testing.T) {
 	// First run - create identity.
 	var firstPeerID string
 	{
-		app, err := New(Config{DataDir: tmpDir})
+		app, err := New(Config{DataDir: tmpDir, SkipUI: true})
 		if err != nil {
 			t.Fatalf("New() error = %v", err)
 		}
@@ -202,7 +204,7 @@ func TestAppSubsystemsPersistence(t *testing.T) {
 
 	// Second run - load existing identity.
 	{
-		app, err := New(Config{DataDir: tmpDir})
+		app, err := New(Config{DataDir: tmpDir, SkipUI: true})
 		if err != nil {
 			t.Fatalf("New() error = %v", err)
 		}

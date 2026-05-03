@@ -4,10 +4,13 @@
 package main
 
 import (
+	"errors"
+	"flag"
 	"fmt"
 	"os"
 
 	"github.com/opd-ai/murmur/pkg/app"
+	"github.com/opd-ai/murmur/pkg/murerr"
 )
 
 // Version is the current version of MURMUR. Set by build flags.
@@ -18,15 +21,27 @@ var appNew = app.New
 
 func main() {
 	if err := run(); err != nil {
-		fmt.Fprintf(os.Stderr, "murmur: %v\n", err)
+		// Check if it's an InitError with formatting.
+		var initErr *murerr.InitError
+		if errors.As(err, &initErr) {
+			fmt.Fprint(os.Stderr, initErr.Format())
+		} else {
+			fmt.Fprintf(os.Stderr, "murmur: %v\n", err)
+		}
 		os.Exit(1)
 	}
 }
 
 // run initializes and starts the MURMUR application.
 func run() error {
+	// Parse command-line flags.
+	cliMode := flag.Bool("cli", false, "Run in CLI mode (interactive REPL)")
+	flag.Parse()
+
 	return runWithConfig(app.Config{
 		Version: Version,
+		SkipUI:  *cliMode, // Skip UI in CLI mode
+		CLIMode: *cliMode,
 	})
 }
 

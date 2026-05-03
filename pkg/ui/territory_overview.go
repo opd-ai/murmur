@@ -136,50 +136,78 @@ func (p *TerritoryOverviewPanel) Update() bool {
 		return false
 	}
 
-	// Navigation keys.
+	p.handleNavigationKeys()
+	p.handleActionKeys()
+	p.handleCloseKey()
+
+	return true
+}
+
+// handleNavigationKeys processes up/down arrow keys for list navigation.
+func (p *TerritoryOverviewPanel) handleNavigationKeys() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyUp) {
-		if p.selectedIdx > 0 {
-			p.selectedIdx--
-			p.ensureSelectedVisible()
-		} else if p.selectedIdx == -1 && len(p.territories) > 0 {
-			p.selectedIdx = 0
-		}
+		p.handleUpKey()
 	}
 	if inpututil.IsKeyJustPressed(ebiten.KeyDown) {
-		if p.selectedIdx < len(p.territories)-1 {
-			p.selectedIdx++
-			p.ensureSelectedVisible()
-		} else if p.selectedIdx == -1 && len(p.territories) > 0 {
-			p.selectedIdx = 0
-		}
+		p.handleDownKey()
 	}
+}
 
-	// Selection/navigation.
+// handleUpKey moves selection up in the territory list.
+func (p *TerritoryOverviewPanel) handleUpKey() {
+	if p.selectedIdx > 0 {
+		p.selectedIdx--
+		p.ensureSelectedVisible()
+	} else if p.selectedIdx == -1 && len(p.territories) > 0 {
+		p.selectedIdx = 0
+	}
+}
+
+// handleDownKey moves selection down in the territory list.
+func (p *TerritoryOverviewPanel) handleDownKey() {
+	if p.selectedIdx < len(p.territories)-1 {
+		p.selectedIdx++
+		p.ensureSelectedVisible()
+	} else if p.selectedIdx == -1 && len(p.territories) > 0 {
+		p.selectedIdx = 0
+	}
+}
+
+// handleActionKeys processes Enter and G keys for territory actions.
+func (p *TerritoryOverviewPanel) handleActionKeys() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) {
-		if p.selectedIdx >= 0 && p.selectedIdx < len(p.territories) {
-			t := p.territories[p.selectedIdx]
-			if p.onTerritorySelect != nil {
-				p.onTerritorySelect(t.ID)
-			}
+		p.handleSelectTerritory()
+	}
+	if inpututil.IsKeyJustPressed(ebiten.KeyG) {
+		p.handleNavigateToTerritory()
+	}
+}
+
+// handleSelectTerritory triggers territory selection callback.
+func (p *TerritoryOverviewPanel) handleSelectTerritory() {
+	if p.selectedIdx >= 0 && p.selectedIdx < len(p.territories) {
+		t := p.territories[p.selectedIdx]
+		if p.onTerritorySelect != nil {
+			p.onTerritorySelect(t.ID)
 		}
 	}
+}
 
-	// Navigate to territory location.
-	if inpututil.IsKeyJustPressed(ebiten.KeyG) { // Go to.
-		if p.selectedIdx >= 0 && p.selectedIdx < len(p.territories) {
-			t := p.territories[p.selectedIdx]
-			if p.onNavigate != nil {
-				p.onNavigate(t.CentroidX, t.CentroidY)
-			}
+// handleNavigateToTerritory triggers navigation to territory centroid.
+func (p *TerritoryOverviewPanel) handleNavigateToTerritory() {
+	if p.selectedIdx >= 0 && p.selectedIdx < len(p.territories) {
+		t := p.territories[p.selectedIdx]
+		if p.onNavigate != nil {
+			p.onNavigate(t.CentroidX, t.CentroidY)
 		}
 	}
+}
 
-	// Close panel.
+// handleCloseKey closes the panel on Escape.
+func (p *TerritoryOverviewPanel) handleCloseKey() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
 		p.visible = false
 	}
-
-	return true
 }
 
 // ensureSelectedVisible adjusts scroll to keep selection visible.

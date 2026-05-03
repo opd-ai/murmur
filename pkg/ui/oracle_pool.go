@@ -161,54 +161,78 @@ func (p *OraclePoolPanel) Update() bool {
 		return false
 	}
 
-	// Text input for prediction.
-	if p.mode == OraclePoolModePredict {
-		for _, r := range ebiten.AppendInputChars(nil) {
-			if len(p.predictionText) < 64 {
-				p.predictionText += string(r)
-			}
-		}
-		if inpututil.IsKeyJustPressed(ebiten.KeyBackspace) && len(p.predictionText) > 0 {
-			p.predictionText = p.predictionText[:len(p.predictionText)-1]
-		}
-	}
-
-	// Submit prediction.
-	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) {
-		if p.mode == OraclePoolModePredict && p.pool != nil {
-			p.submitPrediction()
-		}
-	}
-
-	// Reveal prediction.
-	if inpututil.IsKeyJustPressed(ebiten.KeyR) {
-		if p.mode == OraclePoolModeView && p.pool != nil && p.pool.State == OraclePoolStateRevealing {
-			if p.pool.MyCommitted && !p.pool.MyRevealed {
-				p.revealPrediction()
-			}
-		}
-	}
-
-	// Switch to predict mode.
-	if inpututil.IsKeyJustPressed(ebiten.KeyP) {
-		if p.mode == OraclePoolModeView && p.pool != nil && p.pool.State == OraclePoolStatePending {
-			if !p.pool.MyCommitted {
-				p.mode = OraclePoolModePredict
-				p.predictionText = ""
-			}
-		}
-	}
-
-	// Close panel.
-	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
-		if p.mode != OraclePoolModeView {
-			p.mode = OraclePoolModeView
-		} else {
-			p.visible = false
-		}
-	}
+	p.handlePredictionTextInput()
+	p.handleKeyboardActions()
 
 	return true
+}
+
+// handlePredictionTextInput processes text input for predictions.
+func (p *OraclePoolPanel) handlePredictionTextInput() {
+	if p.mode != OraclePoolModePredict {
+		return
+	}
+	for _, r := range ebiten.AppendInputChars(nil) {
+		if len(p.predictionText) < 64 {
+			p.predictionText += string(r)
+		}
+	}
+	if inpututil.IsKeyJustPressed(ebiten.KeyBackspace) && len(p.predictionText) > 0 {
+		p.predictionText = p.predictionText[:len(p.predictionText)-1]
+	}
+}
+
+// handleKeyboardActions processes keyboard shortcuts and actions.
+func (p *OraclePoolPanel) handleKeyboardActions() {
+	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) {
+		p.handleEnterKey()
+	}
+	if inpututil.IsKeyJustPressed(ebiten.KeyR) {
+		p.handleRevealKey()
+	}
+	if inpututil.IsKeyJustPressed(ebiten.KeyP) {
+		p.handlePredictModeKey()
+	}
+	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
+		p.handleEscapeKey()
+	}
+}
+
+// handleEnterKey submits a prediction when in predict mode.
+func (p *OraclePoolPanel) handleEnterKey() {
+	if p.mode == OraclePoolModePredict && p.pool != nil {
+		p.submitPrediction()
+	}
+}
+
+// handleRevealKey reveals a committed prediction during reveal phase.
+func (p *OraclePoolPanel) handleRevealKey() {
+	if p.mode != OraclePoolModeView || p.pool == nil || p.pool.State != OraclePoolStateRevealing {
+		return
+	}
+	if p.pool.MyCommitted && !p.pool.MyRevealed {
+		p.revealPrediction()
+	}
+}
+
+// handlePredictModeKey switches to prediction mode when eligible.
+func (p *OraclePoolPanel) handlePredictModeKey() {
+	if p.mode != OraclePoolModeView || p.pool == nil || p.pool.State != OraclePoolStatePending {
+		return
+	}
+	if !p.pool.MyCommitted {
+		p.mode = OraclePoolModePredict
+		p.predictionText = ""
+	}
+}
+
+// handleEscapeKey exits predict mode or closes the panel.
+func (p *OraclePoolPanel) handleEscapeKey() {
+	if p.mode != OraclePoolModeView {
+		p.mode = OraclePoolModeView
+	} else {
+		p.visible = false
+	}
 }
 
 // submitPrediction attempts to submit the prediction.

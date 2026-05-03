@@ -415,27 +415,9 @@ func (h *Handlers) validateIdentityDeclaration(decl *pb.IdentityDeclaration) err
 }
 
 // identityDeclarationSignatureData builds the data to verify for an identity declaration.
+// This is a wrapper that delegates to the package-level function.
 func (h *Handlers) identityDeclarationSignatureData(decl *pb.IdentityDeclaration) []byte {
-	var data []byte
-	data = append(data, decl.PublicKey...)
-	data = append(data, []byte(decl.DisplayName)...)
-	data = append(data, []byte(decl.Bio)...)
-
-	ts := make([]byte, 8)
-	binary.BigEndian.PutUint64(ts, uint64(decl.CreatedAt))
-	data = append(data, ts...)
-
-	ver := make([]byte, 4)
-	binary.BigEndian.PutUint32(ver, decl.Version)
-	data = append(data, ver...)
-
-	data = append(data, decl.SigilPng...)
-
-	mode := make([]byte, 4)
-	binary.BigEndian.PutUint32(mode, uint32(decl.PrivacyMode))
-	data = append(data, mode...)
-
-	return data
+	return identityDeclarationSignatureData(decl)
 }
 
 // validateHeartbeat validates a heartbeat message's signature.

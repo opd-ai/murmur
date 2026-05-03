@@ -419,16 +419,15 @@ func (p *PuzzlePanel) drawTitle(screen *ebiten.Image, px, py int) {
 	// Title: "Create Cipher Puzzle"
 }
 
-// drawPuzzleTypeField draws the puzzle type selector.
-func (p *PuzzlePanel) drawPuzzleTypeField(screen *ebiten.Image, px, py int) {
-	fieldY := py + 60
-	fieldX := px + p.theme.Padding
-	fieldW := p.width - p.theme.Padding*2
-	fieldH := 50
+// drawInputFieldBackground draws the background rect for an input field with selection highlighting.
+func (p *PuzzlePanel) drawInputFieldBackground(screen *ebiten.Image, px, py, yOffset, fieldIndex int) (fieldX, fieldY, fieldW, fieldH int) {
+	fieldY = py + yOffset
+	fieldX = px + p.theme.Padding
+	fieldW = p.width - p.theme.Padding*2
+	fieldH = 50
 
-	// Highlight if selected.
 	bgColor := p.theme.InputBackground
-	if p.selectedField == 0 {
+	if p.selectedField == fieldIndex {
 		bgColor = color.RGBA{
 			R: p.theme.AccentPrimary.R,
 			G: p.theme.AccentPrimary.G,
@@ -441,6 +440,12 @@ func (p *PuzzlePanel) drawPuzzleTypeField(screen *ebiten.Image, px, py int) {
 		float32(fieldW), float32(fieldH), bgColor, true)
 	vector.StrokeRect(screen, float32(fieldX), float32(fieldY),
 		float32(fieldW), float32(fieldH), 1.0, p.theme.PanelBorder, true)
+	return fieldX, fieldY, fieldW, fieldH
+}
+
+// drawPuzzleTypeField draws the puzzle type selector.
+func (p *PuzzlePanel) drawPuzzleTypeField(screen *ebiten.Image, px, py int) {
+	fieldX, fieldY, fieldW, fieldH := p.drawInputFieldBackground(screen, px, py, 60, 0)
 
 	// Draw type options.
 	optionW := (fieldW - 20) / 3
@@ -461,26 +466,7 @@ func (p *PuzzlePanel) drawPuzzleTypeField(screen *ebiten.Image, px, py int) {
 
 // drawDifficultyField draws the difficulty slider.
 func (p *PuzzlePanel) drawDifficultyField(screen *ebiten.Image, px, py int) {
-	fieldY := py + 120
-	fieldX := px + p.theme.Padding
-	fieldW := p.width - p.theme.Padding*2
-	fieldH := 50
-
-	// Highlight if selected.
-	bgColor := p.theme.InputBackground
-	if p.selectedField == 1 {
-		bgColor = color.RGBA{
-			R: p.theme.AccentPrimary.R,
-			G: p.theme.AccentPrimary.G,
-			B: p.theme.AccentPrimary.B,
-			A: 40,
-		}
-	}
-
-	vector.DrawFilledRect(screen, float32(fieldX), float32(fieldY),
-		float32(fieldW), float32(fieldH), bgColor, true)
-	vector.StrokeRect(screen, float32(fieldX), float32(fieldY),
-		float32(fieldW), float32(fieldH), 1.0, p.theme.PanelBorder, true)
+	fieldX, fieldY, fieldW, fieldH := p.drawInputFieldBackground(screen, px, py, 120, 1)
 
 	// Draw slider track.
 	trackY := fieldY + fieldH/2 - 3
@@ -498,26 +484,7 @@ func (p *PuzzlePanel) drawDifficultyField(screen *ebiten.Image, px, py int) {
 
 // drawDurationField draws the duration selector.
 func (p *PuzzlePanel) drawDurationField(screen *ebiten.Image, px, py int) {
-	fieldY := py + 180
-	fieldX := px + p.theme.Padding
-	fieldW := p.width - p.theme.Padding*2
-	fieldH := 50
-
-	// Highlight if selected.
-	bgColor := p.theme.InputBackground
-	if p.selectedField == 2 {
-		bgColor = color.RGBA{
-			R: p.theme.AccentPrimary.R,
-			G: p.theme.AccentPrimary.G,
-			B: p.theme.AccentPrimary.B,
-			A: 40,
-		}
-	}
-
-	vector.DrawFilledRect(screen, float32(fieldX), float32(fieldY),
-		float32(fieldW), float32(fieldH), bgColor, true)
-	vector.StrokeRect(screen, float32(fieldX), float32(fieldY),
-		float32(fieldW), float32(fieldH), 1.0, p.theme.PanelBorder, true)
+	fieldX, fieldY, fieldW, fieldH := p.drawInputFieldBackground(screen, px, py, 180, 2)
 
 	// Draw duration options.
 	optionW := (fieldW - 20) / 3
@@ -538,26 +505,7 @@ func (p *PuzzlePanel) drawDurationField(screen *ebiten.Image, px, py int) {
 
 // drawSeedField draws the optional seed input field.
 func (p *PuzzlePanel) drawSeedField(screen *ebiten.Image, px, py int) {
-	fieldY := py + 240
-	fieldX := px + p.theme.Padding
-	fieldW := p.width - p.theme.Padding*2
-	fieldH := 50
-
-	// Highlight if selected.
-	bgColor := p.theme.InputBackground
-	if p.selectedField == 3 {
-		bgColor = color.RGBA{
-			R: p.theme.AccentPrimary.R,
-			G: p.theme.AccentPrimary.G,
-			B: p.theme.AccentPrimary.B,
-			A: 40,
-		}
-	}
-
-	vector.DrawFilledRect(screen, float32(fieldX), float32(fieldY),
-		float32(fieldW), float32(fieldH), bgColor, true)
-	vector.StrokeRect(screen, float32(fieldX), float32(fieldY),
-		float32(fieldW), float32(fieldH), 1.0, p.theme.PanelBorder, true)
+	fieldX, fieldY, _, _ := p.drawInputFieldBackground(screen, px, py, 240, 3)
 
 	// Draw cursor if selected and blinking.
 	if p.selectedField == 3 && int(p.animTime*2)%2 == 0 {
