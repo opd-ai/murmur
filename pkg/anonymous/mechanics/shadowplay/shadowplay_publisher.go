@@ -199,6 +199,13 @@ func (s *ShadowPlayPublisher) signAndPublish(ctx context.Context, event *pb.Shad
 
 // eventSignatureData creates the data that will be signed.
 func (s *ShadowPlayPublisher) eventSignatureData(event *pb.ShadowPlayEvent) []byte {
+	return computeShadowPlayEventSignatureData(event)
+}
+
+// computeShadowPlayEventSignatureData is the canonical computation of shadowplay event signature data.
+// This function is shared by both ShadowPlayPublisher and ShadowPlayReceiver to ensure signature
+// verification uses the same algorithm as signature generation.
+func computeShadowPlayEventSignatureData(event *pb.ShadowPlayEvent) []byte {
 	hash := blake3.New()
 	hash.Write([]byte("shadowplay-event-v1"))
 	binary.Write(hash, binary.BigEndian, int32(event.EventType))
@@ -286,15 +293,7 @@ func (r *ShadowPlayReceiver) verifyEventSignature(event *pb.ShadowPlayEvent) err
 
 // eventSignatureData creates the data that was signed.
 func (r *ShadowPlayReceiver) eventSignatureData(event *pb.ShadowPlayEvent) []byte {
-	hash := blake3.New()
-	hash.Write([]byte("shadowplay-event-v1"))
-	binary.Write(hash, binary.BigEndian, int32(event.EventType))
-	hash.Write(event.PlayId)
-	binary.Write(hash, binary.BigEndian, event.Timestamp)
-	if event.Actor != nil {
-		hash.Write(event.Actor.SpecterPubkey)
-	}
-	return hash.Sum(nil)
+	return computeShadowPlayEventSignatureData(event)
 }
 
 // processEvent handles the specific event type.

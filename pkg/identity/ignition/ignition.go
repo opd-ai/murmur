@@ -289,71 +289,37 @@ func parseIgnitionData(data []byte) (*IgnitionData, error) {
 		return nil, ErrInvalidQRData
 	}
 
-	idx := 0
+	parser := &ignitionParser{data: data}
 
-	// Version
-	version := data[idx]
-	idx++
-	if version != Version {
-		return nil, ErrVersionMismatch
+	version, err := parser.readVersion()
+	if err != nil {
+		return nil, err
 	}
 
-	// Public key
-	if idx+32 > len(data) {
-		return nil, ErrInvalidQRData
-	}
-	publicKey := make(ed25519.PublicKey, 32)
-	copy(publicKey, data[idx:idx+32])
-	idx += 32
-
-	// Number of addresses
-	if idx >= len(data) {
-		return nil, ErrInvalidQRData
-	}
-	numAddrs := int(data[idx])
-	idx++
-
-	// Addresses
-	addresses := make([]string, 0, numAddrs)
-	for i := 0; i < numAddrs; i++ {
-		if idx >= len(data) {
-			return nil, ErrInvalidQRData
-		}
-		addrLen := int(data[idx])
-		idx++
-		if idx+addrLen > len(data) {
-			return nil, ErrInvalidQRData
-		}
-		addresses = append(addresses, string(data[idx:idx+addrLen]))
-		idx += addrLen
+	publicKey, err := parser.readPublicKey()
+	if err != nil {
+		return nil, err
 	}
 
-	// Token
-	if idx+TokenSize > len(data) {
-		return nil, ErrInvalidQRData
+	addresses, err := parser.readAddresses()
+	if err != nil {
+		return nil, err
 	}
-	var token [TokenSize]byte
-	copy(token[:], data[idx:idx+TokenSize])
-	idx += TokenSize
 
-	// Timestamp
-	if idx+8 > len(data) {
-		return nil, ErrInvalidQRData
+	token, err := parser.readToken()
+	if err != nil {
+		return nil, err
 	}
-	timestamp := int64(binary.BigEndian.Uint64(data[idx : idx+8]))
-	idx += 8
 
-	// Signature length and data
-	if idx >= len(data) {
-		return nil, ErrInvalidQRData
+	timestamp, err := parser.readTimestamp()
+	if err != nil {
+		return nil, err
 	}
-	sigLen := int(data[idx])
-	idx++
-	if idx+sigLen > len(data) {
-		return nil, ErrInvalidQRData
+
+	signature, err := parser.readSignature()
+	if err != nil {
+		return nil, err
 	}
-	signature := make([]byte, sigLen)
-	copy(signature, data[idx:idx+sigLen])
 
 	result := &IgnitionData{
 		Version:   version,
@@ -371,6 +337,93 @@ func parseIgnitionData(data []byte) (*IgnitionData, error) {
 	}
 
 	return result, nil
+}
+
+// ignitionParser assists with parsing ignition data fields sequentially.
+type ignitionParser struct {
+	data []byte
+	idx  int
+}
+
+// readVersion reads and validates the protocol version byte.
+func (p *ignitionParser) readVersion() (uint8, error) {
+	version := p.data[p.idx]
+	p.idx++
+	if version != Version {
+		return 0, ErrVersionMismatch
+	}
+	return version, nil
+}
+
+// readPublicKey reads the 32-byte Ed25519 public key.
+func (p *ignitionParser) readPublicKey() (ed25519.PublicKey, error) {
+	if p.idx+32 > len(p.data) {
+		return nil, ErrInvalidQRData
+	}
+	publicKey := make(ed25519.PublicKey, 32)
+	copy(publicKey, p.data[p.idx:p.idx+32])
+	p.idx += 32
+	return publicKey, nil
+}
+
+// readAddresses reads the variable-length address list.
+func (p *ignitionParser) readAddresses() ([]string, error) {
+	if p.idx >= len(p.data) {
+		return nil, ErrInvalidQRData
+	}
+	numAddrs := int(p.data[p.idx])
+	p.idx++
+
+	addresses := make([]string, 0, numAddrs)
+	for i := 0; i < numAddrs; i++ {
+		if p.idx >= len(p.data) {
+			return nil, ErrInvalidQRData
+		}
+		addrLen := int(p.data[p.idx])
+		p.idx++
+		if p.idx+addrLen > len(p.data) {
+			return nil, ErrInvalidQRData
+		}
+		addresses = append(addresses, string(p.data[p.idx:p.idx+addrLen]))
+		p.idx += addrLen
+	}
+	return addresses, nil
+}
+
+// readToken reads the 16-byte one-time token.
+func (p *ignitionParser) readToken() ([TokenSize]byte, error) {
+	var token [TokenSize]byte
+	if p.idx+TokenSize > len(p.data) {
+		return token, ErrInvalidQRData
+	}
+	copy(token[:], p.data[p.idx:p.idx+TokenSize])
+	p.idx += TokenSize
+	return token, nil
+}
+
+// readTimestamp reads the 8-byte Unix timestamp.
+func (p *ignitionParser) readTimestamp() (int64, error) {
+	if p.idx+8 > len(p.data) {
+		return 0, ErrInvalidQRData
+	}
+	timestamp := int64(binary.BigEndian.Uint64(p.data[p.idx : p.idx+8]))
+	p.idx += 8
+	return timestamp, nil
+}
+
+// readSignature reads the variable-length Ed25519 signature.
+func (p *ignitionParser) readSignature() ([]byte, error) {
+	if p.idx >= len(p.data) {
+		return nil, ErrInvalidQRData
+	}
+	sigLen := int(p.data[p.idx])
+	p.idx++
+	if p.idx+sigLen > len(p.data) {
+		return nil, ErrInvalidQRData
+	}
+	signature := make([]byte, sigLen)
+	copy(signature, p.data[p.idx:p.idx+sigLen])
+	return signature, nil
 }
 
 // Verify checks that the IgnitionData has a valid signature.

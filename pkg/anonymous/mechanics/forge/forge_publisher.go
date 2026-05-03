@@ -183,6 +183,13 @@ func (f *ForgePublisher) signAndPublish(ctx context.Context, event *pb.ForgeEven
 
 // eventSignatureData creates the data to be signed for an event.
 func (f *ForgePublisher) eventSignatureData(event *pb.ForgeEvent) []byte {
+	return computeForgeEventSignatureData(event)
+}
+
+// computeForgeEventSignatureData is the canonical computation of forge event signature data.
+// This function is shared by both ForgePublisher and ForgeReceiver to ensure signature
+// verification uses the same algorithm as signature generation.
+func computeForgeEventSignatureData(event *pb.ForgeEvent) []byte {
 	hash := blake3.New()
 	hash.Write([]byte("forge-event-v1"))
 	binary.Write(hash, binary.BigEndian, int32(event.EventType))
@@ -261,16 +268,7 @@ func (r *ForgeReceiver) verifyEventSignature(event *pb.ForgeEvent) error {
 
 // eventSignatureData creates the data that was signed.
 func (r *ForgeReceiver) eventSignatureData(event *pb.ForgeEvent) []byte {
-	hash := blake3.New()
-	hash.Write([]byte("forge-event-v1"))
-	binary.Write(hash, binary.BigEndian, int32(event.EventType))
-	hash.Write(event.ProjectId)
-	binary.Write(hash, binary.BigEndian, event.Timestamp)
-	if event.Contribution != nil {
-		hash.Write(event.Contribution.SpecterPubkey)
-		hash.Write(event.Contribution.Contribution)
-	}
-	return hash.Sum(nil)
+	return computeForgeEventSignatureData(event)
 }
 
 // processEvent handles the specific event type.

@@ -81,6 +81,13 @@ func (m *MarkPublisher) signAndPublish(ctx context.Context, event *pb.MarkEvent)
 
 // eventSignatureData creates the data to be signed for an event.
 func (m *MarkPublisher) eventSignatureData(event *pb.MarkEvent) []byte {
+	return computeMarkEventSignatureData(event)
+}
+
+// computeMarkEventSignatureData is the canonical computation of mark event signature data.
+// This function is shared by both MarkPublisher and MarkReceiver to ensure signature
+// verification uses the same algorithm as signature generation.
+func computeMarkEventSignatureData(event *pb.MarkEvent) []byte {
 	hash := blake3.New()
 	hash.Write([]byte("mark-event-v1"))
 	if event.Mark != nil {
@@ -155,16 +162,7 @@ func (r *MarkReceiver) verifyEventSignature(event *pb.MarkEvent) error {
 
 // eventSignatureData creates the data that was signed.
 func (r *MarkReceiver) eventSignatureData(event *pb.MarkEvent) []byte {
-	hash := blake3.New()
-	hash.Write([]byte("mark-event-v1"))
-	if event.Mark != nil {
-		hash.Write(event.Mark.Id)
-		hash.Write(event.Mark.SpecterPubkey)
-		hash.Write(event.Mark.TargetPubkey)
-		hash.Write([]byte(event.Mark.Content))
-	}
-	binary.Write(hash, binary.BigEndian, event.Timestamp)
-	return hash.Sum(nil)
+	return computeMarkEventSignatureData(event)
 }
 
 // processEvent handles the mark event.

@@ -172,65 +172,96 @@ func (cp *CouncilPanel) drawCouncilDetail(screen *ebiten.Image, x, y, w, h float
 	council := cp.currentCouncil
 
 	// State badge.
-	stateColor := cp.theme.Success
-	if council.State == CouncilStateDormant {
-		stateColor = cp.theme.Warning
-	} else if council.State == CouncilStateDisbanded {
-		stateColor = cp.theme.TextError
-	}
-	vector.DrawFilledRect(screen, x+w-padding-80, y+10, 70, 20, stateColor, true)
+	cp.drawStateBadge(screen, x, y, w, padding, council.State)
 
 	// Purpose.
 	vector.DrawFilledRect(screen, x+padding, y+40, w-padding*2, 60, cp.theme.InputBackground, true)
 
 	// Stats.
 	statsY := y + 120
-	memberCount := 0
-	for _, m := range council.Members {
-		if m.Status == MemberStatusActive {
-			memberCount++
-		}
-	}
-
-	// Member count circle.
-	vector.DrawFilledCircle(screen, x+padding+30, statsY+20, 20, cp.theme.AccentPrimary, true)
-
-	// Proposal count circle.
-	activeProposals := 0
-	for _, p := range council.Proposals {
-		if !p.Resolved {
-			activeProposals++
-		}
-	}
-	vector.DrawFilledCircle(screen, x+padding+100, statsY+20, 20, cp.theme.AccentSecondary, true)
-
-	// Application count circle.
-	pendingApps := 0
-	for _, a := range council.Applications {
-		if !a.Resolved {
-			pendingApps++
-		}
-	}
-	if pendingApps > 0 {
-		vector.DrawFilledCircle(screen, x+padding+170, statsY+20, 20, cp.theme.Warning, true)
-	}
+	cp.drawCouncilStats(screen, x, statsY, padding, council)
 
 	// Action buttons.
 	btnY := y + 200
+	cp.drawActionButtons(screen, x, btnY, padding, council)
+}
+
+// drawStateBadge renders the council state badge in the top-right corner.
+func (cp *CouncilPanel) drawStateBadge(screen *ebiten.Image, x, y, w, padding float32, state CouncilState) {
+	stateColor := cp.theme.Success
+	if state == CouncilStateDormant {
+		stateColor = cp.theme.Warning
+	} else if state == CouncilStateDisbanded {
+		stateColor = cp.theme.TextError
+	}
+	vector.DrawFilledRect(screen, x+w-padding-80, y+10, 70, 20, stateColor, true)
+}
+
+// drawCouncilStats renders the member, proposal, and application count circles.
+func (cp *CouncilPanel) drawCouncilStats(screen *ebiten.Image, x, statsY, padding float32, council *Council) {
+	memberCount := countActiveMembers(council.Members)
+	vector.DrawFilledCircle(screen, x+padding+30, statsY+20, 20, cp.theme.AccentPrimary, true)
+
+	activeProposals := countActiveProposals(council.Proposals)
+	vector.DrawFilledCircle(screen, x+padding+100, statsY+20, 20, cp.theme.AccentSecondary, true)
+
+	pendingApps := countPendingApplications(council.Applications)
+	if pendingApps > 0 {
+		vector.DrawFilledCircle(screen, x+padding+170, statsY+20, 20, cp.theme.Warning, true)
+	}
+}
+
+// drawActionButtons renders the council action buttons.
+func (cp *CouncilPanel) drawActionButtons(screen *ebiten.Image, x, btnY, padding float32, council *Council) {
+	if !council.IsMember {
+		return
+	}
+
 	btnW := float32(100)
 	btnH := float32(32)
 	btnSpacing := float32(10)
 
-	if council.IsMember {
-		cp.drawButton(screen, x+padding, btnY, btnW, btnH, "[M]embers", true)
-		cp.drawButton(screen, x+padding+btnW+btnSpacing, btnY, btnW, btnH, "[P]roposals", true)
-		cp.drawButton(screen, x+padding, btnY+btnH+btnSpacing, btnW, btnH, "[I]nvite", true)
-		cp.drawButton(screen, x+padding+btnW+btnSpacing, btnY+btnH+btnSpacing, btnW, btnH, "[N]ew Prop", true)
+	cp.drawButton(screen, x+padding, btnY, btnW, btnH, "[M]embers", true)
+	cp.drawButton(screen, x+padding+btnW+btnSpacing, btnY, btnW, btnH, "[P]roposals", true)
+	cp.drawButton(screen, x+padding, btnY+btnH+btnSpacing, btnW, btnH, "[I]nvite", true)
+	cp.drawButton(screen, x+padding+btnW+btnSpacing, btnY+btnH+btnSpacing, btnW, btnH, "[N]ew Prop", true)
 
-		if !council.IsCreator {
-			cp.drawButton(screen, x+padding+(btnW+btnSpacing)*2, btnY, btnW, btnH, "[L]eave", true)
+	if !council.IsCreator {
+		cp.drawButton(screen, x+padding+(btnW+btnSpacing)*2, btnY, btnW, btnH, "[L]eave", true)
+	}
+}
+
+// countActiveMembers returns the number of active members.
+func countActiveMembers(members []CouncilMember) int {
+	count := 0
+	for _, m := range members {
+		if m.Status == MemberStatusActive {
+			count++
 		}
 	}
+	return count
+}
+
+// countActiveProposals returns the number of unresolved proposals.
+func countActiveProposals(proposals []Proposal) int {
+	count := 0
+	for _, p := range proposals {
+		if !p.Resolved {
+			count++
+		}
+	}
+	return count
+}
+
+// countPendingApplications returns the number of unresolved applications.
+func countPendingApplications(applications []CouncilApplication) int {
+	count := 0
+	for _, a := range applications {
+		if !a.Resolved {
+			count++
+		}
+	}
+	return count
 }
 
 // drawMembersList draws the members list.

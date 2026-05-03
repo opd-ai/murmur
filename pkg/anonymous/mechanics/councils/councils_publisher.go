@@ -212,6 +212,13 @@ func (c *CouncilPublisher) signAndPublish(ctx context.Context, event *pb.Council
 
 // eventSignatureData creates the data to be signed for an event.
 func (c *CouncilPublisher) eventSignatureData(event *pb.CouncilEvent) []byte {
+	return computeCouncilEventSignatureData(event)
+}
+
+// computeCouncilEventSignatureData is the canonical computation of council event signature data.
+// This function is shared by both CouncilPublisher and CouncilReceiver to ensure signature
+// verification uses the same algorithm as signature generation.
+func computeCouncilEventSignatureData(event *pb.CouncilEvent) []byte {
 	hash := blake3.New()
 	hash.Write([]byte("council-event-v1"))
 	binary.Write(hash, binary.BigEndian, int32(event.EventType))
@@ -315,21 +322,7 @@ func (r *CouncilReceiver) verifyEventSignature(event *pb.CouncilEvent) error {
 
 // eventSignatureData creates the data that was signed.
 func (r *CouncilReceiver) eventSignatureData(event *pb.CouncilEvent) []byte {
-	hash := blake3.New()
-	hash.Write([]byte("council-event-v1"))
-	binary.Write(hash, binary.BigEndian, int32(event.EventType))
-	hash.Write(event.CouncilId)
-	binary.Write(hash, binary.BigEndian, event.Timestamp)
-	if event.Member != nil {
-		hash.Write(event.Member.SpecterPubkey)
-	}
-	if event.Proposal != nil {
-		hash.Write(event.Proposal.Id)
-	}
-	if event.Vote != nil {
-		hash.Write(event.Vote.VoterPubkey)
-	}
-	return hash.Sum(nil)
+	return computeCouncilEventSignatureData(event)
 }
 
 // processEvent handles the specific event type.

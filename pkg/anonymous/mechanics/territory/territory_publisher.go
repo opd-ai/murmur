@@ -139,6 +139,13 @@ func (t *TerritoryPublisher) signAndPublish(ctx context.Context, event *pb.Terri
 
 // eventSignatureData creates the data to be signed for an event.
 func (t *TerritoryPublisher) eventSignatureData(event *pb.TerritoryEvent) []byte {
+	return computeTerritoryEventSignatureData(event)
+}
+
+// computeTerritoryEventSignatureData is the canonical computation of territory event signature data.
+// This function is shared by both TerritoryPublisher and TerritoryReceiver to ensure signature
+// verification uses the same algorithm as signature generation.
+func computeTerritoryEventSignatureData(event *pb.TerritoryEvent) []byte {
 	hash := blake3.New()
 	hash.Write([]byte("territory-event-v1"))
 	binary.Write(hash, binary.BigEndian, int32(event.EventType))
@@ -207,14 +214,7 @@ func (r *TerritoryReceiver) verifyEventSignature(event *pb.TerritoryEvent) error
 
 // eventSignatureData creates the data that was signed.
 func (r *TerritoryReceiver) eventSignatureData(event *pb.TerritoryEvent) []byte {
-	hash := blake3.New()
-	hash.Write([]byte("territory-event-v1"))
-	binary.Write(hash, binary.BigEndian, int32(event.EventType))
-	hash.Write(event.TerritoryId)
-	hash.Write(event.SpecterPubkey)
-	binary.Write(hash, binary.BigEndian, event.Timestamp)
-	binary.Write(hash, binary.BigEndian, event.InfluenceAmount)
-	return hash.Sum(nil)
+	return computeTerritoryEventSignatureData(event)
 }
 
 // processEvent handles the specific event type.

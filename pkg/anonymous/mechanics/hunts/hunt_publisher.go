@@ -183,14 +183,7 @@ func (h *HuntPublisher) signAndPublish(ctx context.Context, event *pb.HuntEvent)
 
 // eventSignatureData creates the data to be signed for an event.
 func (h *HuntPublisher) eventSignatureData(event *pb.HuntEvent) []byte {
-	hash := blake3.New()
-	hash.Write([]byte("hunt-event-v1"))
-	binary.Write(hash, binary.BigEndian, int32(event.EventType))
-	hash.Write(event.HuntId)
-	hash.Write(event.ClaimerKey)
-	binary.Write(hash, binary.BigEndian, event.Timestamp)
-	binary.Write(hash, binary.BigEndian, event.FragmentIndex)
-	return hash.Sum(nil)
+	return computeHuntEventSignatureData(event)
 }
 
 // HuntReceiver handles incoming hunt events from the network.
@@ -244,6 +237,13 @@ func (r *HuntReceiver) verifyEventSignature(event *pb.HuntEvent) error {
 
 // eventSignatureData creates the data that was signed.
 func (r *HuntReceiver) eventSignatureData(event *pb.HuntEvent) []byte {
+	return computeHuntEventSignatureData(event)
+}
+
+// computeHuntEventSignatureData is the canonical computation of hunt event signature data.
+// This function is shared by both HuntPublisher and HuntReceiver to ensure signature
+// verification uses the same algorithm as signature generation.
+func computeHuntEventSignatureData(event *pb.HuntEvent) []byte {
 	hash := blake3.New()
 	hash.Write([]byte("hunt-event-v1"))
 	binary.Write(hash, binary.BigEndian, int32(event.EventType))

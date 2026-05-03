@@ -81,6 +81,13 @@ func (g *GiftPublisher) signAndPublish(ctx context.Context, event *pb.GiftEvent)
 
 // eventSignatureData creates the data to be signed for an event.
 func (g *GiftPublisher) eventSignatureData(event *pb.GiftEvent) []byte {
+	return computeGiftEventSignatureData(event)
+}
+
+// computeGiftEventSignatureData is the canonical computation of gift event signature data.
+// This function is shared by both GiftPublisher and GiftReceiver to ensure signature
+// verification uses the same algorithm as signature generation.
+func computeGiftEventSignatureData(event *pb.GiftEvent) []byte {
 	hash := blake3.New()
 	hash.Write([]byte("gift-event-v1"))
 	if event.Gift != nil {
@@ -159,16 +166,7 @@ func (r *GiftReceiver) verifyEventSignature(event *pb.GiftEvent) error {
 
 // eventSignatureData creates the data that was signed.
 func (r *GiftReceiver) eventSignatureData(event *pb.GiftEvent) []byte {
-	hash := blake3.New()
-	hash.Write([]byte("gift-event-v1"))
-	if event.Gift != nil {
-		hash.Write(event.Gift.Id)
-		hash.Write(event.Gift.SenderPubkey)
-		hash.Write(event.Gift.RecipientPubkey)
-		binary.Write(hash, binary.BigEndian, event.Gift.EffectType)
-	}
-	binary.Write(hash, binary.BigEndian, event.Timestamp)
-	return hash.Sum(nil)
+	return computeGiftEventSignatureData(event)
 }
 
 // processEvent handles the gift event.

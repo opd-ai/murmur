@@ -184,6 +184,13 @@ func (o *OraclePublisher) signAndPublish(ctx context.Context, event *pb.OracleEv
 
 // eventSignatureData creates the data to be signed for an event.
 func (o *OraclePublisher) eventSignatureData(event *pb.OracleEvent) []byte {
+	return computeOracleEventSignatureData(event)
+}
+
+// computeOracleEventSignatureData is the canonical computation of oracle event signature data.
+// This function is shared by both OraclePublisher and OracleReceiver to ensure signature
+// verification uses the same algorithm as signature generation.
+func computeOracleEventSignatureData(event *pb.OracleEvent) []byte {
 	hash := blake3.New()
 	hash.Write([]byte("oracle-event-v1"))
 	binary.Write(hash, binary.BigEndian, int32(event.EventType))
@@ -259,13 +266,7 @@ func (r *OracleReceiver) verifyEventSignature(event *pb.OracleEvent) error {
 
 // eventSignatureData creates the data that was signed.
 func (r *OracleReceiver) eventSignatureData(event *pb.OracleEvent) []byte {
-	hash := blake3.New()
-	hash.Write([]byte("oracle-event-v1"))
-	binary.Write(hash, binary.BigEndian, int32(event.EventType))
-	hash.Write(event.PoolId)
-	binary.Write(hash, binary.BigEndian, event.Timestamp)
-	binary.Write(hash, binary.BigEndian, event.WinningOption)
-	return hash.Sum(nil)
+	return computeOracleEventSignatureData(event)
 }
 
 // processEvent handles the specific event type.
