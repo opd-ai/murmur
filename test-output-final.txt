@@ -1,44 +1,143 @@
-ok  	github.com/opd-ai/murmur/cmd/murmur	1.349s
-ok  	github.com/opd-ai/murmur/pkg/anonymous/mechanics	10.695s
-ok  	github.com/opd-ai/murmur/pkg/anonymous/resonance	8.073s
-ok  	github.com/opd-ai/murmur/pkg/anonymous/shroud	8.520s
-ok  	github.com/opd-ai/murmur/pkg/anonymous/specters	1.195s
-ok  	github.com/opd-ai/murmur/pkg/app	5.419s
-ok  	github.com/opd-ai/murmur/pkg/assets	1.078s
+# github.com/opd-ai/murmur/pkg/anonymous/mechanics/hunts
+pkg/anonymous/mechanics/hunts/hunt_publisher_test.go:129:35: expected '(', found '.'
+FAIL	github.com/opd-ai/murmur/pkg/anonymous/mechanics/hunts [setup failed]
+# github.com/opd-ai/murmur/pkg/anonymous/mechanics/sparks
+pkg/anonymous/mechanics/sparks/spark_publisher_test.go:79:42: expected '(', found '.'
+FAIL	github.com/opd-ai/murmur/pkg/anonymous/mechanics/sparks [setup failed]
+# github.com/opd-ai/murmur/pkg/anonymous/mechanics/territory [github.com/opd-ai/murmur/pkg/anonymous/mechanics/territory.test]
+pkg/anonymous/mechanics/territory/territory_publisher_test.go:50:45: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/territory/territory_publisher_test.go:118:45: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/territory/territory_publisher_test.go:167:45: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/territory/territory_publisher_test.go:224:52: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/territory/territory_publisher_test.go:263:52: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/territory/territory_publisher_test.go:296:52: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/territory/territory_publisher_test.go:500:45: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/territory/territory_publisher_test.go:550:31: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+# github.com/opd-ai/murmur/pkg/anonymous/mechanics/gifts [github.com/opd-ai/murmur/pkg/anonymous/mechanics/gifts.test]
+pkg/anonymous/mechanics/gifts/gifts_publisher_test.go:107:26: mockPub.Published[0].topic undefined (type mechanics.PublishedMessage has no field or method topic, but does have field Topic)
+pkg/anonymous/mechanics/gifts/gifts_publisher_test.go:108:56: mockPub.Published[0].topic undefined (type mechanics.PublishedMessage has no field or method topic, but does have field Topic)
+pkg/anonymous/mechanics/gifts/gifts_publisher_test.go:113:49: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/gifts/gifts_publisher_test.go:514:52: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/gifts/gifts_publisher_test.go:573:37: msg.data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+# github.com/opd-ai/murmur/pkg/anonymous/mechanics/puzzles [github.com/opd-ai/murmur/pkg/anonymous/mechanics/puzzles.test]
+pkg/anonymous/mechanics/puzzles/puzzle_publisher_test.go:13:2: "google.golang.org/protobuf/proto" imported and not used
+pkg/anonymous/mechanics/puzzles/puzzle_publisher_test.go:39:26: mockPub.Published[0].topic undefined (type mechanics.PublishedMessage has no field or method topic, but does have field Topic)
+pkg/anonymous/mechanics/puzzles/puzzle_publisher_test.go:40:52: mockPub.Published[0].topic undefined (type mechanics.PublishedMessage has no field or method topic, but does have field Topic)
+# github.com/opd-ai/murmur/pkg/anonymous/mechanics/councils [github.com/opd-ai/murmur/pkg/anonymous/mechanics/councils.test]
+pkg/anonymous/mechanics/councils/councils_publisher_test.go:107:26: mockPub.Published[0].topic undefined (type mechanics.PublishedMessage has no field or method topic, but does have field Topic)
+pkg/anonymous/mechanics/councils/councils_publisher_test.go:108:56: mockPub.Published[0].topic undefined (type mechanics.PublishedMessage has no field or method topic, but does have field Topic)
+pkg/anonymous/mechanics/councils/councils_publisher_test.go:113:49: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/councils/councils_publisher_test.go:158:39: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/councils/councils_publisher_test.go:197:39: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/councils/councils_publisher_test.go:227:39: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/councils/councils_publisher_test.go:271:39: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/councils/councils_publisher_test.go:299:39: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/councils/councils_publisher_test.go:709:52: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+# github.com/opd-ai/murmur/pkg/anonymous/mechanics/forge [github.com/opd-ai/murmur/pkg/anonymous/mechanics/forge.test]
+pkg/anonymous/mechanics/forge/forge_publisher_test.go:56:45: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/forge/forge_publisher_test.go:146:45: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/forge/forge_publisher_test.go:199:45: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/forge/forge_publisher_test.go:237:45: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/forge/forge_publisher_test.go:287:45: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/forge/forge_publisher_test.go:334:52: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/forge/forge_publisher_test.go:383:52: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/forge/forge_publisher_test.go:421:52: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/forge/forge_publisher_test.go:456:52: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/forge/forge_publisher_test.go:535:45: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/forge/forge_publisher_test.go:535:45: too many errors
+# github.com/opd-ai/murmur/pkg/anonymous/mechanics/oracle [github.com/opd-ai/murmur/pkg/anonymous/mechanics/oracle.test]
+pkg/anonymous/mechanics/oracle/oracle_publisher_test.go:63:45: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/oracle/oracle_publisher_test.go:148:45: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/oracle/oracle_publisher_test.go:204:45: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/oracle/oracle_publisher_test.go:251:45: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/oracle/oracle_publisher_test.go:314:52: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/oracle/oracle_publisher_test.go:353:52: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/oracle/oracle_publisher_test.go:390:52: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/oracle/oracle_publisher_test.go:481:52: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/oracle/oracle_publisher_test.go:517:52: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/oracle/oracle_publisher_test.go:542:45: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/oracle/oracle_publisher_test.go:542:45: too many errors
+# github.com/opd-ai/murmur/pkg/anonymous/mechanics/marks [github.com/opd-ai/murmur/pkg/anonymous/mechanics/marks.test]
+pkg/anonymous/mechanics/marks/marks_publisher_test.go:109:26: mockPub.Published[0].topic undefined (type mechanics.PublishedMessage has no field or method topic, but does have field Topic)
+pkg/anonymous/mechanics/marks/marks_publisher_test.go:110:56: mockPub.Published[0].topic undefined (type mechanics.PublishedMessage has no field or method topic, but does have field Topic)
+pkg/anonymous/mechanics/marks/marks_publisher_test.go:115:49: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/marks/marks_publisher_test.go:516:52: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/marks/marks_publisher_test.go:576:37: msg.data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/marks/mark_voting_test.go:9:2: "github.com/opd-ai/murmur/pkg/anonymous/mechanics" imported and not used
+# github.com/opd-ai/murmur/pkg/anonymous/mechanics/shadowplay [github.com/opd-ai/murmur/pkg/anonymous/mechanics/shadowplay.test]
+pkg/anonymous/mechanics/shadowplay/shadowplay_publisher_test.go:56:45: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/shadowplay/shadowplay_publisher_test.go:143:45: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/shadowplay/shadowplay_publisher_test.go:196:45: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/shadowplay/shadowplay_publisher_test.go:233:45: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/shadowplay/shadowplay_publisher_test.go:268:45: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/shadowplay/shadowplay_publisher_test.go:315:52: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/shadowplay/shadowplay_publisher_test.go:360:52: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/shadowplay/shadowplay_publisher_test.go:398:52: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/shadowplay/shadowplay_publisher_test.go:436:52: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/shadowplay/shadowplay_publisher_test.go:474:52: mockPub.Published[0].data undefined (type mechanics.PublishedMessage has no field or method data, but does have field Data)
+pkg/anonymous/mechanics/shadowplay/shadowplay_publisher_test.go:474:52: too many errors
+# github.com/opd-ai/murmur/pkg/anonymous/mechanics_test [github.com/opd-ai/murmur/pkg/anonymous/mechanics.test]
+pkg/anonymous/mechanics/mechanics_test.go:211:8: store.mu undefined (cannot refer to unexported field mu)
+pkg/anonymous/mechanics/mechanics_test.go:212:8: store.gifts undefined (cannot refer to unexported field gifts)
+pkg/anonymous/mechanics/mechanics_test.go:213:8: store.mu undefined (cannot refer to unexported field mu)
+pkg/anonymous/mechanics/mechanics_test.go:371:47: territory.InfluenceWaveAmplified undefined (type *territory.Territory has no field or method InfluenceWaveAmplified)
+pkg/anonymous/mechanics/mechanics_test.go:372:47: territory.InfluenceConnection undefined (type *territory.Territory has no field or method InfluenceConnection)
+pkg/anonymous/mechanics/mechanics_test.go:373:47: territory.InfluenceMechanic undefined (type *territory.Territory has no field or method InfluenceMechanic)
+pkg/anonymous/mechanics/mechanics_test.go:392:48: territory.InfluenceWaveAmplified undefined (type *territory.Territory has no field or method InfluenceWaveAmplified)
+pkg/anonymous/mechanics/mechanics_test.go:397:34: territory.TerritoryControlled undefined (type *territory.Territory has no field or method TerritoryControlled)
+pkg/anonymous/mechanics/mechanics_test.go:416:46: territory.InfluenceWaveAmplified undefined (type *territory.Territory has no field or method InfluenceWaveAmplified)
+pkg/anonymous/mechanics/mechanics_test.go:417:46: territory.InfluenceWaveAmplified undefined (type *territory.Territory has no field or method InfluenceWaveAmplified)
+pkg/anonymous/mechanics/mechanics_test.go:417:46: too many errors
+ok  	github.com/opd-ai/murmur/cmd/murmur	1.397s
+FAIL	github.com/opd-ai/murmur/pkg/anonymous/mechanics [build failed]
+FAIL	github.com/opd-ai/murmur/pkg/anonymous/mechanics/councils [build failed]
+FAIL	github.com/opd-ai/murmur/pkg/anonymous/mechanics/forge [build failed]
+FAIL	github.com/opd-ai/murmur/pkg/anonymous/mechanics/gifts [build failed]
+FAIL	github.com/opd-ai/murmur/pkg/anonymous/mechanics/marks [build failed]
+FAIL	github.com/opd-ai/murmur/pkg/anonymous/mechanics/oracle [build failed]
+FAIL	github.com/opd-ai/murmur/pkg/anonymous/mechanics/puzzles [build failed]
+FAIL	github.com/opd-ai/murmur/pkg/anonymous/mechanics/shadowplay [build failed]
+FAIL	github.com/opd-ai/murmur/pkg/anonymous/mechanics/territory [build failed]
+ok  	github.com/opd-ai/murmur/pkg/anonymous/resonance	6.746s
+ok  	github.com/opd-ai/murmur/pkg/anonymous/shroud	8.584s
+ok  	github.com/opd-ai/murmur/pkg/anonymous/specters	1.244s
+ok  	github.com/opd-ai/murmur/pkg/app	6.729s
+ok  	github.com/opd-ai/murmur/pkg/assets	1.095s
 ?   	github.com/opd-ai/murmur/pkg/cli	[no test files]
-ok  	github.com/opd-ai/murmur/pkg/config	1.020s
-ok  	github.com/opd-ai/murmur/pkg/content/filtering	1.025s
-ok  	github.com/opd-ai/murmur/pkg/content/pow	1.031s
-ok  	github.com/opd-ai/murmur/pkg/content/propagation	2.005s
-ok  	github.com/opd-ai/murmur/pkg/content/storage	1.170s
-ok  	github.com/opd-ai/murmur/pkg/content/threads	1.044s
-ok  	github.com/opd-ai/murmur/pkg/content/waves	1.150s
-ok  	github.com/opd-ai/murmur/pkg/identity/declarations	1.588s
-ok  	github.com/opd-ai/murmur/pkg/identity/ignition	1.205s
-ok  	github.com/opd-ai/murmur/pkg/identity/keys	1.755s
-ok  	github.com/opd-ai/murmur/pkg/identity/modes	1.213s
-ok  	github.com/opd-ai/murmur/pkg/identity/sigils	1.089s
-ok  	github.com/opd-ai/murmur/pkg/murerr	1.027s
-ok  	github.com/opd-ai/murmur/pkg/networking	2.265s
-ok  	github.com/opd-ai/murmur/pkg/networking/discovery	1.981s
-ok  	github.com/opd-ai/murmur/pkg/networking/gossip	2.072s
-ok  	github.com/opd-ai/murmur/pkg/networking/mesh	4.746s
-ok  	github.com/opd-ai/murmur/pkg/networking/relay	2.007s
-ok  	github.com/opd-ai/murmur/pkg/networking/sync	1.434s
-ok  	github.com/opd-ai/murmur/pkg/networking/transport	1.535s
-ok  	github.com/opd-ai/murmur/pkg/onboarding/bootstrap	5.411s
-ok  	github.com/opd-ai/murmur/pkg/onboarding/flow	1.166s
+ok  	github.com/opd-ai/murmur/pkg/config	1.015s
+ok  	github.com/opd-ai/murmur/pkg/content/filtering	1.018s
+ok  	github.com/opd-ai/murmur/pkg/content/pow	1.021s
+ok  	github.com/opd-ai/murmur/pkg/content/propagation	1.984s
+ok  	github.com/opd-ai/murmur/pkg/content/storage	1.150s
+ok  	github.com/opd-ai/murmur/pkg/content/threads	1.033s
+ok  	github.com/opd-ai/murmur/pkg/content/waves	1.106s
+ok  	github.com/opd-ai/murmur/pkg/identity/declarations	1.187s
+ok  	github.com/opd-ai/murmur/pkg/identity/ignition	1.192s
+ok  	github.com/opd-ai/murmur/pkg/identity/keys	1.514s
+ok  	github.com/opd-ai/murmur/pkg/identity/modes	1.199s
+ok  	github.com/opd-ai/murmur/pkg/identity/sigils	1.052s
+ok  	github.com/opd-ai/murmur/pkg/murerr	1.018s
+ok  	github.com/opd-ai/murmur/pkg/networking	2.192s
+ok  	github.com/opd-ai/murmur/pkg/networking/discovery	1.802s
+ok  	github.com/opd-ai/murmur/pkg/networking/gossip	1.942s
+ok  	github.com/opd-ai/murmur/pkg/networking/mesh	4.363s
+ok  	github.com/opd-ai/murmur/pkg/networking/relay	1.792s
+ok  	github.com/opd-ai/murmur/pkg/networking/sync	1.345s
+ok  	github.com/opd-ai/murmur/pkg/networking/transport	1.420s
+ok  	github.com/opd-ai/murmur/pkg/onboarding/bootstrap	5.406s
+ok  	github.com/opd-ai/murmur/pkg/onboarding/flow	1.160s
 ?   	github.com/opd-ai/murmur/pkg/onboarding/screens	[no test files]
-ok  	github.com/opd-ai/murmur/pkg/onboarding/tutorials	1.249s
+ok  	github.com/opd-ai/murmur/pkg/onboarding/tutorials	1.240s
 ?   	github.com/opd-ai/murmur/pkg/pulsemap	[no test files]
-ok  	github.com/opd-ai/murmur/pkg/pulsemap/interaction	1.023s
-ok  	github.com/opd-ai/murmur/pkg/pulsemap/layout	1.520s
-ok  	github.com/opd-ai/murmur/pkg/pulsemap/overlays	1.140s
+ok  	github.com/opd-ai/murmur/pkg/pulsemap/interaction	1.020s
+ok  	github.com/opd-ai/murmur/pkg/pulsemap/layout	1.495s
+ok  	github.com/opd-ai/murmur/pkg/pulsemap/overlays	1.085s
 ?   	github.com/opd-ai/murmur/pkg/pulsemap/rendering	[no test files]
 ?   	github.com/opd-ai/murmur/pkg/pulsemap/rendering/effects	[no test files]
-ok  	github.com/opd-ai/murmur/pkg/resources	1.121s
-ok  	github.com/opd-ai/murmur/pkg/security	1.042s
-ok  	github.com/opd-ai/murmur/pkg/store	1.082s
-ok  	github.com/opd-ai/murmur/pkg/ui	1.058s
-ok  	github.com/opd-ai/murmur/proto	1.043s
+ok  	github.com/opd-ai/murmur/pkg/resources	1.116s
+ok  	github.com/opd-ai/murmur/pkg/security	1.024s
+ok  	github.com/opd-ai/murmur/pkg/store	1.077s
+ok  	github.com/opd-ai/murmur/pkg/ui	1.055s
+ok  	github.com/opd-ai/murmur/proto	1.041s
 ?   	github.com/opd-ai/murmur/proto/proto	[no test files]
+FAIL

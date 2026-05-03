@@ -5,8 +5,6 @@ import (
 	"crypto/rand"
 	"testing"
 	"time"
-
-	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
 )
 
 func TestNewMarkVoteStore(t *testing.T) {

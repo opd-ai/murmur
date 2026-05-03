@@ -29,7 +29,7 @@ func TestNewForgePublisher(t *testing.T) {
 
 // TestForgePublisher_PublishForgeCreated tests forge creation publishing.
 func TestForgePublisher_PublishForgeCreated(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
 	pub := NewForgePublisher(mockPub, privKey)
 
@@ -47,13 +47,13 @@ func TestForgePublisher_PublishForgeCreated(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if len(mockPub.published) != 1 {
-		t.Fatalf("expected 1 published message, got %d", len(mockPub.published))
+	if len(mockPub.Published) != 1 {
+		t.Fatalf("expected 1 published message, got %d", len(mockPub.Published))
 	}
 
 	// Verify message content.
 	var gossipMsg pb.GossipMessage
-	err = proto.Unmarshal(mockPub.published[0].data, &gossipMsg)
+	err = proto.Unmarshal(mockPub.Published[0].Data, &gossipMsg)
 	if err != nil {
 		t.Fatalf("failed to unmarshal: %v", err)
 	}
@@ -86,7 +86,7 @@ func TestForgePublisher_PublishForgeCreated_NoPublisher(t *testing.T) {
 
 // TestForgePublisher_PublishForgeCreated_NilForge tests with nil forge.
 func TestForgePublisher_PublishForgeCreated_NilForge(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
 	pub := NewForgePublisher(mockPub, privKey)
 
@@ -98,7 +98,7 @@ func TestForgePublisher_PublishForgeCreated_NilForge(t *testing.T) {
 
 // TestForgePublisher_PublishForgeCreated_NoPrivateKey tests without private key.
 func TestForgePublisher_PublishForgeCreated_NoPrivateKey(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	pub := NewForgePublisher(mockPub, nil)
 
 	var initiatorKey [32]byte
@@ -112,7 +112,7 @@ func TestForgePublisher_PublishForgeCreated_NoPrivateKey(t *testing.T) {
 
 // TestForgePublisher_PublishEntry tests entry submission publishing.
 func TestForgePublisher_PublishEntry(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
 	pub := NewForgePublisher(mockPub, privKey)
 
@@ -137,13 +137,13 @@ func TestForgePublisher_PublishEntry(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if len(mockPub.published) != 1 {
-		t.Fatalf("expected 1 published message, got %d", len(mockPub.published))
+	if len(mockPub.Published) != 1 {
+		t.Fatalf("expected 1 published message, got %d", len(mockPub.Published))
 	}
 
 	// Verify message content.
 	var gossipMsg pb.GossipMessage
-	err = proto.Unmarshal(mockPub.published[0].data, &gossipMsg)
+	err = proto.Unmarshal(mockPub.Published[0].Data, &gossipMsg)
 	if err != nil {
 		t.Fatalf("failed to unmarshal: %v", err)
 	}
@@ -162,7 +162,7 @@ func TestForgePublisher_PublishEntry(t *testing.T) {
 
 // TestForgePublisher_PublishEntry_NilEntry tests with nil entry.
 func TestForgePublisher_PublishEntry_NilEntry(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
 	pub := NewForgePublisher(mockPub, privKey)
 
@@ -175,7 +175,7 @@ func TestForgePublisher_PublishEntry_NilEntry(t *testing.T) {
 
 // TestForgePublisher_PublishAmplification tests amplification publishing.
 func TestForgePublisher_PublishAmplification(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
 	pub := NewForgePublisher(mockPub, privKey)
 
@@ -190,13 +190,13 @@ func TestForgePublisher_PublishAmplification(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if len(mockPub.published) != 1 {
-		t.Fatalf("expected 1 published message, got %d", len(mockPub.published))
+	if len(mockPub.Published) != 1 {
+		t.Fatalf("expected 1 published message, got %d", len(mockPub.Published))
 	}
 
 	// Verify message content.
 	var gossipMsg pb.GossipMessage
-	err = proto.Unmarshal(mockPub.published[0].data, &gossipMsg)
+	err = proto.Unmarshal(mockPub.Published[0].Data, &gossipMsg)
 	if err != nil {
 		t.Fatalf("failed to unmarshal: %v", err)
 	}
@@ -212,7 +212,7 @@ func TestForgePublisher_PublishAmplification(t *testing.T) {
 
 // TestForgePublisher_PublishForgeFinalized tests finalization publishing.
 func TestForgePublisher_PublishForgeFinalized(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
 	pub := NewForgePublisher(mockPub, privKey)
 
@@ -228,13 +228,13 @@ func TestForgePublisher_PublishForgeFinalized(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if len(mockPub.published) != 1 {
-		t.Fatalf("expected 1 published message, got %d", len(mockPub.published))
+	if len(mockPub.Published) != 1 {
+		t.Fatalf("expected 1 published message, got %d", len(mockPub.Published))
 	}
 
 	// Verify message content.
 	var gossipMsg pb.GossipMessage
-	err = proto.Unmarshal(mockPub.published[0].data, &gossipMsg)
+	err = proto.Unmarshal(mockPub.Published[0].Data, &gossipMsg)
 	if err != nil {
 		t.Fatalf("failed to unmarshal: %v", err)
 	}
@@ -253,7 +253,7 @@ func TestForgePublisher_PublishForgeFinalized(t *testing.T) {
 
 // TestForgePublisher_PublishForgeFinalized_NilForge tests with nil forge.
 func TestForgePublisher_PublishForgeFinalized_NilForge(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
 	pub := NewForgePublisher(mockPub, privKey)
 
@@ -265,7 +265,7 @@ func TestForgePublisher_PublishForgeFinalized_NilForge(t *testing.T) {
 
 // TestForgePublisher_PublishForgeFailed tests failure publishing.
 func TestForgePublisher_PublishForgeFailed(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
 	pub := NewForgePublisher(mockPub, privKey)
 
@@ -278,13 +278,13 @@ func TestForgePublisher_PublishForgeFailed(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if len(mockPub.published) != 1 {
-		t.Fatalf("expected 1 published message, got %d", len(mockPub.published))
+	if len(mockPub.Published) != 1 {
+		t.Fatalf("expected 1 published message, got %d", len(mockPub.Published))
 	}
 
 	// Verify message content.
 	var gossipMsg pb.GossipMessage
-	err = proto.Unmarshal(mockPub.published[0].data, &gossipMsg)
+	err = proto.Unmarshal(mockPub.Published[0].Data, &gossipMsg)
 	if err != nil {
 		t.Fatalf("failed to unmarshal: %v", err)
 	}
@@ -317,7 +317,7 @@ func TestForgeReceiver_HandleForgeCreated(t *testing.T) {
 
 	// Create and publish a forge.
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	publisher := NewForgePublisher(mockPub, privKey)
 
 	var initiatorKey [32]byte
@@ -331,7 +331,7 @@ func TestForgeReceiver_HandleForgeCreated(t *testing.T) {
 	}
 
 	// Handle the published message.
-	err = receiver.HandleMessage(mockPub.published[0].data)
+	err = receiver.HandleMessage(mockPub.Published[0].Data)
 	if err != nil {
 		t.Fatalf("failed to handle message: %v", err)
 	}
@@ -362,7 +362,7 @@ func TestForgeReceiver_HandleContribution(t *testing.T) {
 	copy(specterKey[:], entryPrivKey.Public().(ed25519.PublicKey))
 
 	// Publish entry using entry submitter's key.
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	publisher := NewForgePublisher(mockPub, entryPrivKey)
 
 	entry := &ForgeEntry{
@@ -380,7 +380,7 @@ func TestForgeReceiver_HandleContribution(t *testing.T) {
 	}
 
 	// Handle the published message.
-	err = receiver.HandleMessage(mockPub.published[0].data)
+	err = receiver.HandleMessage(mockPub.Published[0].Data)
 	if err != nil {
 		t.Fatalf("failed to handle message: %v", err)
 	}
@@ -409,7 +409,7 @@ func TestForgeReceiver_HandleForgeFinalized(t *testing.T) {
 	store.AddForge(forge)
 
 	// Publish finalization.
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	publisher := NewForgePublisher(mockPub, privKey)
 
 	err := publisher.PublishForgeFinalized(context.Background(), forge, []byte("winner"))
@@ -418,7 +418,7 @@ func TestForgeReceiver_HandleForgeFinalized(t *testing.T) {
 	}
 
 	// Handle the published message.
-	err = receiver.HandleMessage(mockPub.published[0].data)
+	err = receiver.HandleMessage(mockPub.Published[0].Data)
 	if err != nil {
 		t.Fatalf("failed to handle message: %v", err)
 	}
@@ -444,7 +444,7 @@ func TestForgeReceiver_HandleForgeFailed(t *testing.T) {
 	store.AddForge(forge)
 
 	// Publish failure.
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	publisher := NewForgePublisher(mockPub, privKey)
 
 	err := publisher.PublishForgeFailed(context.Background(), forge.ID)
@@ -453,7 +453,7 @@ func TestForgeReceiver_HandleForgeFailed(t *testing.T) {
 	}
 
 	// Handle the published message.
-	err = receiver.HandleMessage(mockPub.published[0].data)
+	err = receiver.HandleMessage(mockPub.Published[0].Data)
 	if err != nil {
 		t.Fatalf("failed to handle message: %v", err)
 	}
@@ -517,7 +517,7 @@ func TestForgeReceiver_HandleMessage_MissingSignature(t *testing.T) {
 // TestForgeEventSignatureRoundTrip tests signature verification.
 func TestForgeEventSignatureRoundTrip(t *testing.T) {
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	publisher := NewForgePublisher(mockPub, privKey)
 
 	var initiatorKey [32]byte
@@ -532,7 +532,7 @@ func TestForgeEventSignatureRoundTrip(t *testing.T) {
 
 	// Unmarshal and verify signature.
 	var gossipMsg pb.GossipMessage
-	err = proto.Unmarshal(mockPub.published[0].data, &gossipMsg)
+	err = proto.Unmarshal(mockPub.Published[0].Data, &gossipMsg)
 	if err != nil {
 		t.Fatalf("failed to unmarshal: %v", err)
 	}
@@ -556,7 +556,7 @@ func TestForgeEventSignatureRoundTrip(t *testing.T) {
 
 // BenchmarkForgePublisher_PublishForgeCreated benchmarks forge creation publishing.
 func BenchmarkForgePublisher_PublishForgeCreated(b *testing.B) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
 	pub := NewForgePublisher(mockPub, privKey)
 
@@ -569,7 +569,7 @@ func BenchmarkForgePublisher_PublishForgeCreated(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		mockPub.published = nil
+		mockPub.Published = nil
 		pub.PublishForgeCreated(ctx, forge)
 	}
 }
@@ -577,7 +577,7 @@ func BenchmarkForgePublisher_PublishForgeCreated(b *testing.B) {
 // BenchmarkForgeReceiver_HandleMessage benchmarks message handling.
 func BenchmarkForgeReceiver_HandleMessage(b *testing.B) {
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	publisher := NewForgePublisher(mockPub, privKey)
 
 	var initiatorKey [32]byte
@@ -586,7 +586,7 @@ func BenchmarkForgeReceiver_HandleMessage(b *testing.B) {
 	forge, _ := NewSigilForge(ForgeMicroFiction, "Benchmark", initiatorKey, ForgeDuration30Min, ForgeMinResonance)
 
 	publisher.PublishForgeCreated(context.Background(), forge)
-	data := mockPub.published[0].data
+	data := mockPub.Published[0].Data
 
 	store := NewForgeStore()
 	receiver := NewForgeReceiver(store)

@@ -17,7 +17,7 @@ import (
 
 // TestMarkPublisher_Creation tests MarkPublisher instantiation.
 func TestMarkPublisher_Creation(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privateKey, _ := ed25519.GenerateKey(rand.Reader)
 
 	pub := NewMarkPublisher(mockPub, privateKey)
@@ -48,7 +48,7 @@ func TestMarkPublisher_NilPublisher(t *testing.T) {
 
 // TestMarkPublisher_NilMark tests handling when mark is nil.
 func TestMarkPublisher_NilMark(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privateKey, _ := ed25519.GenerateKey(rand.Reader)
 	pub := NewMarkPublisher(mockPub, privateKey)
 
@@ -60,7 +60,7 @@ func TestMarkPublisher_NilMark(t *testing.T) {
 
 // TestMarkPublisher_NilPrivateKey tests handling when private key is nil.
 func TestMarkPublisher_NilPrivateKey(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	pub := NewMarkPublisher(mockPub, nil)
 
 	mark := &Mark{
@@ -77,7 +77,7 @@ func TestMarkPublisher_NilPrivateKey(t *testing.T) {
 
 // TestMarkPublisher_PublishMarkPlaced tests successful mark publication.
 func TestMarkPublisher_PublishMarkPlaced(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privateKey, _ := ed25519.GenerateKey(rand.Reader)
 	pub := NewMarkPublisher(mockPub, privateKey)
 
@@ -101,18 +101,18 @@ func TestMarkPublisher_PublishMarkPlaced(t *testing.T) {
 		t.Fatalf("PublishMarkPlaced failed: %v", err)
 	}
 
-	if len(mockPub.published) != 1 {
-		t.Fatalf("expected 1 message, got %d", len(mockPub.published))
+	if len(mockPub.Published) != 1 {
+		t.Fatalf("expected 1 message, got %d", len(mockPub.Published))
 	}
 
 	// Verify topic.
-	if mockPub.published[0].topic != mechanics.TopicAnonymousMechanics {
-		t.Errorf("wrong topic: got %s", mockPub.published[0].topic)
+	if mockPub.Published[0].Topic != mechanics.TopicAnonymousMechanics {
+		t.Errorf("wrong topic: got %s", mockPub.Published[0].Topic)
 	}
 
 	// Unmarshal and verify.
 	var gossipMsg pb.GossipMessage
-	if err := proto.Unmarshal(mockPub.published[0].data, &gossipMsg); err != nil {
+	if err := proto.Unmarshal(mockPub.Published[0].Data, &gossipMsg); err != nil {
 		t.Fatalf("failed to unmarshal: %v", err)
 	}
 
@@ -138,7 +138,7 @@ func TestMarkPublisher_AllCategories(t *testing.T) {
 
 	for _, cat := range categories {
 		t.Run(CategoryString(cat), func(t *testing.T) {
-			mockPub := &mockPublisher{}
+			mockPub := &mechanics.MockPublisher{}
 			_, privateKey, _ := ed25519.GenerateKey(rand.Reader)
 			pub := NewMarkPublisher(mockPub, privateKey)
 
@@ -161,8 +161,8 @@ func TestMarkPublisher_AllCategories(t *testing.T) {
 				t.Fatalf("failed to publish mark with category %d: %v", cat, err)
 			}
 
-			if len(mockPub.published) != 1 {
-				t.Fatalf("expected 1 message, got %d", len(mockPub.published))
+			if len(mockPub.Published) != 1 {
+				t.Fatalf("expected 1 message, got %d", len(mockPub.Published))
 			}
 		})
 	}
@@ -483,7 +483,7 @@ func TestMarkReceiver_HandleMessage_MissingMark(t *testing.T) {
 
 // TestMarkPublisher_RoundTrip tests publishing and receiving a mark.
 func TestMarkPublisher_RoundTrip(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	pubKey, privateKey, _ := ed25519.GenerateKey(rand.Reader)
 
 	publisher := NewMarkPublisher(mockPub, privateKey)
@@ -513,7 +513,7 @@ func TestMarkPublisher_RoundTrip(t *testing.T) {
 	}
 
 	// Receive.
-	err = receiver.HandleMessage(mockPub.published[0].data)
+	err = receiver.HandleMessage(mockPub.Published[0].Data)
 	if err != nil {
 		t.Fatalf("receive failed: %v", err)
 	}
@@ -536,7 +536,7 @@ func TestMarkPublisher_RoundTrip(t *testing.T) {
 
 // TestMarkPublisher_MultipleMarks tests publishing multiple marks.
 func TestMarkPublisher_MultipleMarks(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	pubKey, privateKey, _ := ed25519.GenerateKey(rand.Reader)
 
 	publisher := NewMarkPublisher(mockPub, privateKey)
@@ -567,13 +567,13 @@ func TestMarkPublisher_MultipleMarks(t *testing.T) {
 		}
 	}
 
-	if len(mockPub.published) != 5 {
-		t.Fatalf("expected 5 messages, got %d", len(mockPub.published))
+	if len(mockPub.Published) != 5 {
+		t.Fatalf("expected 5 messages, got %d", len(mockPub.Published))
 	}
 
 	// Receive all.
-	for i, msg := range mockPub.published {
-		err := receiver.HandleMessage(msg.data)
+	for i, msg := range mockPub.Published {
+		err := receiver.HandleMessage(msg.Data)
 		if err != nil {
 			t.Fatalf("receive %d failed: %v", i, err)
 		}
@@ -598,7 +598,7 @@ func TestMarkReceiver_GetMarkStore(t *testing.T) {
 
 // TestMarkPublisher_SignatureDataConsistency tests that signature data is consistent.
 func TestMarkPublisher_SignatureDataConsistency(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privateKey, _ := ed25519.GenerateKey(rand.Reader)
 
 	publisher := NewMarkPublisher(mockPub, privateKey)
@@ -713,7 +713,7 @@ func TestMarkReceiver_MarkerTargetConstraint(t *testing.T) {
 
 // BenchmarkMarkPublisher_Publish benchmarks mark publishing.
 func BenchmarkMarkPublisher_Publish(b *testing.B) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privateKey, _ := ed25519.GenerateKey(rand.Reader)
 	publisher := NewMarkPublisher(mockPub, privateKey)
 

@@ -17,7 +17,7 @@ import (
 
 // TestGiftPublisher_Creation tests GiftPublisher instantiation.
 func TestGiftPublisher_Creation(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privateKey, _ := ed25519.GenerateKey(rand.Reader)
 
 	pub := NewGiftPublisher(mockPub, privateKey)
@@ -48,7 +48,7 @@ func TestGiftPublisher_NilPublisher(t *testing.T) {
 
 // TestGiftPublisher_NilGift tests handling when gift is nil.
 func TestGiftPublisher_NilGift(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privateKey, _ := ed25519.GenerateKey(rand.Reader)
 	pub := NewGiftPublisher(mockPub, privateKey)
 
@@ -60,7 +60,7 @@ func TestGiftPublisher_NilGift(t *testing.T) {
 
 // TestGiftPublisher_NilPrivateKey tests handling when private key is nil.
 func TestGiftPublisher_NilPrivateKey(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	pub := NewGiftPublisher(mockPub, nil)
 
 	gift := &Gift{
@@ -77,7 +77,7 @@ func TestGiftPublisher_NilPrivateKey(t *testing.T) {
 
 // TestGiftPublisher_PublishGiftCreated tests successful gift publication.
 func TestGiftPublisher_PublishGiftCreated(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privateKey, _ := ed25519.GenerateKey(rand.Reader)
 	pub := NewGiftPublisher(mockPub, privateKey)
 
@@ -99,18 +99,18 @@ func TestGiftPublisher_PublishGiftCreated(t *testing.T) {
 		t.Fatalf("PublishGiftCreated failed: %v", err)
 	}
 
-	if len(mockPub.published) != 1 {
-		t.Fatalf("expected 1 message, got %d", len(mockPub.published))
+	if len(mockPub.Published) != 1 {
+		t.Fatalf("expected 1 message, got %d", len(mockPub.Published))
 	}
 
 	// Verify topic.
-	if mockPub.published[0].topic != mechanics.TopicAnonymousMechanics {
-		t.Errorf("wrong topic: got %s", mockPub.published[0].topic)
+	if mockPub.Published[0].Topic != mechanics.TopicAnonymousMechanics {
+		t.Errorf("wrong topic: got %s", mockPub.Published[0].Topic)
 	}
 
 	// Unmarshal and verify.
 	var gossipMsg pb.GossipMessage
-	if err := proto.Unmarshal(mockPub.published[0].data, &gossipMsg); err != nil {
+	if err := proto.Unmarshal(mockPub.Published[0].Data, &gossipMsg); err != nil {
 		t.Fatalf("failed to unmarshal: %v", err)
 	}
 
@@ -136,7 +136,7 @@ func TestGiftPublisher_AllEffectTypes(t *testing.T) {
 
 	for _, effect := range effects {
 		t.Run(EffectName(effect), func(t *testing.T) {
-			mockPub := &mockPublisher{}
+			mockPub := &mechanics.MockPublisher{}
 			_, privateKey, _ := ed25519.GenerateKey(rand.Reader)
 			pub := NewGiftPublisher(mockPub, privateKey)
 
@@ -159,8 +159,8 @@ func TestGiftPublisher_AllEffectTypes(t *testing.T) {
 				t.Fatalf("failed to publish gift with effect %d: %v", effect, err)
 			}
 
-			if len(mockPub.published) != 1 {
-				t.Fatalf("expected 1 message, got %d", len(mockPub.published))
+			if len(mockPub.Published) != 1 {
+				t.Fatalf("expected 1 message, got %d", len(mockPub.Published))
 			}
 		})
 	}
@@ -482,7 +482,7 @@ func TestGiftReceiver_HandleMessage_MissingGift(t *testing.T) {
 
 // TestGiftPublisher_RoundTrip tests publishing and receiving a gift.
 func TestGiftPublisher_RoundTrip(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	pubKey, privateKey, _ := ed25519.GenerateKey(rand.Reader)
 
 	publisher := NewGiftPublisher(mockPub, privateKey)
@@ -511,7 +511,7 @@ func TestGiftPublisher_RoundTrip(t *testing.T) {
 	}
 
 	// Receive.
-	err = receiver.HandleMessage(mockPub.published[0].data)
+	err = receiver.HandleMessage(mockPub.Published[0].Data)
 	if err != nil {
 		t.Fatalf("receive failed: %v", err)
 	}
@@ -534,7 +534,7 @@ func TestGiftPublisher_RoundTrip(t *testing.T) {
 
 // TestGiftPublisher_MultipleGifts tests publishing multiple gifts.
 func TestGiftPublisher_MultipleGifts(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	pubKey, privateKey, _ := ed25519.GenerateKey(rand.Reader)
 
 	publisher := NewGiftPublisher(mockPub, privateKey)
@@ -564,13 +564,13 @@ func TestGiftPublisher_MultipleGifts(t *testing.T) {
 		}
 	}
 
-	if len(mockPub.published) != 5 {
-		t.Fatalf("expected 5 messages, got %d", len(mockPub.published))
+	if len(mockPub.Published) != 5 {
+		t.Fatalf("expected 5 messages, got %d", len(mockPub.Published))
 	}
 
 	// Receive all.
-	for i, msg := range mockPub.published {
-		err := receiver.HandleMessage(msg.data)
+	for i, msg := range mockPub.Published {
+		err := receiver.HandleMessage(msg.Data)
 		if err != nil {
 			t.Fatalf("receive %d failed: %v", i, err)
 		}
@@ -595,7 +595,7 @@ func TestGiftReceiver_GetGiftStore(t *testing.T) {
 
 // TestGiftPublisher_SignatureDataConsistency tests that signature data is consistent.
 func TestGiftPublisher_SignatureDataConsistency(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privateKey, _ := ed25519.GenerateKey(rand.Reader)
 
 	publisher := NewGiftPublisher(mockPub, privateKey)
@@ -633,7 +633,7 @@ func TestGiftPublisher_SignatureDataConsistency(t *testing.T) {
 
 // BenchmarkGiftPublisher_Publish benchmarks gift publishing.
 func BenchmarkGiftPublisher_Publish(b *testing.B) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privateKey, _ := ed25519.GenerateKey(rand.Reader)
 	publisher := NewGiftPublisher(mockPub, privateKey)
 

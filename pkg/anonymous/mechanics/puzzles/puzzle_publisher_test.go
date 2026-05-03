@@ -8,37 +8,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
 	pb "github.com/opd-ai/murmur/proto"
-	"google.golang.org/protobuf/proto"
 )
-
-// mockPublisher is a mock Publisher for testing.
-type mockPublisher struct {
-	published []publishedMessage
-}
-
-type publishedMessage struct {
-	topic string
-	data  []byte
-}
-
-func (m *mockPublisher) Publish(_ context.Context, topic string, data []byte) error {
-	m.published = append(m.published, publishedMessage{topic: topic, data: data})
-	return nil
-}
-
-func (m *mockPublisher) lastMessage() (*pb.GossipMessage, error) {
-	if len(m.published) == 0 {
-		return nil, nil
-	}
-	msg := &pb.GossipMessage{}
-	err := proto.Unmarshal(m.published[len(m.published)-1].data, msg)
-	return msg, err
-}
 
 func TestPuzzlePublisher_PublishPuzzleCreated(t *testing.T) {
 	pub, privKey, _ := ed25519.GenerateKey(rand.Reader)
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	publisher := NewPuzzlePublisher(mockPub, privKey)
 
 	var seed [32]byte
@@ -56,14 +32,14 @@ func TestPuzzlePublisher_PublishPuzzleCreated(t *testing.T) {
 		t.Fatalf("PublishPuzzleCreated: %v", err)
 	}
 
-	if len(mockPub.published) != 1 {
-		t.Fatalf("expected 1 message, got %d", len(mockPub.published))
+	if len(mockPub.Published) != 1 {
+		t.Fatalf("expected 1 message, got %d", len(mockPub.Published))
 	}
-	if mockPub.published[0].topic != TopicAnonymousMechanics {
-		t.Errorf("wrong topic: %s", mockPub.published[0].topic)
+	if mockPub.Published[0].Topic != TopicAnonymousMechanics {
+		t.Errorf("wrong topic: %s", mockPub.Published[0].Topic)
 	}
 
-	msg, err := mockPub.lastMessage()
+	msg, err := mockPub.LastMessage()
 	if err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
@@ -85,7 +61,7 @@ func TestPuzzlePublisher_PublishPuzzleCreated(t *testing.T) {
 
 func TestPuzzlePublisher_PublishPuzzleSolved(t *testing.T) {
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	publisher := NewPuzzlePublisher(mockPub, privKey)
 
 	var puzzleID [32]byte
@@ -99,7 +75,7 @@ func TestPuzzlePublisher_PublishPuzzleSolved(t *testing.T) {
 		t.Fatalf("PublishPuzzleSolved: %v", err)
 	}
 
-	msg, err := mockPub.lastMessage()
+	msg, err := mockPub.LastMessage()
 	if err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
@@ -124,7 +100,7 @@ func TestPuzzlePublisher_PublishPuzzleSolved(t *testing.T) {
 
 func TestPuzzlePublisher_PublishPuzzleExpired(t *testing.T) {
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	publisher := NewPuzzlePublisher(mockPub, privKey)
 
 	var puzzleID [32]byte
@@ -135,7 +111,7 @@ func TestPuzzlePublisher_PublishPuzzleExpired(t *testing.T) {
 		t.Fatalf("PublishPuzzleExpired: %v", err)
 	}
 
-	msg, err := mockPub.lastMessage()
+	msg, err := mockPub.LastMessage()
 	if err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
@@ -151,7 +127,7 @@ func TestPuzzlePublisher_PublishPuzzleExpired(t *testing.T) {
 
 func TestPuzzlePublisher_PublishMosaicContribution(t *testing.T) {
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	publisher := NewPuzzlePublisher(mockPub, privKey)
 
 	var puzzleID [32]byte
@@ -165,7 +141,7 @@ func TestPuzzlePublisher_PublishMosaicContribution(t *testing.T) {
 		t.Fatalf("PublishMosaicContribution: %v", err)
 	}
 
-	msg, err := mockPub.lastMessage()
+	msg, err := mockPub.LastMessage()
 	if err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
@@ -181,7 +157,7 @@ func TestPuzzlePublisher_PublishMosaicContribution(t *testing.T) {
 
 func TestPuzzlePublisher_PublishCascadeStage(t *testing.T) {
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	publisher := NewPuzzlePublisher(mockPub, privKey)
 
 	var puzzleID [32]byte
@@ -195,7 +171,7 @@ func TestPuzzlePublisher_PublishCascadeStage(t *testing.T) {
 		t.Fatalf("PublishCascadeStage: %v", err)
 	}
 
-	msg, err := mockPub.lastMessage()
+	msg, err := mockPub.LastMessage()
 	if err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
@@ -223,7 +199,7 @@ func TestPuzzlePublisher_NoPublisher(t *testing.T) {
 }
 
 func TestPuzzlePublisher_NoPrivateKey(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	publisher := NewPuzzlePublisher(mockPub, nil)
 
 	var seed [32]byte
@@ -516,7 +492,7 @@ func TestPuzzleToProtoRoundTrip(t *testing.T) {
 
 func BenchmarkPuzzlePublish(b *testing.B) {
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	publisher := NewPuzzlePublisher(mockPub, privKey)
 
 	var seed [32]byte

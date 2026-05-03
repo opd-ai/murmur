@@ -29,7 +29,7 @@ func TestNewOraclePublisher(t *testing.T) {
 
 // TestOraclePublisher_PublishPoolCreated tests pool creation publishing.
 func TestOraclePublisher_PublishPoolCreated(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
 	pub := NewOraclePublisher(mockPub, privKey)
 
@@ -54,13 +54,13 @@ func TestOraclePublisher_PublishPoolCreated(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if len(mockPub.published) != 1 {
-		t.Fatalf("expected 1 published message, got %d", len(mockPub.published))
+	if len(mockPub.Published) != 1 {
+		t.Fatalf("expected 1 published message, got %d", len(mockPub.Published))
 	}
 
 	// Verify message content.
 	var gossipMsg pb.GossipMessage
-	err = proto.Unmarshal(mockPub.published[0].data, &gossipMsg)
+	err = proto.Unmarshal(mockPub.Published[0].Data, &gossipMsg)
 	if err != nil {
 		t.Fatalf("failed to unmarshal: %v", err)
 	}
@@ -97,7 +97,7 @@ func TestOraclePublisher_PublishPoolCreated_NoPublisher(t *testing.T) {
 
 // TestOraclePublisher_PublishPoolCreated_NilPool tests with nil pool.
 func TestOraclePublisher_PublishPoolCreated_NilPool(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
 	pub := NewOraclePublisher(mockPub, privKey)
 
@@ -109,7 +109,7 @@ func TestOraclePublisher_PublishPoolCreated_NilPool(t *testing.T) {
 
 // TestOraclePublisher_PublishPoolCreated_NoPrivateKey tests without private key.
 func TestOraclePublisher_PublishPoolCreated_NoPrivateKey(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	pub := NewOraclePublisher(mockPub, nil)
 
 	var creatorKey [32]byte
@@ -124,7 +124,7 @@ func TestOraclePublisher_PublishPoolCreated_NoPrivateKey(t *testing.T) {
 
 // TestOraclePublisher_PublishCommitment tests commitment publishing.
 func TestOraclePublisher_PublishCommitment(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
 	pub := NewOraclePublisher(mockPub, privKey)
 
@@ -139,13 +139,13 @@ func TestOraclePublisher_PublishCommitment(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if len(mockPub.published) != 1 {
-		t.Fatalf("expected 1 published message, got %d", len(mockPub.published))
+	if len(mockPub.Published) != 1 {
+		t.Fatalf("expected 1 published message, got %d", len(mockPub.Published))
 	}
 
 	// Verify message content.
 	var gossipMsg pb.GossipMessage
-	err = proto.Unmarshal(mockPub.published[0].data, &gossipMsg)
+	err = proto.Unmarshal(mockPub.Published[0].Data, &gossipMsg)
 	if err != nil {
 		t.Fatalf("failed to unmarshal: %v", err)
 	}
@@ -161,7 +161,7 @@ func TestOraclePublisher_PublishCommitment(t *testing.T) {
 
 // TestOraclePublisher_PublishReveal tests reveal publishing.
 func TestOraclePublisher_PublishReveal(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
 	pub := NewOraclePublisher(mockPub, privKey)
 
@@ -175,14 +175,14 @@ func TestOraclePublisher_PublishReveal(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if len(mockPub.published) != 1 {
-		t.Fatalf("expected 1 published message, got %d", len(mockPub.published))
+	if len(mockPub.Published) != 1 {
+		t.Fatalf("expected 1 published message, got %d", len(mockPub.Published))
 	}
 }
 
 // TestOraclePublisher_PublishPoolClosed tests pool closed publishing.
 func TestOraclePublisher_PublishPoolClosed(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
 	pub := NewOraclePublisher(mockPub, privKey)
 
@@ -195,13 +195,13 @@ func TestOraclePublisher_PublishPoolClosed(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if len(mockPub.published) != 1 {
-		t.Fatalf("expected 1 published message, got %d", len(mockPub.published))
+	if len(mockPub.Published) != 1 {
+		t.Fatalf("expected 1 published message, got %d", len(mockPub.Published))
 	}
 
 	// Verify message content.
 	var gossipMsg pb.GossipMessage
-	err = proto.Unmarshal(mockPub.published[0].data, &gossipMsg)
+	err = proto.Unmarshal(mockPub.Published[0].Data, &gossipMsg)
 	if err != nil {
 		t.Fatalf("failed to unmarshal: %v", err)
 	}
@@ -217,7 +217,7 @@ func TestOraclePublisher_PublishPoolClosed(t *testing.T) {
 
 // TestOraclePublisher_PublishOutcome tests outcome publishing.
 func TestOraclePublisher_PublishOutcome(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
 	pub := NewOraclePublisher(mockPub, privKey)
 
@@ -242,13 +242,13 @@ func TestOraclePublisher_PublishOutcome(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if len(mockPub.published) != 1 {
-		t.Fatalf("expected 1 published message, got %d", len(mockPub.published))
+	if len(mockPub.Published) != 1 {
+		t.Fatalf("expected 1 published message, got %d", len(mockPub.Published))
 	}
 
 	// Verify message content.
 	var gossipMsg pb.GossipMessage
-	err = proto.Unmarshal(mockPub.published[0].data, &gossipMsg)
+	err = proto.Unmarshal(mockPub.Published[0].Data, &gossipMsg)
 	if err != nil {
 		t.Fatalf("failed to unmarshal: %v", err)
 	}
@@ -267,7 +267,7 @@ func TestOraclePublisher_PublishOutcome(t *testing.T) {
 
 // TestOraclePublisher_PublishOutcome_NilPool tests with nil pool.
 func TestOraclePublisher_PublishOutcome_NilPool(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
 	pub := NewOraclePublisher(mockPub, privKey)
 
@@ -296,7 +296,7 @@ func TestOracleReceiver_HandlePoolCreated(t *testing.T) {
 
 	// Create and publish a pool.
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	publisher := NewOraclePublisher(mockPub, privKey)
 
 	var creatorKey [32]byte
@@ -311,7 +311,7 @@ func TestOracleReceiver_HandlePoolCreated(t *testing.T) {
 	}
 
 	// Handle the published message.
-	err = receiver.HandleMessage(mockPub.published[0].data)
+	err = receiver.HandleMessage(mockPub.Published[0].Data)
 	if err != nil {
 		t.Fatalf("failed to handle message: %v", err)
 	}
@@ -341,7 +341,7 @@ func TestOracleReceiver_HandlePoolClosed(t *testing.T) {
 	store.AddPool(pool)
 
 	// Publish pool closed event.
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	publisher := NewOraclePublisher(mockPub, privKey)
 
 	err := publisher.PublishPoolClosed(context.Background(), pool.ID)
@@ -350,7 +350,7 @@ func TestOracleReceiver_HandlePoolClosed(t *testing.T) {
 	}
 
 	// Handle the published message.
-	err = receiver.HandleMessage(mockPub.published[0].data)
+	err = receiver.HandleMessage(mockPub.Published[0].Data)
 	if err != nil {
 		t.Fatalf("failed to handle message: %v", err)
 	}
@@ -378,7 +378,7 @@ func TestOracleReceiver_HandleOutcome(t *testing.T) {
 	store.AddPool(pool)
 
 	// Publish outcome event.
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	publisher := NewOraclePublisher(mockPub, privKey)
 
 	err := publisher.PublishOutcome(context.Background(), pool, 1.0)
@@ -387,7 +387,7 @@ func TestOracleReceiver_HandleOutcome(t *testing.T) {
 	}
 
 	// Handle the published message.
-	err = receiver.HandleMessage(mockPub.published[0].data)
+	err = receiver.HandleMessage(mockPub.Published[0].Data)
 	if err != nil {
 		t.Fatalf("failed to handle message: %v", err)
 	}
@@ -460,7 +460,7 @@ func TestOracleReceiver_HandleOutcome_PoolNotFound(t *testing.T) {
 	receiver := NewOracleReceiver(store)
 
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	publisher := NewOraclePublisher(mockPub, privKey)
 
 	var poolID [32]byte
@@ -478,7 +478,7 @@ func TestOracleReceiver_HandleOutcome_PoolNotFound(t *testing.T) {
 	}
 
 	// Handle should create pool from event data.
-	err = receiver.HandleMessage(mockPub.published[0].data)
+	err = receiver.HandleMessage(mockPub.Published[0].Data)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -506,7 +506,7 @@ func TestOracleReceiver_HandleOutcome_AlreadyResolved(t *testing.T) {
 	pool.State = OraclePoolResolved
 	store.AddPool(pool)
 
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	publisher := NewOraclePublisher(mockPub, privKey)
 
 	err := publisher.PublishOutcome(context.Background(), pool, 0.0)
@@ -514,7 +514,7 @@ func TestOracleReceiver_HandleOutcome_AlreadyResolved(t *testing.T) {
 		t.Fatalf("failed to publish: %v", err)
 	}
 
-	err = receiver.HandleMessage(mockPub.published[0].data)
+	err = receiver.HandleMessage(mockPub.Published[0].Data)
 	if err != ErrOraclePoolAlreadyResolved {
 		t.Errorf("expected ErrOraclePoolAlreadyResolved, got %v", err)
 	}
@@ -523,7 +523,7 @@ func TestOracleReceiver_HandleOutcome_AlreadyResolved(t *testing.T) {
 // TestOracleEventSignatureRoundTrip tests signature verification.
 func TestOracleEventSignatureRoundTrip(t *testing.T) {
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	publisher := NewOraclePublisher(mockPub, privKey)
 
 	var creatorKey [32]byte
@@ -539,7 +539,7 @@ func TestOracleEventSignatureRoundTrip(t *testing.T) {
 
 	// Unmarshal and verify signature.
 	var gossipMsg pb.GossipMessage
-	err = proto.Unmarshal(mockPub.published[0].data, &gossipMsg)
+	err = proto.Unmarshal(mockPub.Published[0].Data, &gossipMsg)
 	if err != nil {
 		t.Fatalf("failed to unmarshal: %v", err)
 	}
@@ -563,7 +563,7 @@ func TestOracleEventSignatureRoundTrip(t *testing.T) {
 
 // BenchmarkOraclePublisher_PublishPoolCreated benchmarks pool creation publishing.
 func BenchmarkOraclePublisher_PublishPoolCreated(b *testing.B) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
 	pub := NewOraclePublisher(mockPub, privKey)
 
@@ -577,7 +577,7 @@ func BenchmarkOraclePublisher_PublishPoolCreated(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		mockPub.published = nil
+		mockPub.Published = nil
 		pub.PublishPoolCreated(ctx, pool)
 	}
 }
@@ -585,7 +585,7 @@ func BenchmarkOraclePublisher_PublishPoolCreated(b *testing.B) {
 // BenchmarkOracleReceiver_HandleMessage benchmarks message handling.
 func BenchmarkOracleReceiver_HandleMessage(b *testing.B) {
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	publisher := NewOraclePublisher(mockPub, privKey)
 
 	var creatorKey [32]byte
@@ -595,7 +595,7 @@ func BenchmarkOracleReceiver_HandleMessage(b *testing.B) {
 		time.Now().Add(time.Hour), time.Now().Add(2*time.Hour))
 
 	publisher.PublishPoolCreated(context.Background(), pool)
-	data := mockPub.published[0].data
+	data := mockPub.Published[0].Data
 
 	store := NewOraclePoolStore()
 	receiver := NewOracleReceiver(store)

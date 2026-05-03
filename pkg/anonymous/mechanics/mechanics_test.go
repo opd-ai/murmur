@@ -1,16 +1,27 @@
-package mechanics
+package mechanics_test
 
 import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"testing"
 	"time"
+
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics/councils"
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics/forge"
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics/gifts"
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics/hunts"
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics/marks"
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics/oracle"
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics/puzzles"
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics/shadowplay"
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics/territory"
 )
 
 // --- Gift Tests ---
 
 func TestGiftCatalogAvailableEffects(t *testing.T) {
-	catalog := &GiftCatalog{}
+	catalog := &gifts.GiftCatalog{}
 
 	// Test no effects below Resonance 25.
 	effects := catalog.AvailableEffects(20)
@@ -39,27 +50,27 @@ func TestGiftCatalogAvailableEffects(t *testing.T) {
 
 func TestRequiredResonance(t *testing.T) {
 	tests := []struct {
-		effect   EffectType
+		effect   gifts.EffectType
 		expected int
 	}{
-		{EffectSoftGlowPulse, GiftTierBasic},
-		{EffectFaintHaloRing, GiftTierBasic},
-		{EffectOrbitingGeometric, GiftTierExpanded},
-		{EffectAuroraColorShift, GiftTierExpanded},
-		{EffectMultiParticleSystem, GiftTierPremium},
-		{EffectFluidSimulation, GiftTierPremium},
+		{gifts.EffectSoftGlowPulse, gifts.GiftTierBasic},
+		{gifts.EffectFaintHaloRing, gifts.GiftTierBasic},
+		{gifts.EffectOrbitingGeometric, gifts.GiftTierExpanded},
+		{gifts.EffectAuroraColorShift, gifts.GiftTierExpanded},
+		{gifts.EffectMultiParticleSystem, gifts.GiftTierPremium},
+		{gifts.EffectFluidSimulation, gifts.GiftTierPremium},
 	}
 
 	for _, tt := range tests {
-		got := RequiredResonance(tt.effect)
+		got := gifts.RequiredResonance(tt.effect)
 		if got != tt.expected {
-			t.Errorf("RequiredResonance(%d) = %d, want %d", tt.effect, got, tt.expected)
+			t.Errorf("gifts.RequiredResonance(%d) = %d, want %d", tt.effect, got, tt.expected)
 		}
 	}
 }
 
 func TestGiftStoreCreateAndGet(t *testing.T) {
-	store := NewGiftStore()
+	store := gifts.NewGiftStore()
 
 	var senderKey [32]byte
 	rand.Read(senderKey[:])
@@ -68,7 +79,7 @@ func TestGiftStoreCreateAndGet(t *testing.T) {
 	rand.Read(recipientKey)
 
 	// Create a gift.
-	gift, err := store.CreateGift(senderKey, recipientKey, EffectSoftGlowPulse, 30, nil)
+	gift, err := store.CreateGift(senderKey, recipientKey, gifts.EffectSoftGlowPulse, 30, nil)
 	if err != nil {
 		t.Fatalf("CreateGift failed: %v", err)
 	}
@@ -83,13 +94,13 @@ func TestGiftStoreCreateAndGet(t *testing.T) {
 		t.Fatalf("GetGift failed: %v", err)
 	}
 
-	if retrieved.Effect != EffectSoftGlowPulse {
-		t.Errorf("Expected effect %d, got %d", EffectSoftGlowPulse, retrieved.Effect)
+	if retrieved.Effect != gifts.EffectSoftGlowPulse {
+		t.Errorf("Expected effect %d, got %d", gifts.EffectSoftGlowPulse, retrieved.Effect)
 	}
 }
 
 func TestGiftStoreInsufficientResonance(t *testing.T) {
-	store := NewGiftStore()
+	store := gifts.NewGiftStore()
 
 	var senderKey [32]byte
 	rand.Read(senderKey[:])
@@ -98,24 +109,24 @@ func TestGiftStoreInsufficientResonance(t *testing.T) {
 	rand.Read(recipientKey)
 
 	// Try to create a premium effect with low resonance.
-	_, err := store.CreateGift(senderKey, recipientKey, EffectMultiParticleSystem, 30, nil)
-	if err != ErrInsufficientResonance {
-		t.Errorf("Expected ErrInsufficientResonance, got %v", err)
+	_, err := store.CreateGift(senderKey, recipientKey, gifts.EffectMultiParticleSystem, 30, nil)
+	if err != gifts.ErrInsufficientResonance {
+		t.Errorf("Expected gifts.ErrInsufficientResonance, got %v", err)
 	}
 }
 
 func TestGiftStoreDailyLimit(t *testing.T) {
-	store := NewGiftStore()
+	store := gifts.NewGiftStore()
 
 	var senderKey [32]byte
 	rand.Read(senderKey[:])
 
 	// Send 3 gifts (the daily limit).
-	for i := 0; i < MaxGiftsPerDay; i++ {
+	for i := 0; i < gifts.MaxGiftsPerDay; i++ {
 		recipientKey := make([]byte, 32)
 		rand.Read(recipientKey)
 
-		_, err := store.CreateGift(senderKey, recipientKey, EffectSoftGlowPulse, 30, nil)
+		_, err := store.CreateGift(senderKey, recipientKey, gifts.EffectSoftGlowPulse, 30, nil)
 		if err != nil {
 			t.Fatalf("CreateGift %d failed: %v", i, err)
 		}
@@ -125,14 +136,14 @@ func TestGiftStoreDailyLimit(t *testing.T) {
 	recipientKey := make([]byte, 32)
 	rand.Read(recipientKey)
 
-	_, err := store.CreateGift(senderKey, recipientKey, EffectSoftGlowPulse, 30, nil)
-	if err != ErrDailyLimitExceeded {
-		t.Errorf("Expected ErrDailyLimitExceeded, got %v", err)
+	_, err := store.CreateGift(senderKey, recipientKey, gifts.EffectSoftGlowPulse, 30, nil)
+	if err != gifts.ErrDailyLimitExceeded {
+		t.Errorf("Expected gifts.ErrDailyLimitExceeded, got %v", err)
 	}
 }
 
 func TestGiftExpiration(t *testing.T) {
-	gift := &Gift{
+	gift := &gifts.Gift{
 		CreatedAt: time.Now().Add(-8 * 24 * time.Hour), // 8 days ago
 		ExpiresAt: time.Now().Add(-1 * 24 * time.Hour), // 1 day ago
 	}
@@ -141,7 +152,7 @@ func TestGiftExpiration(t *testing.T) {
 		t.Error("Expected gift to be expired")
 	}
 
-	gift2 := &Gift{
+	gift2 := &gifts.Gift{
 		CreatedAt: time.Now(),
 		ExpiresAt: time.Now().Add(7 * 24 * time.Hour),
 	}
@@ -154,7 +165,7 @@ func TestGiftExpiration(t *testing.T) {
 func TestGiftVerification(t *testing.T) {
 	pub, priv, _ := ed25519.GenerateKey(rand.Reader)
 
-	store := NewGiftStore()
+	store := gifts.NewGiftStore()
 
 	var senderKey [32]byte
 	rand.Read(senderKey[:])
@@ -162,24 +173,24 @@ func TestGiftVerification(t *testing.T) {
 	recipientKey := make([]byte, 32)
 	rand.Read(recipientKey)
 
-	gift, err := store.CreateGift(senderKey, recipientKey, EffectSoftGlowPulse, 30, priv)
+	gift, err := store.CreateGift(senderKey, recipientKey, gifts.EffectSoftGlowPulse, 30, priv)
 	if err != nil {
 		t.Fatalf("CreateGift failed: %v", err)
 	}
 
-	if !VerifyGift(gift, pub) {
+	if !gifts.VerifyGift(gift, pub) {
 		t.Error("Expected gift verification to succeed")
 	}
 
 	// Tamper with the gift.
-	gift.Effect = EffectEmberTrails
-	if VerifyGift(gift, pub) {
+	gift.Effect = gifts.EffectEmberTrails
+	if gifts.VerifyGift(gift, pub) {
 		t.Error("Expected gift verification to fail after tampering")
 	}
 }
 
 func TestGiftStoreGarbageCollect(t *testing.T) {
-	store := NewGiftStore()
+	store := gifts.NewGiftStore()
 
 	var senderKey [32]byte
 	rand.Read(senderKey[:])
@@ -188,10 +199,10 @@ func TestGiftStoreGarbageCollect(t *testing.T) {
 	recipientKey := make([]byte, 32)
 	rand.Read(recipientKey)
 
-	gift := &Gift{
+	gift := &gifts.Gift{
 		SenderPubKey: senderKey,
 		RecipientKey: recipientKey,
-		Effect:       EffectSoftGlowPulse,
+		Effect:       gifts.EffectSoftGlowPulse,
 		CreatedAt:    time.Now().Add(-8 * 24 * time.Hour),
 		ExpiresAt:    time.Now().Add(-1 * 24 * time.Hour),
 	}
@@ -208,12 +219,12 @@ func TestGiftStoreGarbageCollect(t *testing.T) {
 }
 
 func TestEffectName(t *testing.T) {
-	name := EffectName(EffectSoftGlowPulse)
+	name := gifts.EffectName(gifts.EffectSoftGlowPulse)
 	if name != "Soft Glow Pulse" {
 		t.Errorf("Expected 'Soft Glow Pulse', got '%s'", name)
 	}
 
-	name = EffectName(EffectMultiParticleSystem)
+	name = gifts.EffectName(gifts.EffectMultiParticleSystem)
 	if name != "Multi-Particle System" {
 		t.Errorf("Expected 'Multi-Particle System', got '%s'", name)
 	}
@@ -222,7 +233,7 @@ func TestEffectName(t *testing.T) {
 // --- Mark Tests ---
 
 func TestMarkStoreCreateAndGet(t *testing.T) {
-	store := NewMarkStore()
+	store := marks.NewMarkStore()
 
 	var markerKey [32]byte
 	rand.Read(markerKey[:])
@@ -230,7 +241,7 @@ func TestMarkStoreCreateAndGet(t *testing.T) {
 	targetKey := make([]byte, 32)
 	rand.Read(targetKey)
 
-	mark, err := store.PlaceMark(markerKey, targetKey, MarkWatcher, "test note", 100, nil)
+	mark, err := store.PlaceMark(markerKey, targetKey, marks.MarkWatcher, "test note", 100, nil)
 	if err != nil {
 		t.Fatalf("PlaceMark failed: %v", err)
 	}
@@ -244,13 +255,13 @@ func TestMarkStoreCreateAndGet(t *testing.T) {
 		t.Fatalf("GetMark failed: %v", err)
 	}
 
-	if retrieved.Category != MarkWatcher {
-		t.Errorf("Expected category %d, got %d", MarkWatcher, retrieved.Category)
+	if retrieved.Category != marks.MarkWatcher {
+		t.Errorf("Expected category %d, got %d", marks.MarkWatcher, retrieved.Category)
 	}
 }
 
 func TestMarkStoreInsufficientResonance(t *testing.T) {
-	store := NewMarkStore()
+	store := marks.NewMarkStore()
 
 	var markerKey [32]byte
 	rand.Read(markerKey[:])
@@ -258,14 +269,14 @@ func TestMarkStoreInsufficientResonance(t *testing.T) {
 	targetKey := make([]byte, 32)
 	rand.Read(targetKey)
 
-	_, err := store.PlaceMark(markerKey, targetKey, MarkWatcher, "", 50, nil)
-	if err != ErrMarkInsufficientResonance {
-		t.Errorf("Expected ErrMarkInsufficientResonance, got %v", err)
+	_, err := store.PlaceMark(markerKey, targetKey, marks.MarkWatcher, "", 50, nil)
+	if err != marks.ErrMarkInsufficientResonance {
+		t.Errorf("Expected marks.ErrMarkInsufficientResonance, got %v", err)
 	}
 }
 
 func TestMarkStoreDuplicatePrevention(t *testing.T) {
-	store := NewMarkStore()
+	store := marks.NewMarkStore()
 
 	var markerKey [32]byte
 	rand.Read(markerKey[:])
@@ -274,20 +285,20 @@ func TestMarkStoreDuplicatePrevention(t *testing.T) {
 	rand.Read(targetKey)
 
 	// Place first mark.
-	_, err := store.PlaceMark(markerKey, targetKey, MarkWatcher, "", 100, nil)
+	_, err := store.PlaceMark(markerKey, targetKey, marks.MarkWatcher, "", 100, nil)
 	if err != nil {
 		t.Fatalf("PlaceMark failed: %v", err)
 	}
 
 	// Try to place second mark on same target.
-	_, err = store.PlaceMark(markerKey, targetKey, MarkAlly, "", 100, nil)
-	if err != ErrMarkAlreadyPlaced {
-		t.Errorf("Expected ErrMarkAlreadyPlaced, got %v", err)
+	_, err = store.PlaceMark(markerKey, targetKey, marks.MarkAlly, "", 100, nil)
+	if err != marks.ErrMarkAlreadyPlaced {
+		t.Errorf("Expected marks.ErrMarkAlreadyPlaced, got %v", err)
 	}
 }
 
 func TestMarkVisibilityDecay(t *testing.T) {
-	mark := &Mark{
+	mark := &marks.Mark{
 		CreatedAt: time.Now().Add(-15 * 24 * time.Hour), // 15 days ago
 		ExpiresAt: time.Now().Add(15 * 24 * time.Hour),  // 15 days from now
 	}
@@ -301,7 +312,7 @@ func TestMarkVisibilityDecay(t *testing.T) {
 func TestMarkVerification(t *testing.T) {
 	pub, priv, _ := ed25519.GenerateKey(rand.Reader)
 
-	store := NewMarkStore()
+	store := marks.NewMarkStore()
 
 	var markerKey [32]byte
 	rand.Read(markerKey[:])
@@ -309,24 +320,24 @@ func TestMarkVerification(t *testing.T) {
 	targetKey := make([]byte, 32)
 	rand.Read(targetKey)
 
-	mark, err := store.PlaceMark(markerKey, targetKey, MarkAlly, "test", 100, priv)
+	mark, err := store.PlaceMark(markerKey, targetKey, marks.MarkAlly, "test", 100, priv)
 	if err != nil {
 		t.Fatalf("PlaceMark failed: %v", err)
 	}
 
-	if !VerifyMark(mark, pub) {
+	if !marks.VerifyMark(mark, pub) {
 		t.Error("Expected mark verification to succeed")
 	}
 }
 
 func TestMarkCategories(t *testing.T) {
-	store := NewMarkStore()
+	store := marks.NewMarkStore()
 
 	targetKey := make([]byte, 32)
 	rand.Read(targetKey)
 
 	// Place marks from different Specters.
-	categories := []MarkCategory{MarkWatcher, MarkAlly, MarkAlly, MarkRival}
+	categories := []marks.MarkCategory{marks.MarkWatcher, marks.MarkAlly, marks.MarkAlly, marks.MarkRival}
 	for _, cat := range categories {
 		var markerKey [32]byte
 		rand.Read(markerKey[:])
@@ -338,32 +349,32 @@ func TestMarkCategories(t *testing.T) {
 	}
 
 	counts := store.CountMarksByCategory(targetKey)
-	if counts[MarkAlly] != 2 {
-		t.Errorf("Expected 2 Ally marks, got %d", counts[MarkAlly])
+	if counts[marks.MarkAlly] != 2 {
+		t.Errorf("Expected 2 Ally marks, got %d", counts[marks.MarkAlly])
 	}
 
 	dominant := store.GetDominantMark(targetKey)
-	if dominant != MarkAlly {
-		t.Errorf("Expected dominant mark Ally, got %s", CategoryString(dominant))
+	if dominant != marks.MarkAlly {
+		t.Errorf("Expected dominant mark Ally, got %s", marks.CategoryString(dominant))
 	}
 }
 
 // --- Territory Tests ---
 
 func TestTerritoryInfluence(t *testing.T) {
-	territory := NewTerritory("test-1", 100.0, 100.0)
+	terr := territory.NewTerritory("test-1", 100.0, 100.0)
 
 	var specterKey [32]byte
 	rand.Read(specterKey[:])
 
 	// Add some influence.
-	territory.AddInfluence(specterKey, InfluenceWaveAmplified, 1.0)
-	territory.AddInfluence(specterKey, InfluenceConnection, 1.0)
-	territory.AddInfluence(specterKey, InfluenceMechanic, 1.0)
+	terr.AddInfluence(specterKey, territory.InfluenceWaveAmplified, 1.0)
+	terr.AddInfluence(specterKey, territory.InfluenceConnection, 1.0)
+	terr.AddInfluence(specterKey, territory.InfluenceMechanic, 1.0)
 
-	territory.ComputeInfluence()
+	terr.ComputeInfluence()
 
-	influence := territory.GetInfluence(specterKey)
+	influence := terr.GetInfluence(specterKey)
 	// Expected: 8 * ln(1 + 3) = 8 * 1.386 ≈ 11.09
 	if influence < 10.0 || influence > 12.0 {
 		t.Errorf("Expected influence ~11.09, got %f", influence)
@@ -371,30 +382,30 @@ func TestTerritoryInfluence(t *testing.T) {
 }
 
 func TestTerritoryControl(t *testing.T) {
-	territory := NewTerritory("test-2", 50.0, 50.0)
+	terr := territory.NewTerritory("test-2", 50.0, 50.0)
 
 	var controller [32]byte
 	rand.Read(controller[:])
 
 	// Add significant influence.
 	for i := 0; i < 10; i++ {
-		territory.AddInfluence(controller, InfluenceWaveAmplified, 1.0)
+		terr.AddInfluence(controller, territory.InfluenceWaveAmplified, 1.0)
 	}
 
-	territory.ComputeInfluence()
+	terr.ComputeInfluence()
 
-	if territory.State != TerritoryControlled {
-		t.Errorf("Expected TerritoryControlled, got %d", territory.State)
+	if terr.State != territory.TerritoryControlled {
+		t.Errorf("Expected territory.TerritoryControlled, got %d", terr.State)
 	}
 
-	ctrl := territory.GetController()
+	ctrl := terr.GetController()
 	if ctrl == nil {
 		t.Error("Expected controller, got nil")
 	}
 }
 
 func TestTerritoryContested(t *testing.T) {
-	territory := NewTerritory("test-3", 75.0, 75.0)
+	terr := territory.NewTerritory("test-3", 75.0, 75.0)
 
 	var specter1, specter2 [32]byte
 	rand.Read(specter1[:])
@@ -402,42 +413,42 @@ func TestTerritoryContested(t *testing.T) {
 
 	// Add similar influence to both.
 	for i := 0; i < 10; i++ {
-		territory.AddInfluence(specter1, InfluenceWaveAmplified, 1.0)
-		territory.AddInfluence(specter2, InfluenceWaveAmplified, 1.0)
+		terr.AddInfluence(specter1, territory.InfluenceWaveAmplified, 1.0)
+		terr.AddInfluence(specter2, territory.InfluenceWaveAmplified, 1.0)
 	}
 
-	territory.ComputeInfluence()
+	terr.ComputeInfluence()
 
-	if !territory.IsContested() {
+	if !terr.IsContested() {
 		t.Error("Expected territory to be contested")
 	}
 }
 
 func TestTerritoryReset(t *testing.T) {
-	territory := NewTerritory("test-4", 25.0, 25.0)
+	terr := territory.NewTerritory("test-4", 25.0, 25.0)
 
 	var specterKey [32]byte
 	rand.Read(specterKey[:])
 
-	territory.AddInfluence(specterKey, InfluenceWaveAmplified, 1.0)
-	territory.ComputeInfluence()
+	terr.AddInfluence(specterKey, territory.InfluenceWaveAmplified, 1.0)
+	terr.ComputeInfluence()
 
-	if territory.GetInfluence(specterKey) == 0 {
+	if terr.GetInfluence(specterKey) == 0 {
 		t.Error("Expected non-zero influence before reset")
 	}
 
-	territory.Reset()
+	terr.Reset()
 
-	if territory.GetInfluence(specterKey) != 0 {
+	if terr.GetInfluence(specterKey) != 0 {
 		t.Error("Expected zero influence after reset")
 	}
 }
 
 func TestTerritoryManager(t *testing.T) {
-	manager := NewTerritoryManager()
+	manager := territory.NewTerritoryManager()
 
-	t1 := NewTerritory("t1", 0, 0)
-	t2 := NewTerritory("t2", 100, 100)
+	t1 := territory.NewTerritory("t1", 0, 0)
+	t2 := territory.NewTerritory("t2", 100, 100)
 
 	manager.AddTerritory(t1)
 	manager.AddTerritory(t2)
@@ -453,15 +464,15 @@ func TestTerritoryManager(t *testing.T) {
 }
 
 func TestTerritoryScore(t *testing.T) {
-	manager := NewTerritoryManager()
+	manager := territory.NewTerritoryManager()
 
 	var specterKey [32]byte
 	rand.Read(specterKey[:])
 
 	// Create controlled territory.
-	t1 := NewTerritory("t1", 0, 0)
+	t1 := territory.NewTerritory("t1", 0, 0)
 	for i := 0; i < 10; i++ {
-		t1.AddInfluence(specterKey, InfluenceWaveAmplified, 1.0)
+		t1.AddInfluence(specterKey, territory.InfluenceWaveAmplified, 1.0)
 	}
 	t1.ComputeInfluence()
 	manager.AddTerritory(t1)
@@ -470,10 +481,10 @@ func TestTerritoryScore(t *testing.T) {
 	var other [32]byte
 	rand.Read(other[:])
 
-	t2 := NewTerritory("t2", 100, 100)
+	t2 := territory.NewTerritory("t2", 100, 100)
 	for i := 0; i < 10; i++ {
-		t2.AddInfluence(specterKey, InfluenceWaveAmplified, 1.0)
-		t2.AddInfluence(other, InfluenceWaveAmplified, 1.0)
+		t2.AddInfluence(specterKey, territory.InfluenceWaveAmplified, 1.0)
+		t2.AddInfluence(other, territory.InfluenceWaveAmplified, 1.0)
 	}
 	t2.ComputeInfluence()
 	manager.AddTerritory(t2)
@@ -493,17 +504,17 @@ func TestNewPuzzle(t *testing.T) {
 	rand.Read(seed[:])
 	rand.Read(initiator[:])
 
-	puzzle, err := NewPuzzle(PuzzleFragment, seed, 20, PuzzleDuration30Min, initiator)
+	puzzle, err := puzzles.NewPuzzle(puzzles.PuzzleFragment, seed, 20, puzzles.PuzzleDuration30Min, initiator)
 	if err != nil {
-		t.Fatalf("NewPuzzle failed: %v", err)
+		t.Fatalf("puzzles.NewPuzzle failed: %v", err)
 	}
 
-	if puzzle.Type != PuzzleFragment {
-		t.Errorf("Expected PuzzleFragment, got %d", puzzle.Type)
+	if puzzle.Type != puzzles.PuzzleFragment {
+		t.Errorf("Expected puzzles.PuzzleFragment, got %d", puzzle.Type)
 	}
 
-	if puzzle.State != PuzzleActive {
-		t.Errorf("Expected PuzzleActive, got %d", puzzle.State)
+	if puzzle.State != puzzles.PuzzleActive {
+		t.Errorf("Expected puzzles.PuzzleActive, got %d", puzzle.State)
 	}
 }
 
@@ -512,9 +523,9 @@ func TestPuzzleInvalidDuration(t *testing.T) {
 	rand.Read(seed[:])
 	rand.Read(initiator[:])
 
-	_, err := NewPuzzle(PuzzleFragment, seed, 20, 45*time.Minute, initiator)
-	if err != ErrInvalidPuzzleDuration {
-		t.Errorf("Expected ErrInvalidPuzzleDuration, got %v", err)
+	_, err := puzzles.NewPuzzle(puzzles.PuzzleFragment, seed, 20, 45*time.Minute, initiator)
+	if err != puzzles.ErrInvalidPuzzleDuration {
+		t.Errorf("Expected puzzles.ErrInvalidPuzzleDuration, got %v", err)
 	}
 }
 
@@ -525,9 +536,9 @@ func TestFragmentPuzzleSolution(t *testing.T) {
 	rand.Read(initiator[:])
 
 	// Use very low difficulty for testing.
-	puzzle, _ := NewPuzzle(PuzzleFragment, seed, 8, PuzzleDuration30Min, initiator)
+	puzzle, _ := puzzles.NewPuzzle(puzzles.PuzzleFragment, seed, 8, puzzles.PuzzleDuration30Min, initiator)
 
-	generator := &FragmentGenerator{Difficulty: 8}
+	generator := &puzzles.FragmentGenerator{Difficulty: 8}
 
 	// Find a valid solution by brute force.
 	var solution []byte
@@ -568,12 +579,12 @@ func TestPuzzleExpiration(t *testing.T) {
 	rand.Read(seed[:])
 	rand.Read(initiator[:])
 
-	puzzle := &Puzzle{
-		Type:      PuzzleFragment,
+	puzzle := &puzzles.Puzzle{
+		Type:      puzzles.PuzzleFragment,
 		Seed:      seed,
 		CreatedAt: time.Now().Add(-1 * time.Hour),
 		ExpiresAt: time.Now().Add(-30 * time.Minute),
-		State:     PuzzleActive,
+		State:     puzzles.PuzzleActive,
 	}
 
 	if !puzzle.IsExpired() {
@@ -582,13 +593,13 @@ func TestPuzzleExpiration(t *testing.T) {
 }
 
 func TestPuzzleStore(t *testing.T) {
-	store := NewPuzzleStore()
+	store := puzzles.NewPuzzleStore()
 
 	var seed, initiator [32]byte
 	rand.Read(seed[:])
 	rand.Read(initiator[:])
 
-	puzzle, _ := NewPuzzle(PuzzleFragment, seed, 20, PuzzleDuration30Min, initiator)
+	puzzle, _ := puzzles.NewPuzzle(puzzles.PuzzleFragment, seed, 20, puzzles.PuzzleDuration30Min, initiator)
 	store.AddPuzzle(puzzle)
 
 	if store.Count() != 1 {
@@ -607,7 +618,7 @@ func TestPuzzleStore(t *testing.T) {
 }
 
 func TestComputePuzzleBonus(t *testing.T) {
-	bonus := ComputePuzzleBonus(20, 10)
+	bonus := puzzles.ComputePuzzleBonus(20, 10)
 	// Expected: 4 * ln(1 + 1.0 * 10) = 4 * ln(11) ≈ 9.59
 	if bonus < 9.0 || bonus > 10.0 {
 		t.Errorf("Expected bonus ~9.59, got %f", bonus)
@@ -638,22 +649,22 @@ func TestHasLeadingZeros(t *testing.T) {
 }
 
 func TestPuzzleTypeString(t *testing.T) {
-	if PuzzleTypeString(PuzzleFragment) != "Fragment" {
+	if puzzles.PuzzleTypeString(puzzles.PuzzleFragment) != "Fragment" {
 		t.Error("Expected 'Fragment'")
 	}
-	if PuzzleTypeString(PuzzleMosaic) != "Mosaic" {
+	if puzzles.PuzzleTypeString(puzzles.PuzzleMosaic) != "Mosaic" {
 		t.Error("Expected 'Mosaic'")
 	}
-	if PuzzleTypeString(PuzzleCascade) != "Cascade" {
+	if puzzles.PuzzleTypeString(puzzles.PuzzleCascade) != "Cascade" {
 		t.Error("Expected 'Cascade'")
 	}
 }
 
 func TestPuzzleStateString(t *testing.T) {
-	if PuzzleStateString(PuzzleActive) != "Active" {
+	if puzzles.PuzzleStateString(puzzles.PuzzleActive) != "Active" {
 		t.Error("Expected 'Active'")
 	}
-	if PuzzleStateString(PuzzleSolved) != "Solved" {
+	if puzzles.PuzzleStateString(puzzles.PuzzleSolved) != "Solved" {
 		t.Error("Expected 'Solved'")
 	}
 }
@@ -666,17 +677,17 @@ func TestNewHunt(t *testing.T) {
 	rand.Read(seed[:])
 	rand.Read(initiator[:])
 
-	hunt, err := NewHunt("Test Hunt", seed, initiator, HuntDuration60Min, 10, HuntMinResonance)
+	hunt, err := hunts.NewHunt("Test Hunt", seed, initiator, hunts.HuntDuration60Min, 10, hunts.HuntMinResonance)
 	if err != nil {
-		t.Fatalf("NewHunt failed: %v", err)
+		t.Fatalf("hunts.NewHunt failed: %v", err)
 	}
 
 	if hunt.Theme != "Test Hunt" {
 		t.Errorf("Expected theme 'Test Hunt', got '%s'", hunt.Theme)
 	}
 
-	if hunt.State != HuntActive {
-		t.Errorf("Expected HuntActive, got %d", hunt.State)
+	if hunt.State != hunts.HuntActive {
+		t.Errorf("Expected hunts.HuntActive, got %d", hunt.State)
 	}
 
 	if len(hunt.Fragments) != 10 {
@@ -689,9 +700,9 @@ func TestHuntInvalidDuration(t *testing.T) {
 	rand.Read(seed[:])
 	rand.Read(initiator[:])
 
-	_, err := NewHunt("Test", seed, initiator, 45*time.Minute, 10, HuntMinResonance)
-	if err != ErrInvalidHuntDuration {
-		t.Errorf("Expected ErrInvalidHuntDuration, got %v", err)
+	_, err := hunts.NewHunt("Test", seed, initiator, 45*time.Minute, 10, hunts.HuntMinResonance)
+	if err != hunts.ErrInvalidHuntDuration {
+		t.Errorf("Expected hunts.ErrInvalidHuntDuration, got %v", err)
 	}
 }
 
@@ -700,14 +711,14 @@ func TestHuntInvalidFragmentCount(t *testing.T) {
 	rand.Read(seed[:])
 	rand.Read(initiator[:])
 
-	_, err := NewHunt("Test", seed, initiator, HuntDuration60Min, 3, HuntMinResonance) // Below minimum of 5.
-	if err != ErrInvalidFragmentCount {
-		t.Errorf("Expected ErrInvalidFragmentCount, got %v", err)
+	_, err := hunts.NewHunt("Test", seed, initiator, hunts.HuntDuration60Min, 3, hunts.HuntMinResonance) // Below minimum of 5.
+	if err != hunts.ErrInvalidFragmentCount {
+		t.Errorf("Expected hunts.ErrInvalidFragmentCount, got %v", err)
 	}
 
-	_, err = NewHunt("Test", seed, initiator, HuntDuration60Min, 25, HuntMinResonance) // Above maximum of 20.
-	if err != ErrInvalidFragmentCount {
-		t.Errorf("Expected ErrInvalidFragmentCount, got %v", err)
+	_, err = hunts.NewHunt("Test", seed, initiator, hunts.HuntDuration60Min, 25, hunts.HuntMinResonance) // Above maximum of 20.
+	if err != hunts.ErrInvalidFragmentCount {
+		t.Errorf("Expected hunts.ErrInvalidFragmentCount, got %v", err)
 	}
 }
 
@@ -717,13 +728,13 @@ func TestHuntInsufficientResonance(t *testing.T) {
 	rand.Read(initiator[:])
 
 	// Resonance below minimum (75).
-	_, err := NewHunt("Test", seed, initiator, HuntDuration60Min, 10, HuntMinResonance-1)
-	if err != ErrHuntInsufficientRes {
-		t.Errorf("Expected ErrHuntInsufficientRes, got %v", err)
+	_, err := hunts.NewHunt("Test", seed, initiator, hunts.HuntDuration60Min, 10, hunts.HuntMinResonance-1)
+	if err != hunts.ErrHuntInsufficientRes {
+		t.Errorf("Expected hunts.ErrHuntInsufficientRes, got %v", err)
 	}
 
 	// Exactly at minimum should succeed.
-	_, err = NewHunt("Test", seed, initiator, HuntDuration60Min, 10, HuntMinResonance)
+	_, err = hunts.NewHunt("Test", seed, initiator, hunts.HuntDuration60Min, 10, hunts.HuntMinResonance)
 	if err != nil {
 		t.Errorf("Expected success at minimum resonance, got %v", err)
 	}
@@ -735,7 +746,7 @@ func TestHuntFragmentGeneration(t *testing.T) {
 	rand.Read(seed[:])
 	rand.Read(initiator[:])
 
-	hunt, _ := NewHunt("Test Hunt", seed, initiator, HuntDuration30Min, 5, HuntMinResonance)
+	hunt, _ := hunts.NewHunt("Test Hunt", seed, initiator, hunts.HuntDuration30Min, 5, hunts.HuntMinResonance)
 
 	// Verify all fragments have unique location hashes.
 	locations := make(map[[32]byte]bool)
@@ -758,10 +769,10 @@ func TestHuntClaimFragment(t *testing.T) {
 	rand.Read(initiator[:])
 	rand.Read(claimer[:])
 
-	hunt, _ := NewHunt("Test Hunt", seed, initiator, HuntDuration60Min, 5, HuntMinResonance)
+	hunt, _ := hunts.NewHunt("Test Hunt", seed, initiator, hunts.HuntDuration60Min, 5, hunts.HuntMinResonance)
 
 	// Create a valid proximity proof.
-	proof := ProximityProof{
+	proof := hunts.ProximityProof{
 		ClaimerPeerID:  "test-peer-id",
 		ConnectedPeers: []string{"peer1", "peer2"},
 		HopDistances:   []int{2}, // Within 3 hops.
@@ -789,17 +800,17 @@ func TestHuntClaimAlreadyClaimed(t *testing.T) {
 	rand.Read(claimer1[:])
 	rand.Read(claimer2[:])
 
-	hunt, _ := NewHunt("Test", seed, initiator, HuntDuration60Min, 5, HuntMinResonance)
+	hunt, _ := hunts.NewHunt("Test", seed, initiator, hunts.HuntDuration60Min, 5, hunts.HuntMinResonance)
 
-	proof := ProximityProof{HopDistances: []int{1}}
+	proof := hunts.ProximityProof{HopDistances: []int{1}}
 
 	// First claim should succeed.
 	hunt.ClaimFragment(0, claimer1, proof)
 
 	// Second claim should fail.
 	err := hunt.ClaimFragment(0, claimer2, proof)
-	if err != ErrFragmentClaimed {
-		t.Errorf("Expected ErrFragmentClaimed, got %v", err)
+	if err != hunts.ErrFragmentClaimed {
+		t.Errorf("Expected hunts.ErrFragmentClaimed, got %v", err)
 	}
 }
 
@@ -809,14 +820,14 @@ func TestHuntNotInProximity(t *testing.T) {
 	rand.Read(initiator[:])
 	rand.Read(claimer[:])
 
-	hunt, _ := NewHunt("Test", seed, initiator, HuntDuration60Min, 5, HuntMinResonance)
+	hunt, _ := hunts.NewHunt("Test", seed, initiator, hunts.HuntDuration60Min, 5, hunts.HuntMinResonance)
 
 	// Proof with too many hops.
-	proof := ProximityProof{HopDistances: []int{5}} // More than 3 hops.
+	proof := hunts.ProximityProof{HopDistances: []int{5}} // More than 3 hops.
 
 	err := hunt.ClaimFragment(0, claimer, proof)
-	if err != ErrNotInProximity {
-		t.Errorf("Expected ErrNotInProximity, got %v", err)
+	if err != hunts.ErrNotInProximity {
+		t.Errorf("Expected hunts.ErrNotInProximity, got %v", err)
 	}
 }
 
@@ -825,9 +836,9 @@ func TestHuntCompletion(t *testing.T) {
 	rand.Read(seed[:])
 	rand.Read(initiator[:])
 
-	hunt, _ := NewHunt("Test", seed, initiator, HuntDuration60Min, 5, HuntMinResonance)
+	hunt, _ := hunts.NewHunt("Test", seed, initiator, hunts.HuntDuration60Min, 5, hunts.HuntMinResonance)
 
-	proof := ProximityProof{HopDistances: []int{1}}
+	proof := hunts.ProximityProof{HopDistances: []int{1}}
 
 	// Claim all fragments.
 	for i := 0; i < 5; i++ {
@@ -840,8 +851,8 @@ func TestHuntCompletion(t *testing.T) {
 		t.Error("Expected hunt to be completed")
 	}
 
-	if hunt.State != HuntCompleted {
-		t.Errorf("Expected HuntCompleted, got %d", hunt.State)
+	if hunt.State != hunts.HuntCompleted {
+		t.Errorf("Expected hunts.HuntCompleted, got %d", hunt.State)
 	}
 }
 
@@ -850,12 +861,12 @@ func TestHuntExpiration(t *testing.T) {
 	rand.Read(seed[:])
 	rand.Read(initiator[:])
 
-	hunt := &Hunt{
+	hunt := &hunts.Hunt{
 		Seed:          seed,
 		InitiatorKey:  initiator,
 		CreatedAt:     time.Now().Add(-2 * time.Hour),
 		ExpiresAt:     time.Now().Add(-1 * time.Hour), // Expired.
-		State:         HuntActive,
+		State:         hunts.HuntActive,
 		FragmentCount: 5,
 	}
 
@@ -870,7 +881,7 @@ func TestHuntRevealClues(t *testing.T) {
 	rand.Read(initiator[:])
 
 	// Create a hunt that started 25 minutes ago.
-	hunt, _ := NewHunt("Test", seed, initiator, HuntDuration60Min, 5, HuntMinResonance)
+	hunt, _ := hunts.NewHunt("Test", seed, initiator, hunts.HuntDuration60Min, 5, hunts.HuntMinResonance)
 	hunt.CreatedAt = time.Now().Add(-25 * time.Minute)
 
 	hunt.RevealClues()
@@ -887,13 +898,13 @@ func TestHuntLeaderboard(t *testing.T) {
 	rand.Read(seed[:])
 	rand.Read(initiator[:])
 
-	hunt, _ := NewHunt("Test", seed, initiator, HuntDuration60Min, 5, HuntMinResonance)
+	hunt, _ := hunts.NewHunt("Test", seed, initiator, hunts.HuntDuration60Min, 5, hunts.HuntMinResonance)
 
 	var claimer1, claimer2 [32]byte
 	rand.Read(claimer1[:])
 	rand.Read(claimer2[:])
 
-	proof := ProximityProof{HopDistances: []int{1}}
+	proof := hunts.ProximityProof{HopDistances: []int{1}}
 
 	// Claimer1 gets 3 fragments.
 	hunt.ClaimFragment(0, claimer1, proof)
@@ -920,27 +931,27 @@ func TestHuntLeaderboard(t *testing.T) {
 }
 
 func TestComputeHuntBonus(t *testing.T) {
-	bonus := ComputeHuntBonus(5, 10)
+	bonus := hunts.ComputeHuntBonus(5, 10)
 	// Expected: 5.0 * (5/10) * 5 = 5.0 * 0.5 * 5 = 12.5
 	if bonus != 12.5 {
 		t.Errorf("Expected bonus 12.5, got %f", bonus)
 	}
 
 	// Zero total should return 0.
-	bonus = ComputeHuntBonus(5, 0)
+	bonus = hunts.ComputeHuntBonus(5, 0)
 	if bonus != 0 {
 		t.Errorf("Expected bonus 0, got %f", bonus)
 	}
 }
 
 func TestHuntStore(t *testing.T) {
-	store := NewHuntStore()
+	store := hunts.NewHuntStore()
 
 	var seed, initiator [32]byte
 	rand.Read(seed[:])
 	rand.Read(initiator[:])
 
-	hunt, _ := NewHunt("Test Hunt", seed, initiator, HuntDuration60Min, 5, HuntMinResonance)
+	hunt, _ := hunts.NewHunt("Test Hunt", seed, initiator, hunts.HuntDuration60Min, 5, hunts.HuntMinResonance)
 	store.AddHunt(hunt)
 
 	if store.Count() != 1 {
@@ -959,19 +970,19 @@ func TestHuntStore(t *testing.T) {
 }
 
 func TestHuntStoreUpdateStates(t *testing.T) {
-	store := NewHuntStore()
+	store := hunts.NewHuntStore()
 
 	var seed, initiator [32]byte
 	rand.Read(seed[:])
 	rand.Read(initiator[:])
 
 	// Create an expired hunt.
-	hunt := &Hunt{
+	hunt := &hunts.Hunt{
 		Seed:          seed,
 		InitiatorKey:  initiator,
 		CreatedAt:     time.Now().Add(-2 * time.Hour),
 		ExpiresAt:     time.Now().Add(-1 * time.Hour),
-		State:         HuntActive,
+		State:         hunts.HuntActive,
 		FragmentCount: 5,
 	}
 	rand.Read(hunt.ID[:])
@@ -980,8 +991,8 @@ func TestHuntStoreUpdateStates(t *testing.T) {
 
 	store.UpdateHuntStates()
 
-	if hunt.State != HuntExpired {
-		t.Errorf("Expected HuntExpired, got %d", hunt.State)
+	if hunt.State != hunts.HuntExpired {
+		t.Errorf("Expected hunts.HuntExpired, got %d", hunt.State)
 	}
 
 	active := store.GetActiveHunts()
@@ -991,13 +1002,13 @@ func TestHuntStoreUpdateStates(t *testing.T) {
 }
 
 func TestHuntStateString(t *testing.T) {
-	if HuntStateString(HuntActive) != "Active" {
+	if hunts.HuntStateString(hunts.HuntActive) != "Active" {
 		t.Error("Expected 'Active'")
 	}
-	if HuntStateString(HuntCompleted) != "Completed" {
+	if hunts.HuntStateString(hunts.HuntCompleted) != "Completed" {
 		t.Error("Expected 'Completed'")
 	}
-	if HuntStateString(HuntExpired) != "Expired" {
+	if hunts.HuntStateString(hunts.HuntExpired) != "Expired" {
 		t.Error("Expected 'Expired'")
 	}
 }
@@ -1011,20 +1022,20 @@ func TestNewOraclePool(t *testing.T) {
 	deadline := time.Now().Add(1 * time.Hour)
 	resolution := time.Now().Add(2 * time.Hour)
 
-	pool, err := NewOraclePool(
+	pool, err := oracle.NewOraclePool(
 		"Will daily message count exceed 1000?",
-		OraclePredictionBoolean,
+		oracle.OraclePredictionBoolean,
 		"gossip_message_count",
 		creator,
 		deadline,
 		resolution,
 	)
 	if err != nil {
-		t.Fatalf("NewOraclePool failed: %v", err)
+		t.Fatalf("oracle.NewOraclePool failed: %v", err)
 	}
 
-	if pool.State != OraclePoolOpen {
-		t.Errorf("Expected OraclePoolOpen, got %d", pool.State)
+	if pool.State != oracle.OraclePoolOpen {
+		t.Errorf("Expected oracle.OraclePoolOpen, got %d", pool.State)
 	}
 
 	if !pool.IsOpen() {
@@ -1036,22 +1047,22 @@ func TestOraclePoolQuestionTooLong(t *testing.T) {
 	var creator [32]byte
 	rand.Read(creator[:])
 
-	longQuestion := make([]byte, OracleMaxQuestionLength+1)
+	longQuestion := make([]byte, oracle.OracleMaxQuestionLength+1)
 	for i := range longQuestion {
 		longQuestion[i] = 'a'
 	}
 
-	_, err := NewOraclePool(
+	_, err := oracle.NewOraclePool(
 		string(longQuestion),
-		OraclePredictionBoolean,
+		oracle.OraclePredictionBoolean,
 		"test",
 		creator,
 		time.Now().Add(1*time.Hour),
 		time.Now().Add(2*time.Hour),
 	)
 
-	if err != ErrOracleQuestionTooLong {
-		t.Errorf("Expected ErrOracleQuestionTooLong, got %v", err)
+	if err != oracle.ErrOracleQuestionTooLong {
+		t.Errorf("Expected oracle.ErrOracleQuestionTooLong, got %v", err)
 	}
 }
 
@@ -1065,9 +1076,9 @@ func TestOracleCommitmentAndReveal(t *testing.T) {
 	deadline := time.Now().Add(-1 * time.Minute) // Already past.
 	resolution := time.Now().Add(1 * time.Hour)
 
-	pool, _ := NewOraclePool(
+	pool, _ := oracle.NewOraclePool(
 		"Test question?",
-		OraclePredictionBoolean,
+		oracle.OraclePredictionBoolean,
 		"test",
 		creator,
 		time.Now().Add(1*time.Hour), // Temporarily set future deadline.
@@ -1076,7 +1087,7 @@ func TestOracleCommitmentAndReveal(t *testing.T) {
 
 	// Compute commitment.
 	value := 1.0 // Predicting true.
-	commitment := ComputeCommitmentHash(value, nonce)
+	commitment := oracle.ComputeCommitmentHash(value, nonce)
 
 	// Submit commitment.
 	err := pool.SubmitCommitment(predictor, commitment)
@@ -1116,9 +1127,9 @@ func TestOracleInvalidReveal(t *testing.T) {
 	rand.Read(nonce[:])
 	rand.Read(wrongNonce[:])
 
-	pool, _ := NewOraclePool(
+	pool, _ := oracle.NewOraclePool(
 		"Test?",
-		OraclePredictionBoolean,
+		oracle.OraclePredictionBoolean,
 		"test",
 		creator,
 		time.Now().Add(-1*time.Minute),
@@ -1129,16 +1140,16 @@ func TestOracleInvalidReveal(t *testing.T) {
 	pool.Deadline = time.Now().Add(-1 * time.Minute)
 
 	value := 1.0
-	commitment := ComputeCommitmentHash(value, nonce)
-	pool.commitments[KeyToHex(predictor[:])] = &Commitment{
+	commitment := oracle.ComputeCommitmentHash(value, nonce)
+	pool.commitments[KeyToHex(predictor[:])] = &oracle.Commitment{
 		SpecterKey: predictor,
 		Hash:       commitment,
 	}
 
 	// Try to reveal with wrong nonce.
 	err := pool.RevealPrediction(predictor, value, wrongNonce)
-	if err != ErrOracleInvalidReveal {
-		t.Errorf("Expected ErrOracleInvalidReveal, got %v", err)
+	if err != oracle.ErrOracleInvalidReveal {
+		t.Errorf("Expected oracle.ErrOracleInvalidReveal, got %v", err)
 	}
 }
 
@@ -1146,9 +1157,9 @@ func TestOraclePoolResolution(t *testing.T) {
 	var creator [32]byte
 	rand.Read(creator[:])
 
-	pool, _ := NewOraclePool(
+	pool, _ := oracle.NewOraclePool(
 		"Numeric prediction test",
-		OraclePredictionNumeric,
+		oracle.OraclePredictionNumeric,
 		"test_metric",
 		creator,
 		time.Now().Add(-2*time.Hour),
@@ -1161,7 +1172,7 @@ func TestOraclePoolResolution(t *testing.T) {
 		var predictor [32]byte
 		rand.Read(predictor[:])
 
-		pool.predictions[KeyToHex(predictor[:])] = &Prediction{
+		pool.predictions[KeyToHex(predictor[:])] = &oracle.Prediction{
 			SpecterKey: predictor,
 			Value:      predValue,
 		}
@@ -1195,9 +1206,9 @@ func TestOracleBooleanResolution(t *testing.T) {
 	var creator [32]byte
 	rand.Read(creator[:])
 
-	pool, _ := NewOraclePool(
+	pool, _ := oracle.NewOraclePool(
 		"Will it happen?",
-		OraclePredictionBoolean,
+		oracle.OraclePredictionBoolean,
 		"test",
 		creator,
 		time.Now().Add(-2*time.Hour),
@@ -1214,7 +1225,7 @@ func TestOracleBooleanResolution(t *testing.T) {
 			value = 0.0 // False.
 		}
 
-		pool.predictions[KeyToHex(predictor[:])] = &Prediction{
+		pool.predictions[KeyToHex(predictor[:])] = &oracle.Prediction{
 			SpecterKey: predictor,
 			Value:      value,
 		}
@@ -1239,14 +1250,14 @@ func TestOracleBooleanResolution(t *testing.T) {
 
 func TestComputeOracleBonus(t *testing.T) {
 	// Test with 10 participants, rank 1.
-	bonus := ComputeOracleBonus(10, 1)
+	bonus := oracle.ComputeOracleBonus(10, 1)
 	// Expected: 3 * ln(1 + 10/1) = 3 * ln(11) ≈ 7.19
 	if bonus < 7.0 || bonus > 7.5 {
 		t.Errorf("Expected bonus ~7.19, got %f", bonus)
 	}
 
 	// Test with 10 participants, rank 5.
-	bonus = ComputeOracleBonus(10, 5)
+	bonus = oracle.ComputeOracleBonus(10, 5)
 	// Expected: 3 * ln(1 + 10/5) = 3 * ln(3) ≈ 3.30
 	if bonus < 3.0 || bonus > 3.5 {
 		t.Errorf("Expected bonus ~3.30, got %f", bonus)
@@ -1254,14 +1265,14 @@ func TestComputeOracleBonus(t *testing.T) {
 }
 
 func TestOraclePoolStore(t *testing.T) {
-	store := NewOraclePoolStore()
+	store := oracle.NewOraclePoolStore()
 
 	var creator [32]byte
 	rand.Read(creator[:])
 
-	pool, _ := NewOraclePool(
+	pool, _ := oracle.NewOraclePool(
 		"Test pool",
-		OraclePredictionBoolean,
+		oracle.OraclePredictionBoolean,
 		"test",
 		creator,
 		time.Now().Add(1*time.Hour),
@@ -1289,9 +1300,9 @@ func TestOraclePoolStateUpdate(t *testing.T) {
 	var creator [32]byte
 	rand.Read(creator[:])
 
-	pool, _ := NewOraclePool(
+	pool, _ := oracle.NewOraclePool(
 		"Test",
-		OraclePredictionBoolean,
+		oracle.OraclePredictionBoolean,
 		"test",
 		creator,
 		time.Now().Add(-1*time.Minute), // Past deadline.
@@ -1300,22 +1311,22 @@ func TestOraclePoolStateUpdate(t *testing.T) {
 
 	pool.UpdateState()
 
-	if pool.State != OraclePoolPending {
-		t.Errorf("Expected OraclePoolPending, got %d", pool.State)
+	if pool.State != oracle.OraclePoolPending {
+		t.Errorf("Expected oracle.OraclePoolPending, got %d", pool.State)
 	}
 }
 
 func TestOraclePoolStateStrings(t *testing.T) {
-	if OraclePoolStateString(OraclePoolOpen) != "Open" {
+	if oracle.OraclePoolStateString(oracle.OraclePoolOpen) != "Open" {
 		t.Error("Expected 'Open'")
 	}
-	if OraclePoolStateString(OraclePoolResolved) != "Resolved" {
+	if oracle.OraclePoolStateString(oracle.OraclePoolResolved) != "Resolved" {
 		t.Error("Expected 'Resolved'")
 	}
-	if OraclePredictionTypeString(OraclePredictionBoolean) != "Boolean" {
+	if oracle.OraclePredictionTypeString(oracle.OraclePredictionBoolean) != "Boolean" {
 		t.Error("Expected 'Boolean'")
 	}
-	if OraclePredictionTypeString(OraclePredictionNumeric) != "Numeric" {
+	if oracle.OraclePredictionTypeString(oracle.OraclePredictionNumeric) != "Numeric" {
 		t.Error("Expected 'Numeric'")
 	}
 }
@@ -2426,51 +2437,33 @@ func TestCouncilStateStrings(t *testing.T) {
 
 // --- Resonance Gating Tests ---
 
-// mockResonanceGate is a test implementation of ResonanceGate.
-type mockResonanceGate struct {
-	scores map[[32]byte]int
-}
-
-func (m *mockResonanceGate) GetResonance(specterKey [32]byte) (int, error) {
-	if score, ok := m.scores[specterKey]; ok {
-		return score, nil
-	}
-	return 0, nil
-}
-
-func newMockGate(specterKey [32]byte, resonance int) *mockResonanceGate {
-	return &mockResonanceGate{
-		scores: map[[32]byte]int{specterKey: resonance},
-	}
-}
-
 func TestCheckResonanceGate(t *testing.T) {
 	var key [32]byte
 	rand.Read(key[:])
 
 	// Test with nil gate (should allow).
-	err := CheckResonanceGate(nil, key, 50)
+	err := mechanics.CheckResonanceGate(nil, key, 50)
 	if err != nil {
 		t.Errorf("Expected nil error with nil gate, got %v", err)
 	}
 
 	// Test with gate meeting requirement.
 	gate := newMockGate(key, 75)
-	err = CheckResonanceGate(gate, key, 50)
+	err = mechanics.CheckResonanceGate(gate, key, 50)
 	if err != nil {
 		t.Errorf("Expected nil error with sufficient Resonance, got %v", err)
 	}
 
 	// Test with gate not meeting requirement.
 	gate = newMockGate(key, 25)
-	err = CheckResonanceGate(gate, key, 50)
-	if err != ErrResonanceRequirementNotMet {
-		t.Errorf("Expected ErrResonanceRequirementNotMet, got %v", err)
+	err = mechanics.CheckResonanceGate(gate, key, 50)
+	if err != mechanics.ErrResonanceRequirementNotMet {
+		t.Errorf("Expected mechanics.ErrResonanceRequirementNotMet, got %v", err)
 	}
 
 	// Test at exact threshold.
 	gate = newMockGate(key, 50)
-	err = CheckResonanceGate(gate, key, 50)
+	err = mechanics.CheckResonanceGate(gate, key, 50)
 	if err != nil {
 		t.Errorf("Expected nil error at exact threshold, got %v", err)
 	}
@@ -2482,26 +2475,26 @@ func TestNewPuzzleGated(t *testing.T) {
 	rand.Read(initiator[:])
 
 	// Test with sufficient Resonance.
-	gate := newMockGate(initiator, PuzzleMinResonance)
-	puzzle, err := NewPuzzleGated(PuzzleFragment, seed, 20, PuzzleDuration30Min, initiator, gate)
+	gate := newMockGate(initiator, puzzles.PuzzleMinResonance)
+	puzzle, err := puzzles.NewPuzzleGated(puzzles.PuzzleFragment, seed, 20, puzzles.PuzzleDuration30Min, initiator, gate)
 	if err != nil {
-		t.Fatalf("NewPuzzleGated failed with sufficient Resonance: %v", err)
+		t.Fatalf("puzzles.NewPuzzleGated failed with sufficient Resonance: %v", err)
 	}
 	if puzzle == nil {
 		t.Fatal("Expected puzzle to be created")
 	}
 
 	// Test with insufficient Resonance.
-	lowGate := newMockGate(initiator, PuzzleMinResonance-1)
-	_, err = NewPuzzleGated(PuzzleFragment, seed, 20, PuzzleDuration30Min, initiator, lowGate)
-	if err != ErrPuzzleInsufficientRes {
-		t.Errorf("Expected ErrPuzzleInsufficientRes, got %v", err)
+	lowGate := newMockGate(initiator, puzzles.PuzzleMinResonance-1)
+	_, err = puzzles.NewPuzzleGated(puzzles.PuzzleFragment, seed, 20, puzzles.PuzzleDuration30Min, initiator, lowGate)
+	if err != puzzles.ErrPuzzleInsufficientRes {
+		t.Errorf("Expected puzzles.ErrPuzzleInsufficientRes, got %v", err)
 	}
 
 	// Test with nil gate (permissionless mode).
-	puzzle, err = NewPuzzleGated(PuzzleFragment, seed, 20, PuzzleDuration30Min, initiator, nil)
+	puzzle, err = puzzles.NewPuzzleGated(puzzles.PuzzleFragment, seed, 20, puzzles.PuzzleDuration30Min, initiator, nil)
 	if err != nil {
-		t.Fatalf("NewPuzzleGated failed with nil gate: %v", err)
+		t.Fatalf("puzzles.NewPuzzleGated failed with nil gate: %v", err)
 	}
 	if puzzle == nil {
 		t.Fatal("Expected puzzle to be created with nil gate")
@@ -2517,7 +2510,7 @@ type mockZKVerifier struct {
 
 func (m *mockZKVerifier) VerifyResonanceClaim(proof []byte, minResonance int64) error {
 	if !m.shouldPass {
-		return ErrInvalidZKClaim
+		return mechanics.ErrInvalidZKClaim
 	}
 	return nil
 }
@@ -2554,8 +2547,8 @@ func TestCouncilZKVerificationFailure(t *testing.T) {
 
 	// Apply with invalid ZK proof.
 	err := council.Apply(applicant, []byte("invalid_proof"))
-	if err != ErrInvalidZKClaim {
-		t.Errorf("Expected ErrInvalidZKClaim, got %v", err)
+	if err != mechanics.ErrInvalidZKClaim {
+		t.Errorf("Expected mechanics.ErrInvalidZKClaim, got %v", err)
 	}
 
 	// Should have no pending applications.
@@ -2576,14 +2569,14 @@ func TestCouncilZKVerificationMissingProof(t *testing.T) {
 
 	// Apply without ZK proof.
 	err := council.Apply(applicant, nil)
-	if err != ErrMissingZKClaim {
-		t.Errorf("Expected ErrMissingZKClaim, got %v", err)
+	if err != mechanics.ErrMissingZKClaim {
+		t.Errorf("Expected mechanics.ErrMissingZKClaim, got %v", err)
 	}
 
 	// Also test with empty proof.
 	err = council.Apply(applicant, []byte{})
-	if err != ErrMissingZKClaim {
-		t.Errorf("Expected ErrMissingZKClaim for empty proof, got %v", err)
+	if err != mechanics.ErrMissingZKClaim {
+		t.Errorf("Expected mechanics.ErrMissingZKClaim for empty proof, got %v", err)
 	}
 }
 
@@ -2617,10 +2610,10 @@ func TestNewOraclePoolGated(t *testing.T) {
 	resolution := time.Now().Add(48 * time.Hour)
 
 	// Test with sufficient Resonance.
-	gate := newMockGate(creator, 150) // Above OracleMinResonance (100).
-	pool, err := NewOraclePoolGated(
+	gate := newMockGate(creator, 150) // Above oracle.OracleMinResonance (100).
+	pool, err := oracle.NewOraclePoolGated(
 		"Will MURMUR have 1000 nodes by end of month?",
-		OraclePredictionBoolean,
+		oracle.OraclePredictionBoolean,
 		"DHT node count",
 		creator,
 		deadline,
@@ -2628,7 +2621,7 @@ func TestNewOraclePoolGated(t *testing.T) {
 		gate,
 	)
 	if err != nil {
-		t.Fatalf("NewOraclePoolGated with sufficient Resonance failed: %v", err)
+		t.Fatalf("oracle.NewOraclePoolGated with sufficient Resonance failed: %v", err)
 	}
 	if pool == nil {
 		t.Fatal("Expected non-nil pool")
@@ -2638,28 +2631,28 @@ func TestNewOraclePoolGated(t *testing.T) {
 	}
 
 	// Test with insufficient Resonance.
-	gate = newMockGate(creator, 50) // Below OracleMinResonance (100).
-	pool, err = NewOraclePoolGated(
+	gate = newMockGate(creator, 50) // Below oracle.OracleMinResonance (100).
+	pool, err = oracle.NewOraclePoolGated(
 		"Test question",
-		OraclePredictionBoolean,
+		oracle.OraclePredictionBoolean,
 		"test",
 		creator,
 		deadline,
 		resolution,
 		gate,
 	)
-	if err != ErrOracleInsufficientRes {
-		t.Errorf("Expected ErrOracleInsufficientRes, got %v", err)
+	if err != oracle.ErrOracleInsufficientRes {
+		t.Errorf("Expected oracle.ErrOracleInsufficientRes, got %v", err)
 	}
 	if pool != nil {
 		t.Error("Expected nil pool with insufficient Resonance")
 	}
 
 	// Test at exact threshold.
-	gate = newMockGate(creator, OracleMinResonance)
-	pool, err = NewOraclePoolGated(
+	gate = newMockGate(creator, oracle.OracleMinResonance)
+	pool, err = oracle.NewOraclePoolGated(
 		"Threshold test",
-		OraclePredictionNumeric,
+		oracle.OraclePredictionNumeric,
 		"test",
 		creator,
 		deadline,
@@ -2667,7 +2660,7 @@ func TestNewOraclePoolGated(t *testing.T) {
 		gate,
 	)
 	if err != nil {
-		t.Errorf("NewOraclePoolGated at exact threshold failed: %v", err)
+		t.Errorf("oracle.NewOraclePoolGated at exact threshold failed: %v", err)
 	}
 	if pool == nil {
 		t.Error("Expected non-nil pool at exact threshold")

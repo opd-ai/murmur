@@ -28,7 +28,7 @@ func TestNewTerritoryPublisher(t *testing.T) {
 
 // TestTerritoryPublisher_PublishInfluenceClaim tests influence claim publishing.
 func TestTerritoryPublisher_PublishInfluenceClaim(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
 	pub := NewTerritoryPublisher(mockPub, privKey)
 
@@ -41,13 +41,13 @@ func TestTerritoryPublisher_PublishInfluenceClaim(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if len(mockPub.published) != 1 {
-		t.Fatalf("expected 1 published message, got %d", len(mockPub.published))
+	if len(mockPub.Published) != 1 {
+		t.Fatalf("expected 1 published message, got %d", len(mockPub.Published))
 	}
 
 	// Verify message content.
 	var gossipMsg pb.GossipMessage
-	err = proto.Unmarshal(mockPub.published[0].data, &gossipMsg)
+	err = proto.Unmarshal(mockPub.Published[0].Data, &gossipMsg)
 	if err != nil {
 		t.Fatalf("failed to unmarshal: %v", err)
 	}
@@ -81,7 +81,7 @@ func TestTerritoryPublisher_PublishInfluenceClaim_NoPublisher(t *testing.T) {
 
 // TestTerritoryPublisher_PublishInfluenceClaim_NoPrivateKey tests without private key.
 func TestTerritoryPublisher_PublishInfluenceClaim_NoPrivateKey(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	pub := NewTerritoryPublisher(mockPub, nil)
 
 	var specterKey [32]byte
@@ -93,7 +93,7 @@ func TestTerritoryPublisher_PublishInfluenceClaim_NoPrivateKey(t *testing.T) {
 
 // TestTerritoryPublisher_PublishControlChange tests control change publishing.
 func TestTerritoryPublisher_PublishControlChange(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
 	pub := NewTerritoryPublisher(mockPub, privKey)
 
@@ -109,13 +109,13 @@ func TestTerritoryPublisher_PublishControlChange(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if len(mockPub.published) != 1 {
-		t.Fatalf("expected 1 published message, got %d", len(mockPub.published))
+	if len(mockPub.Published) != 1 {
+		t.Fatalf("expected 1 published message, got %d", len(mockPub.Published))
 	}
 
 	// Verify message content.
 	var gossipMsg pb.GossipMessage
-	err = proto.Unmarshal(mockPub.published[0].data, &gossipMsg)
+	err = proto.Unmarshal(mockPub.Published[0].Data, &gossipMsg)
 	if err != nil {
 		t.Fatalf("failed to unmarshal: %v", err)
 	}
@@ -134,7 +134,7 @@ func TestTerritoryPublisher_PublishControlChange(t *testing.T) {
 
 // TestTerritoryPublisher_PublishControlChange_NilTerritory tests with nil territory.
 func TestTerritoryPublisher_PublishControlChange_NilTerritory(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
 	pub := NewTerritoryPublisher(mockPub, privKey)
 
@@ -146,7 +146,7 @@ func TestTerritoryPublisher_PublishControlChange_NilTerritory(t *testing.T) {
 
 // TestTerritoryPublisher_PublishTerritoryDrift tests drift event publishing.
 func TestTerritoryPublisher_PublishTerritoryDrift(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
 	pub := NewTerritoryPublisher(mockPub, privKey)
 
@@ -158,13 +158,13 @@ func TestTerritoryPublisher_PublishTerritoryDrift(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if len(mockPub.published) != 1 {
-		t.Fatalf("expected 1 published message, got %d", len(mockPub.published))
+	if len(mockPub.Published) != 1 {
+		t.Fatalf("expected 1 published message, got %d", len(mockPub.Published))
 	}
 
 	// Verify message content.
 	var gossipMsg pb.GossipMessage
-	err = proto.Unmarshal(mockPub.published[0].data, &gossipMsg)
+	err = proto.Unmarshal(mockPub.Published[0].Data, &gossipMsg)
 	if err != nil {
 		t.Fatalf("failed to unmarshal: %v", err)
 	}
@@ -180,7 +180,7 @@ func TestTerritoryPublisher_PublishTerritoryDrift(t *testing.T) {
 
 // TestTerritoryPublisher_PublishTerritoryDrift_NilTerritory tests with nil territory.
 func TestTerritoryPublisher_PublishTerritoryDrift_NilTerritory(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
 	pub := NewTerritoryPublisher(mockPub, privKey)
 
@@ -209,7 +209,7 @@ func TestTerritoryReceiver_HandleInfluenceClaim(t *testing.T) {
 
 	// Create and publish an influence claim.
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	publisher := NewTerritoryPublisher(mockPub, privKey)
 
 	var specterKey [32]byte
@@ -221,7 +221,7 @@ func TestTerritoryReceiver_HandleInfluenceClaim(t *testing.T) {
 	}
 
 	// Handle the published message.
-	err = receiver.HandleMessage(mockPub.published[0].data)
+	err = receiver.HandleMessage(mockPub.Published[0].Data)
 	if err != nil {
 		t.Fatalf("failed to handle message: %v", err)
 	}
@@ -245,7 +245,7 @@ func TestTerritoryReceiver_HandleControlChange(t *testing.T) {
 
 	// Create a territory with a controller.
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	publisher := NewTerritoryPublisher(mockPub, privKey)
 
 	territory := NewTerritory("territory-ctrl", 100.0, 200.0)
@@ -260,7 +260,7 @@ func TestTerritoryReceiver_HandleControlChange(t *testing.T) {
 	}
 
 	// Handle the published message.
-	err = receiver.HandleMessage(mockPub.published[0].data)
+	err = receiver.HandleMessage(mockPub.Published[0].Data)
 	if err != nil {
 		t.Fatalf("failed to handle message: %v", err)
 	}
@@ -282,7 +282,7 @@ func TestTerritoryReceiver_HandleTerritoryDrift(t *testing.T) {
 
 	// Create a territory.
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	publisher := NewTerritoryPublisher(mockPub, privKey)
 
 	territory := NewTerritory("territory-drift", 300.0, 400.0)
@@ -293,7 +293,7 @@ func TestTerritoryReceiver_HandleTerritoryDrift(t *testing.T) {
 	}
 
 	// Handle the published message.
-	err = receiver.HandleMessage(mockPub.published[0].data)
+	err = receiver.HandleMessage(mockPub.Published[0].Data)
 	if err != nil {
 		t.Fatalf("failed to handle message: %v", err)
 	}
@@ -483,7 +483,7 @@ func TestProtoToTerritory_Contested(t *testing.T) {
 // TestTerritoryEventSignatureRoundTrip tests signature verification.
 func TestTerritoryEventSignatureRoundTrip(t *testing.T) {
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	publisher := NewTerritoryPublisher(mockPub, privKey)
 
 	var specterKey [32]byte
@@ -497,7 +497,7 @@ func TestTerritoryEventSignatureRoundTrip(t *testing.T) {
 
 	// Unmarshal and verify signature manually.
 	var gossipMsg pb.GossipMessage
-	err = proto.Unmarshal(mockPub.published[0].data, &gossipMsg)
+	err = proto.Unmarshal(mockPub.Published[0].Data, &gossipMsg)
 	if err != nil {
 		t.Fatalf("failed to unmarshal: %v", err)
 	}
@@ -521,7 +521,7 @@ func TestTerritoryEventSignatureRoundTrip(t *testing.T) {
 
 // BenchmarkTerritoryPublisher_PublishInfluenceClaim benchmarks influence publishing.
 func BenchmarkTerritoryPublisher_PublishInfluenceClaim(b *testing.B) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
 	pub := NewTerritoryPublisher(mockPub, privKey)
 
@@ -532,7 +532,7 @@ func BenchmarkTerritoryPublisher_PublishInfluenceClaim(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		mockPub.published = nil
+		mockPub.Published = nil
 		pub.PublishInfluenceClaim(ctx, "bench-territory", specterKey, 100)
 	}
 }
@@ -540,14 +540,14 @@ func BenchmarkTerritoryPublisher_PublishInfluenceClaim(b *testing.B) {
 // BenchmarkTerritoryReceiver_HandleMessage benchmarks message handling.
 func BenchmarkTerritoryReceiver_HandleMessage(b *testing.B) {
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	publisher := NewTerritoryPublisher(mockPub, privKey)
 
 	var specterKey [32]byte
 	copy(specterKey[:], privKey.Public().(ed25519.PublicKey))
 
 	publisher.PublishInfluenceClaim(context.Background(), "bench-territory", specterKey, 50)
-	data := mockPub.published[0].data
+	data := mockPub.Published[0].Data
 
 	store := NewTerritoryStore()
 	receiver := NewTerritoryReceiver(store)

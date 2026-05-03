@@ -29,7 +29,7 @@ func TestNewShadowPlayPublisher(t *testing.T) {
 
 // TestShadowPlayPublisher_PublishGameCreated tests game creation publishing.
 func TestShadowPlayPublisher_PublishGameCreated(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
 	pub := NewShadowPlayPublisher(mockPub, privKey)
 
@@ -47,13 +47,13 @@ func TestShadowPlayPublisher_PublishGameCreated(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if len(mockPub.published) != 1 {
-		t.Fatalf("expected 1 published message, got %d", len(mockPub.published))
+	if len(mockPub.Published) != 1 {
+		t.Fatalf("expected 1 published message, got %d", len(mockPub.Published))
 	}
 
 	// Verify message content.
 	var gossipMsg pb.GossipMessage
-	err = proto.Unmarshal(mockPub.published[0].data, &gossipMsg)
+	err = proto.Unmarshal(mockPub.Published[0].Data, &gossipMsg)
 	if err != nil {
 		t.Fatalf("failed to unmarshal: %v", err)
 	}
@@ -86,7 +86,7 @@ func TestShadowPlayPublisher_PublishGameCreated_NoPublisher(t *testing.T) {
 
 // TestShadowPlayPublisher_PublishGameCreated_NilGame tests with nil game.
 func TestShadowPlayPublisher_PublishGameCreated_NilGame(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
 	pub := NewShadowPlayPublisher(mockPub, privKey)
 
@@ -98,7 +98,7 @@ func TestShadowPlayPublisher_PublishGameCreated_NilGame(t *testing.T) {
 
 // TestShadowPlayPublisher_PublishGameCreated_NoPrivateKey tests without private key.
 func TestShadowPlayPublisher_PublishGameCreated_NoPrivateKey(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	pub := NewShadowPlayPublisher(mockPub, nil)
 
 	var initiatorKey [32]byte
@@ -112,7 +112,7 @@ func TestShadowPlayPublisher_PublishGameCreated_NoPrivateKey(t *testing.T) {
 
 // TestShadowPlayPublisher_PublishCastJoin tests player join publishing.
 func TestShadowPlayPublisher_PublishCastJoin(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
 	pub := NewShadowPlayPublisher(mockPub, privKey)
 
@@ -134,13 +134,13 @@ func TestShadowPlayPublisher_PublishCastJoin(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if len(mockPub.published) != 1 {
-		t.Fatalf("expected 1 published message, got %d", len(mockPub.published))
+	if len(mockPub.Published) != 1 {
+		t.Fatalf("expected 1 published message, got %d", len(mockPub.Published))
 	}
 
 	// Verify message content.
 	var gossipMsg pb.GossipMessage
-	err = proto.Unmarshal(mockPub.published[0].data, &gossipMsg)
+	err = proto.Unmarshal(mockPub.Published[0].Data, &gossipMsg)
 	if err != nil {
 		t.Fatalf("failed to unmarshal: %v", err)
 	}
@@ -159,7 +159,7 @@ func TestShadowPlayPublisher_PublishCastJoin(t *testing.T) {
 
 // TestShadowPlayPublisher_PublishCastJoin_NilPlayer tests with nil player.
 func TestShadowPlayPublisher_PublishCastJoin_NilPlayer(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
 	pub := NewShadowPlayPublisher(mockPub, privKey)
 
@@ -172,7 +172,7 @@ func TestShadowPlayPublisher_PublishCastJoin_NilPlayer(t *testing.T) {
 
 // TestShadowPlayPublisher_PublishGameStarted tests game start publishing.
 func TestShadowPlayPublisher_PublishGameStarted(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
 	pub := NewShadowPlayPublisher(mockPub, privKey)
 
@@ -187,13 +187,13 @@ func TestShadowPlayPublisher_PublishGameStarted(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if len(mockPub.published) != 1 {
-		t.Fatalf("expected 1 published message, got %d", len(mockPub.published))
+	if len(mockPub.Published) != 1 {
+		t.Fatalf("expected 1 published message, got %d", len(mockPub.Published))
 	}
 
 	// Verify message content.
 	var gossipMsg pb.GossipMessage
-	err = proto.Unmarshal(mockPub.published[0].data, &gossipMsg)
+	err = proto.Unmarshal(mockPub.Published[0].Data, &gossipMsg)
 	if err != nil {
 		t.Fatalf("failed to unmarshal: %v", err)
 	}
@@ -209,7 +209,7 @@ func TestShadowPlayPublisher_PublishGameStarted(t *testing.T) {
 
 // TestShadowPlayPublisher_PublishGameEnded tests game end publishing.
 func TestShadowPlayPublisher_PublishGameEnded(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
 	pub := NewShadowPlayPublisher(mockPub, privKey)
 
@@ -224,13 +224,13 @@ func TestShadowPlayPublisher_PublishGameEnded(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if len(mockPub.published) != 1 {
-		t.Fatalf("expected 1 published message, got %d", len(mockPub.published))
+	if len(mockPub.Published) != 1 {
+		t.Fatalf("expected 1 published message, got %d", len(mockPub.Published))
 	}
 
 	// Verify message content.
 	var gossipMsg pb.GossipMessage
-	err = proto.Unmarshal(mockPub.published[0].data, &gossipMsg)
+	err = proto.Unmarshal(mockPub.Published[0].Data, &gossipMsg)
 	if err != nil {
 		t.Fatalf("failed to unmarshal: %v", err)
 	}
@@ -246,7 +246,7 @@ func TestShadowPlayPublisher_PublishGameEnded(t *testing.T) {
 
 // TestShadowPlayPublisher_PublishGameCancelled tests game cancellation publishing.
 func TestShadowPlayPublisher_PublishGameCancelled(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
 	pub := NewShadowPlayPublisher(mockPub, privKey)
 
@@ -259,13 +259,13 @@ func TestShadowPlayPublisher_PublishGameCancelled(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if len(mockPub.published) != 1 {
-		t.Fatalf("expected 1 published message, got %d", len(mockPub.published))
+	if len(mockPub.Published) != 1 {
+		t.Fatalf("expected 1 published message, got %d", len(mockPub.Published))
 	}
 
 	// Verify message content.
 	var gossipMsg pb.GossipMessage
-	err = proto.Unmarshal(mockPub.published[0].data, &gossipMsg)
+	err = proto.Unmarshal(mockPub.Published[0].Data, &gossipMsg)
 	if err != nil {
 		t.Fatalf("failed to unmarshal: %v", err)
 	}
@@ -298,7 +298,7 @@ func TestShadowPlayReceiver_HandleGameCreated(t *testing.T) {
 
 	// Create and publish a game.
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	publisher := NewShadowPlayPublisher(mockPub, privKey)
 
 	var initiatorKey [32]byte
@@ -312,7 +312,7 @@ func TestShadowPlayReceiver_HandleGameCreated(t *testing.T) {
 	}
 
 	// Handle the published message.
-	err = receiver.HandleMessage(mockPub.published[0].data)
+	err = receiver.HandleMessage(mockPub.Published[0].Data)
 	if err != nil {
 		t.Fatalf("failed to handle message: %v", err)
 	}
@@ -339,7 +339,7 @@ func TestShadowPlayReceiver_HandleCastJoin(t *testing.T) {
 
 	// Create player and publish join.
 	_, playerPrivKey, _ := ed25519.GenerateKey(rand.Reader)
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	publisher := NewShadowPlayPublisher(mockPub, playerPrivKey)
 
 	var playerKey [32]byte
@@ -357,7 +357,7 @@ func TestShadowPlayReceiver_HandleCastJoin(t *testing.T) {
 	}
 
 	// Handle the published message.
-	err = receiver.HandleMessage(mockPub.published[0].data)
+	err = receiver.HandleMessage(mockPub.Published[0].Data)
 	if err != nil {
 		t.Fatalf("failed to handle message: %v", err)
 	}
@@ -386,7 +386,7 @@ func TestShadowPlayReceiver_HandleGameStarted(t *testing.T) {
 	store.AddGame(game)
 
 	// Publish start event.
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	publisher := NewShadowPlayPublisher(mockPub, privKey)
 
 	err := publisher.PublishGameStarted(context.Background(), game)
@@ -395,7 +395,7 @@ func TestShadowPlayReceiver_HandleGameStarted(t *testing.T) {
 	}
 
 	// Handle the published message.
-	err = receiver.HandleMessage(mockPub.published[0].data)
+	err = receiver.HandleMessage(mockPub.Published[0].Data)
 	if err != nil {
 		t.Fatalf("failed to handle message: %v", err)
 	}
@@ -424,7 +424,7 @@ func TestShadowPlayReceiver_HandleGameEnded(t *testing.T) {
 	game.State = ShadowPlayEchoesWin
 
 	// Publish end event.
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	publisher := NewShadowPlayPublisher(mockPub, privKey)
 
 	err := publisher.PublishGameEnded(context.Background(), game)
@@ -433,7 +433,7 @@ func TestShadowPlayReceiver_HandleGameEnded(t *testing.T) {
 	}
 
 	// Handle the published message.
-	err = receiver.HandleMessage(mockPub.published[0].data)
+	err = receiver.HandleMessage(mockPub.Published[0].Data)
 	if err != nil {
 		t.Fatalf("failed to handle message: %v", err)
 	}
@@ -462,7 +462,7 @@ func TestShadowPlayReceiver_HandleGameCancelled(t *testing.T) {
 	store.AddGame(game)
 
 	// Publish cancellation event.
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	publisher := NewShadowPlayPublisher(mockPub, privKey)
 
 	err := publisher.PublishGameCancelled(context.Background(), game.ID)
@@ -471,7 +471,7 @@ func TestShadowPlayReceiver_HandleGameCancelled(t *testing.T) {
 	}
 
 	// Handle the published message.
-	err = receiver.HandleMessage(mockPub.published[0].data)
+	err = receiver.HandleMessage(mockPub.Published[0].Data)
 	if err != nil {
 		t.Fatalf("failed to handle message: %v", err)
 	}
@@ -538,7 +538,7 @@ func TestShadowPlayReceiver_HandleMessage_MissingSignature(t *testing.T) {
 // TestShadowPlayEventSignatureRoundTrip tests signature verification.
 func TestShadowPlayEventSignatureRoundTrip(t *testing.T) {
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	publisher := NewShadowPlayPublisher(mockPub, privKey)
 
 	var initiatorKey [32]byte
@@ -553,7 +553,7 @@ func TestShadowPlayEventSignatureRoundTrip(t *testing.T) {
 
 	// Unmarshal and verify signature.
 	var gossipMsg pb.GossipMessage
-	err = proto.Unmarshal(mockPub.published[0].data, &gossipMsg)
+	err = proto.Unmarshal(mockPub.Published[0].Data, &gossipMsg)
 	if err != nil {
 		t.Fatalf("failed to unmarshal: %v", err)
 	}
@@ -577,7 +577,7 @@ func TestShadowPlayEventSignatureRoundTrip(t *testing.T) {
 
 // BenchmarkShadowPlayPublisher_PublishGameCreated benchmarks game creation publishing.
 func BenchmarkShadowPlayPublisher_PublishGameCreated(b *testing.B) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
 	pub := NewShadowPlayPublisher(mockPub, privKey)
 
@@ -590,7 +590,7 @@ func BenchmarkShadowPlayPublisher_PublishGameCreated(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		mockPub.published = nil
+		mockPub.Published = nil
 		pub.PublishGameCreated(ctx, game)
 	}
 }
@@ -598,7 +598,7 @@ func BenchmarkShadowPlayPublisher_PublishGameCreated(b *testing.B) {
 // BenchmarkShadowPlayReceiver_HandleMessage benchmarks message handling.
 func BenchmarkShadowPlayReceiver_HandleMessage(b *testing.B) {
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	publisher := NewShadowPlayPublisher(mockPub, privKey)
 
 	var initiatorKey [32]byte
@@ -607,7 +607,7 @@ func BenchmarkShadowPlayReceiver_HandleMessage(b *testing.B) {
 	game, _ := NewShadowPlay(initiatorKey, ShadowPlayDuration30Min, ShadowPlayMinPlayers)
 
 	publisher.PublishGameCreated(context.Background(), game)
-	data := mockPub.published[0].data
+	data := mockPub.Published[0].Data
 
 	store := NewShadowPlayStore()
 	receiver := NewShadowPlayReceiver(store)

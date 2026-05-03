@@ -1,25 +1,26 @@
 package sparks
 
 import (
-"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
 	"testing"
 	"time"
 
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
+
 	"google.golang.org/protobuf/proto"
 
 	pb "github.com/opd-ai/murmur/proto"
 )
 
-func TestNewSparkmechanics.Publisher(t *testing.T) {
-	pub := &mockmechanics.Publisher{}
+func TestNewSparkPublisher(t *testing.T) {
+	pub := &mechanics.MockPublisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
 
-	sp := NewSparkmechanics.Publisher(pub, privKey)
+	sp := NewSparkPublisher(pub, privKey)
 	if sp == nil {
-		t.Fatal("NewSparkmechanics.Publisher returned nil")
+		t.Fatal("NewSparkPublisher returned nil")
 	}
 	if sp.topic != mechanics.TopicAnonymousMechanics {
 		t.Errorf("wrong topic: got %s, want %s", sp.topic, mechanics.TopicAnonymousMechanics)
@@ -27,9 +28,9 @@ func TestNewSparkmechanics.Publisher(t *testing.T) {
 }
 
 func TestPublishSparkCreated(t *testing.T) {
-	pub := &mockmechanics.Publisher{}
+	pub := &mechanics.MockPublisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
-	sp := NewSparkmechanics.Publisher(pub, privKey)
+	sp := NewSparkPublisher(pub, privKey)
 
 	spark := &Spark{
 		Type:        SparkEchoRace,
@@ -46,13 +47,13 @@ func TestPublishSparkCreated(t *testing.T) {
 		t.Errorf("PublishSparkCreated failed: %v", err)
 	}
 
-	if len(pub.published) != 1 {
-		t.Fatalf("expected 1 published message, got %d", len(pub.published))
+	if len(pub.Published) != 1 {
+		t.Fatalf("expected 1 published message, got %d", len(pub.Published))
 	}
 
 	// Verify the message can be unmarshaled.
 	msg := &pb.GossipMessage{}
-	if err := proto.Unmarshal(pub.published[0].data, msg); err != nil {
+	if err := proto.Unmarshal(pub.Published[0].Data, msg); err != nil {
 		t.Fatalf("failed to unmarshal: %v", err)
 	}
 
@@ -66,9 +67,9 @@ func TestPublishSparkCreated(t *testing.T) {
 }
 
 func TestPublishSparkCreated_NilSpark(t *testing.T) {
-	pub := &mockmechanics.Publisher{}
+	pub := &mechanics.MockPublisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
-	sp := NewSparkmechanics.Publisher(pub, privKey)
+	sp := NewSparkPublisher(pub, privKey)
 
 	err := sp.PublishSparkCreated(context.Background(), nil)
 	if err != ErrInvalidSparkPub {
@@ -76,9 +77,9 @@ func TestPublishSparkCreated_NilSpark(t *testing.T) {
 	}
 }
 
-func TestPublishSparkCreated_Nilmechanics.Publisher(t *testing.T) {
+func TestPublishSparkCreated_NilPublisher(t *testing.T) {
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
-	sp := NewSparkmechanics.Publisher(nil, privKey)
+	sp := NewSparkPublisher(nil, privKey)
 
 	spark := &Spark{
 		Type:  SparkEchoRace,
@@ -92,9 +93,9 @@ func TestPublishSparkCreated_Nilmechanics.Publisher(t *testing.T) {
 }
 
 func TestPublishSparkResponse(t *testing.T) {
-	pub := &mockmechanics.Publisher{}
+	pub := &mechanics.MockPublisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
-	sp := NewSparkmechanics.Publisher(pub, privKey)
+	sp := NewSparkPublisher(pub, privKey)
 
 	var sparkID, waveID [32]byte
 	responderKey := make([]byte, 32)
@@ -107,12 +108,12 @@ func TestPublishSparkResponse(t *testing.T) {
 		t.Errorf("PublishSparkResponse failed: %v", err)
 	}
 
-	if len(pub.published) != 1 {
-		t.Fatalf("expected 1 published message, got %d", len(pub.published))
+	if len(pub.Published) != 1 {
+		t.Fatalf("expected 1 published message, got %d", len(pub.Published))
 	}
 
 	msg := &pb.GossipMessage{}
-	if err := proto.Unmarshal(pub.published[0].data, msg); err != nil {
+	if err := proto.Unmarshal(pub.Published[0].Data, msg); err != nil {
 		t.Fatalf("failed to unmarshal: %v", err)
 	}
 
@@ -129,9 +130,9 @@ func TestPublishSparkResponse(t *testing.T) {
 }
 
 func TestPublishSparkCompleted(t *testing.T) {
-	pub := &mockmechanics.Publisher{}
+	pub := &mechanics.MockPublisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
-	sp := NewSparkmechanics.Publisher(pub, privKey)
+	sp := NewSparkPublisher(pub, privKey)
 
 	var sparkID [32]byte
 	winnerKey := make([]byte, 32)
@@ -144,7 +145,7 @@ func TestPublishSparkCompleted(t *testing.T) {
 	}
 
 	msg := &pb.GossipMessage{}
-	if err := proto.Unmarshal(pub.published[0].data, msg); err != nil {
+	if err := proto.Unmarshal(pub.Published[0].Data, msg); err != nil {
 		t.Fatalf("failed to unmarshal: %v", err)
 	}
 
@@ -155,9 +156,9 @@ func TestPublishSparkCompleted(t *testing.T) {
 }
 
 func TestPublishSparkExpired(t *testing.T) {
-	pub := &mockmechanics.Publisher{}
+	pub := &mechanics.MockPublisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
-	sp := NewSparkmechanics.Publisher(pub, privKey)
+	sp := NewSparkPublisher(pub, privKey)
 
 	var sparkID [32]byte
 	rand.Read(sparkID[:])
@@ -168,7 +169,7 @@ func TestPublishSparkExpired(t *testing.T) {
 	}
 
 	msg := &pb.GossipMessage{}
-	if err := proto.Unmarshal(pub.published[0].data, msg); err != nil {
+	if err := proto.Unmarshal(pub.Published[0].Data, msg); err != nil {
 		t.Fatalf("failed to unmarshal: %v", err)
 	}
 
@@ -179,9 +180,9 @@ func TestPublishSparkExpired(t *testing.T) {
 }
 
 func TestPublishSparkCancelled(t *testing.T) {
-	pub := &mockmechanics.Publisher{}
+	pub := &mechanics.MockPublisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
-	sp := NewSparkmechanics.Publisher(pub, privKey)
+	sp := NewSparkPublisher(pub, privKey)
 
 	var sparkID [32]byte
 	rand.Read(sparkID[:])
@@ -192,7 +193,7 @@ func TestPublishSparkCancelled(t *testing.T) {
 	}
 
 	msg := &pb.GossipMessage{}
-	if err := proto.Unmarshal(pub.published[0].data, msg); err != nil {
+	if err := proto.Unmarshal(pub.Published[0].Data, msg); err != nil {
 		t.Fatalf("failed to unmarshal: %v", err)
 	}
 
@@ -450,9 +451,9 @@ func TestSparkAddSpark_Idempotent(t *testing.T) {
 }
 
 func BenchmarkSparkPublisher_PublishSparkCreated(b *testing.B) {
-	pub := &mockmechanics.Publisher{}
+	pub := &mechanics.MockPublisher{}
 	_, privKey, _ := ed25519.GenerateKey(rand.Reader)
-	sp := NewSparkmechanics.Publisher(pub, privKey)
+	sp := NewSparkPublisher(pub, privKey)
 
 	spark := &Spark{
 		Type:        SparkEchoRace,

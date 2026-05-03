@@ -17,7 +17,7 @@ import (
 
 // TestCouncilPublisher_Creation tests CouncilPublisher instantiation.
 func TestCouncilPublisher_Creation(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privateKey, _ := ed25519.GenerateKey(rand.Reader)
 
 	pub := NewCouncilPublisher(mockPub, privateKey)
@@ -47,7 +47,7 @@ func TestCouncilPublisher_NilPublisher(t *testing.T) {
 
 // TestCouncilPublisher_NilCouncil tests handling when council is nil.
 func TestCouncilPublisher_NilCouncil(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privateKey, _ := ed25519.GenerateKey(rand.Reader)
 	pub := NewCouncilPublisher(mockPub, privateKey)
 
@@ -59,7 +59,7 @@ func TestCouncilPublisher_NilCouncil(t *testing.T) {
 
 // TestCouncilPublisher_NilPrivateKey tests handling when private key is nil.
 func TestCouncilPublisher_NilPrivateKey(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	pub := NewCouncilPublisher(mockPub, nil)
 
 	council := &PhantomCouncil{
@@ -75,7 +75,7 @@ func TestCouncilPublisher_NilPrivateKey(t *testing.T) {
 
 // TestCouncilPublisher_PublishCouncilCreated tests successful council creation publication.
 func TestCouncilPublisher_PublishCouncilCreated(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	pubKey, privateKey, _ := ed25519.GenerateKey(rand.Reader)
 
 	pub := NewCouncilPublisher(mockPub, privateKey)
@@ -99,18 +99,18 @@ func TestCouncilPublisher_PublishCouncilCreated(t *testing.T) {
 		t.Fatalf("PublishCouncilCreated failed: %v", err)
 	}
 
-	if len(mockPub.published) != 1 {
-		t.Fatalf("expected 1 message, got %d", len(mockPub.published))
+	if len(mockPub.Published) != 1 {
+		t.Fatalf("expected 1 message, got %d", len(mockPub.Published))
 	}
 
 	// Verify topic.
-	if mockPub.published[0].topic != mechanics.TopicAnonymousMechanics {
-		t.Errorf("wrong topic: got %s", mockPub.published[0].topic)
+	if mockPub.Published[0].Topic != mechanics.TopicAnonymousMechanics {
+		t.Errorf("wrong topic: got %s", mockPub.Published[0].Topic)
 	}
 
 	// Unmarshal and verify.
 	var gossipMsg pb.GossipMessage
-	if err := proto.Unmarshal(mockPub.published[0].data, &gossipMsg); err != nil {
+	if err := proto.Unmarshal(mockPub.Published[0].Data, &gossipMsg); err != nil {
 		t.Fatalf("failed to unmarshal: %v", err)
 	}
 
@@ -128,7 +128,7 @@ func TestCouncilPublisher_PublishCouncilCreated(t *testing.T) {
 
 // TestCouncilPublisher_PublishMemberJoined tests member join publication.
 func TestCouncilPublisher_PublishMemberJoined(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	pubKey, privateKey, _ := ed25519.GenerateKey(rand.Reader)
 
 	pub := NewCouncilPublisher(mockPub, privateKey)
@@ -150,12 +150,12 @@ func TestCouncilPublisher_PublishMemberJoined(t *testing.T) {
 		t.Fatalf("PublishMemberJoined failed: %v", err)
 	}
 
-	if len(mockPub.published) != 1 {
-		t.Fatalf("expected 1 message, got %d", len(mockPub.published))
+	if len(mockPub.Published) != 1 {
+		t.Fatalf("expected 1 message, got %d", len(mockPub.Published))
 	}
 
 	var gossipMsg pb.GossipMessage
-	proto.Unmarshal(mockPub.published[0].data, &gossipMsg)
+	proto.Unmarshal(mockPub.Published[0].Data, &gossipMsg)
 	event := gossipMsg.GetCouncilEvent()
 
 	if event.EventType != pb.CouncilEventType_COUNCIL_EVENT_MEMBER_JOIN {
@@ -165,7 +165,7 @@ func TestCouncilPublisher_PublishMemberJoined(t *testing.T) {
 
 // TestCouncilPublisher_PublishProposal tests proposal publication.
 func TestCouncilPublisher_PublishProposal(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	pubKey, privateKey, _ := ed25519.GenerateKey(rand.Reader)
 
 	pub := NewCouncilPublisher(mockPub, privateKey)
@@ -189,12 +189,12 @@ func TestCouncilPublisher_PublishProposal(t *testing.T) {
 		t.Fatalf("PublishProposal failed: %v", err)
 	}
 
-	if len(mockPub.published) != 1 {
-		t.Fatalf("expected 1 message, got %d", len(mockPub.published))
+	if len(mockPub.Published) != 1 {
+		t.Fatalf("expected 1 message, got %d", len(mockPub.Published))
 	}
 
 	var gossipMsg pb.GossipMessage
-	proto.Unmarshal(mockPub.published[0].data, &gossipMsg)
+	proto.Unmarshal(mockPub.Published[0].Data, &gossipMsg)
 	event := gossipMsg.GetCouncilEvent()
 
 	if event.EventType != pb.CouncilEventType_COUNCIL_EVENT_PROPOSAL {
@@ -204,7 +204,7 @@ func TestCouncilPublisher_PublishProposal(t *testing.T) {
 
 // TestCouncilPublisher_PublishVote tests vote publication.
 func TestCouncilPublisher_PublishVote(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	pubKey, privateKey, _ := ed25519.GenerateKey(rand.Reader)
 
 	pub := NewCouncilPublisher(mockPub, privateKey)
@@ -219,12 +219,12 @@ func TestCouncilPublisher_PublishVote(t *testing.T) {
 		t.Fatalf("PublishVote failed: %v", err)
 	}
 
-	if len(mockPub.published) != 1 {
-		t.Fatalf("expected 1 message, got %d", len(mockPub.published))
+	if len(mockPub.Published) != 1 {
+		t.Fatalf("expected 1 message, got %d", len(mockPub.Published))
 	}
 
 	var gossipMsg pb.GossipMessage
-	proto.Unmarshal(mockPub.published[0].data, &gossipMsg)
+	proto.Unmarshal(mockPub.Published[0].Data, &gossipMsg)
 	event := gossipMsg.GetCouncilEvent()
 
 	if event.EventType != pb.CouncilEventType_COUNCIL_EVENT_VOTE {
@@ -237,7 +237,7 @@ func TestCouncilPublisher_PublishVote(t *testing.T) {
 
 // TestCouncilPublisher_PublishProposalResolved tests proposal resolution publication.
 func TestCouncilPublisher_PublishProposalResolved(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	pubKey, privateKey, _ := ed25519.GenerateKey(rand.Reader)
 
 	pub := NewCouncilPublisher(mockPub, privateKey)
@@ -263,12 +263,12 @@ func TestCouncilPublisher_PublishProposalResolved(t *testing.T) {
 		t.Fatalf("PublishProposalResolved failed: %v", err)
 	}
 
-	if len(mockPub.published) != 1 {
-		t.Fatalf("expected 1 message, got %d", len(mockPub.published))
+	if len(mockPub.Published) != 1 {
+		t.Fatalf("expected 1 message, got %d", len(mockPub.Published))
 	}
 
 	var gossipMsg pb.GossipMessage
-	proto.Unmarshal(mockPub.published[0].data, &gossipMsg)
+	proto.Unmarshal(mockPub.Published[0].Data, &gossipMsg)
 	event := gossipMsg.GetCouncilEvent()
 
 	if event.EventType != pb.CouncilEventType_COUNCIL_EVENT_RESOLVED {
@@ -278,7 +278,7 @@ func TestCouncilPublisher_PublishProposalResolved(t *testing.T) {
 
 // TestCouncilPublisher_PublishCouncilDissolved tests dissolution publication.
 func TestCouncilPublisher_PublishCouncilDissolved(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privateKey, _ := ed25519.GenerateKey(rand.Reader)
 
 	pub := NewCouncilPublisher(mockPub, privateKey)
@@ -291,12 +291,12 @@ func TestCouncilPublisher_PublishCouncilDissolved(t *testing.T) {
 		t.Fatalf("PublishCouncilDissolved failed: %v", err)
 	}
 
-	if len(mockPub.published) != 1 {
-		t.Fatalf("expected 1 message, got %d", len(mockPub.published))
+	if len(mockPub.Published) != 1 {
+		t.Fatalf("expected 1 message, got %d", len(mockPub.Published))
 	}
 
 	var gossipMsg pb.GossipMessage
-	proto.Unmarshal(mockPub.published[0].data, &gossipMsg)
+	proto.Unmarshal(mockPub.Published[0].Data, &gossipMsg)
 	event := gossipMsg.GetCouncilEvent()
 
 	if event.EventType != pb.CouncilEventType_COUNCIL_EVENT_DISSOLVED {
@@ -678,7 +678,7 @@ func TestCouncilReceiver_HandleMessage_Dissolved(t *testing.T) {
 
 // TestCouncilPublisher_RoundTrip tests publishing and receiving council events.
 func TestCouncilPublisher_RoundTrip(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	pubKey, privateKey, _ := ed25519.GenerateKey(rand.Reader)
 
 	publisher := NewCouncilPublisher(mockPub, privateKey)
@@ -706,7 +706,7 @@ func TestCouncilPublisher_RoundTrip(t *testing.T) {
 	}
 
 	// Receive.
-	err = receiver.HandleMessage(mockPub.published[0].data)
+	err = receiver.HandleMessage(mockPub.Published[0].Data)
 	if err != nil {
 		t.Fatalf("receive failed: %v", err)
 	}
@@ -723,7 +723,7 @@ func TestCouncilPublisher_RoundTrip(t *testing.T) {
 
 // TestCouncilPublisher_SignatureDataConsistency tests signature data consistency.
 func TestCouncilPublisher_SignatureDataConsistency(t *testing.T) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	_, privateKey, _ := ed25519.GenerateKey(rand.Reader)
 
 	publisher := NewCouncilPublisher(mockPub, privateKey)
@@ -749,7 +749,7 @@ func TestCouncilPublisher_SignatureDataConsistency(t *testing.T) {
 
 // BenchmarkCouncilPublisher_Publish benchmarks council publishing.
 func BenchmarkCouncilPublisher_Publish(b *testing.B) {
-	mockPub := &mockPublisher{}
+	mockPub := &mechanics.MockPublisher{}
 	pubKey, privateKey, _ := ed25519.GenerateKey(rand.Reader)
 	publisher := NewCouncilPublisher(mockPub, privateKey)
 
