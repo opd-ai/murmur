@@ -256,18 +256,14 @@ func (o *SparkOverlay) Draw(screen *ebiten.Image, cameraX, cameraY, zoom float64
 		return
 	}
 
-	screenW := float64(screen.Bounds().Dx())
-	screenH := float64(screen.Bounds().Dy())
-	centerX := screenW / 2
-	centerY := screenH / 2
+	screenW, screenH, centerX, centerY := getCameraSetup(screen)
 
 	// Draw sparks.
 	for _, spark := range o.sparks {
-		sx := centerX + (spark.X-cameraX)*zoom
-		sy := centerY + (spark.Y-cameraY)*zoom
+		sx, sy := worldToScreen(spark.X, spark.Y, cameraX, cameraY, centerX, centerY, zoom)
 
 		// Skip if off-screen.
-		if sx < -100 || sx > screenW+100 || sy < -100 || sy > screenH+100 {
+		if isOffScreen(sx, sy, screenW, screenH, 100) {
 			continue
 		}
 

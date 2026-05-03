@@ -179,18 +179,13 @@ func (o *ForgeOverlay) Draw(screen *ebiten.Image, cameraX, cameraY, zoom float64
 		return
 	}
 
-	screenW := float64(screen.Bounds().Dx())
-	screenH := float64(screen.Bounds().Dy())
-	centerX := screenW / 2
-	centerY := screenH / 2
+	screenW, screenH, centerX, centerY := getCameraSetup(screen)
 
 	for _, forge := range o.forges {
-		// Transform world position to screen position.
-		sx := centerX + (forge.X-cameraX)*zoom
-		sy := centerY + (forge.Y-cameraY)*zoom
+		sx, sy := worldToScreen(forge.X, forge.Y, cameraX, cameraY, centerX, centerY, zoom)
 
 		// Skip if off-screen.
-		if sx < -100 || sx > screenW+100 || sy < -100 || sy > screenH+100 {
+		if isOffScreen(sx, sy, screenW, screenH, 100) {
 			continue
 		}
 
