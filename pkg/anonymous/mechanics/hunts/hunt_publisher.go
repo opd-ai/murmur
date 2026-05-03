@@ -491,9 +491,9 @@ func proximityProofToProto(proof *mechanics.DHTProximityProof) *pb.ProximityProo
 		Timestamp:        proof.Timestamp,
 	}
 
-	pbProof.Attestations = make([]*pb.mechanics.ProximityAttestation, len(proof.Attestations))
+	pbProof.Attestations = make([]*pb.ProximityAttestation, len(proof.Attestations))
 	for i, att := range proof.Attestations {
-		pbProof.Attestations[i] = &pb.mechanics.ProximityAttestation{
+		pbProof.Attestations[i] = &pb.ProximityAttestation{
 			AttesterPubkey: att.AttesterPubKey[:],
 			AttesterPeerId: att.AttesterPeerID,
 			ClaimerPubkey:  att.ClaimerPubKey[:],
