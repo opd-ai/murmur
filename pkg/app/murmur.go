@@ -83,6 +83,11 @@ type Subsystems struct {
 	// CircuitManager manages Shroud circuit lifecycle and rotation.
 	// Nil if Anonymous Layer is not initialized.
 	CircuitManager *shroud.CircuitManager
+
+	// PulseMapUI is the Ebitengine game loop for the Pulse Map visualization.
+	// Nil if SkipUI is true. Type is interface{} to avoid hard ebiten dependency
+	// in the app package (actual type is *pulsemap.Game which implements ebiten.Game).
+	PulseMapUI interface{}
 }
 
 // App is the top-level MURMUR application.
@@ -208,7 +213,12 @@ func (a *App) Run() error {
 	// Signal that initialization is complete.
 	close(a.initComplete)
 
-	// Block until context is canceled.
+	// Start Pulse Map UI unless SkipUI is set.
+	if !a.config.SkipUI {
+		return a.runUI()
+	}
+
+	// If SkipUI, block until context is canceled (headless mode).
 	<-a.ctx.Done()
 
 	return nil
