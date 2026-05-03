@@ -608,9 +608,9 @@
 - [x] **Specter Mark sigils** — orbiting small icons around marked nodes
 - [x] **Phantom Gift overlays** — animated cosmetic effects on gifted nodes
 - [x] **Connection age visual encoding** — bright new, faded old transitions
-- [ ] **Interaction frequency thickness** — edge width proportional to message exchange rate
-- [ ] **Pulse animation** — Waves traveling along edges as light pulses
-- [ ] **Text labels** — display name/pseudonym at Micro zoom level
+- [x] **Interaction frequency thickness** — edge width proportional to message exchange rate
+- [x] **Pulse animation** — Waves traveling along edges as light pulses
+- [x] **Text labels** — display name/pseudonym at Micro zoom level
 
 ### Visual Effects (`pkg/pulsemap/rendering/effects/`)
 

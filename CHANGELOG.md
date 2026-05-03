@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **2026-05-03**: Pulse Map edge and node rendering enhancements
+  - `pkg/pulsemap/rendering/renderer.go`: Added `InteractionFrequency` field to `EdgeData` to track message exchange rate
+  - `pkg/pulsemap/rendering/renderer.go`: Added `DisplayName` field to `NodeData` for text label rendering
+  - `pkg/pulsemap/rendering/draw.go`: Edge thickness now scales logarithmically with interaction frequency (base 1.5px, increases with ln(1+frequency))
+  - `pkg/pulsemap/rendering/draw.go`: Enabled pulse animations on active edges via `RenderEdgeWithTime` (animated pulse travels along edge at 0.5 cycles/sec)
+  - `pkg/pulsemap/rendering/draw.go`: Added `RenderTextLabel()` function to display node names/pseudonyms at Micro zoom level using basicfont.Face7x13
+  - `pkg/pulsemap/rendering/draw_stub.go`: Added stub implementations for noebiten builds
+  - `pkg/pulsemap/rendering/renderer_stub.go`: Updated stub types to match new fields
+  - `pkg/pulsemap/rendering/rendering_test.go`: Added `TestEdgeThicknessFromInteractionFrequency` to verify logarithmic thickness scaling
+  - Per ROADMAP.md: Interaction frequency thickness, Pulse animation, and Text labels now implemented
+
 ### Fixed
 
 - **2026-04-14**: Fix test failure in pkg/pulsemap/rendering/effects on headless environments

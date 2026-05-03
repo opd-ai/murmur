@@ -33,6 +33,7 @@ type Renderer struct {
 // NodeData holds visual properties for a renderable node.
 type NodeData struct {
 	ID          string
+	DisplayName string
 	PublicKey   []byte
 	IsSpecter   bool
 	Connections int
@@ -44,10 +45,11 @@ type NodeData struct {
 
 // EdgeData holds visual properties for a renderable edge.
 type EdgeData struct {
-	SourceID string
-	TargetID string
-	Age      float64
-	Active   bool
+	SourceID             string
+	TargetID             string
+	Age                  float64
+	Active               bool
+	InteractionFrequency float64
 }
 
 // NewRenderer creates a new Pulse Map renderer (stub).

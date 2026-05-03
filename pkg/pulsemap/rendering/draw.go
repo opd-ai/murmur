@@ -13,7 +13,9 @@ import (
 	"math/rand"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
+	"golang.org/x/image/font/basicfont"
 )
 
 // TargetFPS is the target rendering frame rate.
@@ -345,15 +347,17 @@ func renderNodeSelection(dst *ebiten.Image, x, y, radius float32, style NodeStyl
 
 // EdgeStyle contains visual properties for an edge.
 type EdgeStyle struct {
-	Color      color.RGBA
-	Age        float64 // Connection age in days
-	Active     bool    // Recent wave propagation
-	IsMiniGame bool    // Active mini-game connection
-	IsSpecter  bool    // Anonymous layer edge
+	Color                color.RGBA
+	Age                  float64 // Connection age in days
+	Active               bool    // Recent wave propagation
+	IsMiniGame           bool    // Active mini-game connection
+	IsSpecter            bool    // Anonymous layer edge
+	InteractionFrequency float64 // Message exchange rate (messages per day)
 }
 
 // RenderEdge draws a connection edge between two nodes.
 // Per PULSE_MAP.md, edges are quadratic Bézier curves with age-based styling.
+// Edge thickness is proportional to interaction frequency (message exchange rate).
 func RenderEdge(dst *ebiten.Image, x1, y1, x2, y2 float32, style EdgeStyle, zoom ZoomLevel) {
 	// Calculate edge opacity based on age.
 	var alpha uint8 = 50 // Base alpha (20-40% as per spec)
@@ -375,8 +379,16 @@ func RenderEdge(dst *ebiten.Image, x1, y1, x2, y2 float32, style EdgeStyle, zoom
 		A: alpha,
 	}
 
+	// Calculate edge thickness based on interaction frequency.
+	// Base thickness: 1.5, scale logarithmically with frequency.
+	// thickness = base + scale * ln(1 + frequency)
+	// For frequency in messages/day: 0 msg/day → 1.5px, 10 msg/day → ~3px, 100 msg/day → ~6px
+	baseThickness := 1.5
+	thicknessScale := 1.5
+	thickness := baseThickness + thicknessScale*math.Log(1+style.InteractionFrequency)
+
 	// For simplicity, draw straight line (Bézier curves require more complex path)
-	vector.StrokeLine(dst, x1, y1, x2, y2, 1.5, edgeColor, true)
+	vector.StrokeLine(dst, x1, y1, x2, y2, float32(thickness), edgeColor, true)
 
 	// Activity pulse animation (simplified)
 	if style.Active {
@@ -392,6 +404,7 @@ func RenderEdge(dst *ebiten.Image, x1, y1, x2, y2 float32, style EdgeStyle, zoom
 }
 
 // RenderEdgeWithTime draws an edge with time-based animations.
+// Edge thickness is proportional to interaction frequency (message exchange rate).
 func RenderEdgeWithTime(dst *ebiten.Image, x1, y1, x2, y2 float32, style EdgeStyle, zoom ZoomLevel, time float64) {
 	var alpha uint8 = 50
 	if style.Age > 90 {
@@ -413,7 +426,13 @@ func RenderEdgeWithTime(dst *ebiten.Image, x1, y1, x2, y2 float32, style EdgeSty
 		A: alpha,
 	}
 
-	vector.StrokeLine(dst, x1, y1, x2, y2, 1.5, edgeColor, true)
+	// Calculate edge thickness based on interaction frequency.
+	// Base thickness: 1.5, scale logarithmically with frequency.
+	baseThickness := 1.5
+	thicknessScale := 1.5
+	thickness := baseThickness + thicknessScale*math.Log(1+style.InteractionFrequency)
+
+	vector.StrokeLine(dst, x1, y1, x2, y2, float32(thickness), edgeColor, true)
 
 	if style.Active {
 		// Animated pulse moving along the edge.
@@ -438,6 +457,42 @@ func ZoomLevelFromScale(scale float64) ZoomLevel {
 		return ZoomMeso
 	}
 	return ZoomMicro
+}
+
+// defaultLabelFace is the font face for rendering node labels.
+var defaultLabelFace = text.NewGoXFace(basicfont.Face7x13)
+
+// RenderTextLabel draws a text label below a node at Micro zoom level.
+// Per PULSE_MAP.md and ROADMAP.md, text labels show display name or pseudonym
+// only at Micro zoom (close view, full detail).
+func RenderTextLabel(dst *ebiten.Image, x, y float32, label string, isSpecter bool, zoom ZoomLevel) {
+	// Only render text at Micro zoom level.
+	if zoom != ZoomMicro || label == "" {
+		return
+	}
+
+	// Position text below the node (offset by node radius + padding).
+	textY := y + 20 // Approximate: node radius (~8-12px) + padding (~8px)
+
+	// Set text color based on node type.
+	var textColor color.RGBA
+	if isSpecter {
+		textColor = color.RGBA{180, 200, 220, 255} // Cool, light blue for Specters
+	} else {
+		textColor = color.RGBA{220, 220, 220, 255} // Light gray for Surface nodes
+	}
+
+	// Create text draw options.
+	op := &text.DrawOptions{}
+	op.GeoM.Translate(float64(x), float64(textY))
+	op.ColorScale.ScaleWithColor(textColor)
+
+	// Center the text horizontally relative to the node.
+	w, _ := text.Measure(label, defaultLabelFace, 0)
+	op.GeoM.Translate(-w/2, 0)
+
+	// Draw the text using basicfont.
+	text.Draw(dst, label, defaultLabelFace, op)
 }
 
 // min returns the smaller of two uint8 values.

@@ -48,11 +48,12 @@ type NodeStyle struct {
 
 // EdgeStyle contains visual properties for an edge.
 type EdgeStyle struct {
-	Color      color.RGBA
-	Age        float64
-	Active     bool
-	IsMiniGame bool
-	IsSpecter  bool
+	Color                color.RGBA
+	Age                  float64
+	Active               bool
+	IsMiniGame           bool
+	IsSpecter            bool
+	InteractionFrequency float64
 }
 
 // ZoomLevelFromScale determines the zoom level from a scale factor.
@@ -84,3 +85,8 @@ func computeNodeRadius(style NodeStyle) float32 {
 
 // Ensure math import is used.
 var _ = math.Log
+
+// RenderTextLabel is a stub for text rendering without Ebitengine.
+func RenderTextLabel(dst interface{}, x, y float32, label string, isSpecter bool, zoom ZoomLevel) {
+	// Stub: no-op for noebiten builds
+}

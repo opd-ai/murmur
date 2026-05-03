@@ -54,6 +54,7 @@ type Renderer struct {
 // NodeData holds visual properties for a renderable node.
 type NodeData struct {
 	ID          string
+	DisplayName string  // Display name or Specter pseudonym
 	PublicKey   []byte  // For color derivation
 	IsSpecter   bool    // True if this is a Specter node
 	Connections int     // Connection count
@@ -65,10 +66,11 @@ type NodeData struct {
 
 // EdgeData holds visual properties for a renderable edge.
 type EdgeData struct {
-	SourceID string
-	TargetID string
-	Age      float64 // Connection age in days
-	Active   bool    // True if recently propagated a Wave
+	SourceID             string
+	TargetID             string
+	Age                  float64 // Connection age in days
+	Active               bool    // True if recently propagated a Wave
+	InteractionFrequency float64 // Message exchange rate (messages per day)
 }
 
 // NewRenderer creates a new Pulse Map renderer.
@@ -201,7 +203,7 @@ func (r *Renderer) Draw(screen *ebiten.Image) {
 	r.drawNodes(screen, positions, minX, minY, maxX, maxY, zoom)
 }
 
-// drawEdges renders all edges between nodes.
+// drawEdges renders all edges between nodes with pulse animations.
 func (r *Renderer) drawEdges(screen *ebiten.Image, positions map[string]layout.Position, zoom ZoomLevel) {
 	screenW := float64(r.screenWidth)
 	screenH := float64(r.screenHeight)
@@ -226,13 +228,15 @@ func (r *Renderer) drawEdges(screen *ebiten.Image, positions map[string]layout.P
 
 		// Build edge style from data.
 		style := EdgeStyle{
-			Color:  color.RGBA{100, 120, 140, 255}, // Default edge color
-			Age:    edge.Age,
-			Active: edge.Active,
+			Color:                color.RGBA{100, 120, 140, 255}, // Default edge color
+			Age:                  edge.Age,
+			Active:               edge.Active,
+			InteractionFrequency: edge.InteractionFrequency,
 		}
 
-		RenderEdge(screen, float32(srcScreenX), float32(srcScreenY),
-			float32(dstScreenX), float32(dstScreenY), style, zoom)
+		// Use time-based rendering for pulse animations on active edges.
+		RenderEdgeWithTime(screen, float32(srcScreenX), float32(srcScreenY),
+			float32(dstScreenX), float32(dstScreenY), style, zoom, float64(r.time))
 	}
 }
 
@@ -274,6 +278,9 @@ func (r *Renderer) drawNodes(screen *ebiten.Image, positions map[string]layout.P
 		if r.shaders != nil && (style.HasHalo || style.Selected) {
 			r.drawNodeGlow(screen, float32(screenX), float32(screenY), style)
 		}
+
+		// Render text label at Micro zoom level.
+		RenderTextLabel(screen, float32(screenX), float32(screenY), data.DisplayName, data.IsSpecter, zoom)
 	}
 }
 
