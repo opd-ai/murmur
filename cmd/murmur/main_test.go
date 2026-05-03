@@ -172,6 +172,7 @@ func TestRunStartsApplication(t *testing.T) {
 	application, err := app.New(app.Config{
 		Version: "0.0.0-test",
 		DataDir: tmpDir,
+		SkipUI:  true, // Headless mode for testing.
 	})
 	if err != nil {
 		t.Fatalf("creating application: %v", err)
@@ -301,6 +302,7 @@ func TestSubsystemsInitialized(t *testing.T) {
 	application, err := app.New(app.Config{
 		Version: "0.0.0-test",
 		DataDir: tmpDir,
+		SkipUI:  true, // Headless mode for testing.
 	})
 	if err != nil {
 		t.Fatalf("New() error = %v", err)

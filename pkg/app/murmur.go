@@ -84,6 +84,10 @@ type Subsystems struct {
 	// Nil if Anonymous Layer is not initialized.
 	CircuitManager *shroud.CircuitManager
 
+	// OnboardingFlow manages the six-phase onboarding sequence.
+	// Nil if not first run or if SkipUI is true.
+	OnboardingFlow interface{} // Actual type: *flow.Controller
+
 	// PulseMapUI is the Ebitengine game loop for the Pulse Map visualization.
 	// Nil if SkipUI is true. Type is interface{} to avoid hard ebiten dependency
 	// in the app package (actual type is *pulsemap.Game which implements ebiten.Game).
@@ -219,6 +223,11 @@ func (a *App) Run() error {
 
 	// Signal that initialization is complete.
 	close(a.initComplete)
+
+	// Start onboarding flow if this is first run.
+	if a.firstRun {
+		a.startOnboarding()
+	}
 
 	// Start Pulse Map UI unless SkipUI is set.
 	if !a.config.SkipUI {
@@ -635,4 +644,82 @@ func (a *App) WaitReady(ctx context.Context) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	}
+}
+
+// startOnboarding initializes and starts the onboarding flow.
+// Per AUDIT.md remediation, this guides new users through identity creation,
+// network bootstrap, and Pulse Map exploration on first run.
+func (a *App) startOnboarding() {
+	fmt.Println("Starting onboarding flow (first run detected)...")
+
+	// Import here to avoid circular dependency.
+	// The flow package depends on app types through callbacks.
+	onboardingFlow := newOnboardingFlow(a)
+
+	a.mu.Lock()
+	a.subsystems.OnboardingFlow = onboardingFlow
+	a.mu.Unlock()
+
+	// Start the onboarding flow.
+	onboardingFlow.Start()
+
+	fmt.Printf("Onboarding flow started. Current phase: %s\n", onboardingFlow.CurrentPhase())
+}
+
+// newOnboardingFlow creates a new onboarding flow controller with callbacks.
+// This is a helper to avoid importing pkg/onboarding/flow in the app package
+// (which would create dependency complexity).
+func newOnboardingFlow(a *App) onboardingFlowController {
+	// Callbacks are defined as no-ops for now. Full integration with UI
+	// screens (pkg/onboarding/screens) requires wiring to the Pulse Map game loop,
+	// which will be done in a subsequent task once the compose panel integration
+	// is validated.
+	return newFlowController(flowCallbacks{
+		onPhaseStart: func(phase int) {
+			fmt.Printf("Onboarding: Starting phase %d\n", phase)
+		},
+		onPhaseComplete: func(phase int) {
+			fmt.Printf("Onboarding: Completed phase %d\n", phase)
+		},
+		onFlowComplete: func(totalTime time.Duration) {
+			fmt.Printf("Onboarding: Complete! Total time: %v\n", totalTime)
+			// Mark first run as complete in storage.
+			if err := a.subsystems.Storage.Put(store.BucketConfig, []byte("first_run_complete"), []byte("true")); err != nil {
+				fmt.Printf("Warning: Failed to persist first-run flag: %v\n", err)
+			}
+			a.firstRun = false
+		},
+		onError: func(phase int, err error) {
+			fmt.Printf("Onboarding: Error in phase %d: %v\n", phase, err)
+		},
+	})
+}
+
+// onboardingFlowController is an interface abstraction over flow.Controller
+// to avoid importing pkg/onboarding/flow directly in the app package.
+type onboardingFlowController interface {
+	Start()
+	CurrentPhase() onboardingPhase
+	CompleteCurrentPhase()
+	IsComplete() bool
+}
+
+// onboardingPhase is an interface abstraction over flow.Phase.
+type onboardingPhase interface {
+	String() string
+}
+
+// flowCallbacks mirrors flow.Callbacks but uses int for phases to avoid import.
+type flowCallbacks struct {
+	onPhaseStart    func(phase int)
+	onPhaseComplete func(phase int)
+	onFlowComplete  func(totalTime time.Duration)
+	onError         func(phase int, err error)
+}
+
+// newFlowController creates a flow.Controller with the provided callbacks.
+// This function is implemented in onboarding_glue.go to avoid circular imports.
+func newFlowController(callbacks flowCallbacks) onboardingFlowController {
+	// Implementation moved to onboarding_glue.go to avoid circular dependency.
+	return newFlowControllerImpl(callbacks)
 }

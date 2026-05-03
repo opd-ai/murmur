@@ -17,8 +17,21 @@ import (
 func (a *App) runUI() error {
 	fmt.Println("Initializing Pulse Map UI...")
 
-	// Create the Pulse Map game instance.
-	game, err := pulsemap.NewGame()
+	// Ensure subsystems are initialized before creating game.
+	a.mu.RLock()
+	keypair := a.subsystems.Identity
+	pubsub := a.subsystems.PubSub
+	a.mu.RUnlock()
+
+	if keypair == nil {
+		return fmt.Errorf("identity not initialized")
+	}
+	if pubsub == nil {
+		return fmt.Errorf("pubsub not initialized")
+	}
+
+	// Create the Pulse Map game instance with Wave publishing capability.
+	game, err := pulsemap.NewGame(a.ctx, keypair, pubsub)
 	if err != nil {
 		return fmt.Errorf("creating Pulse Map game: %w", err)
 	}
