@@ -314,25 +314,37 @@ func (r *PuzzleReceiver) handlePuzzleExpired(ctx context.Context, event *pb.Puzz
 	return nil
 }
 
-// handleMosaicContribution processes a Mosaic puzzle contribution.
-func (r *PuzzleReceiver) handleMosaicContribution(ctx context.Context, event *pb.PuzzleEvent) error {
-	var puzzleID [32]byte
-	copy(puzzleID[:], event.PuzzleId)
+// getPuzzleAndLock retrieves a puzzle by ID, locks it, and validates type/state.
+func (r *PuzzleReceiver) getPuzzleAndLock(puzzleID []byte, expectedType PuzzleType) (*Puzzle, error) {
+	var id [32]byte
+	copy(id[:], puzzleID)
 
-	puzzle := r.store.GetPuzzle(puzzleID)
+	puzzle := r.store.GetPuzzle(id)
 	if puzzle == nil {
-		return ErrPuzzleNotFound
+		return nil, ErrPuzzleNotFound
 	}
 
 	puzzle.mu.Lock()
-	defer puzzle.mu.Unlock()
 
-	if puzzle.Type != PuzzleMosaic {
-		return ErrInvalidPuzzleType
+	if puzzle.Type != expectedType {
+		puzzle.mu.Unlock()
+		return nil, ErrInvalidPuzzleType
 	}
 	if puzzle.State != PuzzleActive {
-		return ErrPuzzleAlreadySolved
+		puzzle.mu.Unlock()
+		return nil, ErrPuzzleAlreadySolved
 	}
+
+	return puzzle, nil
+}
+
+// handleMosaicContribution processes a Mosaic puzzle contribution.
+func (r *PuzzleReceiver) handleMosaicContribution(ctx context.Context, event *pb.PuzzleEvent) error {
+	puzzle, err := r.getPuzzleAndLock(event.PuzzleId, PuzzleMosaic)
+	if err != nil {
+		return err
+	}
+	defer puzzle.mu.Unlock()
 
 	var solverKey [32]byte
 	copy(solverKey[:], event.SolverPubkey)
@@ -353,23 +365,11 @@ func (r *PuzzleReceiver) handleMosaicContribution(ctx context.Context, event *pb
 
 // handleCascadeStage processes a Cascade puzzle stage completion.
 func (r *PuzzleReceiver) handleCascadeStage(ctx context.Context, event *pb.PuzzleEvent) error {
-	var puzzleID [32]byte
-	copy(puzzleID[:], event.PuzzleId)
-
-	puzzle := r.store.GetPuzzle(puzzleID)
-	if puzzle == nil {
-		return ErrPuzzleNotFound
+	puzzle, err := r.getPuzzleAndLock(event.PuzzleId, PuzzleCascade)
+	if err != nil {
+		return err
 	}
-
-	puzzle.mu.Lock()
 	defer puzzle.mu.Unlock()
-
-	if puzzle.Type != PuzzleCascade {
-		return ErrInvalidPuzzleType
-	}
-	if puzzle.State != PuzzleActive {
-		return ErrPuzzleAlreadySolved
-	}
 	if puzzle.CurrentStage >= puzzle.Stages {
 		return nil
 	}

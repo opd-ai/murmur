@@ -563,3 +563,11 @@ func EffectDescription(effect EffectType) string {
 func CompareGiftIDs(a, b [32]byte) bool {
 	return bytes.Equal(a[:], b[:])
 }
+
+// AddGiftForTest directly adds a gift to the store (for testing only).
+// This bypasses validation and is used to test edge cases like expired gifts.
+func (s *GiftStore) AddGiftForTest(gift *Gift) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.gifts[gift.ID] = gift
+}

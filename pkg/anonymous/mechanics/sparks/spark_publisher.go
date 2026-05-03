@@ -378,15 +378,15 @@ func (r *SparkReceiver) handleSparkCompleted(ctx context.Context, event *pb.Spar
 	return nil
 }
 
-// handleSparkExpired processes a spark expiration event.
-func (r *SparkReceiver) handleSparkExpired(ctx context.Context, event *pb.SparkEvent) error {
-	var sparkID [32]byte
-	copy(sparkID[:], event.SparkId)
+// updateSparkState updates the spark state if it's currently active.
+func (r *SparkReceiver) updateSparkState(sparkID []byte, newState SparkState) error {
+	var id [32]byte
+	copy(id[:], sparkID)
 
 	r.store.mu.Lock()
 	defer r.store.mu.Unlock()
 
-	spark, ok := r.store.sparks[sparkID]
+	spark, ok := r.store.sparks[id]
 	if !ok {
 		return ErrSparkNotFound
 	}
@@ -395,27 +395,16 @@ func (r *SparkReceiver) handleSparkExpired(ctx context.Context, event *pb.SparkE
 		return nil
 	}
 
-	spark.State = SparkExpired
+	spark.State = newState
 	return nil
+}
+
+// handleSparkExpired processes a spark expiration event.
+func (r *SparkReceiver) handleSparkExpired(ctx context.Context, event *pb.SparkEvent) error {
+	return r.updateSparkState(event.SparkId, SparkExpired)
 }
 
 // handleSparkCancelled processes a spark cancellation event.
 func (r *SparkReceiver) handleSparkCancelled(ctx context.Context, event *pb.SparkEvent) error {
-	var sparkID [32]byte
-	copy(sparkID[:], event.SparkId)
-
-	r.store.mu.Lock()
-	defer r.store.mu.Unlock()
-
-	spark, ok := r.store.sparks[sparkID]
-	if !ok {
-		return ErrSparkNotFound
-	}
-
-	if spark.State != SparkActive {
-		return nil
-	}
-
-	spark.State = SparkCancelled
-	return nil
+	return r.updateSparkState(event.SparkId, SparkCancelled)
 }

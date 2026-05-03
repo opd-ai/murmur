@@ -33,6 +33,68 @@ type Panel interface {
 	Toggle()
 }
 
+// PanelAnimation handles common panel animation and error display logic.
+type PanelAnimation struct {
+	animTime     float64
+	slideOffset  float64
+	errorTime    float64
+	errorMessage string
+}
+
+// UpdateAnimation updates the slide-in animation and error message timeout.
+// Should be called once per frame. Returns true if error message was cleared.
+func (a *PanelAnimation) UpdateAnimation() bool {
+	// Animate slide-in.
+	a.animTime += 1.0 / 60.0
+	if a.slideOffset > 0 {
+		a.slideOffset *= 0.85
+		if a.slideOffset < 1 {
+			a.slideOffset = 0
+		}
+	}
+
+	// Clear error after 3 seconds.
+	errorCleared := false
+	if a.errorMessage != "" {
+		a.errorTime += 1.0 / 60.0
+		if a.errorTime > 3.0 {
+			a.errorMessage = ""
+			a.errorTime = 0
+			errorCleared = true
+		}
+	}
+	return errorCleared
+}
+
+// SetError sets an error message to display.
+func (a *PanelAnimation) SetError(msg string) {
+	a.errorMessage = msg
+	a.errorTime = 0
+}
+
+// ErrorMessage returns the current error message.
+func (a *PanelAnimation) ErrorMessage() string {
+	return a.errorMessage
+}
+
+// SlideOffset returns the current slide offset for animations.
+func (a *PanelAnimation) SlideOffset() float64 {
+	return a.slideOffset
+}
+
+// AnimTime returns the current animation time for effects like blinking cursors.
+func (a *PanelAnimation) AnimTime() float64 {
+	return a.animTime
+}
+
+// ResetAnimation resets animation state (call when showing panel).
+func (a *PanelAnimation) ResetAnimation() {
+	a.animTime = 0
+	a.slideOffset = 300
+	a.errorMessage = ""
+	a.errorTime = 0
+}
+
 // Screen is an abstraction over ebiten.Image for rendering.
 // This allows testing without Ebitengine dependency.
 type Screen interface {

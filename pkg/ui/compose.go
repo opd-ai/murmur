@@ -35,8 +35,6 @@ type ComposePanel struct {
 	cursorPos    int
 	targetNodeID string
 	waveType     uint8
-	errorMessage string
-	errorTime    float64
 
 	// Callbacks
 	onSubmit WaveSubmitCallback
@@ -45,8 +43,7 @@ type ComposePanel struct {
 	theme Theme
 
 	// Animation
-	animTime    float64
-	slideOffset float64
+	anim PanelAnimation
 
 	// Screen dimensions (updated each frame)
 	screenWidth, screenHeight int
@@ -76,8 +73,7 @@ func (p *ComposePanel) Show() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.visible = true
-	p.slideOffset = float64(p.height)
-	p.animTime = 0
+	p.anim.ResetAnimation()
 }
 
 // Hide hides the panel.
@@ -87,7 +83,7 @@ func (p *ComposePanel) Hide() {
 	p.visible = false
 	p.content = ""
 	p.cursorPos = 0
-	p.errorMessage = ""
+	p.anim.SetError("")
 }
 
 // Toggle toggles panel visibility.
@@ -127,23 +123,8 @@ func (p *ComposePanel) Update() bool {
 		return false
 	}
 
-	// Animate slide-in.
-	p.animTime += 1.0 / 60.0
-	if p.slideOffset > 0 {
-		p.slideOffset *= 0.85
-		if p.slideOffset < 1 {
-			p.slideOffset = 0
-		}
-	}
-
-	// Clear error after 3 seconds.
-	if p.errorMessage != "" {
-		p.errorTime += 1.0 / 60.0
-		if p.errorTime > 3.0 {
-			p.errorMessage = ""
-			p.errorTime = 0
-		}
-	}
+	// Update common animation/error handling.
+	p.anim.UpdateAnimation()
 
 	// Handle text input.
 	p.handleTextInput()
@@ -226,8 +207,7 @@ func (p *ComposePanel) processCursorMovement() {
 // insertChar inserts a character at the cursor position.
 func (p *ComposePanel) insertChar(ch rune) {
 	if len(p.content) >= MaxWaveLength {
-		p.errorMessage = "Maximum length reached"
-		p.errorTime = 0
+		p.anim.SetError("Maximum length reached")
 		return
 	}
 
@@ -243,8 +223,7 @@ func (p *ComposePanel) insertChar(ch rune) {
 // submit validates and submits the Wave.
 func (p *ComposePanel) submit() {
 	if len(p.content) == 0 {
-		p.errorMessage = "Cannot send empty Wave"
-		p.errorTime = 0
+		p.anim.SetError("Cannot send empty Wave")
 		return
 	}
 
@@ -274,7 +253,7 @@ func (p *ComposePanel) Draw(screen *ebiten.Image) {
 
 	// Calculate panel position based on anchor.
 	px, py := p.calculatePosition(w, h)
-	py += int(p.slideOffset) // Apply slide animation.
+	py += int(p.anim.SlideOffset()) // Apply slide animation.
 
 	// Draw panel background with border.
 	p.drawBackground(screen, px, py)
@@ -292,7 +271,7 @@ func (p *ComposePanel) Draw(screen *ebiten.Image) {
 	p.drawButtons(screen, px, py)
 
 	// Draw error message if present.
-	if p.errorMessage != "" {
+	if p.anim.ErrorMessage() != "" {
 		p.drawError(screen, px, py)
 	}
 }
@@ -378,7 +357,7 @@ func (p *ComposePanel) drawTextArea(screen *ebiten.Image, px, py int) {
 		float32(textW), float32(textH), 1.0, borderColor, true)
 
 	// Draw cursor (blinking).
-	if int(p.animTime*2)%2 == 0 {
+	if int(p.anim.AnimTime()*2)%2 == 0 {
 		cursorX := textX + 8 + p.cursorPos*8 // Simplified cursor positioning.
 		cursorY := textY + 8
 		vector.DrawFilledRect(screen, float32(cursorX), float32(cursorY),

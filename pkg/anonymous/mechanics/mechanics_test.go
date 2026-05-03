@@ -208,9 +208,7 @@ func TestGiftStoreGarbageCollect(t *testing.T) {
 	}
 	rand.Read(gift.ID[:])
 
-	store.mu.Lock()
-	store.gifts[gift.ID] = gift
-	store.mu.Unlock()
+	store.AddGiftForTest(gift)
 
 	removed := store.GarbageCollect()
 	if removed != 1 {
@@ -640,9 +638,9 @@ func TestHasLeadingZeros(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		got := hasLeadingZeros(tt.hash, tt.bits)
+		got := puzzles.HasLeadingZeros(tt.hash, tt.bits)
 		if got != tt.expected {
-			t.Errorf("hasLeadingZeros(%x, %d) = %v, want %v",
+			t.Errorf("HasLeadingZeros(%x, %d) = %v, want %v",
 				tt.hash, tt.bits, got, tt.expected)
 		}
 	}
@@ -772,7 +770,7 @@ func TestHuntClaimFragment(t *testing.T) {
 	hunt, _ := hunts.NewHunt("Test Hunt", seed, initiator, hunts.HuntDuration60Min, 5, hunts.HuntMinResonance)
 
 	// Create a valid proximity proof.
-	proof := hunts.ProximityProof{
+	proof := mechanics.ProximityProof{
 		ClaimerPeerID:  "test-peer-id",
 		ConnectedPeers: []string{"peer1", "peer2"},
 		HopDistances:   []int{2}, // Within 3 hops.
@@ -802,7 +800,7 @@ func TestHuntClaimAlreadyClaimed(t *testing.T) {
 
 	hunt, _ := hunts.NewHunt("Test", seed, initiator, hunts.HuntDuration60Min, 5, hunts.HuntMinResonance)
 
-	proof := hunts.ProximityProof{HopDistances: []int{1}}
+	proof := mechanics.ProximityProof{HopDistances: []int{1}}
 
 	// First claim should succeed.
 	hunt.ClaimFragment(0, claimer1, proof)
@@ -823,7 +821,7 @@ func TestHuntNotInProximity(t *testing.T) {
 	hunt, _ := hunts.NewHunt("Test", seed, initiator, hunts.HuntDuration60Min, 5, hunts.HuntMinResonance)
 
 	// Proof with too many hops.
-	proof := hunts.ProximityProof{HopDistances: []int{5}} // More than 3 hops.
+	proof := mechanics.ProximityProof{HopDistances: []int{5}} // More than 3 hops.
 
 	err := hunt.ClaimFragment(0, claimer, proof)
 	if err != hunts.ErrNotInProximity {
@@ -838,7 +836,7 @@ func TestHuntCompletion(t *testing.T) {
 
 	hunt, _ := hunts.NewHunt("Test", seed, initiator, hunts.HuntDuration60Min, 5, hunts.HuntMinResonance)
 
-	proof := hunts.ProximityProof{HopDistances: []int{1}}
+	proof := mechanics.ProximityProof{HopDistances: []int{1}}
 
 	// Claim all fragments.
 	for i := 0; i < 5; i++ {
@@ -904,7 +902,7 @@ func TestHuntLeaderboard(t *testing.T) {
 	rand.Read(claimer1[:])
 	rand.Read(claimer2[:])
 
-	proof := hunts.ProximityProof{HopDistances: []int{1}}
+	proof := mechanics.ProximityProof{HopDistances: []int{1}}
 
 	// Claimer1 gets 3 fragments.
 	hunt.ClaimFragment(0, claimer1, proof)
@@ -986,8 +984,7 @@ func TestHuntStoreUpdateStates(t *testing.T) {
 		FragmentCount: 5,
 	}
 	rand.Read(hunt.ID[:])
-	store.hunts[hunt.ID] = hunt
-	store.active = append(store.active, hunt)
+	store.AddHuntForTest(hunt)
 
 	store.UpdateHuntStates()
 
@@ -1141,10 +1138,10 @@ func TestOracleInvalidReveal(t *testing.T) {
 
 	value := 1.0
 	commitment := oracle.ComputeCommitmentHash(value, nonce)
-	pool.commitments[KeyToHex(predictor[:])] = &oracle.Commitment{
+	pool.AddCommitmentForTest(mechanics.KeyToHex(predictor[:]), &oracle.Commitment{
 		SpecterKey: predictor,
 		Hash:       commitment,
-	}
+	})
 
 	// Try to reveal with wrong nonce.
 	err := pool.RevealPrediction(predictor, value, wrongNonce)
@@ -1172,10 +1169,10 @@ func TestOraclePoolResolution(t *testing.T) {
 		var predictor [32]byte
 		rand.Read(predictor[:])
 
-		pool.predictions[KeyToHex(predictor[:])] = &oracle.Prediction{
+		pool.AddPredictionForTest(mechanics.KeyToHex(predictor[:]), &oracle.Prediction{
 			SpecterKey: predictor,
 			Value:      predValue,
-		}
+		})
 		_ = i
 	}
 
@@ -1225,10 +1222,10 @@ func TestOracleBooleanResolution(t *testing.T) {
 			value = 0.0 // False.
 		}
 
-		pool.predictions[KeyToHex(predictor[:])] = &oracle.Prediction{
+		pool.AddPredictionForTest(mechanics.KeyToHex(predictor[:]), &oracle.Prediction{
 			SpecterKey: predictor,
 			Value:      value,
-		}
+		})
 	}
 
 	// Outcome is true.
@@ -1337,26 +1334,26 @@ func TestNewSigilForge(t *testing.T) {
 	var initiator [32]byte
 	rand.Read(initiator[:])
 
-	forge, err := NewSigilForge(
-		ForgeSigilArt,
+	f, err := forge.NewSigilForge(
+		forge.ForgeSigilArt,
 		"Create a sigil representing hope",
 		initiator,
-		ForgeDuration30Min, ForgeMinResonance,
+		forge.ForgeDuration30Min, forge.ForgeMinResonance,
 	)
 	if err != nil {
 		t.Fatalf("NewSigilForge failed: %v", err)
 	}
 
-	if forge.State != ForgeActive {
-		t.Errorf("Expected ForgeActive, got %d", forge.State)
+	if f.State != forge.ForgeActive {
+		t.Errorf("Expected forge.ForgeActive, got %d", f.State)
 	}
 
-	if !forge.IsActive() {
+	if !f.IsActive() {
 		t.Error("Expected forge to be active")
 	}
 
-	if forge.Type != ForgeSigilArt {
-		t.Errorf("Expected ForgeSigilArt, got %d", forge.Type)
+	if f.Type != forge.ForgeSigilArt {
+		t.Errorf("Expected forge.ForgeSigilArt, got %d", f.Type)
 	}
 }
 
@@ -1364,15 +1361,15 @@ func TestForgeInvalidType(t *testing.T) {
 	var initiator [32]byte
 	rand.Read(initiator[:])
 
-	_, err := NewSigilForge(
-		ForgeType(99),
+	_, err := forge.NewSigilForge(
+		forge.ForgeType(99),
 		"Invalid forge",
 		initiator,
-		ForgeDuration30Min,
-		ForgeMinResonance,
+		forge.ForgeDuration30Min,
+		forge.ForgeMinResonance,
 	)
-	if err != ErrForgeInvalidType {
-		t.Errorf("Expected ErrForgeInvalidType, got %v", err)
+	if err != forge.ErrForgeInvalidType {
+		t.Errorf("Expected forge.ErrForgeInvalidType, got %v", err)
 	}
 }
 
@@ -1380,20 +1377,20 @@ func TestForgePromptTooLong(t *testing.T) {
 	var initiator [32]byte
 	rand.Read(initiator[:])
 
-	longPrompt := make([]byte, ForgeMaxPromptLength+1)
+	longPrompt := make([]byte, forge.ForgeMaxPromptLength+1)
 	for i := range longPrompt {
 		longPrompt[i] = 'a'
 	}
 
-	_, err := NewSigilForge(
-		ForgeSigilArt,
+	_, err := forge.NewSigilForge(
+		forge.ForgeSigilArt,
 		string(longPrompt),
 		initiator,
-		ForgeDuration30Min,
-		ForgeMinResonance,
+		forge.ForgeDuration30Min,
+		forge.ForgeMinResonance,
 	)
-	if err != ErrForgePromptTooLong {
-		t.Errorf("Expected ErrForgePromptTooLong, got %v", err)
+	if err != forge.ErrForgePromptTooLong {
+		t.Errorf("Expected forge.ErrForgePromptTooLong, got %v", err)
 	}
 }
 
@@ -1401,15 +1398,15 @@ func TestForgeInvalidDuration(t *testing.T) {
 	var initiator [32]byte
 	rand.Read(initiator[:])
 
-	_, err := NewSigilForge(
-		ForgeSigilArt,
+	_, err := forge.NewSigilForge(
+		forge.ForgeSigilArt,
 		"Test",
 		initiator,
 		15*time.Minute, // Invalid duration.
-		ForgeMinResonance,
+		forge.ForgeMinResonance,
 	)
-	if err != ErrForgeInvalidDuration {
-		t.Errorf("Expected ErrForgeInvalidDuration, got %v", err)
+	if err != forge.ErrForgeInvalidDuration {
+		t.Errorf("Expected forge.ErrForgeInvalidDuration, got %v", err)
 	}
 }
 
@@ -1418,24 +1415,24 @@ func TestForgeInsufficientResonance(t *testing.T) {
 	rand.Read(initiator[:])
 
 	// Resonance below minimum (50).
-	_, err := NewSigilForge(
-		ForgeSigilArt,
+	_, err := forge.NewSigilForge(
+		forge.ForgeSigilArt,
 		"Test",
 		initiator,
-		ForgeDuration30Min,
-		ForgeMinResonance-1,
+		forge.ForgeDuration30Min,
+		forge.ForgeMinResonance-1,
 	)
-	if err != ErrForgeInsufficientResonance {
-		t.Errorf("Expected ErrForgeInsufficientResonance, got %v", err)
+	if err != forge.ErrForgeInsufficientResonance {
+		t.Errorf("Expected forge.ErrForgeInsufficientResonance, got %v", err)
 	}
 
 	// Exactly at minimum should succeed.
-	_, err = NewSigilForge(
-		ForgeSigilArt,
+	_, err = forge.NewSigilForge(
+		forge.ForgeSigilArt,
 		"Test",
 		initiator,
-		ForgeDuration30Min,
-		ForgeMinResonance,
+		forge.ForgeDuration30Min,
+		forge.ForgeMinResonance,
 	)
 	if err != nil {
 		t.Errorf("Expected success at minimum resonance, got %v", err)
@@ -1447,15 +1444,15 @@ func TestForgeSubmitEntry(t *testing.T) {
 	rand.Read(initiator[:])
 	rand.Read(specter[:])
 
-	forge, _ := NewSigilForge(
-		ForgeMicroFiction,
+	f, _ := forge.NewSigilForge(
+		forge.ForgeMicroFiction,
 		"Write a story about shadows",
 		initiator,
-		ForgeDuration60Min, ForgeMinResonance,
+		forge.ForgeDuration60Min, forge.ForgeMinResonance,
 	)
 
 	content := []byte("In the darkness, a shadow found its light...")
-	entry, err := forge.SubmitEntry(specter, content, [32]byte{})
+	entry, err := f.SubmitEntry(specter, content, [32]byte{})
 	if err != nil {
 		t.Fatalf("SubmitEntry failed: %v", err)
 	}
@@ -1464,8 +1461,8 @@ func TestForgeSubmitEntry(t *testing.T) {
 		t.Error("Entry specter key mismatch")
 	}
 
-	if forge.EntryCount() != 1 {
-		t.Errorf("Expected 1 entry, got %d", forge.EntryCount())
+	if f.EntryCount() != 1 {
+		t.Errorf("Expected 1 entry, got %d", f.EntryCount())
 	}
 }
 
@@ -1474,18 +1471,18 @@ func TestForgeDuplicateEntry(t *testing.T) {
 	rand.Read(initiator[:])
 	rand.Read(specter[:])
 
-	forge, _ := NewSigilForge(
-		ForgeSigilArt,
+	f, _ := forge.NewSigilForge(
+		forge.ForgeSigilArt,
 		"Test",
 		initiator,
-		ForgeDuration30Min, ForgeMinResonance,
+		forge.ForgeDuration30Min, forge.ForgeMinResonance,
 	)
 
-	forge.SubmitEntry(specter, []byte("First entry"), [32]byte{})
+	f.SubmitEntry(specter, []byte("First entry"), [32]byte{})
 
-	_, err := forge.SubmitEntry(specter, []byte("Second entry"), [32]byte{})
-	if err != ErrForgeDuplicateEntry {
-		t.Errorf("Expected ErrForgeDuplicateEntry, got %v", err)
+	_, err := f.SubmitEntry(specter, []byte("Second entry"), [32]byte{})
+	if err != forge.ErrForgeDuplicateEntry {
+		t.Errorf("Expected forge.ErrForgeDuplicateEntry, got %v", err)
 	}
 }
 
@@ -1494,17 +1491,17 @@ func TestForgeEntryTooLarge(t *testing.T) {
 	rand.Read(initiator[:])
 	rand.Read(specter[:])
 
-	forge, _ := NewSigilForge(
-		ForgeMicroFiction,
+	f, _ := forge.NewSigilForge(
+		forge.ForgeMicroFiction,
 		"Test",
 		initiator,
-		ForgeDuration30Min, ForgeMinResonance,
+		forge.ForgeDuration30Min, forge.ForgeMinResonance,
 	)
 
-	largeContent := make([]byte, ForgeMaxEntrySize+1)
-	_, err := forge.SubmitEntry(specter, largeContent, [32]byte{})
-	if err != ErrForgeEntryTooLarge {
-		t.Errorf("Expected ErrForgeEntryTooLarge, got %v", err)
+	largeContent := make([]byte, forge.ForgeMaxEntrySize+1)
+	_, err := f.SubmitEntry(specter, largeContent, [32]byte{})
+	if err != forge.ErrForgeEntryTooLarge {
+		t.Errorf("Expected forge.ErrForgeEntryTooLarge, got %v", err)
 	}
 }
 
@@ -1515,31 +1512,31 @@ func TestForgeAmplification(t *testing.T) {
 	rand.Read(specter2[:])
 	rand.Read(amplifier[:])
 
-	forge, _ := NewSigilForge(
-		ForgeSigilArt,
+	f, _ := forge.NewSigilForge(
+		forge.ForgeSigilArt,
 		"Test",
 		initiator,
-		ForgeDuration30Min, ForgeMinResonance,
+		forge.ForgeDuration30Min, forge.ForgeMinResonance,
 	)
 
-	entry1, _ := forge.SubmitEntry(specter1, []byte("Art 1"), [32]byte{})
-	forge.SubmitEntry(specter2, []byte("Art 2"), [32]byte{})
+	entry1, _ := f.SubmitEntry(specter1, []byte("Art 1"), [32]byte{})
+	f.SubmitEntry(specter2, []byte("Art 2"), [32]byte{})
 
 	// Amplify first entry with Resonance 50.
-	err := forge.AmplifyEntry(entry1.ID, amplifier, 50.0)
+	err := f.AmplifyEntry(entry1.ID, amplifier, 50.0)
 	if err != nil {
 		t.Fatalf("AmplifyEntry failed: %v", err)
 	}
 
 	// Check amplification was recorded.
-	retrieved := forge.GetEntry(entry1.ID)
+	retrieved := f.GetEntry(entry1.ID)
 	// Expected weight: 1.0 + (50/100) = 1.5
 	if retrieved.Amplifications < 1.4 || retrieved.Amplifications > 1.6 {
 		t.Errorf("Expected amplification ~1.5, got %f", retrieved.Amplifications)
 	}
 
 	// Duplicate amplification should be ignored.
-	forge.AmplifyEntry(entry1.ID, amplifier, 50.0)
+	f.AmplifyEntry(entry1.ID, amplifier, 50.0)
 	if retrieved.Amplifications < 1.4 || retrieved.Amplifications > 1.6 {
 		t.Errorf("Duplicate amplification should be ignored")
 	}
@@ -1549,11 +1546,11 @@ func TestForgeEvaluation(t *testing.T) {
 	var initiator [32]byte
 	rand.Read(initiator[:])
 
-	forge, _ := NewSigilForge(
-		ForgeSigilArt,
+	f, _ := forge.NewSigilForge(
+		forge.ForgeSigilArt,
 		"Test",
 		initiator,
-		ForgeDuration30Min, ForgeMinResonance,
+		forge.ForgeDuration30Min, forge.ForgeMinResonance,
 	)
 
 	// Add entries with different amplifications.
@@ -1561,29 +1558,29 @@ func TestForgeEvaluation(t *testing.T) {
 		var specter [32]byte
 		rand.Read(specter[:])
 
-		entry, _ := forge.SubmitEntry(specter, []byte("Entry"), [32]byte{})
+		entry, _ := f.SubmitEntry(specter, []byte("Entry"), [32]byte{})
 
 		// Add amplifications (more for earlier entries).
 		for j := 0; j < 5-i; j++ {
 			var amp [32]byte
 			rand.Read(amp[:])
-			forge.AmplifyEntry(entry.ID, amp, 25.0)
+			f.AmplifyEntry(entry.ID, amp, 25.0)
 		}
 	}
 
 	// Move to evaluating state.
-	forge.State = ForgeEvaluating
+	f.State = forge.ForgeEvaluating
 
-	err := forge.Evaluate()
+	err := f.Evaluate()
 	if err != nil {
 		t.Fatalf("Evaluate failed: %v", err)
 	}
 
-	if !forge.IsCompleted() {
+	if !f.IsCompleted() {
 		t.Error("Expected forge to be completed")
 	}
 
-	winner := forge.GetWinner()
+	winner := f.GetWinner()
 	if winner == nil {
 		t.Fatal("Expected winner")
 	}
@@ -1600,38 +1597,38 @@ func TestForgeRemixChain(t *testing.T) {
 	rand.Read(specter2[:])
 	rand.Read(specter3[:])
 
-	forge, _ := NewSigilForge(
-		ForgeRemixChain,
+	f, _ := forge.NewSigilForge(
+		forge.ForgeRemixChain,
 		"Create a remix chain",
 		initiator,
-		ForgeDuration60Min, ForgeMinResonance,
+		forge.ForgeDuration60Min, forge.ForgeMinResonance,
 	)
 
 	// First entry (root).
-	root, _ := forge.SubmitEntry(specter1, []byte("Original"), [32]byte{})
+	root, _ := f.SubmitEntry(specter1, []byte("Original"), [32]byte{})
 
 	// Remix of root.
-	remix1, _ := forge.SubmitEntry(specter2, []byte("Remix 1"), root.ID)
+	remix1, _ := f.SubmitEntry(specter2, []byte("Remix 1"), root.ID)
 
 	// Remix of remix1.
-	remix2, _ := forge.SubmitEntry(specter3, []byte("Remix 2"), remix1.ID)
+	remix2, _ := f.SubmitEntry(specter3, []byte("Remix 2"), remix1.ID)
 
 	// Add amplifications.
 	for i := 0; i < 3; i++ {
 		var amp [32]byte
 		rand.Read(amp[:])
-		forge.AmplifyEntry(root.ID, amp, 50.0)
-		forge.AmplifyEntry(remix1.ID, amp, 50.0)
-		forge.AmplifyEntry(remix2.ID, amp, 50.0)
+		f.AmplifyEntry(root.ID, amp, 50.0)
+		f.AmplifyEntry(remix1.ID, amp, 50.0)
+		f.AmplifyEntry(remix2.ID, amp, 50.0)
 	}
 
 	// Move to evaluating state.
-	forge.State = ForgeEvaluating
-	forge.Evaluate()
+	f.State = forge.ForgeEvaluating
+	f.Evaluate()
 
 	// In remix chains, scores should be shared.
 	// All three entries should have similar scores.
-	leaderboard := forge.GetLeaderboard()
+	leaderboard := f.GetLeaderboard()
 	if len(leaderboard) != 3 {
 		t.Fatalf("Expected 3 entries, got %d", len(leaderboard))
 	}
@@ -1641,59 +1638,59 @@ func TestForgeNoEntries(t *testing.T) {
 	var initiator [32]byte
 	rand.Read(initiator[:])
 
-	forge, _ := NewSigilForge(
-		ForgeSigilArt,
+	f, _ := forge.NewSigilForge(
+		forge.ForgeSigilArt,
 		"Test",
 		initiator,
-		ForgeDuration30Min, ForgeMinResonance,
+		forge.ForgeDuration30Min, forge.ForgeMinResonance,
 	)
 
-	forge.State = ForgeEvaluating
+	f.State = forge.ForgeEvaluating
 
-	err := forge.Evaluate()
-	if err != ErrForgeNoEntries {
-		t.Errorf("Expected ErrForgeNoEntries, got %v", err)
+	err := f.Evaluate()
+	if err != forge.ErrForgeNoEntries {
+		t.Errorf("Expected forge.ErrForgeNoEntries, got %v", err)
 	}
 
-	if forge.State != ForgeExpired {
-		t.Errorf("Expected ForgeExpired state, got %d", forge.State)
+	if f.State != forge.ForgeExpired {
+		t.Errorf("Expected forge.ForgeExpired state, got %d", f.State)
 	}
 }
 
 func TestComputeForgeBonus(t *testing.T) {
 	// Winner bonus: 4 * ln(1 + 10) = 4 * ln(11) ≈ 9.59
-	winnerBonus := ComputeForgeWinnerBonus(10.0)
+	winnerBonus := forge.ComputeForgeWinnerBonus(10.0)
 	if winnerBonus < 9.5 || winnerBonus > 9.7 {
 		t.Errorf("Expected winner bonus ~9.59, got %f", winnerBonus)
 	}
 
 	// Participation bonus: 2 * ln(1 + 5) = 2 * ln(6) ≈ 3.58
-	partBonus := ComputeForgeParticipationBonus(5.0)
+	partBonus := forge.ComputeForgeParticipationBonus(5.0)
 	if partBonus < 3.5 || partBonus > 3.7 {
 		t.Errorf("Expected participation bonus ~3.58, got %f", partBonus)
 	}
 }
 
 func TestForgeStore(t *testing.T) {
-	store := NewForgeStore()
+	store := forge.NewForgeStore()
 
 	var initiator [32]byte
 	rand.Read(initiator[:])
 
-	forge, _ := NewSigilForge(
-		ForgeSigilArt,
+	f, _ := forge.NewSigilForge(
+		forge.ForgeSigilArt,
 		"Test",
 		initiator,
-		ForgeDuration30Min, ForgeMinResonance,
+		forge.ForgeDuration30Min, forge.ForgeMinResonance,
 	)
 
-	store.AddForge(forge)
+	store.AddForge(f)
 
 	if store.Count() != 1 {
 		t.Errorf("Expected 1 forge, got %d", store.Count())
 	}
 
-	retrieved := store.GetForge(forge.ID)
+	retrieved := store.GetForge(f.ID)
 	if retrieved == nil {
 		t.Error("Expected forge, got nil")
 	}
@@ -1703,7 +1700,7 @@ func TestForgeStore(t *testing.T) {
 		t.Errorf("Expected 1 active forge, got %d", len(active))
 	}
 
-	byType := store.GetForgesByType(ForgeSigilArt)
+	byType := store.GetForgesByType(forge.ForgeSigilArt)
 	if len(byType) != 1 {
 		t.Errorf("Expected 1 forge of type, got %d", len(byType))
 	}
@@ -1713,38 +1710,38 @@ func TestForgeStateUpdate(t *testing.T) {
 	var initiator [32]byte
 	rand.Read(initiator[:])
 
-	forge, _ := NewSigilForge(
-		ForgeSigilArt,
+	f, _ := forge.NewSigilForge(
+		forge.ForgeSigilArt,
 		"Test",
 		initiator,
-		ForgeDuration30Min, ForgeMinResonance,
+		forge.ForgeDuration30Min, forge.ForgeMinResonance,
 	)
 
 	// Set deadline to past.
-	forge.Deadline = time.Now().Add(-1 * time.Minute)
+	f.Deadline = time.Now().Add(-1 * time.Minute)
 
-	forge.UpdateState()
+	f.UpdateState()
 
 	// No entries, so should be expired.
-	if forge.State != ForgeExpired {
-		t.Errorf("Expected ForgeExpired, got %d", forge.State)
+	if f.State != forge.ForgeExpired {
+		t.Errorf("Expected forge.ForgeExpired, got %d", f.State)
 	}
 }
 
 func TestForgeStateStrings(t *testing.T) {
-	if ForgeTypeString(ForgeSigilArt) != "Sigil Art" {
+	if forge.ForgeTypeString(forge.ForgeSigilArt) != "Sigil Art" {
 		t.Error("Expected 'Sigil Art'")
 	}
-	if ForgeTypeString(ForgeMicroFiction) != "Micro Fiction" {
+	if forge.ForgeTypeString(forge.ForgeMicroFiction) != "Micro Fiction" {
 		t.Error("Expected 'Micro Fiction'")
 	}
-	if ForgeTypeString(ForgeRemixChain) != "Remix Chain" {
+	if forge.ForgeTypeString(forge.ForgeRemixChain) != "Remix Chain" {
 		t.Error("Expected 'Remix Chain'")
 	}
-	if ForgeStateString(ForgeActive) != "Active" {
+	if forge.ForgeStateString(forge.ForgeActive) != "Active" {
 		t.Error("Expected 'Active'")
 	}
-	if ForgeStateString(ForgeCompleted) != "Completed" {
+	if forge.ForgeStateString(forge.ForgeCompleted) != "Completed" {
 		t.Error("Expected 'Completed'")
 	}
 }
@@ -1755,13 +1752,13 @@ func TestNewShadowPlay(t *testing.T) {
 	var initiator [32]byte
 	rand.Read(initiator[:])
 
-	game, err := NewShadowPlay(initiator, ShadowPlayDuration30Min, 7)
+	game, err := shadowplay.NewShadowPlay(initiator, shadowplay.ShadowPlayDuration30Min, 7)
 	if err != nil {
 		t.Fatalf("NewShadowPlay failed: %v", err)
 	}
 
-	if game.State != ShadowPlayWaiting {
-		t.Errorf("Expected ShadowPlayWaiting, got %d", game.State)
+	if game.State != shadowplay.ShadowPlayWaiting {
+		t.Errorf("Expected shadowplay.ShadowPlayWaiting, got %d", game.State)
 	}
 
 	if !game.IsWaiting() {
@@ -1778,15 +1775,15 @@ func TestShadowPlayInvalidSize(t *testing.T) {
 	rand.Read(initiator[:])
 
 	// Too few players.
-	_, err := NewShadowPlay(initiator, ShadowPlayDuration30Min, 3)
-	if err != ErrShadowPlayInvalidSize {
-		t.Errorf("Expected ErrShadowPlayInvalidSize, got %v", err)
+	_, err := shadowplay.NewShadowPlay(initiator, shadowplay.ShadowPlayDuration30Min, 3)
+	if err != shadowplay.ErrShadowPlayInvalidSize {
+		t.Errorf("Expected shadowplay.ErrShadowPlayInvalidSize, got %v", err)
 	}
 
 	// Too many players.
-	_, err = NewShadowPlay(initiator, ShadowPlayDuration30Min, 20)
-	if err != ErrShadowPlayInvalidSize {
-		t.Errorf("Expected ErrShadowPlayInvalidSize, got %v", err)
+	_, err = shadowplay.NewShadowPlay(initiator, shadowplay.ShadowPlayDuration30Min, 20)
+	if err != shadowplay.ErrShadowPlayInvalidSize {
+		t.Errorf("Expected shadowplay.ErrShadowPlayInvalidSize, got %v", err)
 	}
 }
 
@@ -1794,9 +1791,9 @@ func TestShadowPlayInvalidDuration(t *testing.T) {
 	var initiator [32]byte
 	rand.Read(initiator[:])
 
-	_, err := NewShadowPlay(initiator, 15*time.Minute, 7)
-	if err != ErrShadowPlayInvalidDuration {
-		t.Errorf("Expected ErrShadowPlayInvalidDuration, got %v", err)
+	_, err := shadowplay.NewShadowPlay(initiator, 15*time.Minute, 7)
+	if err != shadowplay.ErrShadowPlayInvalidDuration {
+		t.Errorf("Expected shadowplay.ErrShadowPlayInvalidDuration, got %v", err)
 	}
 }
 
@@ -1804,7 +1801,7 @@ func TestShadowPlayJoin(t *testing.T) {
 	var initiator [32]byte
 	rand.Read(initiator[:])
 
-	game, _ := NewShadowPlay(initiator, ShadowPlayDuration30Min, 5)
+	game, _ := shadowplay.NewShadowPlay(initiator, shadowplay.ShadowPlayDuration30Min, 5)
 
 	// Join 5 players.
 	for i := 0; i < 5; i++ {
@@ -1824,8 +1821,8 @@ func TestShadowPlayJoin(t *testing.T) {
 	var extraPlayer [32]byte
 	rand.Read(extraPlayer[:])
 	err := game.Join(extraPlayer)
-	if err != ErrShadowPlayFull {
-		t.Errorf("Expected ErrShadowPlayFull, got %v", err)
+	if err != shadowplay.ErrShadowPlayFull {
+		t.Errorf("Expected shadowplay.ErrShadowPlayFull, got %v", err)
 	}
 }
 
@@ -1833,7 +1830,7 @@ func TestShadowPlayStart(t *testing.T) {
 	var initiator [32]byte
 	rand.Read(initiator[:])
 
-	game, _ := NewShadowPlay(initiator, ShadowPlayDuration30Min, 5)
+	game, _ := shadowplay.NewShadowPlay(initiator, shadowplay.ShadowPlayDuration30Min, 5)
 
 	// Join 5 players.
 	for i := 0; i < 5; i++ {
@@ -1860,7 +1857,7 @@ func TestShadowPlayRoleAssignment(t *testing.T) {
 	var initiator [32]byte
 	rand.Read(initiator[:])
 
-	game, _ := NewShadowPlay(initiator, ShadowPlayDuration30Min, 7)
+	game, _ := shadowplay.NewShadowPlay(initiator, shadowplay.ShadowPlayDuration30Min, 7)
 
 	// Join 7 players.
 	var players [][32]byte
@@ -1877,7 +1874,7 @@ func TestShadowPlayRoleAssignment(t *testing.T) {
 	var echoCount, shadeCount int
 	for _, player := range players {
 		role, _ := game.DeriveRole(player)
-		if role == RoleEcho {
+		if role == shadowplay.RoleEcho {
 			echoCount++
 		} else {
 			shadeCount++
@@ -1897,7 +1894,7 @@ func TestShadowPlayVoting(t *testing.T) {
 	var initiator [32]byte
 	rand.Read(initiator[:])
 
-	game, _ := NewShadowPlay(initiator, ShadowPlayDuration30Min, 5)
+	game, _ := shadowplay.NewShadowPlay(initiator, shadowplay.ShadowPlayDuration30Min, 5)
 
 	// Join 5 players.
 	var players [][32]byte
@@ -1911,8 +1908,8 @@ func TestShadowPlayVoting(t *testing.T) {
 	game.Start()
 	game.StartVoting()
 
-	if game.State != ShadowPlayVoting {
-		t.Errorf("Expected ShadowPlayVoting, got %d", game.State)
+	if game.State != shadowplay.ShadowPlayVoting {
+		t.Errorf("Expected shadowplay.ShadowPlayVoting, got %d", game.State)
 	}
 
 	// All players vote for player 0.
@@ -1942,7 +1939,7 @@ func TestShadowPlayEchoesWin(t *testing.T) {
 	var initiator [32]byte
 	rand.Read(initiator[:])
 
-	game, _ := NewShadowPlay(initiator, ShadowPlayDuration30Min, 5)
+	game, _ := shadowplay.NewShadowPlay(initiator, shadowplay.ShadowPlayDuration30Min, 5)
 
 	// Join 5 players.
 	var players [][32]byte
@@ -1976,8 +1973,8 @@ func TestShadowPlayEchoesWin(t *testing.T) {
 		t.Error("Expected game to be over")
 	}
 
-	if game.State != ShadowPlayEchoesWin {
-		t.Errorf("Expected ShadowPlayEchoesWin, got %d", game.State)
+	if game.State != shadowplay.ShadowPlayEchoesWin {
+		t.Errorf("Expected shadowplay.ShadowPlayEchoesWin, got %d", game.State)
 	}
 }
 
@@ -1985,7 +1982,7 @@ func TestShadowPlayShadesWin(t *testing.T) {
 	var initiator [32]byte
 	rand.Read(initiator[:])
 
-	game, _ := NewShadowPlay(initiator, ShadowPlayDuration30Min, 5)
+	game, _ := shadowplay.NewShadowPlay(initiator, shadowplay.ShadowPlayDuration30Min, 5)
 
 	// Join 5 players.
 	var players [][32]byte
@@ -2002,7 +1999,7 @@ func TestShadowPlayShadesWin(t *testing.T) {
 	var echoes [][32]byte
 	for _, player := range players {
 		p := game.GetPlayer(player)
-		if p.Role == RoleEcho {
+		if p.Role == shadowplay.RoleEcho {
 			echoes = append(echoes, player)
 		}
 	}
@@ -2032,32 +2029,32 @@ func TestShadowPlayShadesWin(t *testing.T) {
 		}
 	}
 
-	if game.State != ShadowPlayShadesWin {
-		t.Errorf("Expected ShadowPlayShadesWin, got %d", game.State)
+	if game.State != shadowplay.ShadowPlayShadesWin {
+		t.Errorf("Expected shadowplay.ShadowPlayShadesWin, got %d", game.State)
 	}
 }
 
 func TestComputeShadowPlayBonus(t *testing.T) {
 	// Win bonus: 5 * ln(1 + 7) = 5 * ln(8) ≈ 10.4
-	winBonus := ComputeShadowPlayWinBonus(7)
+	winBonus := shadowplay.ComputeShadowPlayWinBonus(7)
 	if winBonus < 10.0 || winBonus > 11.0 {
 		t.Errorf("Expected win bonus ~10.4, got %f", winBonus)
 	}
 
 	// Lose bonus: 2 * ln(1 + 7) = 2 * ln(8) ≈ 4.16
-	loseBonus := ComputeShadowPlayLoseBonus(7)
+	loseBonus := shadowplay.ComputeShadowPlayLoseBonus(7)
 	if loseBonus < 4.0 || loseBonus > 4.5 {
 		t.Errorf("Expected lose bonus ~4.16, got %f", loseBonus)
 	}
 }
 
 func TestShadowPlayStore(t *testing.T) {
-	store := NewShadowPlayStore()
+	store := shadowplay.NewShadowPlayStore()
 
 	var initiator [32]byte
 	rand.Read(initiator[:])
 
-	game, _ := NewShadowPlay(initiator, ShadowPlayDuration30Min, 5)
+	game, _ := shadowplay.NewShadowPlay(initiator, shadowplay.ShadowPlayDuration30Min, 5)
 	store.AddGame(game)
 
 	if store.Count() != 1 {
@@ -2076,19 +2073,19 @@ func TestShadowPlayStore(t *testing.T) {
 }
 
 func TestShadowPlayStateStrings(t *testing.T) {
-	if ShadowPlayStateString(ShadowPlayWaiting) != "Waiting" {
+	if shadowplay.ShadowPlayStateString(shadowplay.ShadowPlayWaiting) != "Waiting" {
 		t.Error("Expected 'Waiting'")
 	}
-	if ShadowPlayStateString(ShadowPlayActive) != "Active" {
+	if shadowplay.ShadowPlayStateString(shadowplay.ShadowPlayActive) != "Active" {
 		t.Error("Expected 'Active'")
 	}
-	if ShadowPlayStateString(ShadowPlayEchoesWin) != "Echoes Win" {
+	if shadowplay.ShadowPlayStateString(shadowplay.ShadowPlayEchoesWin) != "Echoes Win" {
 		t.Error("Expected 'Echoes Win'")
 	}
-	if PlayerRoleString(RoleEcho) != "Echo" {
+	if shadowplay.PlayerRoleString(shadowplay.RoleEcho) != "Echo" {
 		t.Error("Expected 'Echo'")
 	}
-	if PlayerRoleString(RoleShade) != "Shade" {
+	if shadowplay.PlayerRoleString(shadowplay.RoleShade) != "Shade" {
 		t.Error("Expected 'Shade'")
 	}
 }
@@ -2099,13 +2096,13 @@ func TestNewPhantomCouncil(t *testing.T) {
 	var creator [32]byte
 	rand.Read(creator[:])
 
-	council, err := NewPhantomCouncil(
+	council, err := councils.NewPhantomCouncil(
 		creator,
 		"The Inner Circle",
 		"Discussion of governance matters",
 		200.0,
 		7,
-		CouncilMinResonance,
+		councils.CouncilMinResonance,
 		true, // Fortress mode
 	)
 	if err != nil {
@@ -2113,8 +2110,8 @@ func TestNewPhantomCouncil(t *testing.T) {
 	}
 
 	// Council starts dormant until 3+ members.
-	if council.State != CouncilDormant {
-		t.Errorf("Expected CouncilDormant, got %d", council.State)
+	if council.State != councils.CouncilDormant {
+		t.Errorf("Expected councils.CouncilDormant, got %d", council.State)
 	}
 
 	// Creator is first member.
@@ -2132,15 +2129,15 @@ func TestCouncilInvalidSize(t *testing.T) {
 	rand.Read(creator[:])
 
 	// Too few max members.
-	_, err := NewPhantomCouncil(creator, "Test", "Test", 200.0, 2, CouncilMinResonance, true)
-	if err != ErrCouncilInvalidSize {
-		t.Errorf("Expected ErrCouncilInvalidSize, got %v", err)
+	_, err := councils.NewPhantomCouncil(creator, "Test", "Test", 200.0, 2, councils.CouncilMinResonance, true)
+	if err != councils.ErrCouncilInvalidSize {
+		t.Errorf("Expected councils.ErrCouncilInvalidSize, got %v", err)
 	}
 
 	// Too many max members.
-	_, err = NewPhantomCouncil(creator, "Test", "Test", 200.0, 20, CouncilMinResonance, true)
-	if err != ErrCouncilInvalidSize {
-		t.Errorf("Expected ErrCouncilInvalidSize, got %v", err)
+	_, err = councils.NewPhantomCouncil(creator, "Test", "Test", 200.0, 20, councils.CouncilMinResonance, true)
+	if err != councils.ErrCouncilInvalidSize {
+		t.Errorf("Expected councils.ErrCouncilInvalidSize, got %v", err)
 	}
 }
 
@@ -2148,9 +2145,9 @@ func TestCouncilInvalidResonance(t *testing.T) {
 	var creator [32]byte
 	rand.Read(creator[:])
 
-	_, err := NewPhantomCouncil(creator, "Test", "Test", 100.0, 5, CouncilMinResonance, true)
-	if err != ErrCouncilInvalidMinResonance {
-		t.Errorf("Expected ErrCouncilInvalidMinResonance, got %v", err)
+	_, err := councils.NewPhantomCouncil(creator, "Test", "Test", 100.0, 5, councils.CouncilMinResonance, true)
+	if err != councils.ErrCouncilInvalidMinResonance {
+		t.Errorf("Expected councils.ErrCouncilInvalidMinResonance, got %v", err)
 	}
 }
 
@@ -2159,13 +2156,13 @@ func TestCouncilInsufficientCreatorResonance(t *testing.T) {
 	rand.Read(creator[:])
 
 	// Creator resonance below minimum (200) - but with Fortress mode.
-	_, err := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance-1, true)
-	if err != ErrCouncilInsufficientResonance {
-		t.Errorf("Expected ErrCouncilInsufficientResonance, got %v", err)
+	_, err := councils.NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, councils.CouncilMinResonance-1, true)
+	if err != councils.ErrCouncilInsufficientResonance {
+		t.Errorf("Expected councils.ErrCouncilInsufficientResonance, got %v", err)
 	}
 
 	// Exactly at minimum should succeed with Fortress mode.
-	_, err = NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance, true)
+	_, err = councils.NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, councils.CouncilMinResonance, true)
 	if err != nil {
 		t.Errorf("Expected success at minimum resonance, got %v", err)
 	}
@@ -2176,13 +2173,13 @@ func TestCouncilRequiresFortressMode(t *testing.T) {
 	rand.Read(creator[:])
 
 	// Attempt to create council without Fortress mode.
-	_, err := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance, false)
-	if err != ErrCouncilRequiresFortress {
-		t.Errorf("Expected ErrCouncilRequiresFortress, got %v", err)
+	_, err := councils.NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, councils.CouncilMinResonance, false)
+	if err != councils.ErrCouncilRequiresFortress {
+		t.Errorf("Expected councils.ErrCouncilRequiresFortress, got %v", err)
 	}
 
 	// With Fortress mode should succeed.
-	_, err = NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance, true)
+	_, err = councils.NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, councils.CouncilMinResonance, true)
 	if err != nil {
 		t.Errorf("Expected success with Fortress mode, got %v", err)
 	}
@@ -2192,14 +2189,14 @@ func TestCouncilNameTooLong(t *testing.T) {
 	var creator [32]byte
 	rand.Read(creator[:])
 
-	longName := make([]byte, CouncilMaxNameLength+1)
+	longName := make([]byte, councils.CouncilMaxNameLength+1)
 	for i := range longName {
 		longName[i] = 'a'
 	}
 
-	_, err := NewPhantomCouncil(creator, string(longName), "Test", 200.0, 5, CouncilMinResonance, true)
-	if err != ErrCouncilNameTooLong {
-		t.Errorf("Expected ErrCouncilNameTooLong, got %v", err)
+	_, err := councils.NewPhantomCouncil(creator, string(longName), "Test", 200.0, 5, councils.CouncilMinResonance, true)
+	if err != councils.ErrCouncilNameTooLong {
+		t.Errorf("Expected councils.ErrCouncilNameTooLong, got %v", err)
 	}
 }
 
@@ -2208,7 +2205,7 @@ func TestCouncilApplication(t *testing.T) {
 	rand.Read(creator[:])
 	rand.Read(applicant[:])
 
-	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance, true)
+	council, _ := councils.NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, councils.CouncilMinResonance, true)
 
 	err := council.Apply(applicant, []byte("zk_proof_placeholder"))
 	if err != nil {
@@ -2227,11 +2224,11 @@ func TestCouncilAdmission(t *testing.T) {
 	rand.Read(applicant1[:])
 	rand.Read(applicant2[:])
 
-	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance, true)
+	council, _ := councils.NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, councils.CouncilMinResonance, true)
 
 	// Apply and admit first applicant.
 	council.Apply(applicant1, nil)
-	err := council.VoteOnApplication(creator, applicant1, VoteFor)
+	err := council.VoteOnApplication(creator, applicant1, councils.VoteFor)
 	if err != nil {
 		t.Fatalf("VoteOnApplication failed: %v", err)
 	}
@@ -2243,8 +2240,8 @@ func TestCouncilAdmission(t *testing.T) {
 
 	// Apply and admit second applicant.
 	council.Apply(applicant2, nil)
-	council.VoteOnApplication(creator, applicant2, VoteFor)
-	council.VoteOnApplication(applicant1, applicant2, VoteFor)
+	council.VoteOnApplication(creator, applicant2, councils.VoteFor)
+	council.VoteOnApplication(applicant1, applicant2, councils.VoteFor)
 
 	// Now should have 3 members and be active.
 	if council.ActiveMemberCount() != 3 {
@@ -2261,10 +2258,10 @@ func TestCouncilRejection(t *testing.T) {
 	rand.Read(creator[:])
 	rand.Read(applicant[:])
 
-	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance, true)
+	council, _ := councils.NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, councils.CouncilMinResonance, true)
 
 	council.Apply(applicant, nil)
-	council.VoteOnApplication(creator, applicant, VoteAgainst)
+	council.VoteOnApplication(creator, applicant, councils.VoteAgainst)
 
 	// Should be rejected.
 	if council.IsMember(applicant) {
@@ -2283,14 +2280,14 @@ func TestCouncilExpulsion(t *testing.T) {
 	rand.Read(member1[:])
 	rand.Read(member2[:])
 
-	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance, true)
+	council, _ := councils.NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, councils.CouncilMinResonance, true)
 
 	// Admit two members.
 	council.Apply(member1, nil)
-	council.VoteOnApplication(creator, member1, VoteFor)
+	council.VoteOnApplication(creator, member1, councils.VoteFor)
 	council.Apply(member2, nil)
-	council.VoteOnApplication(creator, member2, VoteFor)
-	council.VoteOnApplication(member1, member2, VoteFor)
+	council.VoteOnApplication(creator, member2, councils.VoteFor)
+	council.VoteOnApplication(member1, member2, councils.VoteFor)
 
 	// Now we have 3 members. Initiate expulsion of member2.
 	err := council.InitiateExpulsion(creator, member2)
@@ -2300,7 +2297,7 @@ func TestCouncilExpulsion(t *testing.T) {
 
 	// Creator already voted for. member1 needs to vote for expulsion.
 	// Threshold is 2/3 of 2 voting members (creator + member1) = 2.
-	council.VoteOnExpulsion(member1, member2, VoteFor)
+	council.VoteOnExpulsion(member1, member2, councils.VoteFor)
 
 	// member2 should be expelled.
 	if council.IsMember(member2) {
@@ -2313,10 +2310,10 @@ func TestCouncilLeave(t *testing.T) {
 	rand.Read(creator[:])
 	rand.Read(member1[:])
 
-	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance, true)
+	council, _ := councils.NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, councils.CouncilMinResonance, true)
 
 	council.Apply(member1, nil)
-	council.VoteOnApplication(creator, member1, VoteFor)
+	council.VoteOnApplication(creator, member1, councils.VoteFor)
 
 	err := council.Leave(member1)
 	if err != nil {
@@ -2334,14 +2331,14 @@ func TestCouncilProposal(t *testing.T) {
 	rand.Read(member1[:])
 	rand.Read(member2[:])
 
-	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance, true)
+	council, _ := councils.NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, councils.CouncilMinResonance, true)
 
 	// Build council with 3 members.
 	council.Apply(member1, nil)
-	council.VoteOnApplication(creator, member1, VoteFor)
+	council.VoteOnApplication(creator, member1, councils.VoteFor)
 	council.Apply(member2, nil)
-	council.VoteOnApplication(creator, member2, VoteFor)
-	council.VoteOnApplication(member1, member2, VoteFor)
+	council.VoteOnApplication(creator, member2, councils.VoteFor)
+	council.VoteOnApplication(member1, member2, councils.VoteFor)
 
 	// Create a proposal.
 	proposal, err := council.CreateProposal(creator, "Should we expand?")
@@ -2350,9 +2347,9 @@ func TestCouncilProposal(t *testing.T) {
 	}
 
 	// Vote on proposal.
-	council.VoteOnProposal(creator, proposal.ID, VoteFor)
-	council.VoteOnProposal(member1, proposal.ID, VoteFor)
-	council.VoteOnProposal(member2, proposal.ID, VoteAgainst)
+	council.VoteOnProposal(creator, proposal.ID, councils.VoteFor)
+	council.VoteOnProposal(member1, proposal.ID, councils.VoteFor)
+	council.VoteOnProposal(member2, proposal.ID, councils.VoteAgainst)
 
 	// Should pass (2 for, 1 against).
 	if !proposal.Resolved {
@@ -2369,21 +2366,21 @@ func TestCouncilProposalFail(t *testing.T) {
 	rand.Read(member1[:])
 	rand.Read(member2[:])
 
-	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance, true)
+	council, _ := councils.NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, councils.CouncilMinResonance, true)
 
 	// Build council.
 	council.Apply(member1, nil)
-	council.VoteOnApplication(creator, member1, VoteFor)
+	council.VoteOnApplication(creator, member1, councils.VoteFor)
 	council.Apply(member2, nil)
-	council.VoteOnApplication(creator, member2, VoteFor)
-	council.VoteOnApplication(member1, member2, VoteFor)
+	council.VoteOnApplication(creator, member2, councils.VoteFor)
+	council.VoteOnApplication(member1, member2, councils.VoteFor)
 
 	proposal, _ := council.CreateProposal(creator, "Bad idea")
 
 	// Vote against.
-	council.VoteOnProposal(creator, proposal.ID, VoteAgainst)
-	council.VoteOnProposal(member1, proposal.ID, VoteAgainst)
-	council.VoteOnProposal(member2, proposal.ID, VoteFor)
+	council.VoteOnProposal(creator, proposal.ID, councils.VoteAgainst)
+	council.VoteOnProposal(member1, proposal.ID, councils.VoteAgainst)
+	council.VoteOnProposal(member2, proposal.ID, councils.VoteFor)
 
 	if !proposal.Resolved {
 		t.Error("Expected proposal to be resolved")
@@ -2394,12 +2391,12 @@ func TestCouncilProposalFail(t *testing.T) {
 }
 
 func TestCouncilStore(t *testing.T) {
-	store := NewCouncilStore()
+	store := councils.NewCouncilStore()
 
 	var creator [32]byte
 	rand.Read(creator[:])
 
-	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance, true)
+	council, _ := councils.NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, councils.CouncilMinResonance, true)
 	store.AddCouncil(council)
 
 	if store.Count() != 1 {
@@ -2418,19 +2415,19 @@ func TestCouncilStore(t *testing.T) {
 }
 
 func TestCouncilStateStrings(t *testing.T) {
-	if CouncilStateString(CouncilActive) != "Active" {
+	if councils.CouncilStateString(councils.CouncilActive) != "Active" {
 		t.Error("Expected 'Active'")
 	}
-	if CouncilStateString(CouncilDormant) != "Dormant" {
+	if councils.CouncilStateString(councils.CouncilDormant) != "Dormant" {
 		t.Error("Expected 'Dormant'")
 	}
-	if MemberStatusString(MemberActive) != "Active" {
+	if councils.MemberStatusString(councils.MemberActive) != "Active" {
 		t.Error("Expected 'Active'")
 	}
-	if VoteValueString(VoteFor) != "For" {
+	if councils.VoteValueString(councils.VoteFor) != "For" {
 		t.Error("Expected 'For'")
 	}
-	if VoteValueString(VoteAgainst) != "Against" {
+	if councils.VoteValueString(councils.VoteAgainst) != "Against" {
 		t.Error("Expected 'Against'")
 	}
 }
@@ -2448,21 +2445,21 @@ func TestCheckResonanceGate(t *testing.T) {
 	}
 
 	// Test with gate meeting requirement.
-	gate := newMockGate(key, 75)
+	gate := mechanics.NewMockGate(key, 75)
 	err = mechanics.CheckResonanceGate(gate, key, 50)
 	if err != nil {
 		t.Errorf("Expected nil error with sufficient Resonance, got %v", err)
 	}
 
 	// Test with gate not meeting requirement.
-	gate = newMockGate(key, 25)
+	gate = mechanics.NewMockGate(key, 25)
 	err = mechanics.CheckResonanceGate(gate, key, 50)
 	if err != mechanics.ErrResonanceRequirementNotMet {
 		t.Errorf("Expected mechanics.ErrResonanceRequirementNotMet, got %v", err)
 	}
 
 	// Test at exact threshold.
-	gate = newMockGate(key, 50)
+	gate = mechanics.NewMockGate(key, 50)
 	err = mechanics.CheckResonanceGate(gate, key, 50)
 	if err != nil {
 		t.Errorf("Expected nil error at exact threshold, got %v", err)
@@ -2475,7 +2472,7 @@ func TestNewPuzzleGated(t *testing.T) {
 	rand.Read(initiator[:])
 
 	// Test with sufficient Resonance.
-	gate := newMockGate(initiator, puzzles.PuzzleMinResonance)
+	gate := mechanics.NewMockGate(initiator, puzzles.PuzzleMinResonance)
 	puzzle, err := puzzles.NewPuzzleGated(puzzles.PuzzleFragment, seed, 20, puzzles.PuzzleDuration30Min, initiator, gate)
 	if err != nil {
 		t.Fatalf("puzzles.NewPuzzleGated failed with sufficient Resonance: %v", err)
@@ -2485,7 +2482,7 @@ func TestNewPuzzleGated(t *testing.T) {
 	}
 
 	// Test with insufficient Resonance.
-	lowGate := newMockGate(initiator, puzzles.PuzzleMinResonance-1)
+	lowGate := mechanics.NewMockGate(initiator, puzzles.PuzzleMinResonance-1)
 	_, err = puzzles.NewPuzzleGated(puzzles.PuzzleFragment, seed, 20, puzzles.PuzzleDuration30Min, initiator, lowGate)
 	if err != puzzles.ErrPuzzleInsufficientRes {
 		t.Errorf("Expected puzzles.ErrPuzzleInsufficientRes, got %v", err)
@@ -2521,7 +2518,7 @@ func TestCouncilZKVerification(t *testing.T) {
 	rand.Read(applicant[:])
 
 	// Create council with ZK verifier.
-	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance, true)
+	council, _ := councils.NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, councils.CouncilMinResonance, true)
 	council.SetZKVerifier(&mockZKVerifier{shouldPass: true})
 
 	// Apply with valid ZK proof.
@@ -2542,7 +2539,7 @@ func TestCouncilZKVerificationFailure(t *testing.T) {
 	rand.Read(applicant[:])
 
 	// Create council with failing ZK verifier.
-	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance, true)
+	council, _ := councils.NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, councils.CouncilMinResonance, true)
 	council.SetZKVerifier(&mockZKVerifier{shouldPass: false})
 
 	// Apply with invalid ZK proof.
@@ -2564,7 +2561,7 @@ func TestCouncilZKVerificationMissingProof(t *testing.T) {
 	rand.Read(applicant[:])
 
 	// Create council with ZK verifier that requires proof.
-	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance, true)
+	council, _ := councils.NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, councils.CouncilMinResonance, true)
 	council.SetZKVerifier(&mockZKVerifier{shouldPass: true})
 
 	// Apply without ZK proof.
@@ -2586,7 +2583,7 @@ func TestCouncilWithoutZKVerifier(t *testing.T) {
 	rand.Read(applicant[:])
 
 	// Create council without ZK verifier (backward compatible).
-	council, _ := NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, CouncilMinResonance, true)
+	council, _ := councils.NewPhantomCouncil(creator, "Test", "Test", 200.0, 5, councils.CouncilMinResonance, true)
 
 	// Apply without ZK proof should succeed.
 	err := council.Apply(applicant, nil)
@@ -2610,7 +2607,7 @@ func TestNewOraclePoolGated(t *testing.T) {
 	resolution := time.Now().Add(48 * time.Hour)
 
 	// Test with sufficient Resonance.
-	gate := newMockGate(creator, 150) // Above oracle.OracleMinResonance (100).
+	gate := mechanics.NewMockGate(creator, 150) // Above oracle.OracleMinResonance (100).
 	pool, err := oracle.NewOraclePoolGated(
 		"Will MURMUR have 1000 nodes by end of month?",
 		oracle.OraclePredictionBoolean,
@@ -2631,7 +2628,7 @@ func TestNewOraclePoolGated(t *testing.T) {
 	}
 
 	// Test with insufficient Resonance.
-	gate = newMockGate(creator, 50) // Below oracle.OracleMinResonance (100).
+	gate = mechanics.NewMockGate(creator, 50) // Below oracle.OracleMinResonance (100).
 	pool, err = oracle.NewOraclePoolGated(
 		"Test question",
 		oracle.OraclePredictionBoolean,
@@ -2649,7 +2646,7 @@ func TestNewOraclePoolGated(t *testing.T) {
 	}
 
 	// Test at exact threshold.
-	gate = newMockGate(creator, oracle.OracleMinResonance)
+	gate = mechanics.NewMockGate(creator, oracle.OracleMinResonance)
 	pool, err = oracle.NewOraclePoolGated(
 		"Threshold test",
 		oracle.OraclePredictionNumeric,
@@ -2674,10 +2671,10 @@ func TestNewShadowPlayGated(t *testing.T) {
 	rand.Read(initiator[:])
 
 	// Test with sufficient Resonance.
-	gate := newMockGate(initiator, 250) // Above ShadowPlayMinResonance (200).
-	game, err := NewShadowPlayGated(
+	gate := mechanics.NewMockGate(initiator, 250) // Above shadowplay.ShadowPlayMinResonance (200).
+	game, err := shadowplay.NewShadowPlayGated(
 		initiator,
-		ShadowPlayDuration30Min,
+		shadowplay.ShadowPlayDuration30Min,
 		8,
 		gate,
 	)
@@ -2690,30 +2687,30 @@ func TestNewShadowPlayGated(t *testing.T) {
 	if game.MaxPlayers != 8 {
 		t.Errorf("Expected MaxPlayers 8, got %d", game.MaxPlayers)
 	}
-	if game.Duration != ShadowPlayDuration30Min {
+	if game.Duration != shadowplay.ShadowPlayDuration30Min {
 		t.Error("Duration mismatch")
 	}
 
 	// Test with insufficient Resonance.
-	gate = newMockGate(initiator, 100) // Below ShadowPlayMinResonance (200).
-	game, err = NewShadowPlayGated(
+	gate = mechanics.NewMockGate(initiator, 100) // Below shadowplay.ShadowPlayMinResonance (200).
+	game, err = shadowplay.NewShadowPlayGated(
 		initiator,
-		ShadowPlayDuration60Min,
+		shadowplay.ShadowPlayDuration60Min,
 		10,
 		gate,
 	)
-	if err != ErrShadowPlayInsufficientResonance {
-		t.Errorf("Expected ErrShadowPlayInsufficientResonance, got %v", err)
+	if err != shadowplay.ErrShadowPlayInsufficientResonance {
+		t.Errorf("Expected shadowplay.ErrShadowPlayInsufficientResonance, got %v", err)
 	}
 	if game != nil {
 		t.Error("Expected nil game with insufficient Resonance")
 	}
 
 	// Test at exact threshold.
-	gate = newMockGate(initiator, ShadowPlayMinResonance)
-	game, err = NewShadowPlayGated(
+	gate = mechanics.NewMockGate(initiator, shadowplay.ShadowPlayMinResonance)
+	game, err = shadowplay.NewShadowPlayGated(
 		initiator,
-		ShadowPlayDuration30Min,
+		shadowplay.ShadowPlayDuration30Min,
 		5,
 		gate,
 	)

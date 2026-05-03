@@ -198,11 +198,13 @@ func (cp *CouncilPanel) drawStateBadge(screen *ebiten.Image, x, y, w, padding fl
 }
 
 // drawCouncilStats renders the member, proposal, and application count circles.
-func (cp *CouncilPanel) drawCouncilStats(screen *ebiten.Image, x, statsY, padding float32, council *Council) {
+func (cp *CouncilPanel) drawCouncilStats(screen *ebiten.Image, x, statsY, padding float32, council *CouncilInfo) {
 	memberCount := countActiveMembers(council.Members)
+	_ = memberCount // For future display
 	vector.DrawFilledCircle(screen, x+padding+30, statsY+20, 20, cp.theme.AccentPrimary, true)
 
 	activeProposals := countActiveProposals(council.Proposals)
+	_ = activeProposals // For future display
 	vector.DrawFilledCircle(screen, x+padding+100, statsY+20, 20, cp.theme.AccentSecondary, true)
 
 	pendingApps := countPendingApplications(council.Applications)
@@ -212,7 +214,7 @@ func (cp *CouncilPanel) drawCouncilStats(screen *ebiten.Image, x, statsY, paddin
 }
 
 // drawActionButtons renders the council action buttons.
-func (cp *CouncilPanel) drawActionButtons(screen *ebiten.Image, x, btnY, padding float32, council *Council) {
+func (cp *CouncilPanel) drawActionButtons(screen *ebiten.Image, x, btnY, padding float32, council *CouncilInfo) {
 	if !council.IsMember {
 		return
 	}
@@ -232,7 +234,7 @@ func (cp *CouncilPanel) drawActionButtons(screen *ebiten.Image, x, btnY, padding
 }
 
 // countActiveMembers returns the number of active members.
-func countActiveMembers(members []CouncilMember) int {
+func countActiveMembers(members []CouncilMemberInfo) int {
 	count := 0
 	for _, m := range members {
 		if m.Status == MemberStatusActive {
@@ -243,7 +245,7 @@ func countActiveMembers(members []CouncilMember) int {
 }
 
 // countActiveProposals returns the number of unresolved proposals.
-func countActiveProposals(proposals []Proposal) int {
+func countActiveProposals(proposals []CouncilProposalInfo) int {
 	count := 0
 	for _, p := range proposals {
 		if !p.Resolved {
@@ -254,7 +256,7 @@ func countActiveProposals(proposals []Proposal) int {
 }
 
 // countPendingApplications returns the number of unresolved applications.
-func countPendingApplications(applications []CouncilApplication) int {
+func countPendingApplications(applications []CouncilApplicationInfo) int {
 	count := 0
 	for _, a := range applications {
 		if !a.Resolved {

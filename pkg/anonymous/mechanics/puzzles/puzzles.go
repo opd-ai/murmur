@@ -153,11 +153,11 @@ func (g *FragmentGenerator) Verify(puzzle *Puzzle, solution []byte) bool {
 	hash := h.Sum(nil)
 
 	// Check for required leading zero bits.
-	return hasLeadingZeros(hash, int(puzzle.Difficulty))
+	return HasLeadingZeros(hash, int(puzzle.Difficulty))
 }
 
-// hasLeadingZeros checks if a hash has at least n leading zero bits.
-func hasLeadingZeros(hash []byte, n int) bool {
+// HasLeadingZeros checks if a hash has at least n leading zero bits.
+func HasLeadingZeros(hash []byte, n int) bool {
 	fullBytes := n / 8
 	remainingBits := n % 8
 

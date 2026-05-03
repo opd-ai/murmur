@@ -601,3 +601,12 @@ func min(a, b int) int {
 	}
 	return b
 }
+
+// AddHuntForTest directly adds a hunt to the store (for testing only).
+// This bypasses validation and is used to test edge cases like expired hunts.
+func (s *HuntStore) AddHuntForTest(h *Hunt) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.hunts[h.ID] = h
+	s.active = append(s.active, h)
+}

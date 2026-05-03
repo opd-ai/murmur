@@ -236,7 +236,16 @@ func (cm *ClusterManager) performClustering(
 	positions map[string]Position,
 	edgeMap map[string]int,
 ) []*Cluster {
-	// Start with each node as its own cluster.
+	clusters, nodeToCluster := cm.initializeClusters(nodes, positions, edgeMap)
+	cm.mergeNearClusters(clusters, nodeToCluster)
+	return cm.filterAndFinalize(clusters)
+}
+
+func (cm *ClusterManager) initializeClusters(
+	nodes map[string]*Node,
+	positions map[string]Position,
+	edgeMap map[string]int,
+) (map[string]*Cluster, map[string]string) {
 	clusters := make(map[string]*Cluster)
 	nodeToCluster := make(map[string]string)
 
@@ -257,65 +266,68 @@ func (cm *ClusterManager) performClustering(
 		nodeToCluster[nodeID] = clusterID
 		i++
 	}
+	return clusters, nodeToCluster
+}
 
-	// Iteratively merge closest clusters until distance exceeds threshold.
+func (cm *ClusterManager) mergeNearClusters(clusters map[string]*Cluster, nodeToCluster map[string]string) {
 	for {
-		// Find closest pair of clusters.
-		minDist := math.MaxFloat64
-		var merge1, merge2 string
+		merge1, merge2, minDist := cm.findClosestPair(clusters)
 
-		clusterIDs := make([]string, 0, len(clusters))
-		for id := range clusters {
-			clusterIDs = append(clusterIDs, id)
-		}
-
-		for i := 0; i < len(clusterIDs); i++ {
-			c1 := clusters[clusterIDs[i]]
-			for j := i + 1; j < len(clusterIDs); j++ {
-				c2 := clusters[clusterIDs[j]]
-				dist := distance(c1.CenterX, c1.CenterY, c2.CenterX, c2.CenterY)
-				if dist < minDist {
-					minDist = dist
-					merge1 = c1.ID
-					merge2 = c2.ID
-				}
-			}
-		}
-
-		// Stop if no pairs close enough.
 		if minDist > cm.clusterDist || merge1 == "" || merge2 == "" {
 			break
 		}
 
-		// Merge clusters.
-		c1 := clusters[merge1]
-		c2 := clusters[merge2]
+		cm.mergeTwoClusters(clusters, nodeToCluster, merge1, merge2)
+	}
+}
 
-		// Weighted centroid.
-		totalNodes := c1.NodeCount + c2.NodeCount
-		newX := (c1.CenterX*float64(c1.NodeCount) + c2.CenterX*float64(c2.NodeCount)) / float64(totalNodes)
-		newY := (c1.CenterY*float64(c1.NodeCount) + c2.CenterY*float64(c2.NodeCount)) / float64(totalNodes)
+func (cm *ClusterManager) findClosestPair(clusters map[string]*Cluster) (string, string, float64) {
+	minDist := math.MaxFloat64
+	var merge1, merge2 string
 
-		merged := &Cluster{
-			ID:         c1.ID, // Keep first cluster's ID.
-			CenterX:    newX,
-			CenterY:    newY,
-			NodeCount:  totalNodes,
-			TotalEdges: c1.TotalEdges + c2.TotalEdges,
-			NodeIDs:    append(c1.NodeIDs, c2.NodeIDs...),
-			Activity:   (c1.Activity*float64(c1.NodeCount) + c2.Activity*float64(c2.NodeCount)) / float64(totalNodes),
-		}
-
-		// Update mappings.
-		clusters[c1.ID] = merged
-		delete(clusters, c2.ID)
-
-		for _, nodeID := range c2.NodeIDs {
-			nodeToCluster[nodeID] = c1.ID
-		}
+	clusterIDs := make([]string, 0, len(clusters))
+	for id := range clusters {
+		clusterIDs = append(clusterIDs, id)
 	}
 
-	// Convert to slice, filter small clusters.
+	for i := 0; i < len(clusterIDs); i++ {
+		c1 := clusters[clusterIDs[i]]
+		for j := i + 1; j < len(clusterIDs); j++ {
+			c2 := clusters[clusterIDs[j]]
+			dist := distance(c1.CenterX, c1.CenterY, c2.CenterX, c2.CenterY)
+			if dist < minDist {
+				minDist = dist
+				merge1 = c1.ID
+				merge2 = c2.ID
+			}
+		}
+	}
+	return merge1, merge2, minDist
+}
+
+func (cm *ClusterManager) mergeTwoClusters(clusters map[string]*Cluster, nodeToCluster map[string]string, id1, id2 string) {
+	c1, c2 := clusters[id1], clusters[id2]
+	totalNodes := c1.NodeCount + c2.NodeCount
+
+	merged := &Cluster{
+		ID:         c1.ID,
+		CenterX:    (c1.CenterX*float64(c1.NodeCount) + c2.CenterX*float64(c2.NodeCount)) / float64(totalNodes),
+		CenterY:    (c1.CenterY*float64(c1.NodeCount) + c2.CenterY*float64(c2.NodeCount)) / float64(totalNodes),
+		NodeCount:  totalNodes,
+		TotalEdges: c1.TotalEdges + c2.TotalEdges,
+		NodeIDs:    append(c1.NodeIDs, c2.NodeIDs...),
+		Activity:   (c1.Activity*float64(c1.NodeCount) + c2.Activity*float64(c2.NodeCount)) / float64(totalNodes),
+	}
+
+	clusters[c1.ID] = merged
+	delete(clusters, c2.ID)
+
+	for _, nodeID := range c2.NodeIDs {
+		nodeToCluster[nodeID] = c1.ID
+	}
+}
+
+func (cm *ClusterManager) filterAndFinalize(clusters map[string]*Cluster) []*Cluster {
 	result := make([]*Cluster, 0, len(clusters))
 	for _, c := range clusters {
 		if c.NodeCount >= ClusterMinSize {
@@ -323,7 +335,6 @@ func (cm *ClusterManager) performClustering(
 			result = append(result, c)
 		}
 	}
-
 	return result
 }
 
@@ -396,41 +407,59 @@ func (cm *ClusterManager) mergeClusters(
 	return result
 }
 
-// buildClusterConnections determines which clusters connect to each other.
 func (cm *ClusterManager) buildClusterConnections(
 	clusters []*Cluster,
 	nodeConnections map[string]map[string]bool,
 ) {
-	// Map nodes to clusters.
+	nodeToCluster := cm.mapNodesToClusters(clusters)
+
+	for _, c := range clusters {
+		connectedClusters := cm.findConnectedClusters(c, nodeToCluster, nodeConnections)
+		c.Connections = cm.sortedClusterIDs(connectedClusters)
+	}
+}
+
+func (cm *ClusterManager) mapNodesToClusters(clusters []*Cluster) map[string]*Cluster {
 	nodeToCluster := make(map[string]*Cluster)
 	for _, c := range clusters {
 		for _, nodeID := range c.NodeIDs {
 			nodeToCluster[nodeID] = c
 		}
 	}
+	return nodeToCluster
+}
 
-	// Build cluster connectivity.
-	for _, c := range clusters {
-		connectedClusters := make(map[string]bool)
+func (cm *ClusterManager) findConnectedClusters(
+	cluster *Cluster,
+	nodeToCluster map[string]*Cluster,
+	nodeConnections map[string]map[string]bool,
+) map[string]bool {
+	connected := make(map[string]bool)
 
-		for _, nodeID := range c.NodeIDs {
-			if conns, ok := nodeConnections[nodeID]; ok {
-				for targetNode := range conns {
-					if targetCluster, ok := nodeToCluster[targetNode]; ok {
-						if targetCluster.ID != c.ID {
-							connectedClusters[targetCluster.ID] = true
-						}
-					}
-				}
+	for _, nodeID := range cluster.NodeIDs {
+		conns, ok := nodeConnections[nodeID]
+		if !ok {
+			continue
+		}
+
+		for targetNode := range conns {
+			targetCluster, ok := nodeToCluster[targetNode]
+			if !ok || targetCluster.ID == cluster.ID {
+				continue
 			}
+			connected[targetCluster.ID] = true
 		}
-
-		c.Connections = make([]string, 0, len(connectedClusters))
-		for clusterID := range connectedClusters {
-			c.Connections = append(c.Connections, clusterID)
-		}
-		sort.Strings(c.Connections)
 	}
+	return connected
+}
+
+func (cm *ClusterManager) sortedClusterIDs(clusterMap map[string]bool) []string {
+	ids := make([]string, 0, len(clusterMap))
+	for id := range clusterMap {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	return ids
 }
 
 // GetVisibleNodes returns the list of node IDs that should be rendered.

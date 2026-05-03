@@ -335,32 +335,47 @@ func findConsensusValue(values []float64, delta float64) (float64, bool) {
 		return 0, false
 	}
 
-	// For boolean predictions (0 or 1), use majority.
-	allBoolean := true
+	if isBooleanPrediction(values) {
+		return computeBooleanConsensus(values)
+	}
+
+	return computeNumericConsensus(values, delta)
+}
+
+func isBooleanPrediction(values []float64) bool {
 	for _, v := range values {
 		if v != 0 && v != 1 {
-			allBoolean = false
-			break
+			return false
+		}
+	}
+	return true
+}
+
+func computeBooleanConsensus(values []float64) (float64, bool) {
+	ones := 0
+	for _, v := range values {
+		if v == 1 {
+			ones++
 		}
 	}
 
-	if allBoolean {
-		var ones int
-		for _, v := range values {
-			if v == 1 {
-				ones++
-			}
-		}
-		if ones > len(values)/2 {
-			return 1, true
-		}
-		return 0, true
+	if ones > len(values)/2 {
+		return 1, true
 	}
+	return 0, true
+}
 
-	// For numeric predictions, find the median.
+func computeNumericConsensus(values []float64, delta float64) (float64, bool) {
 	median := computeMedian(values)
+	within := countValuesWithinDelta(values, median, delta)
 
-	// Check if most values are within delta of median.
+	if within > len(values)/2 {
+		return median, true
+	}
+	return 0, false
+}
+
+func countValuesWithinDelta(values []float64, median, delta float64) int {
 	within := 0
 	for _, v := range values {
 		diff := v - median
@@ -371,12 +386,7 @@ func findConsensusValue(values []float64, delta float64) (float64, bool) {
 			within++
 		}
 	}
-
-	if within > len(values)/2 {
-		return median, true
-	}
-
-	return 0, false
+	return within
 }
 
 // computeMedian calculates the median of a slice.

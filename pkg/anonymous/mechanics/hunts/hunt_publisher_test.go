@@ -187,7 +187,7 @@ func TestHuntReceiver_HandleHuntCreated(t *testing.T) {
 	hp.PublishHuntCreated(context.Background(), hunt)
 
 	// Receive the message.
-	err := receiver.HandleMessage(mockPub.Published[len(mockPub.Published)-1].data)
+	err := receiver.HandleMessage(mockPub.Published[len(mockPub.Published)-1].Data)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -231,14 +231,14 @@ func TestHuntReceiver_HandleFragmentClaim(t *testing.T) {
 		smallDistance,
 	)
 
-	proof := NewDHTProximityProof(claimerKey, "claimer-peer", hunt.Fragments[0].LocationHash, 50)
+	proof := mechanics.NewDHTProximityProof(claimerKey, "claimer-peer", hunt.Fragments[0].LocationHash, 50)
 	proof.AddAttestation(*att)
 
 	// Publish claim.
 	hp.PublishFragmentClaim(context.Background(), hunt.ID, 0, claimerKey, proof)
 
 	// Receive the message.
-	err := receiver.HandleMessage(mockPub.Published[len(mockPub.Published)-1].data)
+	err := receiver.HandleMessage(mockPub.Published[len(mockPub.Published)-1].Data)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -269,7 +269,7 @@ func TestHuntReceiver_HandleClueReveal(t *testing.T) {
 	hp.PublishClueReveal(context.Background(), hunt.ID, 0, 1, "New clue")
 
 	// Receive the message.
-	err := receiver.HandleMessage(mockPub.Published[len(mockPub.Published)-1].data)
+	err := receiver.HandleMessage(mockPub.Published[len(mockPub.Published)-1].Data)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -295,7 +295,7 @@ func TestHuntReceiver_HandleHuntCompleted(t *testing.T) {
 	hp.PublishHuntCompleted(context.Background(), hunt)
 
 	// Receive the message.
-	err := receiver.HandleMessage(mockPub.Published[len(mockPub.Published)-1].data)
+	err := receiver.HandleMessage(mockPub.Published[len(mockPub.Published)-1].Data)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -326,7 +326,7 @@ func TestHuntReceiver_HandleHuntExpired(t *testing.T) {
 	hp.PublishHuntExpired(context.Background(), hunt.ID)
 
 	// Receive the message.
-	err := receiver.HandleMessage(mockPub.Published[len(mockPub.Published)-1].data)
+	err := receiver.HandleMessage(mockPub.Published[len(mockPub.Published)-1].Data)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -354,7 +354,7 @@ func TestHuntReceiver_InvalidSignature(t *testing.T) {
 	hp.PublishHuntCreated(context.Background(), hunt)
 
 	// Corrupt the signature.
-	data := mockPub.Published[len(mockPub.Published)-1].data
+	data := mockPub.Published[len(mockPub.Published)-1].Data
 	if len(data) > 10 {
 		data[len(data)-5] ^= 0xFF
 	}
@@ -381,7 +381,7 @@ func TestHuntReceiver_HuntNotFound(t *testing.T) {
 	hp.PublishHuntExpired(context.Background(), huntID)
 
 	// Should fail because hunt doesn't exist.
-	err := receiver.HandleMessage(mockPub.Published[len(mockPub.Published)-1].data)
+	err := receiver.HandleMessage(mockPub.Published[len(mockPub.Published)-1].Data)
 	if err != ErrHuntNotFound {
 		t.Errorf("expected ErrHuntNotFound, got %v", err)
 	}
@@ -463,7 +463,7 @@ func TestProximityProofRoundTrip(t *testing.T) {
 	rand.Read(claimerKey[:])
 	rand.Read(targetHash[:])
 
-	proof := NewDHTProximityProof(claimerKey, "claimer-peer", targetHash, 50)
+	proof := mechanics.NewDHTProximityProof(claimerKey, "claimer-peer", targetHash, 50)
 
 	// Add attestation.
 	_, attesterPriv, _ := ed25519.GenerateKey(rand.Reader)
@@ -472,7 +472,7 @@ func TestProximityProofRoundTrip(t *testing.T) {
 		"attester-peer",
 		claimerKey,
 		targetHash,
-		ComputeXORDistance(PeerIDToHash("attester-peer"), targetHash),
+		mechanics.ComputeXORDistance(mechanics.PeerIDToHash("attester-peer"), targetHash),
 	)
 	proof.AddAttestation(*att)
 
@@ -525,7 +525,7 @@ func BenchmarkHuntReceiver_HandleMessage(b *testing.B) {
 
 	hunt, _ := NewHunt("Benchmark Hunt", seed, initiatorKey, HuntDuration30Min, 5, 100)
 	hp.PublishHuntCreated(context.Background(), hunt)
-	data := mockPub.Published[len(mockPub.Published)-1].data
+	data := mockPub.Published[len(mockPub.Published)-1].Data
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

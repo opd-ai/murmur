@@ -244,45 +244,62 @@ func (p *MarkPanel) updateCategorySelect() {
 
 // updateTargetSelect handles input in target selection mode.
 func (p *MarkPanel) updateTargetSelect() {
-	// Escape to go back.
 	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
 		p.mode = MarkModeCategorySelect
 		return
 	}
 
-	// Up/Down to select target.
-	maxVisible := 6
+	p.handleTargetNavigation()
+	p.handleTargetSelection()
+}
+
+func (p *MarkPanel) handleTargetNavigation() {
+	const maxVisible = 6
+
 	if inpututil.IsKeyJustPressed(ebiten.KeyUp) || inpututil.IsKeyJustPressed(ebiten.KeyK) {
-		if p.selectedTarget > 0 {
-			p.selectedTarget--
-			if p.selectedTarget < p.targetScroll {
-				p.targetScroll = p.selectedTarget
-			}
-		}
+		p.navigateUp(maxVisible)
 	}
 	if inpututil.IsKeyJustPressed(ebiten.KeyDown) || inpututil.IsKeyJustPressed(ebiten.KeyJ) {
-		if p.selectedTarget < len(p.targets)-1 {
-			p.selectedTarget++
-			if p.selectedTarget >= p.targetScroll+maxVisible {
-				p.targetScroll = p.selectedTarget - maxVisible + 1
-			}
+		p.navigateDown(maxVisible)
+	}
+}
+
+func (p *MarkPanel) navigateUp(maxVisible int) {
+	if p.selectedTarget > 0 {
+		p.selectedTarget--
+		if p.selectedTarget < p.targetScroll {
+			p.targetScroll = p.selectedTarget
 		}
 	}
+}
 
-	// Enter to proceed.
-	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) || inpututil.IsKeyJustPressed(ebiten.KeySpace) {
-		if len(p.targets) > 0 {
-			target := p.targets[p.selectedTarget]
-			if target.IsSelf {
-				p.mode = MarkModeError
-				p.errorMsg = "Cannot mark yourself"
-			} else if target.HasMark {
-				p.mode = MarkModeError
-				p.errorMsg = "Already marked this target"
-			} else {
-				p.mode = MarkModeConfirm
-			}
+func (p *MarkPanel) navigateDown(maxVisible int) {
+	if p.selectedTarget < len(p.targets)-1 {
+		p.selectedTarget++
+		if p.selectedTarget >= p.targetScroll+maxVisible {
+			p.targetScroll = p.selectedTarget - maxVisible + 1
 		}
+	}
+}
+
+func (p *MarkPanel) handleTargetSelection() {
+	if !inpututil.IsKeyJustPressed(ebiten.KeyEnter) && !inpututil.IsKeyJustPressed(ebiten.KeySpace) {
+		return
+	}
+
+	if len(p.targets) == 0 {
+		return
+	}
+
+	target := p.targets[p.selectedTarget]
+	if target.IsSelf {
+		p.mode = MarkModeError
+		p.errorMsg = "Cannot mark yourself"
+	} else if target.HasMark {
+		p.mode = MarkModeError
+		p.errorMsg = "Already marked this target"
+	} else {
+		p.mode = MarkModeConfirm
 	}
 }
 

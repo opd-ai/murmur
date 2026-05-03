@@ -169,21 +169,41 @@ func New(cfg Config) (*App, error) {
 // Per TECHNICAL_IMPLEMENTATION.md §2, the initialization order is:
 // Storage → Identity → Networking → Content → Anonymous → Pulse Map → Onboarding.
 func (a *App) Run() error {
-	a.mu.Lock()
-	if a.running {
-		a.mu.Unlock()
-		return errors.New("application already running")
+	if err := a.checkNotRunning(); err != nil {
+		return err
 	}
-	a.running = true
-	a.mu.Unlock()
 
 	fmt.Printf("MURMUR %s starting...\n", a.config.Version)
 
-	// Initialize event bus first (other subsystems may emit events).
+	if err := a.initializeSubsystems(); err != nil {
+		return err
+	}
+
+	a.printStartupInfo()
+	close(a.initComplete)
+
+	if a.firstRun {
+		a.startOnboarding()
+	}
+
+	return a.startRunMode()
+}
+
+func (a *App) checkNotRunning() error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	if a.running {
+		return errors.New("application already running")
+	}
+	a.running = true
+	return nil
+}
+
+func (a *App) initializeSubsystems() error {
 	a.initEventBus()
 	fmt.Println("  [0/7] Event bus started")
 
-	// Initialize subsystems in dependency order.
 	if err := a.initStorage(); err != nil {
 		return murerr.WrapStorageError(err)
 	}
@@ -199,54 +219,48 @@ func (a *App) Run() error {
 	}
 	fmt.Println("  [3/7] Networking initialized")
 
-	// Initialize content subsystem (Wave cache and handlers).
 	if err := a.initContent(); err != nil {
 		return murerr.WrapContentError(err)
 	}
 	fmt.Println("  [4/7] Content initialized")
 
-	// Initialize Shroud beacon and circuit manager.
+	return a.initShroud()
+}
+
+func (a *App) initShroud() error {
 	if err := a.initBeacon(); err != nil {
 		return murerr.WrapBeaconError(err)
 	}
+
 	if a.config.EnableRelay {
 		fmt.Println("  [5/7] Shroud initialized (relay mode)")
 	} else {
 		fmt.Println("  [5/7] Shroud initialized (client mode)")
 	}
 
-	// Pulse Map and Onboarding subsystems are initialized
-	// by their respective packages when messages arrive or UI events occur.
 	fmt.Println("  [6-7] PulseMap/Onboarding: ready for lazy init")
+	return nil
+}
 
+func (a *App) printStartupInfo() {
 	fmt.Printf("MURMUR listening on %v\n", a.subsystems.Host.Addrs())
 	fmt.Printf("Peer ID: %s\n", a.subsystems.Host.PeerID())
 
 	if len(a.config.BootstrapPeers) == 0 {
 		fmt.Println("Warning: No bootstrap peers configured. Running in isolated mode.")
 	}
+}
 
-	// Signal that initialization is complete.
-	close(a.initComplete)
-
-	// Start onboarding flow if this is first run.
-	if a.firstRun {
-		a.startOnboarding()
-	}
-
-	// Start CLI mode if requested.
+func (a *App) startRunMode() error {
 	if a.config.CLIMode {
 		return a.runCLI()
 	}
 
-	// Start Pulse Map UI unless SkipUI is set.
 	if !a.config.SkipUI {
 		return a.runUI()
 	}
 
-	// If SkipUI and not CLI mode, block until context is canceled (headless mode).
 	<-a.ctx.Done()
-
 	return nil
 }
 

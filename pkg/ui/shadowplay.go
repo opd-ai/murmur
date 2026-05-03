@@ -11,6 +11,7 @@ package ui
 
 import (
 	"fmt"
+	"image/color"
 	"sync"
 	"time"
 
@@ -657,85 +658,78 @@ func (sp *ShadowPlayPanel) drawResultsMode(
 		return
 	}
 
-	// Title based on outcome.
-	var title string
+	title, titleColor := sp.getTitleAndColor()
+	sp.drawText(screen, title, x+w/2-80, y+40, titleColor)
+
+	resultText := sp.getPlayerResultText()
+	sp.drawText(screen, resultText, x+w/2-70, y+100, sp.theme.TextSecondary)
+
+	sp.drawText(screen, "Final Standings:", x+20, y+150, sp.theme.TextPrimary)
+	sp.drawFinalStandings(screen, x, y)
+	sp.drawControlHint(screen, x+20, y+h-40, "[Enter] Close")
+}
+
+func (sp *ShadowPlayPanel) getTitleAndColor() (string, color.RGBA) {
 	titleColor := sp.theme.TextPrimary
-	if sp.game.State == ShadowPlayStateEchoesWin {
-		title = "Echoes Victory!"
-		titleColor.R = 60
-		titleColor.G = 180
-		titleColor.B = 120
-	} else if sp.game.State == ShadowPlayStateShadesWin {
-		title = "Shades Victory!"
-		titleColor.R = 180
-		titleColor.G = 60
-		titleColor.B = 80
-	} else {
-		title = "Game Over"
+	switch sp.game.State {
+	case ShadowPlayStateEchoesWin:
+		titleColor.R, titleColor.G, titleColor.B = 60, 180, 120
+		return "Echoes Victory!", titleColor
+	case ShadowPlayStateShadesWin:
+		titleColor.R, titleColor.G, titleColor.B = 180, 60, 80
+		return "Shades Victory!", titleColor
+	default:
+		return "Game Over", titleColor
 	}
+}
 
-	titleOpts := &text.DrawOptions{}
-	titleOpts.GeoM.Translate(float64(x+w/2-80), float64(y+40))
-	titleOpts.ColorScale.ScaleWithColor(titleColor)
-	text.Draw(screen, title, defaultFont, titleOpts)
+func (sp *ShadowPlayPanel) getPlayerResultText() string {
+	wonAsEcho := sp.game.State == ShadowPlayStateEchoesWin && sp.game.MyRole == ShadowRoleEcho
+	wonAsShade := sp.game.State == ShadowPlayStateShadesWin && sp.game.MyRole == ShadowRoleShade
 
-	// Your result.
-	var resultText string
-	if sp.game.State == ShadowPlayStateEchoesWin && sp.game.MyRole == ShadowRoleEcho {
-		resultText = "You won as Echo!"
-	} else if sp.game.State == ShadowPlayStateShadesWin && sp.game.MyRole == ShadowRoleShade {
-		resultText = "You won as Shade!"
-	} else if sp.game.MyRole == ShadowRoleEcho {
-		resultText = "You lost as Echo."
-	} else if sp.game.MyRole == ShadowRoleShade {
-		resultText = "You lost as Shade."
-	} else {
-		resultText = "Game complete."
+	if wonAsEcho {
+		return "You won as Echo!"
 	}
+	if wonAsShade {
+		return "You won as Shade!"
+	}
+	if sp.game.MyRole == ShadowRoleEcho {
+		return "You lost as Echo."
+	}
+	if sp.game.MyRole == ShadowRoleShade {
+		return "You lost as Shade."
+	}
+	return "Game complete."
+}
 
-	resultOpts := &text.DrawOptions{}
-	resultOpts.GeoM.Translate(float64(x+w/2-70), float64(y+100))
-	resultOpts.ColorScale.ScaleWithColor(sp.theme.TextSecondary)
-	text.Draw(screen, resultText, defaultFont, resultOpts)
-
-	// Player results list (show roles).
-	resultsHeader := "Final Standings:"
-	headerOpts := &text.DrawOptions{}
-	headerOpts.GeoM.Translate(float64(x+20), float64(y+150))
-	headerOpts.ColorScale.ScaleWithColor(sp.theme.TextPrimary)
-	text.Draw(screen, resultsHeader, defaultFont, headerOpts)
-
+func (sp *ShadowPlayPanel) drawFinalStandings(screen *ebiten.Image, x, y float32) {
 	for i, player := range sp.game.Players {
 		playerY := y + 180 + float32(i)*25
-
 		name := player.Name
 		if name == "" {
 			name = fmt.Sprintf("Specter %d", i+1)
 		}
 
-		roleStr := ShadowRoleString(player.Role)
 		status := ""
 		if player.IsEliminated {
 			status = " [Eliminated]"
 		}
-
-		lineText := fmt.Sprintf("%s - %s%s", name, roleStr, status)
+		lineText := fmt.Sprintf("%s - %s%s", name, ShadowRoleString(player.Role), status)
 
 		lineColor := sp.theme.TextSecondary
 		if player.Role == ShadowRoleShade {
-			lineColor.R = 180
-			lineColor.G = 80
-			lineColor.B = 100
+			lineColor.R, lineColor.G, lineColor.B = 180, 80, 100
 		}
 
-		opts := &text.DrawOptions{}
-		opts.GeoM.Translate(float64(x+20), float64(playerY))
-		opts.ColorScale.ScaleWithColor(lineColor)
-		text.Draw(screen, lineText, defaultFont, opts)
+		sp.drawText(screen, lineText, x+20, playerY, lineColor)
 	}
+}
 
-	// Continue hint.
-	sp.drawControlHint(screen, x+20, y+h-40, "[Enter] Close")
+func (sp *ShadowPlayPanel) drawText(screen *ebiten.Image, content string, x, y float32, clr color.RGBA) {
+	opts := &text.DrawOptions{}
+	opts.GeoM.Translate(float64(x), float64(y))
+	opts.ColorScale.ScaleWithColor(clr)
+	text.Draw(screen, content, defaultFont, opts)
 }
 
 // drawControlHint draws a control hint text.

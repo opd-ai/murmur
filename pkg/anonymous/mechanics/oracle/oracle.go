@@ -615,3 +615,17 @@ func OraclePredictionTypeString(t OraclePredictionType) string {
 		return "Unknown"
 	}
 }
+
+// AddCommitmentForTest directly adds a commitment to the pool (for testing only).
+func (p *OraclePool) AddCommitmentForTest(key string, c *Commitment) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.commitments[key] = c
+}
+
+// AddPredictionForTest directly adds a prediction to the pool (for testing only).
+func (p *OraclePool) AddPredictionForTest(key string, pred *Prediction) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.predictions[key] = pred
+}

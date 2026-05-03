@@ -252,13 +252,13 @@ func (r *TerritoryReceiver) handleInfluenceClaim(event *pb.TerritoryEvent) error
 	return nil
 }
 
-// handleControlChange processes a control change event.
-func (r *TerritoryReceiver) handleControlChange(event *pb.TerritoryEvent) error {
-	if event.Territory == nil {
-		return fmt.Errorf("control change event missing territory data")
+// upsertTerritoryFromProto converts and upserts territory data.
+func (r *TerritoryReceiver) upsertTerritoryFromProto(protoTerritory *pb.Territory) error {
+	if protoTerritory == nil {
+		return fmt.Errorf("event missing territory data")
 	}
 
-	territory := protoToTerritory(event.Territory)
+	territory := protoToTerritory(protoTerritory)
 	if territory == nil {
 		return fmt.Errorf("failed to convert territory from protobuf")
 	}
@@ -274,26 +274,14 @@ func (r *TerritoryReceiver) handleControlChange(event *pb.TerritoryEvent) error 
 	return nil
 }
 
+// handleControlChange processes a control change event.
+func (r *TerritoryReceiver) handleControlChange(event *pb.TerritoryEvent) error {
+	return r.upsertTerritoryFromProto(event.Territory)
+}
+
 // handleTerritoryDrift processes a territory drift event.
 func (r *TerritoryReceiver) handleTerritoryDrift(event *pb.TerritoryEvent) error {
-	if event.Territory == nil {
-		return fmt.Errorf("territory drift event missing territory data")
-	}
-
-	territory := protoToTerritory(event.Territory)
-	if territory == nil {
-		return fmt.Errorf("failed to convert territory from protobuf")
-	}
-
-	// Update or add to store.
-	existing := r.territoryStore.GetTerritory(territory.ID)
-	if existing == nil {
-		r.territoryStore.AddTerritory(territory)
-	} else {
-		r.territoryStore.UpdateTerritory(territory)
-	}
-
-	return nil
+	return r.upsertTerritoryFromProto(event.Territory)
 }
 
 // TerritoryStore provides storage for territories.

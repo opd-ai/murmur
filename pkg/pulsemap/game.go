@@ -131,61 +131,77 @@ func NewGame(ctx context.Context, keypair *keys.KeyPair, pubsub *gossip.PubSub) 
 // Update is called every tick (1/60 second).
 // Per ebiten.Game interface, this handles input and updates game state.
 func (g *Game) Update() error {
-	// Check for shutdown signal.
-	select {
-	case <-g.shutdown:
+	if g.shouldShutdown() {
 		return ebiten.Termination
-	default:
 	}
 
-	// Handle compose panel toggle (Ctrl+N).
-	if inpututil.IsKeyJustPressed(ebiten.KeyN) && (ebiten.IsKeyPressed(ebiten.KeyControl) || ebiten.IsKeyPressed(ebiten.KeyMeta)) {
-		g.composePanel.Toggle()
+	g.handleComposePanelToggle()
+
+	if g.composePanel.Visible() && g.composePanel.Update() {
+		return nil
 	}
 
-	// If compose panel is visible, let it handle input first.
-	if g.composePanel.Visible() {
-		if g.composePanel.Update() {
-			// Compose panel consumed input, skip other input handling.
-			return nil
-		}
-	}
-
-	// Update renderer (which updates camera animation and time).
 	if err := g.renderer.Update(); err != nil {
 		return err
 	}
 
-	// Handle mouse wheel zoom.
+	g.handleZoom()
+	g.handleDragging()
+	g.engine.Tick()
+	g.frameCount++
+
+	return nil
+}
+
+func (g *Game) shouldShutdown() bool {
+	select {
+	case <-g.shutdown:
+		return true
+	default:
+		return false
+	}
+}
+
+func (g *Game) handleComposePanelToggle() {
+	ctrlPressed := ebiten.IsKeyPressed(ebiten.KeyControl) || ebiten.IsKeyPressed(ebiten.KeyMeta)
+	if inpututil.IsKeyJustPressed(ebiten.KeyN) && ctrlPressed {
+		g.composePanel.Toggle()
+	}
+}
+
+func (g *Game) handleZoom() {
 	_, dy := ebiten.Wheel()
-	if dy != 0 {
-		zoomFactor := 1.0 + dy*0.1
-		mx, my := ebiten.CursorPosition()
-		g.camera.Zoom(zoomFactor, float64(mx), float64(my),
-			float64(g.screenWidth), float64(g.screenHeight))
+	if dy == 0 {
+		return
 	}
 
-	// Handle mouse drag panning.
+	zoomFactor := 1.0 + dy*0.1
+	mx, my := ebiten.CursorPosition()
+	g.camera.Zoom(zoomFactor, float64(mx), float64(my),
+		float64(g.screenWidth), float64(g.screenHeight))
+}
+
+func (g *Game) handleDragging() {
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		g.dragStartX, g.dragStartY = ebiten.CursorPosition()
 		g.isDragging = true
 	}
+
 	if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {
 		g.isDragging = false
 	}
+
 	if g.isDragging && ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
-		mx, my := ebiten.CursorPosition()
-		dx := float64(mx - g.dragStartX)
-		dy := float64(my - g.dragStartY)
-		g.camera.Pan(dx, dy)
-		g.dragStartX, g.dragStartY = mx, my
+		g.updatePanPosition()
 	}
+}
 
-	// Step the force-directed layout engine.
-	g.engine.Tick()
-
-	g.frameCount++
-	return nil
+func (g *Game) updatePanPosition() {
+	mx, my := ebiten.CursorPosition()
+	dx := float64(mx - g.dragStartX)
+	dy := float64(my - g.dragStartY)
+	g.camera.Pan(dx, dy)
+	g.dragStartX, g.dragStartY = mx, my
 }
 
 // Draw renders the Pulse Map to the screen.

@@ -9,6 +9,7 @@ package ui
 
 import (
 	"fmt"
+	"image/color"
 	"sync"
 	"time"
 
@@ -230,7 +231,6 @@ func (p *TerritoryOverviewPanel) Draw(screen *ebiten.Image) {
 		return
 	}
 
-	// Panel dimensions.
 	const (
 		panelWidth  = 400
 		panelHeight = 400
@@ -238,103 +238,89 @@ func (p *TerritoryOverviewPanel) Draw(screen *ebiten.Image) {
 		rowHeight   = 32
 	)
 
+	panelX, panelY := p.calculatePanelPosition(screen, panelWidth, panelHeight)
+
+	p.drawPanelBackground(screen, panelX, panelY, panelWidth, panelHeight)
+	p.drawHeader(screen, panelX, panelY, padding)
+	p.drawTerritoryList(screen, panelX, panelY, panelWidth, padding, rowHeight)
+	p.drawInstructions(screen, panelX, panelY, panelWidth, panelHeight, padding)
+}
+
+func (p *TerritoryOverviewPanel) calculatePanelPosition(screen *ebiten.Image, width, height int) (float32, float32) {
 	screenW := screen.Bounds().Dx()
 	screenH := screen.Bounds().Dy()
-	panelX := float32((screenW - panelWidth) / 2)
-	panelY := float32((screenH - panelHeight) / 2)
+	return float32((screenW - width) / 2), float32((screenH - height) / 2)
+}
 
-	// Background.
-	vector.DrawFilledRect(screen, panelX, panelY, panelWidth, panelHeight, p.theme.PanelBackground, true)
-	vector.StrokeRect(screen, panelX, panelY, panelWidth, panelHeight, 2, p.theme.PanelBorder, true)
+func (p *TerritoryOverviewPanel) drawPanelBackground(screen *ebiten.Image, x, y float32, width, height int) {
+	vector.DrawFilledRect(screen, x, y, float32(width), float32(height), p.theme.PanelBackground, true)
+	vector.StrokeRect(screen, x, y, float32(width), float32(height), 2, p.theme.PanelBorder, true)
+}
 
-	// Title.
-	if defaultFont != nil {
-		op := &text.DrawOptions{}
-		op.GeoM.Translate(float64(panelX+padding), float64(panelY+padding))
-		op.ColorScale.ScaleWithColor(p.theme.TextPrimary)
-		text.Draw(screen, "Territory Overview", defaultFont, op)
+func (p *TerritoryOverviewPanel) drawHeader(screen *ebiten.Image, x, y float32, padding int) {
+	if defaultFont == nil {
+		return
 	}
 
-	// Cycle status.
-	cycleText := p.formatCycleStatus()
-	if defaultFont != nil {
-		op := &text.DrawOptions{}
-		op.GeoM.Translate(float64(panelX+padding), float64(panelY+padding+20))
-		op.ColorScale.ScaleWithColor(p.theme.TextSecondary)
-		text.Draw(screen, cycleText, defaultFont, op)
-	}
+	p.drawTextAt(screen, "Territory Overview", x+float32(padding), y+float32(padding), p.theme.TextPrimary)
+	p.drawTextAt(screen, p.formatCycleStatus(), x+float32(padding), y+float32(padding)+20, p.theme.TextSecondary)
+	p.drawTextAt(screen, fmt.Sprintf("Your influence: %.1f", p.myInfluence), x+float32(padding), y+float32(padding)+40, p.theme.AccentPrimary)
+}
 
-	// My influence.
-	influenceText := fmt.Sprintf("Your influence: %.1f", p.myInfluence)
-	if defaultFont != nil {
-		op := &text.DrawOptions{}
-		op.GeoM.Translate(float64(panelX+padding), float64(panelY+padding+40))
-		op.ColorScale.ScaleWithColor(p.theme.AccentPrimary)
-		text.Draw(screen, influenceText, defaultFont, op)
-	}
-
-	// Territory list.
-	listY := panelY + padding + 70
+func (p *TerritoryOverviewPanel) drawTerritoryList(screen *ebiten.Image, panelX, panelY float32, panelWidth, padding, rowHeight int) {
+	listY := panelY + float32(padding) + 70
 	const visibleRows = 8
 
 	for i := p.scrollOffset; i < len(p.territories) && i < p.scrollOffset+visibleRows; i++ {
 		t := p.territories[i]
-		rowY := listY + float32(i-p.scrollOffset)*rowHeight
+		rowY := listY + float32(i-p.scrollOffset)*float32(rowHeight)
 
-		// Selection highlight.
-		if i == p.selectedIdx {
-			vector.DrawFilledRect(screen, panelX+padding-4, rowY-2, panelWidth-padding*2+8, rowHeight-4, p.theme.Selection, true)
-		}
+		p.drawTerritoryRow(screen, t, i, panelX, rowY, panelWidth, padding, rowHeight)
+	}
+}
 
-		// Territory info.
-		statusIcon := "○" // Neutral.
-		statusColor := p.theme.TextSecondary
-		if t.IsControlled {
-			statusIcon = "◆" // Controlled.
-			statusColor = p.theme.Success
-		} else if t.IsContested {
-			statusIcon = "◇" // Contested.
-			statusColor = p.theme.Warning
-		}
-
-		if defaultFont != nil {
-			// Status icon.
-			op := &text.DrawOptions{}
-			op.GeoM.Translate(float64(panelX+padding), float64(rowY))
-			op.ColorScale.ScaleWithColor(statusColor)
-			text.Draw(screen, statusIcon, defaultFont, op)
-
-			// Territory ID.
-			op2 := &text.DrawOptions{}
-			op2.GeoM.Translate(float64(panelX+padding+20), float64(rowY))
-			op2.ColorScale.ScaleWithColor(p.theme.TextPrimary)
-			idText := t.ID
-			if len(idText) > 12 {
-				idText = idText[:12] + "…"
-			}
-			text.Draw(screen, idText, defaultFont, op2)
-
-			// Influence.
-			op3 := &text.DrawOptions{}
-			op3.GeoM.Translate(float64(panelX+padding+140), float64(rowY))
-			op3.ColorScale.ScaleWithColor(p.theme.AccentPrimary)
-			text.Draw(screen, fmt.Sprintf("%.1f", t.Influence), defaultFont, op3)
-
-			// Member count.
-			op4 := &text.DrawOptions{}
-			op4.GeoM.Translate(float64(panelX+padding+200), float64(rowY))
-			op4.ColorScale.ScaleWithColor(p.theme.TextSecondary)
-			text.Draw(screen, fmt.Sprintf("%d nodes", t.MemberCount), defaultFont, op4)
-		}
+func (p *TerritoryOverviewPanel) drawTerritoryRow(screen *ebiten.Image, t TerritoryInfo, idx int, panelX, rowY float32, panelWidth, padding, rowHeight int) {
+	if idx == p.selectedIdx {
+		vector.DrawFilledRect(screen, panelX+float32(padding)-4, rowY-2, float32(panelWidth-padding*2+8), float32(rowHeight)-4, p.theme.Selection, true)
 	}
 
-	// Instructions.
+	statusIcon, statusColor := p.getTerritoryStatus(t)
+
 	if defaultFont != nil {
-		op := &text.DrawOptions{}
-		op.GeoM.Translate(float64(panelX+padding), float64(panelY+panelHeight-30))
-		op.ColorScale.ScaleWithColor(p.theme.TextSecondary)
-		text.Draw(screen, "↑↓:Select  Enter:Details  G:Go to  Esc:Close", defaultFont, op)
+		p.drawTextAt(screen, statusIcon, panelX+float32(padding), rowY, statusColor)
+
+		idText := t.ID
+		if len(idText) > 12 {
+			idText = idText[:12] + "…"
+		}
+		p.drawTextAt(screen, idText, panelX+float32(padding)+20, rowY, p.theme.TextPrimary)
+		p.drawTextAt(screen, fmt.Sprintf("%.1f", t.Influence), panelX+float32(padding)+140, rowY, p.theme.AccentPrimary)
+		p.drawTextAt(screen, fmt.Sprintf("%d nodes", t.MemberCount), panelX+float32(padding)+200, rowY, p.theme.TextSecondary)
 	}
+}
+
+func (p *TerritoryOverviewPanel) getTerritoryStatus(t TerritoryInfo) (string, color.RGBA) {
+	if t.IsControlled {
+		return "◆", p.theme.Success
+	}
+	if t.IsContested {
+		return "◇", p.theme.Warning
+	}
+	return "○", p.theme.TextSecondary
+}
+
+func (p *TerritoryOverviewPanel) drawInstructions(screen *ebiten.Image, panelX, panelY float32, panelWidth, panelHeight, padding int) {
+	if defaultFont != nil {
+		p.drawTextAt(screen, "↑↓:Select  Enter:Details  G:Go to  Esc:Close",
+			panelX+float32(padding), panelY+float32(panelHeight)-30, p.theme.TextSecondary)
+	}
+}
+
+func (p *TerritoryOverviewPanel) drawTextAt(screen *ebiten.Image, content string, x, y float32, clr color.RGBA) {
+	op := &text.DrawOptions{}
+	op.GeoM.Translate(float64(x), float64(y))
+	op.ColorScale.ScaleWithColor(clr)
+	text.Draw(screen, content, defaultFont, op)
 }
 
 // formatCycleStatus formats the weekly cycle countdown.
