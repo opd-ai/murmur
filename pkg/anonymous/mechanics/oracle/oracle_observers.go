@@ -5,7 +5,6 @@ package oracle
 import (
 	"time"
 
-	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
 )
 
 type GossipVolumeObserver struct {
