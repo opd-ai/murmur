@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"time"
 
-
 	"github.com/zeebo/blake3"
 
 	"github.com/opd-ai/murmur/pkg/store"

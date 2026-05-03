@@ -14,15 +14,15 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
-	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics/gifts"
 )
 
 // GiftEffect represents an active Phantom Gift effect on a node.
 // Per ANONYMOUS_GAME_MECHANICS.md, gifts last 7 days with animated effects.
 type GiftEffect struct {
-	Effect    mechanics.EffectType // Type of visual effect
-	Intensity float32              // 0-1, fades as gift nears expiration
-	Phase     float32              // Animation phase (0 to 2π)
+	Effect    gifts.EffectType // Type of visual effect
+	Intensity float32          // 0-1, fades as gift nears expiration
+	Phase     float32          // Animation phase (0 to 2π)
 }
 
 // GiftOverlay manages Phantom Gift visualization on the Pulse Map.
@@ -39,7 +39,7 @@ func NewGiftOverlay() *GiftOverlay {
 }
 
 // AddEffect registers a gift effect for a recipient node.
-func (o *GiftOverlay) AddEffect(nodeID string, effect mechanics.EffectType, intensity float32) {
+func (o *GiftOverlay) AddEffect(nodeID string, effect gifts.EffectType, intensity float32) {
 	o.Effects[nodeID] = append(o.Effects[nodeID], GiftEffect{
 		Effect:    effect,
 		Intensity: intensity,
@@ -53,7 +53,7 @@ func (o *GiftOverlay) RemoveEffect(nodeID string) {
 }
 
 // RemoveExpiredEffect removes a specific effect by type from a node.
-func (o *GiftOverlay) RemoveExpiredEffect(nodeID string, effect mechanics.EffectType) {
+func (o *GiftOverlay) RemoveExpiredEffect(nodeID string, effect gifts.EffectType) {
 	effects := o.Effects[nodeID]
 	filtered := effects[:0]
 	for _, e := range effects {
@@ -97,7 +97,7 @@ func (o *GiftOverlay) GetEffectTier(nodeID string) int {
 	}
 	maxTier := 0
 	for _, e := range effects {
-		tier := mechanics.RequiredResonance(e.Effect)
+		tier := gifts.RequiredResonance(e.Effect)
 		if tier > maxTier {
 			maxTier = tier
 		}
@@ -128,15 +128,15 @@ func (o *GiftOverlay) Render(dst *ebiten.Image, nodeID string, nodeX, nodeY, nod
 
 // renderEffect draws a single gift effect based on its type and tier.
 func (o *GiftOverlay) renderEffect(dst *ebiten.Image, e GiftEffect, x, y, radius float32) {
-	tier := mechanics.RequiredResonance(e.Effect)
+	tier := gifts.RequiredResonance(e.Effect)
 	alpha := float32(200) * e.Intensity
 
 	switch tier {
-	case mechanics.GiftTierBasic:
+	case gifts.GiftTierBasic:
 		o.renderBasicEffect(dst, e, x, y, radius, alpha)
-	case mechanics.GiftTierExpanded:
+	case gifts.GiftTierExpanded:
 		o.renderExpandedEffect(dst, e, x, y, radius, alpha)
-	case mechanics.GiftTierPremium:
+	case gifts.GiftTierPremium:
 		o.renderPremiumEffect(dst, e, x, y, radius, alpha)
 	}
 }
@@ -149,20 +149,20 @@ func (o *GiftOverlay) renderBasicEffect(dst *ebiten.Image, e GiftEffect, x, y, r
 	cosPhase := float32(math.Cos(float64(e.Phase)))
 
 	switch e.Effect {
-	case mechanics.EffectSoftGlowPulse:
+	case gifts.EffectSoftGlowPulse:
 		// Pulsing glow circle expanding and contracting
 		glowRadius := radius * (1.3 + 0.2*sinPhase)
 		pulseAlpha := uint8(float32(alphaU8) * (0.3 + 0.3*sinPhase))
 		c := color.RGBA{255, 230, 180, pulseAlpha}
 		vector.DrawFilledCircle(dst, x, y, glowRadius, c, true)
 
-	case mechanics.EffectFaintHaloRing:
+	case gifts.EffectFaintHaloRing:
 		// Rotating halo ring around node
 		haloRadius := radius * 1.5
 		c := color.RGBA{220, 200, 255, alphaU8 / 2}
 		vector.StrokeCircle(dst, x, y, haloRadius, 2, c, true)
 
-	case mechanics.EffectGentleParticleDrift:
+	case gifts.EffectGentleParticleDrift:
 		// Small particles drifting upward
 		for i := 0; i < 5; i++ {
 			offset := float32(i) * 0.4
@@ -172,7 +172,7 @@ func (o *GiftOverlay) renderBasicEffect(dst *ebiten.Image, e GiftEffect, x, y, r
 			vector.DrawFilledCircle(dst, pX, pY, 2, c, true)
 		}
 
-	case mechanics.EffectShimmerOverlay:
+	case gifts.EffectShimmerOverlay:
 		// Shimmering spots across node surface
 		for i := 0; i < 3; i++ {
 			angle := e.Phase + float32(i)*2.1
@@ -183,7 +183,7 @@ func (o *GiftOverlay) renderBasicEffect(dst *ebiten.Image, e GiftEffect, x, y, r
 			vector.DrawFilledCircle(dst, shimmerX, shimmerY, 3, c, true)
 		}
 
-	case mechanics.EffectWarmthTintShift:
+	case gifts.EffectWarmthTintShift:
 		// Warm glow that shifts in intensity
 		warmthAlpha := uint8(float32(alphaU8) * (0.2 + 0.15*sinPhase))
 		c := color.RGBA{255, 150, 100, warmthAlpha}
@@ -206,7 +206,7 @@ func (o *GiftOverlay) renderExpandedEffect(dst *ebiten.Image, e GiftEffect, x, y
 	cosPhase := float32(math.Cos(float64(e.Phase)))
 
 	switch e.Effect {
-	case mechanics.EffectOrbitingGeometric:
+	case gifts.EffectOrbitingGeometric:
 		// 3 small geometric shapes orbiting the node
 		for i := 0; i < 3; i++ {
 			angle := e.Phase + float32(i)*2.09 // 120 degrees apart
@@ -221,7 +221,7 @@ func (o *GiftOverlay) renderExpandedEffect(dst *ebiten.Image, e GiftEffect, x, y
 			vector.StrokeLine(dst, ox, oy+6, ox-4, oy, 2, c, true)
 		}
 
-	case mechanics.EffectAuroraColorShift:
+	case gifts.EffectAuroraColorShift:
 		// Color-shifting aurora bands
 		for band := 0; band < 3; band++ {
 			bandY := y - radius*0.5 - float32(band)*8
@@ -233,7 +233,7 @@ func (o *GiftOverlay) renderExpandedEffect(dst *ebiten.Image, e GiftEffect, x, y
 			vector.StrokeLine(dst, x-radius, bandY, x+radius, bandY, 3, c, true)
 		}
 
-	case mechanics.EffectCrystallineFracture:
+	case gifts.EffectCrystallineFracture:
 		// Crystalline fracture lines radiating from center
 		for i := 0; i < 6; i++ {
 			angle := float32(i) * 1.047 // 60 degrees
@@ -244,7 +244,7 @@ func (o *GiftOverlay) renderExpandedEffect(dst *ebiten.Image, e GiftEffect, x, y
 			vector.StrokeLine(dst, x, y, endX, endY, 1, c, true)
 		}
 
-	case mechanics.EffectEmberTrails:
+	case gifts.EffectEmberTrails:
 		// Glowing ember particles rising
 		for i := 0; i < 4; i++ {
 			offset := float32(i) * 0.5
@@ -255,7 +255,7 @@ func (o *GiftOverlay) renderExpandedEffect(dst *ebiten.Image, e GiftEffect, x, y
 			vector.DrawFilledCircle(dst, pX+float32(i)*5, pY, 3, c, true)
 		}
 
-	case mechanics.EffectRippleDistortion:
+	case gifts.EffectRippleDistortion:
 		// Expanding ripple circles
 		for ring := 0; ring < 3; ring++ {
 			rippleRadius := radius * (1.0 + float32(math.Mod(float64(e.Phase+float32(ring)*0.7), math.Pi*2))/math.Pi)
@@ -264,7 +264,7 @@ func (o *GiftOverlay) renderExpandedEffect(dst *ebiten.Image, e GiftEffect, x, y
 			vector.StrokeCircle(dst, x, y, rippleRadius, 1, c, true)
 		}
 
-	case mechanics.EffectStarlightSparkle:
+	case gifts.EffectStarlightSparkle:
 		// Twinkling star sparkles
 		for i := 0; i < 6; i++ {
 			angle := e.Phase*0.3 + float32(i)*1.05
@@ -291,25 +291,25 @@ func (o *GiftOverlay) renderPremiumEffect(dst *ebiten.Image, e GiftEffect, x, y,
 	alphaU8 := uint8(alpha)
 
 	switch e.Effect {
-	case mechanics.EffectMultiParticleSystem:
+	case gifts.EffectMultiParticleSystem:
 		o.renderMultiParticleSystem(dst, e, x, y, radius, alphaU8)
-	case mechanics.EffectFluidSimulation:
+	case gifts.EffectFluidSimulation:
 		o.renderFluidSimulation(dst, e, x, y, radius, alphaU8)
-	case mechanics.EffectGeometricMandala:
+	case gifts.EffectGeometricMandala:
 		o.renderGeometricMandala(dst, e, x, y, radius, alphaU8)
-	case mechanics.EffectVoidGravitation:
+	case gifts.EffectVoidGravitation:
 		o.renderVoidGravitation(dst, e, x, y, radius, alphaU8)
-	case mechanics.EffectPrismaticRefraction:
+	case gifts.EffectPrismaticRefraction:
 		o.renderPrismaticRefraction(dst, e, x, y, radius, alphaU8)
-	case mechanics.EffectNebulaeCloud:
+	case gifts.EffectNebulaeCloud:
 		o.renderNebulaeCloud(dst, e, x, y, radius, alphaU8)
-	case mechanics.EffectElectricArc:
+	case gifts.EffectElectricArc:
 		o.renderElectricArc(dst, e, x, y, radius, alphaU8)
-	case mechanics.EffectCrystalGrowth:
+	case gifts.EffectCrystalGrowth:
 		o.renderCrystalGrowth(dst, e, x, y, radius, alphaU8)
-	case mechanics.EffectPhoenixFlame:
+	case gifts.EffectPhoenixFlame:
 		o.renderPhoenixFlame(dst, e, x, y, radius, alphaU8)
-	case mechanics.EffectShadowWraith:
+	case gifts.EffectShadowWraith:
 		o.renderShadowWraith(dst, e, x, y, radius, alphaU8)
 	default:
 		o.renderFallbackGlow(dst, x, y, radius, alphaU8)

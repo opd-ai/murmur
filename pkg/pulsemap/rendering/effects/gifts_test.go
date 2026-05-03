@@ -17,7 +17,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics/gifts"
 )
 
 // keyToHex converts a public key to a hex string for map keys.
@@ -38,7 +38,7 @@ func keyToHex(key []byte) string {
 // appear on recipient Surface nodes per ROADMAP.md Priority 8 validation criteria.
 func TestPhantomGiftVisibility(t *testing.T) {
 	// Create a gift store
-	store := mechanics.NewGiftStore()
+	store := gifts.NewGiftStore()
 
 	// Create Specter identity (sender) with Resonance 25+
 	var senderKey [32]byte
@@ -60,7 +60,7 @@ func TestPhantomGiftVisibility(t *testing.T) {
 	gift, err := store.CreateGift(
 		senderKey,
 		recipientPub,
-		mechanics.EffectSoftGlowPulse,
+		gifts.EffectSoftGlowPulse,
 		specterResonance,
 		recipientPriv, // Using recipient's key for signing in test
 	)
@@ -93,7 +93,7 @@ func TestPhantomGiftVisibility(t *testing.T) {
 	}
 
 	// Verify effect type matches what was created
-	if effects[0].EffectType != mechanics.EffectSoftGlowPulse {
+	if effects[0].EffectType != gifts.EffectSoftGlowPulse {
 		t.Errorf("Expected EffectSoftGlowPulse, got %v", effects[0].EffectType)
 	}
 
@@ -115,49 +115,49 @@ func TestResonanceTieredEffects(t *testing.T) {
 	tests := []struct {
 		name        string
 		resonance   int
-		effectType  mechanics.EffectType
+		effectType  gifts.EffectType
 		shouldWork  bool
 		description string
 	}{
 		{
 			name:        "Basic effect at Resonance 25",
 			resonance:   25,
-			effectType:  mechanics.EffectSoftGlowPulse,
+			effectType:  gifts.EffectSoftGlowPulse,
 			shouldWork:  true,
 			description: "Shade milestone unlocks basic effects",
 		},
 		{
 			name:        "Basic effect below threshold",
 			resonance:   24,
-			effectType:  mechanics.EffectSoftGlowPulse,
+			effectType:  gifts.EffectSoftGlowPulse,
 			shouldWork:  false,
 			description: "Below Shade milestone cannot send gifts",
 		},
 		{
 			name:        "Expanded effect at Resonance 50",
 			resonance:   50,
-			effectType:  mechanics.EffectOrbitingGeometric,
+			effectType:  gifts.EffectOrbitingGeometric,
 			shouldWork:  true,
 			description: "Wraith milestone unlocks expanded effects",
 		},
 		{
 			name:        "Expanded effect below threshold",
 			resonance:   49,
-			effectType:  mechanics.EffectOrbitingGeometric,
+			effectType:  gifts.EffectOrbitingGeometric,
 			shouldWork:  false,
 			description: "Below Wraith cannot use expanded effects",
 		},
 		{
 			name:        "Premium effect at Resonance 100",
 			resonance:   100,
-			effectType:  mechanics.EffectPhoenixFlame,
+			effectType:  gifts.EffectPhoenixFlame,
 			shouldWork:  true,
 			description: "Phantom milestone unlocks premium effects",
 		},
 		{
 			name:        "Premium effect below threshold",
 			resonance:   99,
-			effectType:  mechanics.EffectPhoenixFlame,
+			effectType:  gifts.EffectPhoenixFlame,
 			shouldWork:  false,
 			description: "Below Phantom cannot use premium effects",
 		},
@@ -165,7 +165,7 @@ func TestResonanceTieredEffects(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			store := mechanics.NewGiftStore()
+			store := gifts.NewGiftStore()
 
 			var senderKey [32]byte
 			_, _ = rand.Read(senderKey[:])
@@ -192,7 +192,7 @@ func TestResonanceTieredEffects(t *testing.T) {
 
 // TestGiftExpiration validates that expired gifts do not appear on nodes.
 func TestGiftExpiration(t *testing.T) {
-	store := mechanics.NewGiftStore()
+	store := gifts.NewGiftStore()
 	renderer := NewGiftRenderer()
 
 	var senderKey [32]byte
@@ -205,7 +205,7 @@ func TestGiftExpiration(t *testing.T) {
 	gift, err := store.CreateGift(
 		senderKey,
 		recipientPub,
-		mechanics.EffectSoftGlowPulse,
+		gifts.EffectSoftGlowPulse,
 		25, // Resonance 25
 		nil,
 	)
@@ -235,24 +235,24 @@ func TestGiftExpiration(t *testing.T) {
 
 // TestEffectConfigurations validates that all effect types have valid configurations.
 func TestEffectConfigurations(t *testing.T) {
-	effectTypes := []mechanics.EffectType{
+	effectTypes := []gifts.EffectType{
 		// Basic effects
-		mechanics.EffectSoftGlowPulse,
-		mechanics.EffectFaintHaloRing,
-		mechanics.EffectGentleParticleDrift,
-		mechanics.EffectShimmerOverlay,
-		mechanics.EffectWarmthTintShift,
+		gifts.EffectSoftGlowPulse,
+		gifts.EffectFaintHaloRing,
+		gifts.EffectGentleParticleDrift,
+		gifts.EffectShimmerOverlay,
+		gifts.EffectWarmthTintShift,
 		// Expanded effects
-		mechanics.EffectOrbitingGeometric,
-		mechanics.EffectAuroraColorShift,
-		mechanics.EffectCrystallineFracture,
-		mechanics.EffectEmberTrails,
-		mechanics.EffectRippleDistortion,
+		gifts.EffectOrbitingGeometric,
+		gifts.EffectAuroraColorShift,
+		gifts.EffectCrystallineFracture,
+		gifts.EffectEmberTrails,
+		gifts.EffectRippleDistortion,
 		// Premium effects
-		mechanics.EffectMultiParticleSystem,
-		mechanics.EffectVoidGravitation,
-		mechanics.EffectPhoenixFlame,
-		mechanics.EffectShadowWraith,
+		gifts.EffectMultiParticleSystem,
+		gifts.EffectVoidGravitation,
+		gifts.EffectPhoenixFlame,
+		gifts.EffectShadowWraith,
 	}
 
 	for _, et := range effectTypes {
@@ -286,12 +286,12 @@ func TestGiftRendererLifecycle(t *testing.T) {
 	}
 
 	// Add gifts for two recipients
-	renderer.SetActiveGifts("recipient1", []*mechanics.Gift{
-		{Effect: mechanics.EffectSoftGlowPulse, ExpiresAt: time.Now().Add(time.Hour)},
-		{Effect: mechanics.EffectFaintHaloRing, ExpiresAt: time.Now().Add(time.Hour)},
+	renderer.SetActiveGifts("recipient1", []*gifts.Gift{
+		{Effect: gifts.EffectSoftGlowPulse, ExpiresAt: time.Now().Add(time.Hour)},
+		{Effect: gifts.EffectFaintHaloRing, ExpiresAt: time.Now().Add(time.Hour)},
 	})
-	renderer.SetActiveGifts("recipient2", []*mechanics.Gift{
-		{Effect: mechanics.EffectEmberTrails, ExpiresAt: time.Now().Add(time.Hour)},
+	renderer.SetActiveGifts("recipient2", []*gifts.Gift{
+		{Effect: gifts.EffectEmberTrails, ExpiresAt: time.Now().Add(time.Hour)},
 	})
 
 	if renderer.ActiveGiftCount() != 3 {

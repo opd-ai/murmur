@@ -18,7 +18,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/vector"
-	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics/marks"
 )
 
 // MarkPanelMode represents the panel display mode.
@@ -46,7 +46,7 @@ type TargetInfo struct {
 type MarkPanelCallbacks struct {
 	// OnPlaceMark is called when user confirms placing a mark.
 	// Returns error if placement fails, nil on success.
-	OnPlaceMark func(category mechanics.MarkCategory, targetID, note string) error
+	OnPlaceMark func(category marks.MarkCategory, targetID, note string) error
 
 	// OnClose is called when user closes the panel.
 	OnClose func()
@@ -116,10 +116,10 @@ func (p *MarkPanel) Show() {
 		resonance = p.callbacks.GetMyResonance()
 	}
 
-	if resonance < mechanics.MarkMinResonance {
+	if resonance < marks.MarkMinResonance {
 		p.visible = true
 		p.mode = MarkModeError
-		p.errorMsg = fmt.Sprintf("Resonance %d required (you have %d)", mechanics.MarkMinResonance, resonance)
+		p.errorMsg = fmt.Sprintf("Resonance %d required (you have %d)", marks.MarkMinResonance, resonance)
 		return
 	}
 
@@ -367,7 +367,7 @@ func (p *MarkPanel) confirmPlacement() {
 		} else {
 			p.mode = MarkModeSuccess
 			p.successMsg = fmt.Sprintf("%s mark placed on %s",
-				mechanics.CategoryString(category), target.DisplayName)
+				marks.CategoryString(category), target.DisplayName)
 		}
 	}()
 }
@@ -456,13 +456,13 @@ func (p *MarkPanel) drawCategorySelect(screen *ebiten.Image) {
 
 	// Category options.
 	categories := []struct {
-		cat  mechanics.MarkCategory
+		cat  marks.MarkCategory
 		name string
 		desc string
 	}{
-		{mechanics.MarkWatcher, "👁 Watcher", "Neutral observation"},
-		{mechanics.MarkAlly, "🛡 Ally", "Positive association"},
-		{mechanics.MarkRival, "⚔ Rival", "Competitive/adversarial"},
+		{marks.MarkWatcher, "👁 Watcher", "Neutral observation"},
+		{marks.MarkAlly, "🛡 Ally", "Positive association"},
+		{marks.MarkRival, "⚔ Rival", "Competitive/adversarial"},
 	}
 
 	for i, cat := range categories {
@@ -494,7 +494,7 @@ func (p *MarkPanel) drawTargetSelect(screen *ebiten.Image) {
 	category := getCategoryFromIndex(p.selectedCategory)
 
 	// Title.
-	title := fmt.Sprintf("Select Target (%s)", mechanics.CategoryString(category))
+	title := fmt.Sprintf("Select Target (%s)", marks.CategoryString(category))
 	p.drawText(screen, title, x, y, p.theme.TextPrimary)
 	y += 30
 
@@ -573,7 +573,7 @@ func (p *MarkPanel) drawConfirm(screen *ebiten.Image) {
 		target = p.targets[p.selectedTarget]
 	}
 
-	p.drawText(screen, fmt.Sprintf("Category: %s", mechanics.CategoryString(category)), x, y, p.theme.TextSecondary)
+	p.drawText(screen, fmt.Sprintf("Category: %s", marks.CategoryString(category)), x, y, p.theme.TextSecondary)
 	y += 25
 	p.drawText(screen, fmt.Sprintf("Target: %s", target.DisplayName), x, y, p.theme.TextSecondary)
 	y += 35
@@ -663,16 +663,16 @@ func (p *MarkPanel) drawError(screen *ebiten.Image) {
 }
 
 // getCategoryFromIndex converts selection index to MarkCategory.
-func getCategoryFromIndex(index int) mechanics.MarkCategory {
+func getCategoryFromIndex(index int) marks.MarkCategory {
 	switch index {
 	case 0:
-		return mechanics.MarkWatcher
+		return marks.MarkWatcher
 	case 1:
-		return mechanics.MarkAlly
+		return marks.MarkAlly
 	case 2:
-		return mechanics.MarkRival
+		return marks.MarkRival
 	default:
-		return mechanics.MarkWatcher
+		return marks.MarkWatcher
 	}
 }
 
@@ -701,7 +701,7 @@ func (p *MarkPanel) SetSuccess(msg string) {
 }
 
 // GetSelectedCategory returns the currently selected mark category.
-func (p *MarkPanel) GetSelectedCategory() mechanics.MarkCategory {
+func (p *MarkPanel) GetSelectedCategory() marks.MarkCategory {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	return getCategoryFromIndex(p.selectedCategory)

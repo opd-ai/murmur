@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics/marks"
 )
 
 // MarkPanelMode represents the panel display mode.
@@ -38,7 +38,7 @@ type TargetInfo struct {
 
 // MarkPanelCallbacks provides callbacks for mark panel actions.
 type MarkPanelCallbacks struct {
-	OnPlaceMark        func(category mechanics.MarkCategory, targetID, note string) error
+	OnPlaceMark        func(category marks.MarkCategory, targetID, note string) error
 	OnClose            func()
 	GetMyResonance     func() int
 	GetTargets         func() []TargetInfo
@@ -89,10 +89,10 @@ func (p *MarkPanel) Show() {
 		resonance = p.callbacks.GetMyResonance()
 	}
 
-	if resonance < mechanics.MarkMinResonance {
+	if resonance < marks.MarkMinResonance {
 		p.visible = true
 		p.mode = MarkModeError
-		p.errorMsg = fmt.Sprintf("Resonance %d required (you have %d)", mechanics.MarkMinResonance, resonance)
+		p.errorMsg = fmt.Sprintf("Resonance %d required (you have %d)", marks.MarkMinResonance, resonance)
 		return
 	}
 
@@ -188,7 +188,7 @@ func (p *MarkPanel) SetSuccess(msg string) {
 }
 
 // GetSelectedCategory returns the currently selected mark category.
-func (p *MarkPanel) GetSelectedCategory() mechanics.MarkCategory {
+func (p *MarkPanel) GetSelectedCategory() marks.MarkCategory {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	return getCategoryFromIndexStub(p.selectedCategory)
@@ -213,16 +213,16 @@ func (p *MarkPanel) GetNote() string {
 }
 
 // getCategoryFromIndexStub converts selection index to MarkCategory.
-func getCategoryFromIndexStub(index int) mechanics.MarkCategory {
+func getCategoryFromIndexStub(index int) marks.MarkCategory {
 	switch index {
 	case 0:
-		return mechanics.MarkWatcher
+		return marks.MarkWatcher
 	case 1:
-		return mechanics.MarkAlly
+		return marks.MarkAlly
 	case 2:
-		return mechanics.MarkRival
+		return marks.MarkRival
 	default:
-		return mechanics.MarkWatcher
+		return marks.MarkWatcher
 	}
 }
 
@@ -314,7 +314,7 @@ func (p *MarkPanel) SimulateConfirmPlacement() error {
 
 	p.mode = MarkModeSuccess
 	p.successMsg = fmt.Sprintf("%s mark placed on %s",
-		mechanics.CategoryString(category), target.DisplayName)
+		marks.CategoryString(category), target.DisplayName)
 	return nil
 }
 

@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics/gifts"
 )
 
 // GiftPanelMode represents the panel display mode.
@@ -39,7 +39,7 @@ type RecipientInfo struct {
 type GiftPanelCallbacks struct {
 	// OnSendGift is called when user confirms sending a gift.
 	// Returns error if send fails, nil on success.
-	OnSendGift func(effect mechanics.EffectType, recipientID string) error
+	OnSendGift func(effect gifts.EffectType, recipientID string) error
 
 	// OnClose is called when user closes the panel.
 	OnClose func()
@@ -68,7 +68,7 @@ type GiftPanel struct {
 	successMsg string
 
 	// Gift selection.
-	availableEffects []mechanics.EffectType
+	availableEffects []gifts.EffectType
 	selectedEffect   int // Index into availableEffects.
 
 	// Recipient selection.
@@ -102,7 +102,7 @@ func (p *GiftPanel) Show() {
 	// Load available effects based on Resonance.
 	if p.callbacks.GetMyResonance != nil {
 		resonance := p.callbacks.GetMyResonance()
-		catalog := mechanics.GiftCatalog{}
+		catalog := gifts.GiftCatalog{}
 		p.availableEffects = catalog.AvailableEffects(resonance)
 	}
 
@@ -215,7 +215,7 @@ func (p *GiftPanel) getValidRecipients() []RecipientInfo {
 }
 
 // GetSelectedEffect returns the currently selected effect.
-func (p *GiftPanel) GetSelectedEffect() mechanics.EffectType {
+func (p *GiftPanel) GetSelectedEffect() gifts.EffectType {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	if p.selectedEffect < len(p.availableEffects) {
@@ -273,7 +273,7 @@ func (p *GiftPanel) RefreshRecipients() {
 }
 
 // GetAvailableEffects returns the available effects (for testing).
-func (p *GiftPanel) GetAvailableEffects() []mechanics.EffectType {
+func (p *GiftPanel) GetAvailableEffects() []gifts.EffectType {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	return p.availableEffects
@@ -288,7 +288,7 @@ func (p *GiftPanel) GetRecipients() []RecipientInfo {
 
 // GiftSentEvent represents a gift that was sent (for event bus).
 type GiftSentEvent struct {
-	Effect      mechanics.EffectType
+	Effect      gifts.EffectType
 	RecipientID string
 	SentAt      time.Time
 }

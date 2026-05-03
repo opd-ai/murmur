@@ -9,12 +9,12 @@ package effects
 import (
 	"image/color"
 
-	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics/gifts"
 )
 
 // GiftEffect represents a visual effect to render for a Phantom Gift.
 type GiftEffect struct {
-	EffectType  mechanics.EffectType
+	EffectType  gifts.EffectType
 	X, Y        float32
 	Size        float32
 	TimeSeconds float32
@@ -54,7 +54,7 @@ func (r *GiftRenderer) Initialize() error {
 }
 
 // SetActiveGifts updates the active gifts for a recipient.
-func (r *GiftRenderer) SetActiveGifts(recipientKeyHex string, gifts []*mechanics.Gift) {
+func (r *GiftRenderer) SetActiveGifts(recipientKeyHex string, gifts []*gifts.Gift) {
 	if gifts == nil {
 		delete(r.activeGifts, recipientKeyHex)
 		return
@@ -120,7 +120,7 @@ func (r *GiftRenderer) ActiveGiftCount() int {
 }
 
 // GetEffectConfig returns the rendering configuration for a gift effect type.
-func GetEffectConfig(effectType mechanics.EffectType) GiftEffectConfig {
+func GetEffectConfig(effectType gifts.EffectType) GiftEffectConfig {
 	return GiftEffectConfig{
 		Color:     color.RGBA{200, 200, 200, 150},
 		Intensity: 0.5,

@@ -9,7 +9,6 @@ package forge
 import (
 	"sync"
 	"time"
-
 )
 
 // ForgePhase represents the current phase of a timed forge challenge.

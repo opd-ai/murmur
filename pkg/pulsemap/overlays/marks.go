@@ -15,15 +15,15 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
-	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics/marks"
 )
 
 // MarkDisplay represents a single mark being displayed on a node.
 type MarkDisplay struct {
-	Mark       *mechanics.Mark // The underlying mark
-	OrbitAngle float32         // Current orbital position (radians)
-	OrbitSpeed float32         // Radians per second
-	PulsePhase float32         // Pulse animation phase
+	Mark       *marks.Mark // The underlying mark
+	OrbitAngle float32     // Current orbital position (radians)
+	OrbitSpeed float32     // Radians per second
+	PulsePhase float32     // Pulse animation phase
 }
 
 // MarkOverlay manages Specter Mark visualization on the Pulse Map.
@@ -45,7 +45,7 @@ func NewMarkOverlay() *MarkOverlay {
 }
 
 // AddMark registers a mark for display on a target node.
-func (o *MarkOverlay) AddMark(targetID string, mark *mechanics.Mark) {
+func (o *MarkOverlay) AddMark(targetID string, mark *marks.Mark) {
 	if mark == nil || mark.IsExpired() {
 		return
 	}
@@ -188,11 +188,11 @@ func (o *MarkOverlay) renderMark(screen *ebiten.Image, d *MarkDisplay, x, y, vis
 
 	// Draw mark icon based on category.
 	switch d.Mark.Category {
-	case mechanics.MarkWatcher:
+	case marks.MarkWatcher:
 		o.drawWatcherIcon(screen, x, y, size, clr)
-	case mechanics.MarkAlly:
+	case marks.MarkAlly:
 		o.drawAllyIcon(screen, x, y, size, clr)
-	case mechanics.MarkRival:
+	case marks.MarkRival:
 		o.drawRivalIcon(screen, x, y, size, clr)
 	default:
 		// Fallback: simple circle.
@@ -204,15 +204,15 @@ func (o *MarkOverlay) renderMark(screen *ebiten.Image, d *MarkDisplay, x, y, vis
 }
 
 // getCategoryColor returns the display color for a mark category.
-func (o *MarkOverlay) getCategoryColor(cat mechanics.MarkCategory) color.RGBA {
+func (o *MarkOverlay) getCategoryColor(cat marks.MarkCategory) color.RGBA {
 	switch cat {
-	case mechanics.MarkWatcher:
+	case marks.MarkWatcher:
 		// Neutral blue-gray for observation.
 		return color.RGBA{R: 130, G: 150, B: 180, A: 200}
-	case mechanics.MarkAlly:
+	case marks.MarkAlly:
 		// Warm green for positive association.
 		return color.RGBA{R: 100, G: 200, B: 130, A: 200}
-	case mechanics.MarkRival:
+	case marks.MarkRival:
 		// Deep red for adversarial.
 		return color.RGBA{R: 200, G: 80, B: 80, A: 200}
 	default:
@@ -312,7 +312,7 @@ func (o *MarkOverlay) HasMarks(targetID string) bool {
 }
 
 // GetDominantCategory returns the most common mark category for a target.
-func (o *MarkOverlay) GetDominantCategory(targetID string) mechanics.MarkCategory {
+func (o *MarkOverlay) GetDominantCategory(targetID string) marks.MarkCategory {
 	o.mu.RLock()
 	displays := o.marks[targetID]
 	o.mu.RUnlock()
@@ -321,14 +321,14 @@ func (o *MarkOverlay) GetDominantCategory(targetID string) mechanics.MarkCategor
 		return 0
 	}
 
-	counts := make(map[mechanics.MarkCategory]int)
+	counts := make(map[marks.MarkCategory]int)
 	for _, d := range displays {
 		if d.Mark != nil {
 			counts[d.Mark.Category]++
 		}
 	}
 
-	var dominant mechanics.MarkCategory
+	var dominant marks.MarkCategory
 	maxCount := 0
 	for cat, count := range counts {
 		if count > maxCount {
@@ -340,7 +340,7 @@ func (o *MarkOverlay) GetDominantCategory(targetID string) mechanics.MarkCategor
 }
 
 // SyncFromStore updates the overlay from a MarkStore.
-func (o *MarkOverlay) SyncFromStore(store *mechanics.MarkStore) {
+func (o *MarkOverlay) SyncFromStore(store *marks.MarkStore) {
 	if store == nil {
 		return
 	}

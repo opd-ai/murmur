@@ -9,12 +9,12 @@ package overlays
 import (
 	"sync"
 
-	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics/marks"
 )
 
 // MarkDisplay represents a single mark being displayed on a node.
 type MarkDisplay struct {
-	Mark       *mechanics.Mark
+	Mark       *marks.Mark
 	OrbitAngle float32
 	OrbitSpeed float32
 	PulsePhase float32
@@ -34,7 +34,7 @@ func NewMarkOverlay() *MarkOverlay {
 }
 
 // AddMark registers a mark for display on a target node.
-func (o *MarkOverlay) AddMark(targetID string, mark *mechanics.Mark) {
+func (o *MarkOverlay) AddMark(targetID string, mark *marks.Mark) {
 	if mark == nil || mark.IsExpired() {
 		return
 	}
@@ -152,7 +152,7 @@ func (o *MarkOverlay) HasMarks(targetID string) bool {
 }
 
 // GetDominantCategory returns the most common mark category for a target.
-func (o *MarkOverlay) GetDominantCategory(targetID string) mechanics.MarkCategory {
+func (o *MarkOverlay) GetDominantCategory(targetID string) marks.MarkCategory {
 	o.mu.RLock()
 	displays := o.marks[targetID]
 	o.mu.RUnlock()
@@ -161,14 +161,14 @@ func (o *MarkOverlay) GetDominantCategory(targetID string) mechanics.MarkCategor
 		return 0
 	}
 
-	counts := make(map[mechanics.MarkCategory]int)
+	counts := make(map[marks.MarkCategory]int)
 	for _, d := range displays {
 		if d.Mark != nil {
 			counts[d.Mark.Category]++
 		}
 	}
 
-	var dominant mechanics.MarkCategory
+	var dominant marks.MarkCategory
 	maxCount := 0
 	for cat, count := range counts {
 		if count > maxCount {
@@ -180,7 +180,7 @@ func (o *MarkOverlay) GetDominantCategory(targetID string) mechanics.MarkCategor
 }
 
 // SyncFromStore updates the overlay from a MarkStore.
-func (o *MarkOverlay) SyncFromStore(store *mechanics.MarkStore) {
+func (o *MarkOverlay) SyncFromStore(store *marks.MarkStore) {
 	if store == nil {
 		return
 	}

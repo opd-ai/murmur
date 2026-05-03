@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics/gifts"
 )
 
 // CrossLayerGiftBridge synchronizes Phantom Gift effects between the Anonymous
@@ -19,7 +19,7 @@ type CrossLayerGiftBridge struct {
 	mu sync.RWMutex
 
 	// Source: Anonymous Layer gift store.
-	giftStore *mechanics.GiftStore
+	giftStore *gifts.GiftStore
 
 	// Target: Surface Layer gift renderer.
 	renderer *GiftRenderer
@@ -33,7 +33,7 @@ type CrossLayerGiftBridge struct {
 }
 
 // NewCrossLayerGiftBridge creates a new bridge between Anonymous and Surface layers.
-func NewCrossLayerGiftBridge(giftStore *mechanics.GiftStore, renderer *GiftRenderer) *CrossLayerGiftBridge {
+func NewCrossLayerGiftBridge(giftStore *gifts.GiftStore, renderer *GiftRenderer) *CrossLayerGiftBridge {
 	return &CrossLayerGiftBridge{
 		giftStore:         giftStore,
 		renderer:          renderer,
@@ -126,7 +126,7 @@ func (b *CrossLayerGiftBridge) Clear() {
 }
 
 // GetGiftStore returns the associated gift store.
-func (b *CrossLayerGiftBridge) GetGiftStore() *mechanics.GiftStore {
+func (b *CrossLayerGiftBridge) GetGiftStore() *gifts.GiftStore {
 	return b.giftStore
 }
 
@@ -136,7 +136,7 @@ func (b *CrossLayerGiftBridge) GetRenderer() *GiftRenderer {
 }
 
 // OnGiftReceived is called when a new gift is received.
-func (b *CrossLayerGiftBridge) OnGiftReceived(recipientHex string, gift *mechanics.Gift) {
+func (b *CrossLayerGiftBridge) OnGiftReceived(recipientHex string, gift *gifts.Gift) {
 	if gift == nil || gift.IsExpired() {
 		return
 	}
@@ -174,7 +174,7 @@ func (b *CrossLayerGiftBridge) OnGiftExpired(recipientHex string) {
 // GiftVisibilityEvent represents a cross-layer visibility event.
 type GiftVisibilityEvent struct {
 	RecipientHex string
-	EffectType   mechanics.EffectType
+	EffectType   gifts.EffectType
 	Visible      bool
 	Timestamp    time.Time
 }

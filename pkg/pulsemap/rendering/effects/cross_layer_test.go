@@ -12,11 +12,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
+	giftspkg "github.com/opd-ai/murmur/pkg/anonymous/mechanics/gifts"
 )
 
 func TestNewCrossLayerGiftBridge(t *testing.T) {
-	giftStore := mechanics.NewGiftStore()
+	giftStore := gifts.NewGiftStore()
 	renderer := NewGiftRenderer()
 
 	bridge := NewCrossLayerGiftBridge(giftStore, renderer)
@@ -36,7 +36,7 @@ func TestNewCrossLayerGiftBridge(t *testing.T) {
 }
 
 func TestCrossLayerBridgeSyncGifts(t *testing.T) {
-	giftStore := mechanics.NewGiftStore()
+	giftStore := gifts.NewGiftStore()
 	renderer := NewGiftRenderer()
 	bridge := NewCrossLayerGiftBridge(giftStore, renderer)
 
@@ -48,7 +48,7 @@ func TestCrossLayerBridgeSyncGifts(t *testing.T) {
 	recipientPub := make([]byte, 32)
 	recipientPub[0] = 1
 
-	_, err := giftStore.CreateGift(senderPub, recipientPub, mechanics.EffectSoftGlowPulse, 25, senderPriv)
+	_, err := giftStore.CreateGift(senderPub, recipientPub, giftspkg.EffectSoftGlowPulse, 25, senderPriv)
 	if err != nil {
 		t.Fatalf("Failed to create gift: %v", err)
 	}
@@ -72,7 +72,7 @@ func TestCrossLayerBridgeSyncGifts(t *testing.T) {
 }
 
 func TestCrossLayerBridgeRateLimiting(t *testing.T) {
-	giftStore := mechanics.NewGiftStore()
+	giftStore := gifts.NewGiftStore()
 	renderer := NewGiftRenderer()
 	bridge := NewCrossLayerGiftBridge(giftStore, renderer)
 
@@ -90,7 +90,7 @@ func TestCrossLayerBridgeRateLimiting(t *testing.T) {
 	recipientPub := make([]byte, 32)
 	recipientPub[0] = 2
 
-	_, _ = giftStore.CreateGift(senderPub, recipientPub, mechanics.EffectSoftGlowPulse, 25, senderPriv)
+	_, _ = giftStore.CreateGift(senderPub, recipientPub, giftspkg.EffectSoftGlowPulse, 25, senderPriv)
 
 	// Immediate second sync should be rate-limited.
 	bridge.SyncGifts()
@@ -108,7 +108,7 @@ func TestCrossLayerBridgeRateLimiting(t *testing.T) {
 }
 
 func TestCrossLayerBridgeClear(t *testing.T) {
-	giftStore := mechanics.NewGiftStore()
+	giftStore := gifts.NewGiftStore()
 	renderer := NewGiftRenderer()
 	bridge := NewCrossLayerGiftBridge(giftStore, renderer)
 
@@ -120,7 +120,7 @@ func TestCrossLayerBridgeClear(t *testing.T) {
 	recipientPub := make([]byte, 32)
 	recipientPub[0] = 3
 
-	_, _ = giftStore.CreateGift(senderPub, recipientPub, mechanics.EffectSoftGlowPulse, 25, senderPriv)
+	_, _ = giftStore.CreateGift(senderPub, recipientPub, giftspkg.EffectSoftGlowPulse, 25, senderPriv)
 	bridge.ForceSync()
 
 	if bridge.GetVisibleRecipientCount() != 1 {
@@ -136,7 +136,7 @@ func TestCrossLayerBridgeClear(t *testing.T) {
 }
 
 func TestCrossLayerBridgeOnGiftReceived(t *testing.T) {
-	giftStore := mechanics.NewGiftStore()
+	giftStore := gifts.NewGiftStore()
 	renderer := NewGiftRenderer()
 	bridge := NewCrossLayerGiftBridge(giftStore, renderer)
 
@@ -148,7 +148,7 @@ func TestCrossLayerBridgeOnGiftReceived(t *testing.T) {
 	recipientPub := make([]byte, 32)
 	recipientPub[0] = 4
 
-	gift, _ := giftStore.CreateGift(senderPub, recipientPub, mechanics.EffectSoftGlowPulse, 25, senderPriv)
+	gift, _ := giftStore.CreateGift(senderPub, recipientPub, giftspkg.EffectSoftGlowPulse, 25, senderPriv)
 
 	// Notify the bridge directly.
 	recipientHex := toHex(recipientPub)
@@ -164,7 +164,7 @@ func TestCrossLayerBridgeOnGiftReceived(t *testing.T) {
 }
 
 func TestCrossLayerBridgeOnGiftExpired(t *testing.T) {
-	giftStore := mechanics.NewGiftStore()
+	giftStore := gifts.NewGiftStore()
 	renderer := NewGiftRenderer()
 	bridge := NewCrossLayerGiftBridge(giftStore, renderer)
 
@@ -176,7 +176,7 @@ func TestCrossLayerBridgeOnGiftExpired(t *testing.T) {
 	recipientPub := make([]byte, 32)
 	recipientPub[0] = 5
 
-	_, _ = giftStore.CreateGift(senderPub, recipientPub, mechanics.EffectSoftGlowPulse, 25, senderPriv)
+	_, _ = giftStore.CreateGift(senderPub, recipientPub, giftspkg.EffectSoftGlowPulse, 25, senderPriv)
 	bridge.ForceSync()
 
 	recipientHex := toHex(recipientPub)
@@ -215,7 +215,7 @@ func TestCrossLayerBridgeNilStore(t *testing.T) {
 }
 
 func TestCrossLayerBridgeNilRenderer(t *testing.T) {
-	giftStore := mechanics.NewGiftStore()
+	giftStore := gifts.NewGiftStore()
 	bridge := NewCrossLayerGiftBridge(giftStore, nil)
 
 	// Should not panic with nil renderer.
@@ -225,7 +225,7 @@ func TestCrossLayerBridgeNilRenderer(t *testing.T) {
 }
 
 func TestCrossLayerBridgeMultipleRecipients(t *testing.T) {
-	giftStore := mechanics.NewGiftStore()
+	giftStore := gifts.NewGiftStore()
 	renderer := NewGiftRenderer()
 	bridge := NewCrossLayerGiftBridge(giftStore, renderer)
 
@@ -238,7 +238,7 @@ func TestCrossLayerBridgeMultipleRecipients(t *testing.T) {
 
 		recipientPub := make([]byte, 32)
 		recipientPub[0] = byte(10 + i)
-		_, _ = giftStore.CreateGift(senderPub, recipientPub, mechanics.EffectSoftGlowPulse, 25, senderPriv)
+		_, _ = giftStore.CreateGift(senderPub, recipientPub, giftspkg.EffectSoftGlowPulse, 25, senderPriv)
 	}
 
 	bridge.ForceSync()
@@ -251,7 +251,7 @@ func TestCrossLayerBridgeMultipleRecipients(t *testing.T) {
 func TestGiftVisibilityEvent(t *testing.T) {
 	event := GiftVisibilityEvent{
 		RecipientHex: "abc123",
-		EffectType:   mechanics.EffectSoftGlowPulse,
+		EffectType:   giftspkg.EffectSoftGlowPulse,
 		Visible:      true,
 		Timestamp:    time.Now(),
 	}
@@ -259,7 +259,7 @@ func TestGiftVisibilityEvent(t *testing.T) {
 	if event.RecipientHex != "abc123" {
 		t.Error("RecipientHex not set correctly")
 	}
-	if event.EffectType != mechanics.EffectSoftGlowPulse {
+	if event.EffectType != giftspkg.EffectSoftGlowPulse {
 		t.Error("EffectType not set correctly")
 	}
 	if !event.Visible {
@@ -268,7 +268,7 @@ func TestGiftVisibilityEvent(t *testing.T) {
 }
 
 func TestGiftStoreGetAllActiveRecipients(t *testing.T) {
-	store := mechanics.NewGiftStore()
+	store := gifts.NewGiftStore()
 
 	// Initially empty.
 	recipients := store.GetAllActiveRecipients()
@@ -284,7 +284,7 @@ func TestGiftStoreGetAllActiveRecipients(t *testing.T) {
 	recipientPub := make([]byte, 32)
 	recipientPub[0] = 20
 
-	_, _ = store.CreateGift(senderPub, recipientPub, mechanics.EffectSoftGlowPulse, 25, senderPriv)
+	_, _ = store.CreateGift(senderPub, recipientPub, giftspkg.EffectSoftGlowPulse, 25, senderPriv)
 
 	recipients = store.GetAllActiveRecipients()
 	if len(recipients) != 1 {
@@ -293,7 +293,7 @@ func TestGiftStoreGetAllActiveRecipients(t *testing.T) {
 }
 
 func TestGiftStoreGetGiftsByRecipientHex(t *testing.T) {
-	store := mechanics.NewGiftStore()
+	store := gifts.NewGiftStore()
 
 	_, senderPriv, _ := ed25519.GenerateKey(nil)
 	var senderPub [32]byte
@@ -310,7 +310,7 @@ func TestGiftStoreGetGiftsByRecipientHex(t *testing.T) {
 	}
 
 	// Create a gift.
-	_, _ = store.CreateGift(senderPub, recipientPub, mechanics.EffectSoftGlowPulse, 25, senderPriv)
+	_, _ = store.CreateGift(senderPub, recipientPub, giftspkg.EffectSoftGlowPulse, 25, senderPriv)
 
 	gifts = store.GetGiftsByRecipientHex(recipientHex)
 	if len(gifts) != 1 {

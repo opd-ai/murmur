@@ -4,7 +4,6 @@ package oracle
 
 import (
 	"time"
-
 )
 
 type GossipVolumeObserver struct {

@@ -9,7 +9,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics/marks"
 )
 
 func TestNewMarkPanel(t *testing.T) {
@@ -114,19 +114,19 @@ func TestMarkPanelCategorySelection(t *testing.T) {
 	panel.Show()
 
 	// Default is Watcher (index 0).
-	if panel.GetSelectedCategory() != mechanics.MarkWatcher {
+	if panel.GetSelectedCategory() != marks.MarkWatcher {
 		t.Errorf("Expected Watcher, got %d", panel.GetSelectedCategory())
 	}
 
 	// Select Ally.
 	panel.SimulateSelectCategory(1)
-	if panel.GetSelectedCategory() != mechanics.MarkAlly {
+	if panel.GetSelectedCategory() != marks.MarkAlly {
 		t.Errorf("Expected Ally, got %d", panel.GetSelectedCategory())
 	}
 
 	// Select Rival.
 	panel.SimulateSelectCategory(2)
-	if panel.GetSelectedCategory() != mechanics.MarkRival {
+	if panel.GetSelectedCategory() != marks.MarkRival {
 		t.Errorf("Expected Rival, got %d", panel.GetSelectedCategory())
 	}
 }
@@ -240,7 +240,7 @@ func TestMarkPanelNoteMaxLength(t *testing.T) {
 
 func TestMarkPanelConfirmPlacement(t *testing.T) {
 	placeCalled := false
-	var placedCategory mechanics.MarkCategory
+	var placedCategory marks.MarkCategory
 	var placedTarget string
 	var placedNote string
 
@@ -250,7 +250,7 @@ func TestMarkPanelConfirmPlacement(t *testing.T) {
 	panel := NewMarkPanel(Theme{}, MarkPanelCallbacks{
 		GetMyResonance: func() int { return 100 },
 		GetTargets:     func() []TargetInfo { return targets },
-		OnPlaceMark: func(cat mechanics.MarkCategory, targetID, note string) error {
+		OnPlaceMark: func(cat marks.MarkCategory, targetID, note string) error {
 			placeCalled = true
 			placedCategory = cat
 			placedTarget = targetID
@@ -271,7 +271,7 @@ func TestMarkPanelConfirmPlacement(t *testing.T) {
 	if !placeCalled {
 		t.Error("OnPlaceMark should be called")
 	}
-	if placedCategory != mechanics.MarkAlly {
+	if placedCategory != marks.MarkAlly {
 		t.Errorf("Expected Ally category, got %d", placedCategory)
 	}
 	if placedTarget != "target123" {
@@ -292,7 +292,7 @@ func TestMarkPanelPlacementError(t *testing.T) {
 	panel := NewMarkPanel(Theme{}, MarkPanelCallbacks{
 		GetMyResonance: func() int { return 100 },
 		GetTargets:     func() []TargetInfo { return targets },
-		OnPlaceMark: func(cat mechanics.MarkCategory, targetID, note string) error {
+		OnPlaceMark: func(cat marks.MarkCategory, targetID, note string) error {
 			return errors.New("network error")
 		},
 	})

@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics/marks"
 )
 
 func TestNewMarkOverlay(t *testing.T) {
@@ -33,7 +33,7 @@ func TestMarkOverlayAddMark(t *testing.T) {
 	overlay := NewMarkOverlay()
 
 	// Create a mark.
-	mark := createTestMark(t, mechanics.MarkWatcher)
+	mark := createTestMark(t, marks.MarkWatcher)
 	targetID := hex.EncodeToString(mark.TargetKey)
 
 	overlay.AddMark(targetID, mark)
@@ -61,7 +61,7 @@ func TestMarkOverlayAddNilMark(t *testing.T) {
 func TestMarkOverlayDuplicatePrevention(t *testing.T) {
 	overlay := NewMarkOverlay()
 
-	mark := createTestMark(t, mechanics.MarkAlly)
+	mark := createTestMark(t, marks.MarkAlly)
 	targetID := hex.EncodeToString(mark.TargetKey)
 
 	overlay.AddMark(targetID, mark)
@@ -75,7 +75,7 @@ func TestMarkOverlayDuplicatePrevention(t *testing.T) {
 func TestMarkOverlayRemoveMark(t *testing.T) {
 	overlay := NewMarkOverlay()
 
-	mark := createTestMark(t, mechanics.MarkRival)
+	mark := createTestMark(t, marks.MarkRival)
 	targetID := hex.EncodeToString(mark.TargetKey)
 
 	overlay.AddMark(targetID, mark)
@@ -102,7 +102,7 @@ func TestMarkOverlayRemoveAllForTarget(t *testing.T) {
 
 	// Add multiple marks from different markers.
 	for i := 0; i < 3; i++ {
-		mark := createTestMarkForTarget(t, mechanics.MarkWatcher, targetKey)
+		mark := createTestMarkForTarget(t, marks.MarkWatcher, targetKey)
 		overlay.AddMark(targetID, mark)
 	}
 
@@ -120,7 +120,7 @@ func TestMarkOverlayRemoveAllForTarget(t *testing.T) {
 func TestMarkOverlayUpdate(t *testing.T) {
 	overlay := NewMarkOverlay()
 
-	mark := createTestMark(t, mechanics.MarkWatcher)
+	mark := createTestMark(t, marks.MarkWatcher)
 	targetID := hex.EncodeToString(mark.TargetKey)
 	overlay.AddMark(targetID, mark)
 
@@ -154,10 +154,10 @@ func TestMarkOverlayClearExpired(t *testing.T) {
 	var targetKeyArr [32]byte
 	copy(targetKeyArr[:], targetKey)
 
-	mark := &mechanics.Mark{
+	mark := &marks.Mark{
 		MarkerKey:  markerKey,
 		TargetKey:  targetKey,
-		Category:   mechanics.MarkWatcher,
+		Category:   marks.MarkWatcher,
 		CreatedAt:  time.Now().Add(-31 * 24 * time.Hour), // Expired
 		ExpiresAt:  time.Now().Add(-1 * time.Hour),
 		Visibility: 0,
@@ -184,16 +184,16 @@ func TestMarkOverlayGetDominantCategory(t *testing.T) {
 	targetID := hex.EncodeToString(targetKey)
 
 	// Add 2 Ally marks and 1 Watcher.
-	mark1 := createTestMarkForTarget(t, mechanics.MarkAlly, targetKey)
-	mark2 := createTestMarkForTarget(t, mechanics.MarkAlly, targetKey)
-	mark3 := createTestMarkForTarget(t, mechanics.MarkWatcher, targetKey)
+	mark1 := createTestMarkForTarget(t, marks.MarkAlly, targetKey)
+	mark2 := createTestMarkForTarget(t, marks.MarkAlly, targetKey)
+	mark3 := createTestMarkForTarget(t, marks.MarkWatcher, targetKey)
 
 	overlay.AddMark(targetID, mark1)
 	overlay.AddMark(targetID, mark2)
 	overlay.AddMark(targetID, mark3)
 
 	dominant := overlay.GetDominantCategory(targetID)
-	if dominant != mechanics.MarkAlly {
+	if dominant != marks.MarkAlly {
 		t.Errorf("Expected dominant category Ally, got %d", dominant)
 	}
 }
@@ -201,7 +201,7 @@ func TestMarkOverlayGetDominantCategory(t *testing.T) {
 func TestMarkOverlayRender(t *testing.T) {
 	overlay := NewMarkOverlay()
 
-	mark := createTestMark(t, mechanics.MarkWatcher)
+	mark := createTestMark(t, marks.MarkWatcher)
 	targetID := hex.EncodeToString(mark.TargetKey)
 	overlay.AddMark(targetID, mark)
 
@@ -211,7 +211,7 @@ func TestMarkOverlayRender(t *testing.T) {
 
 func TestMarkOverlaySyncFromStore(t *testing.T) {
 	overlay := NewMarkOverlay()
-	store := mechanics.NewMarkStore()
+	store := marks.NewMarkStore()
 
 	// Create marks via store (need Resonance >= 100).
 	var markerKey1, markerKey2 [32]byte
@@ -221,8 +221,8 @@ func TestMarkOverlaySyncFromStore(t *testing.T) {
 	targetKey := make([]byte, 32)
 	rand.Read(targetKey)
 
-	_, _ = store.PlaceMark(markerKey1, targetKey, mechanics.MarkWatcher, "test", 100, nil)
-	_, _ = store.PlaceMark(markerKey2, targetKey, mechanics.MarkAlly, "test", 100, nil)
+	_, _ = store.PlaceMark(markerKey1, targetKey, marks.MarkWatcher, "test", 100, nil)
+	_, _ = store.PlaceMark(markerKey2, targetKey, marks.MarkAlly, "test", 100, nil)
 
 	// Sync to overlay.
 	overlay.SyncFromStore(store)
@@ -244,7 +244,7 @@ func TestMarkOverlayMultipleTargets(t *testing.T) {
 
 	// Add marks on 3 different targets.
 	for i := 0; i < 3; i++ {
-		mark := createTestMark(t, mechanics.MarkCategory(i+1))
+		mark := createTestMark(t, marks.MarkCategory(i+1))
 		targetID := hex.EncodeToString(mark.TargetKey)
 		overlay.AddMark(targetID, mark)
 	}
@@ -260,7 +260,7 @@ func TestMarkOverlayConcurrentAccess(t *testing.T) {
 	done := make(chan bool)
 	for i := 0; i < 10; i++ {
 		go func() {
-			mark := createTestMark(t, mechanics.MarkWatcher)
+			mark := createTestMark(t, marks.MarkWatcher)
 			targetID := hex.EncodeToString(mark.TargetKey)
 			overlay.AddMark(targetID, mark)
 			overlay.Update(0.016)
@@ -276,7 +276,7 @@ func TestMarkOverlayConcurrentAccess(t *testing.T) {
 }
 
 // Helper to create a test mark.
-func createTestMark(t *testing.T, category mechanics.MarkCategory) *mechanics.Mark {
+func createTestMark(t *testing.T, category marks.MarkCategory) *marks.Mark {
 	t.Helper()
 
 	_, priv, err := ed25519.GenerateKey(rand.Reader)
@@ -290,7 +290,7 @@ func createTestMark(t *testing.T, category mechanics.MarkCategory) *mechanics.Ma
 	targetKey := make([]byte, 32)
 	rand.Read(targetKey)
 
-	mark := &mechanics.Mark{
+	mark := &marks.Mark{
 		MarkerKey:  markerKey,
 		TargetKey:  targetKey,
 		Category:   category,
@@ -305,7 +305,7 @@ func createTestMark(t *testing.T, category mechanics.MarkCategory) *mechanics.Ma
 }
 
 // Helper to create a test mark for a specific target.
-func createTestMarkForTarget(t *testing.T, category mechanics.MarkCategory, targetKey []byte) *mechanics.Mark {
+func createTestMarkForTarget(t *testing.T, category marks.MarkCategory, targetKey []byte) *marks.Mark {
 	t.Helper()
 
 	_, priv, err := ed25519.GenerateKey(rand.Reader)
@@ -316,7 +316,7 @@ func createTestMarkForTarget(t *testing.T, category mechanics.MarkCategory, targ
 	var markerKey [32]byte
 	copy(markerKey[:], priv.Public().(ed25519.PublicKey)[:32])
 
-	mark := &mechanics.Mark{
+	mark := &marks.Mark{
 		MarkerKey:  markerKey,
 		TargetKey:  targetKey,
 		Category:   category,

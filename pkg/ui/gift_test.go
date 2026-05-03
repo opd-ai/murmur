@@ -9,7 +9,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics/gifts"
 )
 
 func TestNewGiftPanel(t *testing.T) {
@@ -180,7 +180,7 @@ func TestGiftPanelSelectRecipient(t *testing.T) {
 
 func TestGiftPanelConfirmSendSuccess(t *testing.T) {
 	theme := DefaultTheme()
-	var sentEffect mechanics.EffectType
+	var sentEffect gifts.EffectType
 	var sentRecipient string
 
 	callbacks := GiftPanelCallbacks{
@@ -190,7 +190,7 @@ func TestGiftPanelConfirmSendSuccess(t *testing.T) {
 				{NodeID: "abc123", DisplayName: "TestNode", IsSurface: true},
 			}
 		},
-		OnSendGift: func(effect mechanics.EffectType, recipientID string) error {
+		OnSendGift: func(effect gifts.EffectType, recipientID string) error {
 			sentEffect = effect
 			sentRecipient = recipientID
 			return nil
@@ -230,7 +230,7 @@ func TestGiftPanelConfirmSendError(t *testing.T) {
 				{NodeID: "abc123", DisplayName: "TestNode", IsSurface: true},
 			}
 		},
-		OnSendGift: func(effect mechanics.EffectType, recipientID string) error {
+		OnSendGift: func(effect gifts.EffectType, recipientID string) error {
 			return errors.New("daily limit exceeded")
 		},
 	}
@@ -377,7 +377,7 @@ func TestGiftPanelConfirmNoRecipient(t *testing.T) {
 	callbacks := GiftPanelCallbacks{
 		GetMyResonance: func() int { return 50 },
 		GetRecipients:  func() []RecipientInfo { return []RecipientInfo{} },
-		OnSendGift: func(effect mechanics.EffectType, recipientID string) error {
+		OnSendGift: func(effect gifts.EffectType, recipientID string) error {
 			return nil
 		},
 	}
@@ -403,7 +403,7 @@ func TestGiftPanelConfirmNoEffect(t *testing.T) {
 				{NodeID: "abc123", DisplayName: "TestNode"},
 			}
 		},
-		OnSendGift: func(effect mechanics.EffectType, recipientID string) error {
+		OnSendGift: func(effect gifts.EffectType, recipientID string) error {
 			return nil
 		},
 	}
@@ -422,11 +422,11 @@ func TestGiftPanelConfirmNoEffect(t *testing.T) {
 func TestGiftSentEvent(t *testing.T) {
 	// Test the event struct.
 	event := GiftSentEvent{
-		Effect:      mechanics.EffectSoftGlowPulse,
+		Effect:      gifts.EffectSoftGlowPulse,
 		RecipientID: "abc123",
 	}
 
-	if event.Effect != mechanics.EffectSoftGlowPulse {
+	if event.Effect != gifts.EffectSoftGlowPulse {
 		t.Error("Effect not set correctly")
 	}
 	if event.RecipientID != "abc123" {

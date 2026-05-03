@@ -7,7 +7,6 @@ import (
 	"sort"
 	"sync"
 	"time"
-
 )
 
 // ShadowPlayStore manages Shadow Play game instances.

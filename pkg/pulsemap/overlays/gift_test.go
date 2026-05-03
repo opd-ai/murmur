@@ -9,7 +9,7 @@ package overlays
 import (
 	"testing"
 
-	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics/gifts"
 )
 
 func TestNewGiftOverlay(t *testing.T) {
@@ -29,7 +29,7 @@ func TestGiftOverlayAddEffect(t *testing.T) {
 	overlay := NewGiftOverlay()
 	nodeID := "abc123"
 
-	overlay.AddEffect(nodeID, mechanics.EffectSoftGlowPulse, 1.0)
+	overlay.AddEffect(nodeID, gifts.EffectSoftGlowPulse, 1.0)
 
 	if !overlay.HasEffects(nodeID) {
 		t.Error("Expected node to have effects after AddEffect")
@@ -39,7 +39,7 @@ func TestGiftOverlayAddEffect(t *testing.T) {
 	}
 
 	// Add another effect
-	overlay.AddEffect(nodeID, mechanics.EffectOrbitingGeometric, 0.8)
+	overlay.AddEffect(nodeID, gifts.EffectOrbitingGeometric, 0.8)
 	if overlay.EffectCount(nodeID) != 2 {
 		t.Errorf("Expected 2 effects, got %d", overlay.EffectCount(nodeID))
 	}
@@ -49,8 +49,8 @@ func TestGiftOverlayRemoveEffect(t *testing.T) {
 	overlay := NewGiftOverlay()
 	nodeID := "node1"
 
-	overlay.AddEffect(nodeID, mechanics.EffectSoftGlowPulse, 1.0)
-	overlay.AddEffect(nodeID, mechanics.EffectFaintHaloRing, 1.0)
+	overlay.AddEffect(nodeID, gifts.EffectSoftGlowPulse, 1.0)
+	overlay.AddEffect(nodeID, gifts.EffectFaintHaloRing, 1.0)
 
 	if overlay.EffectCount(nodeID) != 2 {
 		t.Errorf("Expected 2 effects, got %d", overlay.EffectCount(nodeID))
@@ -70,12 +70,12 @@ func TestGiftOverlayRemoveExpiredEffect(t *testing.T) {
 	overlay := NewGiftOverlay()
 	nodeID := "node1"
 
-	overlay.AddEffect(nodeID, mechanics.EffectSoftGlowPulse, 1.0)
-	overlay.AddEffect(nodeID, mechanics.EffectFaintHaloRing, 1.0)
-	overlay.AddEffect(nodeID, mechanics.EffectOrbitingGeometric, 1.0)
+	overlay.AddEffect(nodeID, gifts.EffectSoftGlowPulse, 1.0)
+	overlay.AddEffect(nodeID, gifts.EffectFaintHaloRing, 1.0)
+	overlay.AddEffect(nodeID, gifts.EffectOrbitingGeometric, 1.0)
 
 	// Remove only the halo effect
-	overlay.RemoveExpiredEffect(nodeID, mechanics.EffectFaintHaloRing)
+	overlay.RemoveExpiredEffect(nodeID, gifts.EffectFaintHaloRing)
 
 	if overlay.EffectCount(nodeID) != 2 {
 		t.Errorf("Expected 2 effects after removing one, got %d", overlay.EffectCount(nodeID))
@@ -83,7 +83,7 @@ func TestGiftOverlayRemoveExpiredEffect(t *testing.T) {
 
 	// Verify correct effects remain
 	for _, e := range overlay.Effects[nodeID] {
-		if e.Effect == mechanics.EffectFaintHaloRing {
+		if e.Effect == gifts.EffectFaintHaloRing {
 			t.Error("FaintHaloRing effect should have been removed")
 		}
 	}
@@ -93,8 +93,8 @@ func TestGiftOverlayRemoveExpiredEffectClearsEmpty(t *testing.T) {
 	overlay := NewGiftOverlay()
 	nodeID := "node1"
 
-	overlay.AddEffect(nodeID, mechanics.EffectSoftGlowPulse, 1.0)
-	overlay.RemoveExpiredEffect(nodeID, mechanics.EffectSoftGlowPulse)
+	overlay.AddEffect(nodeID, gifts.EffectSoftGlowPulse, 1.0)
+	overlay.RemoveExpiredEffect(nodeID, gifts.EffectSoftGlowPulse)
 
 	if overlay.HasEffects(nodeID) {
 		t.Error("Expected node to have no effects after removing last one")
@@ -108,7 +108,7 @@ func TestGiftOverlayUpdate(t *testing.T) {
 	overlay := NewGiftOverlay()
 	nodeID := "node1"
 
-	overlay.AddEffect(nodeID, mechanics.EffectSoftGlowPulse, 1.0)
+	overlay.AddEffect(nodeID, gifts.EffectSoftGlowPulse, 1.0)
 
 	initialPhase := overlay.Effects[nodeID][0].Phase
 	overlay.Update(0.5) // 0.5 seconds
@@ -123,7 +123,7 @@ func TestGiftOverlayUpdateWrapsPhase(t *testing.T) {
 	overlay := NewGiftOverlay()
 	nodeID := "node1"
 
-	overlay.AddEffect(nodeID, mechanics.EffectSoftGlowPulse, 1.0)
+	overlay.AddEffect(nodeID, gifts.EffectSoftGlowPulse, 1.0)
 	// Force phase near 2π
 	overlay.Effects[nodeID][0].Phase = 6.0
 
@@ -138,21 +138,21 @@ func TestGiftOverlayUpdateWrapsPhase(t *testing.T) {
 func TestGiftOverlayGetEffectTier(t *testing.T) {
 	tests := []struct {
 		name     string
-		effects  []mechanics.EffectType
+		effects  []gifts.EffectType
 		expected int
 	}{
 		{"no effects", nil, 0},
-		{"basic only", []mechanics.EffectType{mechanics.EffectSoftGlowPulse}, 25},
-		{"expanded only", []mechanics.EffectType{mechanics.EffectOrbitingGeometric}, 50},
-		{"premium only", []mechanics.EffectType{mechanics.EffectMultiParticleSystem}, 100},
-		{"mixed - returns highest", []mechanics.EffectType{
-			mechanics.EffectSoftGlowPulse,
-			mechanics.EffectOrbitingGeometric,
-			mechanics.EffectMultiParticleSystem,
+		{"basic only", []gifts.EffectType{gifts.EffectSoftGlowPulse}, 25},
+		{"expanded only", []gifts.EffectType{gifts.EffectOrbitingGeometric}, 50},
+		{"premium only", []gifts.EffectType{gifts.EffectMultiParticleSystem}, 100},
+		{"mixed - returns highest", []gifts.EffectType{
+			gifts.EffectSoftGlowPulse,
+			gifts.EffectOrbitingGeometric,
+			gifts.EffectMultiParticleSystem,
 		}, 100},
-		{"basic and expanded - returns expanded", []mechanics.EffectType{
-			mechanics.EffectSoftGlowPulse,
-			mechanics.EffectAuroraColorShift,
+		{"basic and expanded - returns expanded", []gifts.EffectType{
+			gifts.EffectSoftGlowPulse,
+			gifts.EffectAuroraColorShift,
 		}, 50},
 	}
 
@@ -180,7 +180,7 @@ func TestGiftOverlayHasEffects(t *testing.T) {
 		t.Error("HasEffects should return false for nonexistent node")
 	}
 
-	overlay.AddEffect("exists", mechanics.EffectSoftGlowPulse, 1.0)
+	overlay.AddEffect("exists", gifts.EffectSoftGlowPulse, 1.0)
 	if !overlay.HasEffects("exists") {
 		t.Error("HasEffects should return true for node with effects")
 	}
@@ -193,9 +193,9 @@ func TestGiftOverlayTotalEffectCount(t *testing.T) {
 		t.Error("Empty overlay should have 0 total effects")
 	}
 
-	overlay.AddEffect("node1", mechanics.EffectSoftGlowPulse, 1.0)
-	overlay.AddEffect("node1", mechanics.EffectFaintHaloRing, 1.0)
-	overlay.AddEffect("node2", mechanics.EffectOrbitingGeometric, 1.0)
+	overlay.AddEffect("node1", gifts.EffectSoftGlowPulse, 1.0)
+	overlay.AddEffect("node1", gifts.EffectFaintHaloRing, 1.0)
+	overlay.AddEffect("node2", gifts.EffectOrbitingGeometric, 1.0)
 
 	if overlay.TotalEffectCount() != 3 {
 		t.Errorf("Expected 3 total effects, got %d", overlay.TotalEffectCount())
@@ -205,9 +205,9 @@ func TestGiftOverlayTotalEffectCount(t *testing.T) {
 func TestGiftOverlayClear(t *testing.T) {
 	overlay := NewGiftOverlay()
 
-	overlay.AddEffect("node1", mechanics.EffectSoftGlowPulse, 1.0)
-	overlay.AddEffect("node2", mechanics.EffectOrbitingGeometric, 1.0)
-	overlay.AddEffect("node3", mechanics.EffectMultiParticleSystem, 1.0)
+	overlay.AddEffect("node1", gifts.EffectSoftGlowPulse, 1.0)
+	overlay.AddEffect("node2", gifts.EffectOrbitingGeometric, 1.0)
+	overlay.AddEffect("node3", gifts.EffectMultiParticleSystem, 1.0)
 
 	if overlay.TotalEffectCount() != 3 {
 		t.Fatal("Setup failed")
@@ -227,8 +227,8 @@ func TestGiftOverlayUpdateIntensity(t *testing.T) {
 	overlay := NewGiftOverlay()
 	nodeID := "node1"
 
-	overlay.AddEffect(nodeID, mechanics.EffectSoftGlowPulse, 1.0)
-	overlay.AddEffect(nodeID, mechanics.EffectFaintHaloRing, 1.0)
+	overlay.AddEffect(nodeID, gifts.EffectSoftGlowPulse, 1.0)
+	overlay.AddEffect(nodeID, gifts.EffectFaintHaloRing, 1.0)
 
 	overlay.UpdateIntensity(nodeID, 0.5)
 
@@ -248,54 +248,54 @@ func TestGiftOverlayUpdateIntensityNonexistent(t *testing.T) {
 
 func TestGiftEffectTypes(t *testing.T) {
 	// Verify basic effects return tier 25
-	basicEffects := []mechanics.EffectType{
-		mechanics.EffectSoftGlowPulse,
-		mechanics.EffectFaintHaloRing,
-		mechanics.EffectGentleParticleDrift,
-		mechanics.EffectShimmerOverlay,
-		mechanics.EffectWarmthTintShift,
+	basicEffects := []gifts.EffectType{
+		gifts.EffectSoftGlowPulse,
+		gifts.EffectFaintHaloRing,
+		gifts.EffectGentleParticleDrift,
+		gifts.EffectShimmerOverlay,
+		gifts.EffectWarmthTintShift,
 	}
 
 	for _, effect := range basicEffects {
-		tier := mechanics.RequiredResonance(effect)
+		tier := gifts.RequiredResonance(effect)
 		if tier != 25 {
 			t.Errorf("Basic effect %d should require tier 25, got %d", effect, tier)
 		}
 	}
 
 	// Verify expanded effects return tier 50
-	expandedEffects := []mechanics.EffectType{
-		mechanics.EffectOrbitingGeometric,
-		mechanics.EffectAuroraColorShift,
-		mechanics.EffectCrystallineFracture,
-		mechanics.EffectEmberTrails,
-		mechanics.EffectRippleDistortion,
-		mechanics.EffectStarlightSparkle,
+	expandedEffects := []gifts.EffectType{
+		gifts.EffectOrbitingGeometric,
+		gifts.EffectAuroraColorShift,
+		gifts.EffectCrystallineFracture,
+		gifts.EffectEmberTrails,
+		gifts.EffectRippleDistortion,
+		gifts.EffectStarlightSparkle,
 	}
 
 	for _, effect := range expandedEffects {
-		tier := mechanics.RequiredResonance(effect)
+		tier := gifts.RequiredResonance(effect)
 		if tier != 50 {
 			t.Errorf("Expanded effect %d should require tier 50, got %d", effect, tier)
 		}
 	}
 
 	// Verify premium effects return tier 100
-	premiumEffects := []mechanics.EffectType{
-		mechanics.EffectMultiParticleSystem,
-		mechanics.EffectFluidSimulation,
-		mechanics.EffectGeometricMandala,
-		mechanics.EffectVoidGravitation,
-		mechanics.EffectPrismaticRefraction,
-		mechanics.EffectNebulaeCloud,
-		mechanics.EffectElectricArc,
-		mechanics.EffectCrystalGrowth,
-		mechanics.EffectPhoenixFlame,
-		mechanics.EffectShadowWraith,
+	premiumEffects := []gifts.EffectType{
+		gifts.EffectMultiParticleSystem,
+		gifts.EffectFluidSimulation,
+		gifts.EffectGeometricMandala,
+		gifts.EffectVoidGravitation,
+		gifts.EffectPrismaticRefraction,
+		gifts.EffectNebulaeCloud,
+		gifts.EffectElectricArc,
+		gifts.EffectCrystalGrowth,
+		gifts.EffectPhoenixFlame,
+		gifts.EffectShadowWraith,
 	}
 
 	for _, effect := range premiumEffects {
-		tier := mechanics.RequiredResonance(effect)
+		tier := gifts.RequiredResonance(effect)
 		if tier != 100 {
 			t.Errorf("Premium effect %d should require tier 100, got %d", effect, tier)
 		}
@@ -305,9 +305,9 @@ func TestGiftEffectTypes(t *testing.T) {
 func TestGiftOverlayMultipleNodesIndependent(t *testing.T) {
 	overlay := NewGiftOverlay()
 
-	overlay.AddEffect("node1", mechanics.EffectSoftGlowPulse, 1.0)
-	overlay.AddEffect("node2", mechanics.EffectOrbitingGeometric, 0.8)
-	overlay.AddEffect("node3", mechanics.EffectMultiParticleSystem, 0.6)
+	overlay.AddEffect("node1", gifts.EffectSoftGlowPulse, 1.0)
+	overlay.AddEffect("node2", gifts.EffectOrbitingGeometric, 0.8)
+	overlay.AddEffect("node3", gifts.EffectMultiParticleSystem, 0.6)
 
 	// Remove effects from node2
 	overlay.RemoveEffect("node2")

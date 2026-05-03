@@ -18,7 +18,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/vector"
-	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics/gifts"
 )
 
 // GiftPanelMode represents the panel display mode.
@@ -45,7 +45,7 @@ type RecipientInfo struct {
 type GiftPanelCallbacks struct {
 	// OnSendGift is called when user confirms sending a gift.
 	// Returns error if send fails, nil on success.
-	OnSendGift func(effect mechanics.EffectType, recipientID string) error
+	OnSendGift func(effect gifts.EffectType, recipientID string) error
 
 	// OnClose is called when user closes the panel.
 	OnClose func()
@@ -74,7 +74,7 @@ type GiftPanel struct {
 	successMsg string
 
 	// Gift selection.
-	availableEffects []mechanics.EffectType
+	availableEffects []gifts.EffectType
 	selectedEffect   int // Index into availableEffects.
 
 	// Recipient selection.
@@ -112,7 +112,7 @@ func (p *GiftPanel) Show() {
 	// Load available effects based on Resonance.
 	if p.callbacks.GetMyResonance != nil {
 		resonance := p.callbacks.GetMyResonance()
-		catalog := mechanics.GiftCatalog{}
+		catalog := gifts.GiftCatalog{}
 		p.availableEffects = catalog.AvailableEffects(resonance)
 	}
 
@@ -404,7 +404,7 @@ func (p *GiftPanel) drawEffectSelect(dst *ebiten.Image, startY int) {
 
 	if p.callbacks.GetRemainingGiftsToday != nil {
 		remaining := p.callbacks.GetRemainingGiftsToday()
-		info := fmt.Sprintf("Gifts remaining today: %d/%d", remaining, mechanics.MaxGiftsPerDay)
+		info := fmt.Sprintf("Gifts remaining today: %d/%d", remaining, gifts.MaxGiftsPerDay)
 		p.drawText(dst, info, p.panelX+p.theme.Padding, y, p.theme.TextSecondary)
 		y += 25
 	}
@@ -434,9 +434,9 @@ func (p *GiftPanel) drawEffectSelect(dst *ebiten.Image, startY int) {
 		}
 
 		// Effect name with tier indicator.
-		tier := mechanics.RequiredResonance(effect)
+		tier := gifts.RequiredResonance(effect)
 		tierStr := p.tierString(tier)
-		name := mechanics.EffectName(effect)
+		name := gifts.EffectName(effect)
 		text := fmt.Sprintf("%s [%s]", name, tierStr)
 
 		textColor := p.theme.TextPrimary
@@ -451,11 +451,11 @@ func (p *GiftPanel) drawEffectSelect(dst *ebiten.Image, startY int) {
 // tierString returns a tier indicator string.
 func (p *GiftPanel) tierString(tier int) string {
 	switch tier {
-	case mechanics.GiftTierBasic:
+	case gifts.GiftTierBasic:
 		return "Basic"
-	case mechanics.GiftTierExpanded:
+	case gifts.GiftTierExpanded:
 		return "Expanded"
-	case mechanics.GiftTierPremium:
+	case gifts.GiftTierPremium:
 		return "Premium"
 	default:
 		return "Unknown"
@@ -471,7 +471,7 @@ func (p *GiftPanel) drawRecipientSelect(dst *ebiten.Image, startY int) {
 	// Show selected effect.
 	if p.selectedEffect < len(p.availableEffects) {
 		effect := p.availableEffects[p.selectedEffect]
-		effectName := mechanics.EffectName(effect)
+		effectName := gifts.EffectName(effect)
 		p.drawText(dst, fmt.Sprintf("Effect: %s", effectName), p.panelX+p.theme.Padding, y, p.theme.TextSecondary)
 		y += 25
 	}
@@ -536,7 +536,7 @@ func (p *GiftPanel) drawConfirm(dst *ebiten.Image, startY int) {
 	// Effect.
 	if p.selectedEffect < len(p.availableEffects) {
 		effect := p.availableEffects[p.selectedEffect]
-		p.drawText(dst, fmt.Sprintf("Effect: %s", mechanics.EffectName(effect)),
+		p.drawText(dst, fmt.Sprintf("Effect: %s", gifts.EffectName(effect)),
 			p.panelX+p.theme.Padding, y, p.theme.TextSecondary)
 		y += 25
 	}
@@ -550,7 +550,7 @@ func (p *GiftPanel) drawConfirm(dst *ebiten.Image, startY int) {
 	}
 
 	// Gift duration.
-	p.drawText(dst, fmt.Sprintf("Duration: %d days", int(mechanics.GiftDuration.Hours()/24)),
+	p.drawText(dst, fmt.Sprintf("Duration: %d days", int(gifts.GiftDuration.Hours()/24)),
 		p.panelX+p.theme.Padding, y, p.theme.TextSecondary)
 	y += 40
 
@@ -612,7 +612,7 @@ func (p *GiftPanel) drawText(dst *ebiten.Image, text string, x, y int, col color
 }
 
 // GetSelectedEffect returns the currently selected effect.
-func (p *GiftPanel) GetSelectedEffect() mechanics.EffectType {
+func (p *GiftPanel) GetSelectedEffect() gifts.EffectType {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	if p.selectedEffect < len(p.availableEffects) {
@@ -665,7 +665,7 @@ func giftMin(a, b int) int {
 
 // GiftSentEvent represents a gift that was sent (for event bus).
 type GiftSentEvent struct {
-	Effect      mechanics.EffectType
+	Effect      gifts.EffectType
 	RecipientID string
 	SentAt      time.Time
 }

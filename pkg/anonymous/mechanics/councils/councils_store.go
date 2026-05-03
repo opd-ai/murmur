@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"sort"
 	"sync"
-
 )
 
 // CouncilStore manages Phantom Council instances.
