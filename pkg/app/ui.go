@@ -24,7 +24,9 @@ func (a *App) runUI() error {
 	}
 
 	// Store in subsystems for access by other components.
+	a.mu.Lock()
 	a.subsystems.PulseMapUI = game
+	a.mu.Unlock()
 
 	fmt.Println("Starting Pulse Map visualization...")
 	ebiten.SetWindowSize(800, 600)

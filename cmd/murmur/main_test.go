@@ -32,6 +32,7 @@ func TestRunWithConfig(t *testing.T) {
 		application, createErr = app.New(app.Config{
 			Version: "0.0.0-test",
 			DataDir: tmpDir,
+			SkipUI:  true, // Headless mode for testing.
 		})
 		if createErr != nil {
 			runErr <- createErr
@@ -102,6 +103,7 @@ func TestRunWithConfigDirectly(t *testing.T) {
 		runErr <- runWithConfig(app.Config{
 			Version: "0.0.0-direct",
 			DataDir: tmpDir,
+			SkipUI:  true, // Headless mode for testing.
 		})
 	}()
 
@@ -247,6 +249,7 @@ func TestGracefulShutdown(t *testing.T) {
 
 	application, err := app.New(app.Config{
 		DataDir: tmpDir,
+		SkipUI:  true, // Headless mode for testing.
 	})
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
@@ -351,8 +354,9 @@ func TestRunFunction(t *testing.T) {
 	origAppNew := appNew
 	appChan := make(chan *app.App, 1)
 	appNew = func(cfg app.Config) (*app.App, error) {
-		// Override DataDir to use temp directory.
+		// Override DataDir to use temp directory and enable headless mode.
 		cfg.DataDir = tmpDir
+		cfg.SkipUI = true
 		a, err := app.New(cfg)
 		if err != nil {
 			return nil, err

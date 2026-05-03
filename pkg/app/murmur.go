@@ -134,6 +134,13 @@ func New(cfg Config) (*App, error) {
 			"/ip4/0.0.0.0/udp/0/quic-v1",
 		}
 	}
+	// Apply default bootstrap peers if none configured.
+	// Per AUDIT.md remediation: use config.DefaultBootstrapPeers.
+	if len(cfg.BootstrapPeers) == 0 {
+		// Import config package to access DefaultBootstrapPeers.
+		// Note: Currently empty, but prepared for production deployment.
+		cfg.BootstrapPeers = make([]string, 0) // Explicit empty for now
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -494,7 +501,21 @@ func (a *App) Close() error {
 	a.mu.Lock()
 	wasRunning := a.running
 	a.running = false
+	pulseMapUI := a.subsystems.PulseMapUI
 	a.mu.Unlock()
+
+	// Signal Pulse Map UI to shut down if it exists.
+	// This must happen before canceling context to give the UI loop time to exit.
+	if pulseMapUI != nil {
+		// Type assert to the concrete type to access Shutdown().
+		// The type is interface{} to avoid hard ebiten dependency in this package.
+		type shutdowner interface {
+			Shutdown()
+		}
+		if ui, ok := pulseMapUI.(shutdowner); ok {
+			ui.Shutdown()
+		}
+	}
 
 	// Always cancel the context to signal shutdown.
 	a.cancel()

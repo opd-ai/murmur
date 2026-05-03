@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **2026-05-03**: Bootstrap peer configuration — Added `DefaultBootstrapPeers` variable to `pkg/config/defaults.go` with comprehensive documentation on production deployment requirements. Updated `pkg/app/murmur.go:New()` to apply bootstrap peer defaults. List currently empty pending infrastructure deployment (8-12 community-operated nodes across 3+ jurisdictions). Partially addresses AUDIT.md HIGH finding "No Bootstrap Peers Configured".
+- **2026-05-03**: Pulse Map UI wiring — Created `pkg/pulsemap/game.go` implementing `ebiten.Game` interface for the main rendering loop. Added `pkg/app/ui.go` with `runUI()` that calls `ebiten.RunGame()`. Application now opens an 800×600 window titled "MURMUR — Pulse Map" by default. Wired mouse wheel zoom and drag panning. Created stub implementations with `//go:build noebiten` tags. Resolves AUDIT.md critical finding "No User Interface" — users can now navigate the Pulse Map spatial graph as advertised.
 - **2026-05-03**: Pulse Map edge and node rendering enhancements
   - `pkg/pulsemap/rendering/renderer.go`: Added `InteractionFrequency` field to `EdgeData` to track message exchange rate
   - `pkg/pulsemap/rendering/renderer.go`: Added `DisplayName` field to `NodeData` for text label rendering

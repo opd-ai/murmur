@@ -42,6 +42,9 @@ type Game struct {
 
 	// frame counter for diagnostics.
 	frameCount uint64
+
+	// shutdown signals that the game loop should terminate.
+	shutdown chan struct{}
 }
 
 // NewGame creates a new Pulse Map game instance.
@@ -50,11 +53,32 @@ func NewGame() (*Game, error) {
 	// Create layout engine with initial self node.
 	engine := layout.NewEngine()
 
+	// Add self node at center (ID "self" is a placeholder until we wire identity).
+	selfNode := &layout.Node{
+		ID:          "self",
+		Connections: 0,
+		Activity:    0.0,
+	}
+	engine.AddNode(selfNode)
+
 	// Create renderer.
 	renderer, err := rendering.NewRenderer(engine)
 	if err != nil {
 		return nil, fmt.Errorf("creating renderer: %w", err)
 	}
+
+	// Add self node to renderer for visual display.
+	renderer.AddNode(&rendering.NodeData{
+		ID:          "self",
+		DisplayName: "Self",
+		PublicKey:   []byte{128, 128, 128}, // Placeholder gray
+		IsSpecter:   false,
+		Connections: 0,
+		Activity:    0.0,
+		Resonance:   0.0,
+		HasRing:     false,
+		RingColor:   rendering.ColorFromHash([]byte{128, 128, 128}, false),
+	})
 
 	// Get the camera from the renderer (it creates one internally).
 	camera := renderer.Camera()
@@ -69,12 +93,20 @@ func NewGame() (*Game, error) {
 		input:        input,
 		screenWidth:  800,
 		screenHeight: 600,
+		shutdown:     make(chan struct{}),
 	}, nil
 }
 
 // Update is called every tick (1/60 second).
 // Per ebiten.Game interface, this handles input and updates game state.
 func (g *Game) Update() error {
+	// Check for shutdown signal.
+	select {
+	case <-g.shutdown:
+		return ebiten.Termination
+	default:
+	}
+
 	// Update renderer (which updates camera animation and time).
 	if err := g.renderer.Update(); err != nil {
 		return err
@@ -125,4 +157,15 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 	g.screenWidth = outsideWidth
 	g.screenHeight = outsideHeight
 	return outsideWidth, outsideHeight
+}
+
+// Shutdown signals the game loop to terminate cleanly.
+// This causes Update() to return ebiten.Termination, which exits ebiten.RunGame().
+func (g *Game) Shutdown() {
+	select {
+	case <-g.shutdown:
+		// Already closed.
+	default:
+		close(g.shutdown)
+	}
 }
