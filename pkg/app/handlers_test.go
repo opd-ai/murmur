@@ -167,7 +167,7 @@ func TestHandlers_ValidateHeartbeat(t *testing.T) {
 	}
 
 	// Sign the heartbeat.
-	sigData := h.heartbeatSignatureData(hb)
+	sigData := heartbeatSignatureData(hb)
 	hb.Signature = ed25519.Sign(kp.PrivateKey, sigData)
 
 	// Test valid heartbeat.

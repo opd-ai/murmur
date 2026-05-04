@@ -559,7 +559,7 @@ func (h *Handlers) validateHeartbeat(hb *pb.Heartbeat) error {
 	}
 
 	// Signature is over peer_id + timestamp.
-	sigData := h.heartbeatSignatureData(hb)
+	sigData := heartbeatSignatureData(hb)
 
 	if !ed25519.Verify(hb.PublicKey, sigData, hb.Signature) {
 		return ErrInvalidSignature
@@ -572,18 +572,6 @@ func (h *Handlers) validateHeartbeat(hb *pb.Heartbeat) error {
 	}
 
 	return nil
-}
-
-// heartbeatSignatureData builds the data to verify for a heartbeat.
-func (h *Handlers) heartbeatSignatureData(hb *pb.Heartbeat) []byte {
-	var data []byte
-	data = append(data, []byte(hb.PeerId)...)
-
-	ts := make([]byte, 8)
-	binary.BigEndian.PutUint64(ts, uint64(hb.Timestamp))
-	data = append(data, ts...)
-
-	return data
 }
 
 // validateRelayAdvertisement validates a relay advertisement's signature.

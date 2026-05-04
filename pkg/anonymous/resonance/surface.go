@@ -338,13 +338,7 @@ func (s *SurfaceScore) SetFirstSeen(t time.Time) {
 func (s *SurfaceScore) SetUptime(fraction float64) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if fraction < 0 {
-		fraction = 0
-	}
-	if fraction > 1 {
-		fraction = 1
-	}
-	s.Uptime30d = fraction
+	s.Uptime30d = clampFraction(fraction)
 	s.invalidateCache()
 }
 
@@ -548,37 +542,14 @@ func (s *SurfaceScore) GetSignalBreakdown() map[string]float64 {
 
 // SurfaceScorer manages Surface Resonance scores for multiple identities.
 type SurfaceScorer struct {
-	mu     sync.RWMutex
-	scores map[string]*SurfaceScore // identity_id -> SurfaceScore
+	*GenericScorer[*SurfaceScore]
 }
 
 // NewSurfaceScorer creates a new Surface Resonance scorer.
 func NewSurfaceScorer() *SurfaceScorer {
 	return &SurfaceScorer{
-		scores: make(map[string]*SurfaceScore),
+		GenericScorer: NewGenericScorer(NewSurfaceScore),
 	}
-}
-
-// GetScore retrieves or creates a SurfaceScore for an identity.
-func (sc *SurfaceScorer) GetScore(identityID string) *SurfaceScore {
-	sc.mu.Lock()
-	defer sc.mu.Unlock()
-
-	if score, ok := sc.scores[identityID]; ok {
-		return score
-	}
-
-	score := NewSurfaceScore()
-	sc.scores[identityID] = score
-	return score
-}
-
-// SetScore sets a SurfaceScore for an identity.
-func (sc *SurfaceScorer) SetScore(identityID string, score *SurfaceScore) {
-	sc.mu.Lock()
-	defer sc.mu.Unlock()
-
-	sc.scores[identityID] = score
 }
 
 // RemoveScore removes an identity's score.

@@ -531,7 +531,7 @@ func (r *CouncilReceiver) extractVoteIDs(event *pb.CouncilEvent) ([32]byte, [32]
 }
 
 // findProposal searches for a proposal by ID within a council.
-func (r *CouncilReceiver) findProposal(council *Council, proposalID [32]byte) *CouncilProposal {
+func (r *CouncilReceiver) findProposal(council *PhantomCouncil, proposalID [32]byte) *CouncilProposal {
 	for _, p := range council.Proposals {
 		if p.ID == proposalID {
 			return p

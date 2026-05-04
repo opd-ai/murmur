@@ -358,37 +358,14 @@ func (s *Score) EchoIndex() float64 {
 
 // Scorer manages Resonance scores for multiple Specters.
 type Scorer struct {
-	mu     sync.RWMutex
-	scores map[string]*Score // specter_id -> Score
+	*GenericScorer[*Score]
 }
 
 // NewScorer creates a new Resonance scorer.
 func NewScorer() *Scorer {
 	return &Scorer{
-		scores: make(map[string]*Score),
+		GenericScorer: NewGenericScorer(NewScore),
 	}
-}
-
-// GetScore retrieves or creates a Score for a Specter.
-func (sc *Scorer) GetScore(specterID string) *Score {
-	sc.mu.Lock()
-	defer sc.mu.Unlock()
-
-	if score, ok := sc.scores[specterID]; ok {
-		return score
-	}
-
-	score := NewScore()
-	sc.scores[specterID] = score
-	return score
-}
-
-// SetScore sets a Score for a Specter.
-func (sc *Scorer) SetScore(specterID string, score *Score) {
-	sc.mu.Lock()
-	defer sc.mu.Unlock()
-
-	sc.scores[specterID] = score
 }
 
 // RemoveScore removes a Specter's score.

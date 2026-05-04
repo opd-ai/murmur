@@ -248,18 +248,10 @@ func buildBeaconMetadata(opts BeaconOptions) map[string][]byte {
 	return metadata
 }
 
-// int64ToSlice converts an int64 to a byte slice.
+// int64ToSlice converts an int64 to a byte slice (wraps int64ToBytes).
 func int64ToSlice(v int64) []byte {
-	b := make([]byte, 8)
-	b[0] = byte(v >> 56)
-	b[1] = byte(v >> 48)
-	b[2] = byte(v >> 40)
-	b[3] = byte(v >> 32)
-	b[4] = byte(v >> 24)
-	b[5] = byte(v >> 16)
-	b[6] = byte(v >> 8)
-	b[7] = byte(v)
-	return b
+	arr := int64ToBytes(v)
+	return arr[:]
 }
 
 // sliceToInt64 converts a byte slice to int64.

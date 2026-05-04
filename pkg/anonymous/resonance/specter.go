@@ -347,13 +347,7 @@ func (s *SpecterScore) AddZKClaim() {
 func (s *SpecterScore) SetShroudUptime(fraction float64) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if fraction < 0 {
-		fraction = 0
-	}
-	if fraction > 1 {
-		fraction = 1
-	}
-	s.ShroudUptime30d = fraction
+	s.ShroudUptime30d = clampFraction(fraction)
 	s.invalidateCache()
 }
 
@@ -408,13 +402,7 @@ func (s *SpecterScore) SetSpecterFirstSeen(t time.Time) {
 func (s *SpecterScore) SetSpecterUptime(fraction float64) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if fraction < 0 {
-		fraction = 0
-	}
-	if fraction > 1 {
-		fraction = 1
-	}
-	s.SpecterUptime30d = fraction
+	s.SpecterUptime30d = clampFraction(fraction)
 	s.invalidateCache()
 }
 
@@ -607,37 +595,14 @@ func (s *SpecterScore) GetSignalBreakdown() map[string]float64 {
 
 // SpecterScorer manages Specter Resonance scores for multiple Specters.
 type SpecterScorer struct {
-	mu     sync.RWMutex
-	scores map[string]*SpecterScore // specter_id -> SpecterScore
+	*GenericScorer[*SpecterScore]
 }
 
 // NewSpecterScorer creates a new Specter Resonance scorer.
 func NewSpecterScorer() *SpecterScorer {
 	return &SpecterScorer{
-		scores: make(map[string]*SpecterScore),
+		GenericScorer: NewGenericScorer(NewSpecterScore),
 	}
-}
-
-// GetScore retrieves or creates a SpecterScore for a Specter.
-func (sc *SpecterScorer) GetScore(specterID string) *SpecterScore {
-	sc.mu.Lock()
-	defer sc.mu.Unlock()
-
-	if score, ok := sc.scores[specterID]; ok {
-		return score
-	}
-
-	score := NewSpecterScore()
-	sc.scores[specterID] = score
-	return score
-}
-
-// SetScore sets a SpecterScore for a Specter.
-func (sc *SpecterScorer) SetScore(specterID string, score *SpecterScore) {
-	sc.mu.Lock()
-	defer sc.mu.Unlock()
-
-	sc.scores[specterID] = score
 }
 
 // RemoveScore removes a Specter's score.

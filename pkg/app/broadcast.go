@@ -9,6 +9,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/opd-ai/murmur/pkg/content/storage"
 	"github.com/opd-ai/murmur/pkg/content/waves"
 	"github.com/opd-ai/murmur/pkg/identity/keys"
 	"github.com/opd-ai/murmur/pkg/networking/gossip"
@@ -51,7 +52,7 @@ func (a *App) BroadcastWave(ctx context.Context, wave *pb.Wave) error {
 }
 
 // getSubsystems retrieves the necessary subsystems for broadcasting.
-func (a *App) getSubsystems() (*identity.Manager, *pubsub.PubSub, *storage.WaveCache, error) {
+func (a *App) getSubsystems() (*keys.KeyPair, *gossip.PubSub, *storage.Cache, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
@@ -62,7 +63,7 @@ func (a *App) getSubsystems() (*identity.Manager, *pubsub.PubSub, *storage.WaveC
 }
 
 // serializeWaveEnvelope creates a signed envelope and serializes it.
-func (a *App) serializeWaveEnvelope(wave *pb.Wave, identity *identity.Manager) ([]byte, error) {
+func (a *App) serializeWaveEnvelope(wave *pb.Wave, identity *keys.KeyPair) ([]byte, error) {
 	payload, err := proto.Marshal(wave)
 	if err != nil {
 		return nil, err
@@ -77,7 +78,7 @@ func (a *App) serializeWaveEnvelope(wave *pb.Wave, identity *identity.Manager) (
 }
 
 // storeWaveLocally caches the wave locally before network broadcast.
-func (a *App) storeWaveLocally(cache *storage.WaveCache, wave *pb.Wave) {
+func (a *App) storeWaveLocally(cache *storage.Cache, wave *pb.Wave) {
 	if cache != nil {
 		_ = cache.Put(wave) // Log but don't fail - publishing is more important
 	}
