@@ -620,11 +620,11 @@
 - [x] **Ripple propagation animation** — RippleManager implemented with shader integration, Update/Draw cycle; needs game loop wiring
 - [x] **Amplification trail** — visual connection between amplifier and original author
 - [x] **Activity halo decay** — 60-minute intensity decay curve
-- [ ] **GPU particle system** — efficient ambient + mechanic-specific particle rendering
-- [ ] **Milestone visual effects** — Ember glow, Spark pulse, Flame trail, Blaze palette, Inferno aura, Corona layers
-- [ ] **Specter milestone effects** — Whisper trail, Shade glow, Wraith particles, through Abyss shader
-- [ ] **Blur effects** — background animation for depth
-- [ ] **Translucency compositing** — layer separation blending
+- [x] **GPU particle system** — efficient ambient + mechanic-specific particle rendering
+- [x] **Milestone visual effects** — Ember glow, Spark pulse, Flame trail, Blaze palette, Inferno aura, Corona layers
+- [x] **Specter milestone effects** — Whisper trail, Shade glow, Wraith particles, through Abyss shader
+- [x] **Blur effects** — background animation for depth
+- [x] **Translucency compositing** — layer separation blending
 
 ### Overlays (`pkg/pulsemap/overlays/`)
 

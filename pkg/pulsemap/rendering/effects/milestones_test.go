@@ -1,7 +1,7 @@
 // Package effects tests milestone visual effects.
 //
-//go:build noebiten
-// +build noebiten
+//go:build test
+// +build test
 
 package effects
 
