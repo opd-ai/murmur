@@ -5,6 +5,9 @@
 // generosity from a Specter to any node (Surface or Anonymous).
 //
 
+//go:build !test
+// +build !test
+
 package ui
 
 import (

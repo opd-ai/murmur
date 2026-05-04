@@ -17,6 +17,9 @@
 // - Abyss (500) — void shader (Fortress only)
 //
 
+//go:build !test
+// +build !test
+
 package effects
 
 import (

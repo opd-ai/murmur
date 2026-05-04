@@ -6,6 +6,9 @@
 // with orbiting entries".
 //
 
+//go:build !test
+// +build !test
+
 package overlays
 
 import (

@@ -3,6 +3,9 @@
 // allows users to choose between Open, Hybrid, and Fortress modes.
 //
 
+//go:build !test
+// +build !test
+
 package screens
 
 import (

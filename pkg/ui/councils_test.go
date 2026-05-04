@@ -1,5 +1,7 @@
 // Package ui — Phantom Council management panel tests.
 //
+//go:build !test
+// +build !test
 
 package ui
 

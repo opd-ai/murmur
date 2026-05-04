@@ -5,6 +5,9 @@
 // (neutral, controlled, contested).
 //
 
+//go:build !test
+// +build !test
+
 package overlays
 
 import (

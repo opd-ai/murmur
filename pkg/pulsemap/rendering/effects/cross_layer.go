@@ -5,6 +5,9 @@
 // visual effects on recipient nodes visible in the Surface Layer Pulse Map.
 //
 
+//go:build !test
+// +build !test
+
 package effects
 
 import (

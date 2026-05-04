@@ -3,6 +3,9 @@
 // Oracle Pools display as animated vortex icons with prediction state indicators.
 //
 
+//go:build !test
+// +build !test
+
 package overlays
 
 import (

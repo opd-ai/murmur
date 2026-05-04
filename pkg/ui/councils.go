@@ -5,6 +5,9 @@
 // private, anonymous coordination groups for high-Resonance Specters."
 //
 
+//go:build !test
+// +build !test
+
 package ui
 
 import (

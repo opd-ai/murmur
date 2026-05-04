@@ -2,6 +2,9 @@
 // Per PULSE_MAP.md, effects include glow, ripple, and spectra shaders.
 //
 
+//go:build !test
+// +build !test
+
 package effects
 
 import (

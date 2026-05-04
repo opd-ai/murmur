@@ -3,6 +3,9 @@
 // influence scores, weekly cycle status".
 //
 
+//go:build !test
+// +build !test
+
 package ui
 
 import (

@@ -1,6 +1,9 @@
 // UI initialization for Ebitengine builds.
 //
 
+//go:build !test
+// +build !test
+
 package app
 
 import (

@@ -5,6 +5,9 @@
 // gatherings where participants use single-use identities.
 //
 
+//go:build !test
+// +build !test
+
 package ui
 
 import (

@@ -1,5 +1,7 @@
 // Package overlays - Surface Spark overlay tests.
 //
+//go:build !test
+// +build !test
 
 package overlays
 

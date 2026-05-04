@@ -1,5 +1,7 @@
 // Package ui provides the Compose panel for creating Waves.
 //
+//go:build !test
+// +build !test
 
 package ui
 

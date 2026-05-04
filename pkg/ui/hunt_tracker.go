@@ -2,6 +2,9 @@
 // Per ROADMAP.md line 434: "UI: Hunt tracker overlay — fragment locations, clue display, leaderboard".
 //
 
+//go:build !test
+// +build !test
+
 package ui
 
 import (

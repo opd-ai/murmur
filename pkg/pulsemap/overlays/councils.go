@@ -5,6 +5,9 @@
 // and glowing effects during active communication.
 //
 
+//go:build !test
+// +build !test
+
 package overlays
 
 import (

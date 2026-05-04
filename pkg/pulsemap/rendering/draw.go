@@ -3,6 +3,9 @@
 // with Kage shaders for glow and ripple effects.
 //
 
+//go:build !test
+// +build !test
+
 package rendering
 
 import (

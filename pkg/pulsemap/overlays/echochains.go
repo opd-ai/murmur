@@ -5,6 +5,9 @@
 // Per ROADMAP.md line 565: "Pulse Map visualization — animated amplification trail between nodes"
 //
 
+//go:build !test
+// +build !test
+
 package overlays
 
 import (

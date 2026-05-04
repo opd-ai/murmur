@@ -1,7 +1,7 @@
 // Package ui provides tests for UI panels.
 //
-//go:build noebiten
-// +build noebiten
+//go:build test
+// +build test
 
 package ui
 

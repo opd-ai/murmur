@@ -4,6 +4,9 @@
 // as orbiting sigil icons on marked Surface nodes.
 //
 
+//go:build !test
+// +build !test
+
 package overlays
 
 import (

@@ -2,6 +2,9 @@
 // Per DESIGN_DOCUMENT.md, the Pulse Map shows anonymous activity as overlays.
 //
 
+//go:build !test
+// +build !test
+
 package overlays
 
 import (

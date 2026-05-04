@@ -5,6 +5,9 @@
 // that leverages anonymity as its core mechanic."
 //
 
+//go:build !test
+// +build !test
+
 package ui
 
 import (

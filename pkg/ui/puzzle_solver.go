@@ -2,6 +2,9 @@
 // Per ROADMAP.md line 419: "UI: puzzle solving interface — submit solution with feedback".
 //
 
+//go:build !test
+// +build !test
+
 package ui
 
 import (

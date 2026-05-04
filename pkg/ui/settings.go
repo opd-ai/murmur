@@ -1,6 +1,9 @@
 // Package ui provides the Settings panel for configuration.
 //
 
+//go:build !test
+// +build !test
+
 package ui
 
 import (

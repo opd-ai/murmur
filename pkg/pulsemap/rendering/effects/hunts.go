@@ -13,6 +13,9 @@
 // - Hunt completed: all fragments show victory animation
 //
 
+//go:build !test
+// +build !test
+
 package effects
 
 import (

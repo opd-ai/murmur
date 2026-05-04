@@ -3,6 +3,9 @@
 // and prompts for invitation generation.
 //
 
+//go:build !test
+// +build !test
+
 package screens
 
 import (

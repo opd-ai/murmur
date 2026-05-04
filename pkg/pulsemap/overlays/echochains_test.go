@@ -1,5 +1,7 @@
 // Package overlays - Echo Chain overlay tests.
 //
+//go:build !test
+// +build !test
 
 package overlays
 

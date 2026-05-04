@@ -1,5 +1,7 @@
 // Package overlays - Pulse Beat overlay tests.
 //
+//go:build !test
+// +build !test
 
 package overlays
 

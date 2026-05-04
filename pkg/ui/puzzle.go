@@ -3,6 +3,9 @@
 // difficulty and content inputs".
 //
 
+//go:build !test
+// +build !test
+
 package ui
 
 import (

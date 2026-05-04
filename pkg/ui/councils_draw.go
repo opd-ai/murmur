@@ -1,5 +1,9 @@
 // Package ui — Phantom Council panel rendering functions.
 // This file contains all Draw() methods for the CouncilPanel.
+//
+//go:build !test
+// +build !test
+
 package ui
 
 import (

@@ -3,6 +3,9 @@
 // and drawing of nodes/edges.
 //
 
+//go:build !test
+// +build !test
+
 package rendering
 
 import (

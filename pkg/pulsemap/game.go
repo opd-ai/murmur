@@ -2,6 +2,9 @@
 // This file implements the ebiten.Game interface for the main rendering loop.
 //
 
+//go:build !test
+// +build !test
+
 package pulsemap
 
 import (

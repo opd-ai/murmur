@@ -3,6 +3,9 @@
 // animated visualizations and interactive elements.
 //
 
+//go:build !test
+// +build !test
+
 package screens
 
 import (

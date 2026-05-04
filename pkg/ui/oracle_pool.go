@@ -2,6 +2,9 @@
 // Per ROADMAP.md line 462: "UI: Oracle Pool panel — create pool, submit prediction, view outcomes".
 //
 
+//go:build !test
+// +build !test
+
 package ui
 
 import (

@@ -4,6 +4,9 @@
 // activity, and rare achievements.
 //
 
+//go:build !test
+// +build !test
+
 package ui
 
 import (

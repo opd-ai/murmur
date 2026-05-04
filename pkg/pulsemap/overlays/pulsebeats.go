@@ -5,6 +5,9 @@
 // Per ROADMAP.md line 570: "Edge-of-viewport notification rendering"
 //
 
+//go:build !test
+// +build !test
+
 package overlays
 
 import (

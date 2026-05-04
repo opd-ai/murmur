@@ -5,6 +5,9 @@
 // placed by Specters (Resonance ≥100) on any node in the network.
 //
 
+//go:build !test
+// +build !test
+
 package ui
 
 import (

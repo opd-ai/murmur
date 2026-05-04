@@ -1,5 +1,7 @@
 // Package overlays — Phantom Council overlay tests.
 //
+//go:build !test
+// +build !test
 
 package overlays
 

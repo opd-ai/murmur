@@ -4,6 +4,9 @@
 // Basic (Resonance 25+), Expanded (Resonance 50+), and Premium (Resonance 100+).
 //
 
+//go:build !test
+// +build !test
+
 package overlays
 
 import (

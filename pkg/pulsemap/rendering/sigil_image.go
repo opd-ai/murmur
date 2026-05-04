@@ -2,6 +2,9 @@
 // This file provides sigil-to-Ebitengine-image conversion for Pulse Map overlay.
 //
 
+//go:build !test
+// +build !test
+
 package rendering
 
 import (

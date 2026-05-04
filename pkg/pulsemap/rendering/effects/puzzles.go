@@ -13,6 +13,9 @@
 // - Expired: faded gray with crack effect
 //
 
+//go:build !test
+// +build !test
+
 package effects
 
 import (

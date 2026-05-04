@@ -2,6 +2,9 @@
 // Per ONBOARDING.md, these screens handle peer discovery and Pulse Map introduction.
 //
 
+//go:build !test
+// +build !test
+
 package screens
 
 import (

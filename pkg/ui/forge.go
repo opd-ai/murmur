@@ -5,6 +5,9 @@
 // challenges where Specters compete to produce the most compelling content."
 //
 
+//go:build !test
+// +build !test
+
 package ui
 
 import (

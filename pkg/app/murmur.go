@@ -173,6 +173,12 @@ func (a *App) Run() error {
 		return err
 	}
 
+	// Check for MURMUR_HEADLESS environment variable
+	if os.Getenv("MURMUR_HEADLESS") == "1" {
+		a.config.SkipUI = true
+		fmt.Println("Running in headless mode (MURMUR_HEADLESS=1)")
+	}
+
 	fmt.Printf("MURMUR %s starting...\n", a.config.Version)
 
 	if err := a.initializeSubsystems(); err != nil {

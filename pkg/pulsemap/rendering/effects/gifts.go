@@ -2,6 +2,9 @@
 // Per ANONYMOUS_GAME_MECHANICS.md, Phantom Gifts create visual effects on recipient nodes.
 //
 
+//go:build !test
+// +build !test
+
 package effects
 
 import (

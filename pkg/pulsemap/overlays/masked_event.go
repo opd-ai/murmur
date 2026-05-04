@@ -6,6 +6,9 @@
 // identical featureless dots inside".
 //
 
+//go:build !test
+// +build !test
+
 package overlays
 
 import (

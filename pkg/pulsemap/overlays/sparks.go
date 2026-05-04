@@ -8,6 +8,9 @@
 // Winners display a golden crown glyph for SparkCrownDuration (1 hour).
 //
 
+//go:build !test
+// +build !test
+
 package overlays
 
 import (

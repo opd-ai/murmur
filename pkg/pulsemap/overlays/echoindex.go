@@ -6,6 +6,9 @@
 // - Mid-range = neutral (gray to white)
 //
 
+//go:build !test
+// +build !test
+
 package overlays
 
 import (

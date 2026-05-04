@@ -6,6 +6,9 @@
 // with lightning effects".
 //
 
+//go:build !test
+// +build !test
+
 package overlays
 
 import (
