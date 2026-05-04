@@ -158,27 +158,49 @@ func shadowPlayToProto(game *ShadowPlay) *pb.ShadowPlay {
 
 // protoToShadowPlay converts a protobuf ShadowPlay to a ShadowPlay.
 func protoToShadowPlay(pbPlay *pb.ShadowPlay) *ShadowPlay {
-	if len(pbPlay.Id) != 32 || len(pbPlay.DirectorPubkey) != 32 {
+	if !validateShadowPlayIDs(pbPlay) {
 		return nil
 	}
 
-	state := ShadowPlayWaiting
-	switch pbPlay.State {
-	case pb.ShadowPlayState_SHADOW_PLAY_STATE_CASTING:
-		state = ShadowPlayWaiting
-	case pb.ShadowPlayState_SHADOW_PLAY_STATE_REHEARSING:
-		state = ShadowPlayWaiting
-	case pb.ShadowPlayState_SHADOW_PLAY_STATE_PERFORMING:
-		state = ShadowPlayActive
-	case pb.ShadowPlayState_SHADOW_PLAY_STATE_COMPLETE:
-		state = ShadowPlayEchoesWin // Default to echoes win for completed.
-	case pb.ShadowPlayState_SHADOW_PLAY_STATE_CANCELLED:
-		state = ShadowPlayWaiting // No cancelled state, default to waiting.
-	}
-
+	state := convertShadowPlayState(pbPlay.State)
 	duration := time.Duration(pbPlay.DurationSeconds) * time.Second
 	createdAt := time.Unix(pbPlay.ScheduledTime, 0)
 
+	game := buildShadowPlayFromProto(pbPlay, state, duration, createdAt)
+	convertActorsToPlayers(pbPlay.Actors, game)
+
+	if game.MaxPlayers == 0 {
+		game.MaxPlayers = len(game.Players)
+	}
+
+	return game
+}
+
+// validateShadowPlayIDs checks that ID and director pubkey are 32 bytes.
+func validateShadowPlayIDs(pbPlay *pb.ShadowPlay) bool {
+	return len(pbPlay.Id) == 32 && len(pbPlay.DirectorPubkey) == 32
+}
+
+// convertShadowPlayState maps protobuf shadow play state to internal state.
+func convertShadowPlayState(pbState pb.ShadowPlayState) ShadowPlayState {
+	switch pbState {
+	case pb.ShadowPlayState_SHADOW_PLAY_STATE_CASTING:
+		return ShadowPlayWaiting
+	case pb.ShadowPlayState_SHADOW_PLAY_STATE_REHEARSING:
+		return ShadowPlayWaiting
+	case pb.ShadowPlayState_SHADOW_PLAY_STATE_PERFORMING:
+		return ShadowPlayActive
+	case pb.ShadowPlayState_SHADOW_PLAY_STATE_COMPLETE:
+		return ShadowPlayEchoesWin
+	case pb.ShadowPlayState_SHADOW_PLAY_STATE_CANCELLED:
+		return ShadowPlayWaiting
+	default:
+		return ShadowPlayWaiting
+	}
+}
+
+// buildShadowPlayFromProto constructs a ShadowPlay from protobuf fields.
+func buildShadowPlayFromProto(pbPlay *pb.ShadowPlay, state ShadowPlayState, duration time.Duration, createdAt time.Time) *ShadowPlay {
 	game := &ShadowPlay{
 		CreatedAt:    createdAt,
 		Duration:     duration,
@@ -189,28 +211,31 @@ func protoToShadowPlay(pbPlay *pb.ShadowPlay) *ShadowPlay {
 	}
 	copy(game.ID[:], pbPlay.Id)
 	copy(game.InitiatorKey[:], pbPlay.DirectorPubkey)
+	return game
+}
 
-	// Convert actors to players.
-	for i, pbActor := range pbPlay.Actors {
+// convertActorsToPlayers converts protobuf actors to game players.
+func convertActorsToPlayers(pbActors []*pb.ShadowPlayActor, game *ShadowPlay) {
+	for i, pbActor := range pbActors {
 		if len(pbActor.SpecterPubkey) != 32 {
 			continue
 		}
-		player := &Player{
-			Role:            roleFromString(pbActor.Role),
-			JoinIndex:       i,
-			IsEliminated:    false,
-			EliminatedRound: -1,
-		}
-		copy(player.SpecterKey[:], pbActor.SpecterPubkey)
+		player := buildPlayerFromActor(pbActor, i)
 		game.Players = append(game.Players, player)
 		game.playerByKey[hex.EncodeToString(player.SpecterKey[:])] = player
 	}
+}
 
-	if game.MaxPlayers == 0 {
-		game.MaxPlayers = len(game.Players)
+// buildPlayerFromActor constructs a Player from a protobuf actor.
+func buildPlayerFromActor(pbActor *pb.ShadowPlayActor, index int) *Player {
+	player := &Player{
+		Role:            roleFromString(pbActor.Role),
+		JoinIndex:       index,
+		IsEliminated:    false,
+		EliminatedRound: -1,
 	}
-
-	return game
+	copy(player.SpecterKey[:], pbActor.SpecterPubkey)
+	return player
 }
 
 // roleFromString converts a role string back to PlayerRole.

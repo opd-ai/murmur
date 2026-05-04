@@ -4,6 +4,7 @@ package discovery
 
 import (
 	"crypto/ed25519"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -174,51 +175,10 @@ func (spl *SignedPeerList) canonicalBytes() ([]byte, error) {
 
 // encodeBase64 encodes bytes to base64 string (standard encoding).
 func encodeBase64(data []byte) string {
-	// Use standard base64 encoding
-	const base64Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
-	_ = base64Chars // Placeholder for actual encoding
-
-	// For now, use a simple hex encoding as placeholder
-	// TODO: Replace with proper base64 encoding
-	result := make([]byte, len(data)*2)
-	const hexChars = "0123456789abcdef"
-	for i, b := range data {
-		result[i*2] = hexChars[b>>4]
-		result[i*2+1] = hexChars[b&0x0f]
-	}
-	return string(result)
+	return base64.StdEncoding.EncodeToString(data)
 }
 
 // decodeBase64 decodes base64 string to bytes.
 func decodeBase64(s string) ([]byte, error) {
-	// For now, use simple hex decoding to match encodeBase64
-	// TODO: Replace with proper base64 decoding
-	if len(s)%2 != 0 {
-		return nil, fmt.Errorf("invalid hex string length")
-	}
-
-	result := make([]byte, len(s)/2)
-	for i := 0; i < len(s); i += 2 {
-		high := hexCharToByte(s[i])
-		low := hexCharToByte(s[i+1])
-		if high == 0xff || low == 0xff {
-			return nil, fmt.Errorf("invalid hex character")
-		}
-		result[i/2] = (high << 4) | low
-	}
-	return result, nil
-}
-
-// hexCharToByte converts a hex character to its byte value.
-func hexCharToByte(c byte) byte {
-	switch {
-	case '0' <= c && c <= '9':
-		return c - '0'
-	case 'a' <= c && c <= 'f':
-		return c - 'a' + 10
-	case 'A' <= c && c <= 'F':
-		return c - 'A' + 10
-	default:
-		return 0xff
-	}
+	return base64.StdEncoding.DecodeString(s)
 }

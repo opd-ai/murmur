@@ -591,57 +591,56 @@ func (sp *ShadowPlayPanel) drawVoteMode(
 }
 
 // drawRoleMode renders the role reveal screen.
-func (sp *ShadowPlayPanel) drawRoleMode(
-	screen *ebiten.Image,
-	x, y, w, h float32,
-) {
+func (sp *ShadowPlayPanel) drawRoleMode(screen *ebiten.Image, x, y, w, h float32) {
 	if defaultFont == nil {
 		return
 	}
 
-	// Title.
-	title := "Your Role"
+	sp.drawRoleTitle(screen, x, y, w)
+	sp.drawRoleReveal(screen, x, y, w, h)
+	sp.drawRoleDescription(screen, x, y, w, h)
+	sp.drawContinueHintIfReady(screen, x, y, h)
+}
+
+// drawRoleTitle draws the "Your Role" title.
+func (sp *ShadowPlayPanel) drawRoleTitle(screen *ebiten.Image, x, y, w float32) {
 	titleOpts := &text.DrawOptions{}
 	titleOpts.GeoM.Translate(float64(x+w/2-50), float64(y+20))
 	titleOpts.ColorScale.ScaleWithColor(sp.theme.TextPrimary)
-	text.Draw(screen, title, defaultFont, titleOpts)
+	text.Draw(screen, "Your Role", defaultFont, titleOpts)
+}
 
-	// Role reveal with animation.
+// drawRoleReveal draws the animated role reveal text with role-specific color.
+func (sp *ShadowPlayPanel) drawRoleReveal(screen *ebiten.Image, x, y, w, h float32) {
 	roleY := y + h/2 - 40
 	roleText := ShadowRoleString(sp.game.MyRole)
-
-	// Animate opacity based on reveal phase.
 	alpha := uint8(255 * sp.roleRevealPhase)
-	roleColor := sp.theme.TextPrimary
-	roleColor.A = alpha
-
-	// Role-specific color.
-	if sp.game.MyRole == ShadowRoleEcho {
-		roleColor.R = 60
-		roleColor.G = 180
-		roleColor.B = 120
-		roleColor.A = alpha
-	} else if sp.game.MyRole == ShadowRoleShade {
-		roleColor.R = 180
-		roleColor.G = 60
-		roleColor.B = 80
-		roleColor.A = alpha
-	}
+	roleColor := sp.getRoleColor(alpha)
 
 	roleOpts := &text.DrawOptions{}
 	roleOpts.GeoM.Translate(float64(x+w/2-30), float64(roleY))
 	roleOpts.ColorScale.ScaleWithColor(roleColor)
 	text.Draw(screen, roleText, defaultFont, roleOpts)
+}
 
-	// Role description.
-	var description string
+// getRoleColor returns the role-specific color with alpha.
+func (sp *ShadowPlayPanel) getRoleColor(alpha uint8) color.RGBA {
 	if sp.game.MyRole == ShadowRoleEcho {
-		description = "Find and eliminate the Shades!"
-	} else if sp.game.MyRole == ShadowRoleShade {
-		description = "Blend in and survive..."
-	} else {
-		description = "Your role is unknown."
+		return color.RGBA{R: 60, G: 180, B: 120, A: alpha}
 	}
+	if sp.game.MyRole == ShadowRoleShade {
+		return color.RGBA{R: 180, G: 60, B: 80, A: alpha}
+	}
+	roleColor := sp.theme.TextPrimary
+	roleColor.A = alpha
+	return roleColor
+}
+
+// drawRoleDescription draws the role description text.
+func (sp *ShadowPlayPanel) drawRoleDescription(screen *ebiten.Image, x, y, w, h float32) {
+	roleY := y + h/2 - 40
+	alpha := uint8(255 * sp.roleRevealPhase)
+	description := sp.getRoleDescription()
 
 	descOpts := &text.DrawOptions{}
 	descOpts.GeoM.Translate(float64(x+w/2-100), float64(roleY+50))
@@ -649,8 +648,21 @@ func (sp *ShadowPlayPanel) drawRoleMode(
 	descColor.A = alpha
 	descOpts.ColorScale.ScaleWithColor(descColor)
 	text.Draw(screen, description, defaultFont, descOpts)
+}
 
-	// Continue hint.
+// getRoleDescription returns the description for the user's role.
+func (sp *ShadowPlayPanel) getRoleDescription() string {
+	if sp.game.MyRole == ShadowRoleEcho {
+		return "Find and eliminate the Shades!"
+	}
+	if sp.game.MyRole == ShadowRoleShade {
+		return "Blend in and survive..."
+	}
+	return "Your role is unknown."
+}
+
+// drawContinueHintIfReady draws the continue hint once reveal is complete.
+func (sp *ShadowPlayPanel) drawContinueHintIfReady(screen *ebiten.Image, x, y, h float32) {
 	if sp.roleRevealPhase >= 1.0 {
 		sp.drawControlHint(screen, x+20, y+h-40, "[Enter] Continue")
 	}

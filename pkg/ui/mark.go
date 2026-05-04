@@ -696,32 +696,28 @@ func (p *MarkPanel) drawPlacing(screen *ebiten.Image) {
 	p.drawText(screen, dots, x, y, p.theme.TextPlaceholder)
 }
 
-// drawSuccess draws the success message.
-func (p *MarkPanel) drawSuccess(screen *ebiten.Image) {
+// drawResultMessage renders success or error messages with a consistent layout.
+func (p *MarkPanel) drawResultMessage(screen *ebiten.Image, icon, title, message string, titleColor color.Color) {
 	x := float32(p.panelX + 20)
 	y := float32(p.panelY + 20)
 
-	p.drawText(screen, "✓ Mark Placed", x, y, p.theme.TextPrimary)
+	p.drawText(screen, icon+" "+title, x, y, titleColor)
 	y += 40
 
-	p.drawText(screen, p.successMsg, x, y, p.theme.TextSecondary)
+	p.drawText(screen, message, x, y, p.theme.TextSecondary)
 	y += 50
 
 	p.drawText(screen, "Press Enter to close", x, y, p.theme.TextPlaceholder)
 }
 
+// drawSuccess draws the success message.
+func (p *MarkPanel) drawSuccess(screen *ebiten.Image) {
+	p.drawResultMessage(screen, "✓", "Mark Placed", p.successMsg, p.theme.TextPrimary)
+}
+
 // drawError draws the error message.
 func (p *MarkPanel) drawError(screen *ebiten.Image) {
-	x := float32(p.panelX + 20)
-	y := float32(p.panelY + 20)
-
-	p.drawText(screen, "✗ Cannot Place Mark", x, y, p.theme.TextError)
-	y += 40
-
-	p.drawText(screen, p.errorMsg, x, y, p.theme.TextSecondary)
-	y += 50
-
-	p.drawText(screen, "Press Enter to close", x, y, p.theme.TextPlaceholder)
+	p.drawResultMessage(screen, "✗", "Cannot Place Mark", p.errorMsg, p.theme.TextError)
 }
 
 // getCategoryFromIndex converts selection index to MarkCategory.

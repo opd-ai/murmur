@@ -267,8 +267,8 @@ func (m *MaskedEventManager) RegisterEvent(
 	return nil
 }
 
-// ActivateEvent marks an event as active (started).
-func (m *MaskedEventManager) ActivateEvent(id [32]byte) error {
+// setEventActiveState updates the isActive flag for an event.
+func (m *MaskedEventManager) setEventActiveState(id [32]byte, active bool) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -278,23 +278,18 @@ func (m *MaskedEventManager) ActivateEvent(id [32]byte) error {
 		return ErrMaskedEventUnknown
 	}
 
-	event.isActive = true
+	event.isActive = active
 	return nil
+}
+
+// ActivateEvent marks an event as active (started).
+func (m *MaskedEventManager) ActivateEvent(id [32]byte) error {
+	return m.setEventActiveState(id, true)
 }
 
 // CloseEvent marks an event as ended.
 func (m *MaskedEventManager) CloseEvent(id [32]byte) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	idHex := hex.EncodeToString(id[:])
-	event, exists := m.activeEvents[idHex]
-	if !exists {
-		return ErrMaskedEventUnknown
-	}
-
-	event.isActive = false
-	return nil
+	return m.setEventActiveState(id, false)
 }
 
 // RegisterMaskedKey adds a valid Masked public key for an event.

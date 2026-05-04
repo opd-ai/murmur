@@ -1,0 +1,63 @@
+{
+  "summary": {
+    "baseline": {
+      "clone_pairs": 73,
+      "duplicated_lines": 1005,
+      "duplication_ratio": 1.06
+    },
+    "final": {
+      "clone_pairs": 66,
+      "duplicated_lines": 908,
+      "duplication_ratio": 0.96
+    },
+    "improvement": {
+      "clone_pairs_reduced": 7,
+      "lines_deduplicated": 97,
+      "ratio_reduction": 0.10
+    }
+  },
+  "consolidations": [
+    {
+      "group": 1,
+      "description": "forge_timing.go phase transition logic",
+      "lines": 12,
+      "instances": 2,
+      "strategy": "Extract helper method transitionPhase()",
+      "files": ["pkg/anonymous/mechanics/forge/forge_timing.go"],
+      "impact": "Eliminated 12 lines of duplication"
+    },
+    {
+      "group": 2,
+      "description": "forge_timing.go timing calculation",
+      "lines": 12,
+      "instances": 2,
+      "strategy": "Consolidate NewForgeTiming() to call NewForgeTimingAt()",
+      "files": ["pkg/anonymous/mechanics/forge/forge_timing.go"],
+      "impact": "Eliminated 12 lines of duplication"
+    },
+    {
+      "group": 3,
+      "description": "Binary serialization helpers (uint64/uint32/string)",
+      "lines": 24,
+      "instances": "multiple",
+      "strategy": "Extract helpers: appendU64BigEndian(), appendU32BigEndian(), appendStringWithLen()",
+      "files": [
+        "pkg/identity/declarations/connection.go",
+        "pkg/identity/declarations/profile.go",
+        "pkg/identity/declarations/profile_update.go",
+        "pkg/identity/declarations/specter.go"
+      ],
+      "impact": "Consolidated binary serialization patterns across declarations package"
+    }
+  ],
+  "tests": "All tests pass (go test -race ./...)",
+  "remaining_duplication": {
+    "note": "Remaining clones are primarily:",
+    "categories": [
+      "Stub files (*_stub.go) - test doubles, intentional duplication",
+      "UI panel drawing boilerplate - acceptable pattern repetition",
+      "Type-specific validation logic (gifts vs marks) - intentional for type safety",
+      "Symmetric operations (wrap/unwrap, serialize/deserialize) - semantic clarity"
+    ]
+  }
+}

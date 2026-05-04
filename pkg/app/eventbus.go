@@ -8,6 +8,7 @@ import (
 	"context"
 	"sync"
 
+	"github.com/opd-ai/murmur/pkg/networking/metrics"
 	pb "github.com/opd-ai/murmur/proto"
 )
 
@@ -263,6 +264,9 @@ func (eb *EventBus) dispatch(event Event) {
 	eb.mu.RLock()
 	defer eb.mu.RUnlock()
 
+	// Track event dispatch by type.
+	metrics.EventBusEventsTotal.WithLabelValues(event.Type.String()).Inc()
+
 	for _, sub := range eb.subscribers {
 		// Check if subscriber is interested in this event type.
 		if sub.types[event.Type] {
@@ -271,7 +275,7 @@ func (eb *EventBus) dispatch(event Event) {
 			case sub.channel <- event:
 			default:
 				// Channel full, drop event for this subscriber.
-				// TODO: Add metrics for dropped events.
+				metrics.EventBusDropsTotal.WithLabelValues("subscriber_full").Inc()
 			}
 		}
 	}
@@ -352,7 +356,7 @@ func (eb *EventBus) Emit(event Event) {
 	case eb.inbound <- event:
 	default:
 		// Buffer full, drop event.
-		// TODO: Add metrics for dropped events.
+		metrics.EventBusDropsTotal.WithLabelValues("inbound_full").Inc()
 	}
 }
 

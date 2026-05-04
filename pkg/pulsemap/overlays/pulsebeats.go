@@ -685,69 +685,88 @@ func (o *PulseBeatOverlay) ClearBeats() {
 
 // HandleClick checks if a click is on a beat and triggers callback.
 func (o *PulseBeatOverlay) HandleClick(clickX, clickY, cameraX, cameraY, zoom, screenW, screenH float64) bool {
-	o.mu.RLock()
-	beats := make([]*DisplayBeat, len(o.beats))
-	copy(beats, o.beats)
-	callback := o.onBeatTapped
-	o.mu.RUnlock()
-
+	beats, callback := o.getBeatsAndCallback()
 	if callback == nil || len(beats) == 0 {
 		return false
 	}
 
-	centerX := screenW / 2
-	centerY := screenH / 2
+	centerX, centerY := screenW/2, screenH/2
 
 	for i, beat := range beats {
-		// Calculate where the beat indicator is drawn.
-		targetSX := centerX + (beat.TargetX-cameraX)*zoom
-		targetSY := centerY + (beat.TargetY-cameraY)*zoom
-
-		var indicatorX, indicatorY float64
-
-		if targetSX >= 0 && targetSX <= screenW && targetSY >= 0 && targetSY <= screenH {
-			// On-screen indicator.
-			indicatorX = targetSX
-			indicatorY = targetSY
-		} else {
-			// Edge indicator.
-			dx := targetSX - centerX
-			dy := targetSY - centerY
-			dist := math.Sqrt(dx*dx + dy*dy)
-			if dist < 1 {
-				continue
-			}
-			dirX := dx / dist
-			dirY := dy / dist
-
-			edgeX, edgeY := o.findEdgeIntersection(
-				float32(centerX), float32(centerY),
-				float32(dirX), float32(dirY),
-				float32(screenW), float32(screenH),
-				o.edgeMargin,
-			)
-
-			// Apply stack offset.
-			stackOffset := float32(i) * 50
-			if edgeX <= o.edgeMargin || edgeX >= float32(screenW)-o.edgeMargin {
-				edgeY += stackOffset
-			} else {
-				edgeX += stackOffset
-			}
-
-			indicatorX = float64(edgeX)
-			indicatorY = float64(edgeY)
+		indicatorX, indicatorY := o.calculateIndicatorPosition(beat, i, centerX, centerY, cameraX, cameraY, zoom, screenW, screenH)
+		if indicatorX == 0 && indicatorY == 0 {
+			continue // Skip invalid indicators
 		}
 
-		// Check if click is within indicator bounds.
-		clickDist := math.Sqrt((clickX-indicatorX)*(clickX-indicatorX) + (clickY-indicatorY)*(clickY-indicatorY))
-		if clickDist <= 25 { // 25 pixel radius for click detection.
+		if o.isClickWithinIndicator(clickX, clickY, indicatorX, indicatorY) {
 			callback(beat.ID)
 			return true
 		}
 	}
 
 	return false
+}
+
+// getBeatsAndCallback safely retrieves beats and callback under lock.
+func (o *PulseBeatOverlay) getBeatsAndCallback() ([]*DisplayBeat, func([32]byte)) {
+	o.mu.RLock()
+	defer o.mu.RUnlock()
+	beats := make([]*DisplayBeat, len(o.beats))
+	copy(beats, o.beats)
+	return beats, o.onBeatTapped
+}
+
+// calculateIndicatorPosition computes the screen position for a beat indicator.
+func (o *PulseBeatOverlay) calculateIndicatorPosition(beat *DisplayBeat, index int, centerX, centerY, cameraX, cameraY, zoom, screenW, screenH float64) (float64, float64) {
+	targetSX := centerX + (beat.TargetX-cameraX)*zoom
+	targetSY := centerY + (beat.TargetY-cameraY)*zoom
+
+	if o.isOnScreen(targetSX, targetSY, screenW, screenH) {
+		return targetSX, targetSY
+	}
+	return o.calculateEdgeIndicatorPosition(targetSX, targetSY, index, centerX, centerY, screenW, screenH)
+}
+
+// isOnScreen checks if coordinates are within screen bounds.
+func (o *PulseBeatOverlay) isOnScreen(x, y, screenW, screenH float64) bool {
+	return x >= 0 && x <= screenW && y >= 0 && y <= screenH
+}
+
+// calculateEdgeIndicatorPosition computes edge indicator position with stacking.
+func (o *PulseBeatOverlay) calculateEdgeIndicatorPosition(targetSX, targetSY float64, index int, centerX, centerY, screenW, screenH float64) (float64, float64) {
+	dx := targetSX - centerX
+	dy := targetSY - centerY
+	dist := math.Sqrt(dx*dx + dy*dy)
+	if dist < 1 {
+		return 0, 0 // Invalid, signal to skip
+	}
+	dirX := dx / dist
+	dirY := dy / dist
+
+	edgeX, edgeY := o.findEdgeIntersection(
+		float32(centerX), float32(centerY),
+		float32(dirX), float32(dirY),
+		float32(screenW), float32(screenH),
+		o.edgeMargin,
+	)
+
+	// Apply stack offset for multiple beats at same edge
+	stackOffset := float32(index) * 50
+	if edgeX <= o.edgeMargin || edgeX >= float32(screenW)-o.edgeMargin {
+		edgeY += stackOffset
+	} else {
+		edgeX += stackOffset
+	}
+
+	return float64(edgeX), float64(edgeY)
+}
+
+// isClickWithinIndicator checks if click is within 25px of indicator.
+func (o *PulseBeatOverlay) isClickWithinIndicator(clickX, clickY, indicatorX, indicatorY float64) bool {
+	dx := clickX - indicatorX
+	dy := clickY - indicatorY
+	clickDist := math.Sqrt(dx*dx + dy*dy)
+	return clickDist <= 25
 }
 
 // SetMaxVisible sets the maximum number of visible beats.

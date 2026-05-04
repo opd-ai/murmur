@@ -89,4 +89,15 @@ See `DESIGN_DOCUMENT.md` for the complete specification.
 
 ## Status
 
-**v0.1 Foundation** — In progress. Go module initialized with package structure. Core identity (Ed25519/Curve25519 keypairs, sigils) and storage (Bbolt) implemented. See ROADMAP.md for full implementation plan.
+**v0.1 Foundation** — 85–90% complete. Core infrastructure fully operational:
+- ✅ **Networking**: libp2p transport, GossipSub, Kademlia DHT, NAT traversal, relay
+- ✅ **Identity**: Ed25519/Curve25519 keypairs, BIP-39 recovery, Argon2id keystore encryption, sigils
+- ✅ **Content**: 8 Wave types, SHA-256 PoW (20-bit default), TTL enforcement, threading
+- ✅ **Anonymous Layer**: Specters, 3-hop Shroud circuits, Resonance (13 milestones), 10 mini-games
+- ✅ **Pulse Map**: Force-directed layout (60fps @ 500 nodes), Ebitengine rendering, visual effects
+- ✅ **Storage**: Bbolt with 7 canonical buckets, typed accessors, LRU eviction
+- ✅ **Security**: Key zeroing, Bloom filter deduplication, per-peer rate limiting, ZK Resonance proofs
+- ⚠️ **Onboarding**: 4/6 phases functional (Identity, Mode, Bootstrap, Completion); Exploration/First Wave in progress
+- ⚠️ **Cross-Layer Visibility**: Specter Marks render on Surface Layer; remaining mechanics (gifts, puzzles, etc.) deferred to post-v0.1
+
+Binary builds and connects to network. Test suite: 100% pass rate (38 packages), zero race conditions. See AUDIT.md for detailed goal-achievement assessment and ROADMAP.md for implementation checklist.

@@ -9,6 +9,7 @@ package ui
 
 import (
 	"fmt"
+	"image/color"
 	"sync"
 	"time"
 
@@ -323,74 +324,83 @@ func (p *OraclePoolPanel) drawPoolDetails(screen *ebiten.Image, panelX, panelY, 
 		return
 	}
 
-	// Question.
+	p.drawQuestionText(screen, panelX, panelY, padding)
+	p.drawStatusText(screen, panelX, panelY, padding)
+	p.drawDeadlineText(screen, panelX, panelY, padding)
+	p.drawPredictionCount(screen, panelX, panelY, padding)
+	p.drawMyPredictionIfCommitted(screen, panelX, panelY, padding)
+	p.drawOutcomeIfResolved(screen, panelX, panelY, padding)
+	p.drawPredictionInputIfPredictMode(screen, panelX, panelY, padding)
+}
+
+// drawQuestionText draws the pool question.
+func (p *OraclePoolPanel) drawQuestionText(screen *ebiten.Image, panelX, panelY, padding float32) {
 	questionText := p.pool.Question
 	if len(questionText) > 50 {
 		questionText = questionText[:50] + "..."
 	}
-	op := &text.DrawOptions{}
-	op.GeoM.Translate(float64(panelX+padding), float64(panelY+padding+30))
-	op.ColorScale.ScaleWithColor(p.theme.AccentPrimary)
-	text.Draw(screen, "Q: "+questionText, defaultFont, op)
+	p.drawTextAtOffset(screen, "Q: "+questionText, panelX+padding, panelY+padding+30, p.theme.AccentPrimary)
+}
 
-	// Status.
+// drawStatusText draws the pool status.
+func (p *OraclePoolPanel) drawStatusText(screen *ebiten.Image, panelX, panelY, padding float32) {
 	statusText := p.formatStatus()
-	op2 := &text.DrawOptions{}
-	op2.GeoM.Translate(float64(panelX+padding), float64(panelY+padding+55))
-	op2.ColorScale.ScaleWithColor(p.theme.TextSecondary)
-	text.Draw(screen, "Status: "+statusText, defaultFont, op2)
+	p.drawTextAtOffset(screen, "Status: "+statusText, panelX+padding, panelY+padding+55, p.theme.TextSecondary)
+}
 
-	// Deadline.
+// drawDeadlineText draws the pool deadline.
+func (p *OraclePoolPanel) drawDeadlineText(screen *ebiten.Image, panelX, panelY, padding float32) {
 	deadlineText := p.formatDeadline()
-	op3 := &text.DrawOptions{}
-	op3.GeoM.Translate(float64(panelX+padding), float64(panelY+padding+80))
-	op3.ColorScale.ScaleWithColor(p.theme.TextSecondary)
-	text.Draw(screen, "Deadline: "+deadlineText, defaultFont, op3)
+	p.drawTextAtOffset(screen, "Deadline: "+deadlineText, panelX+padding, panelY+padding+80, p.theme.TextSecondary)
+}
 
-	// Predictions.
+// drawPredictionCount draws the prediction count.
+func (p *OraclePoolPanel) drawPredictionCount(screen *ebiten.Image, panelX, panelY, padding float32) {
 	predText := fmt.Sprintf("Predictions: %d", p.pool.PredictionCount)
-	op4 := &text.DrawOptions{}
-	op4.GeoM.Translate(float64(panelX+padding), float64(panelY+padding+105))
-	op4.ColorScale.ScaleWithColor(p.theme.TextSecondary)
-	text.Draw(screen, predText, defaultFont, op4)
+	p.drawTextAtOffset(screen, predText, panelX+padding, panelY+padding+105, p.theme.TextSecondary)
+}
 
-	// My prediction.
-	if p.pool.MyCommitted {
-		myPredText := "Your prediction: Committed"
-		if p.pool.MyRevealed {
-			myPredText = "Your prediction: " + p.pool.MyPrediction
-		}
-		op5 := &text.DrawOptions{}
-		op5.GeoM.Translate(float64(panelX+padding), float64(panelY+padding+130))
-		op5.ColorScale.ScaleWithColor(p.theme.Success)
-		text.Draw(screen, myPredText, defaultFont, op5)
+// drawMyPredictionIfCommitted draws the user's prediction if committed.
+func (p *OraclePoolPanel) drawMyPredictionIfCommitted(screen *ebiten.Image, panelX, panelY, padding float32) {
+	if !p.pool.MyCommitted {
+		return
 	}
+	myPredText := "Your prediction: Committed"
+	if p.pool.MyRevealed {
+		myPredText = "Your prediction: " + p.pool.MyPrediction
+	}
+	p.drawTextAtOffset(screen, myPredText, panelX+padding, panelY+padding+130, p.theme.Success)
+}
 
-	// Outcome (if resolved).
+// drawOutcomeIfResolved draws the outcome if the pool is resolved.
+func (p *OraclePoolPanel) drawOutcomeIfResolved(screen *ebiten.Image, panelX, panelY, padding float32) {
 	if p.pool.State == OraclePoolStateResolved && p.pool.Outcome != "" {
-		op6 := &text.DrawOptions{}
-		op6.GeoM.Translate(float64(panelX+padding), float64(panelY+padding+160))
-		op6.ColorScale.ScaleWithColor(p.theme.AccentPrimary)
-		text.Draw(screen, "Outcome: "+p.pool.Outcome, defaultFont, op6)
+		p.drawTextAtOffset(screen, "Outcome: "+p.pool.Outcome, panelX+padding, panelY+padding+160, p.theme.AccentPrimary)
 	}
+}
 
-	// Prediction input (if in predict mode).
-	if p.mode == OraclePoolModePredict {
-		// Input box.
-		inputY := panelY + padding + 190
-		vector.DrawFilledRect(screen, panelX+padding, inputY, 400, 30, p.theme.InputBackground, true)
-		vector.StrokeRect(screen, panelX+padding, inputY, 400, 30, 1, p.theme.PanelBorder, true)
-
-		// Input text.
-		displayText := p.predictionText
-		if len(displayText) == 0 {
-			displayText = "Enter prediction..."
-		}
-		op7 := &text.DrawOptions{}
-		op7.GeoM.Translate(float64(panelX+padding+8), float64(inputY+8))
-		op7.ColorScale.ScaleWithColor(p.theme.TextPrimary)
-		text.Draw(screen, displayText, defaultFont, op7)
+// drawPredictionInputIfPredictMode draws the prediction input box if in predict mode.
+func (p *OraclePoolPanel) drawPredictionInputIfPredictMode(screen *ebiten.Image, panelX, panelY, padding float32) {
+	if p.mode != OraclePoolModePredict {
+		return
 	}
+	inputY := panelY + padding + 190
+	vector.DrawFilledRect(screen, panelX+padding, inputY, 400, 30, p.theme.InputBackground, true)
+	vector.StrokeRect(screen, panelX+padding, inputY, 400, 30, 1, p.theme.PanelBorder, true)
+
+	displayText := p.predictionText
+	if len(displayText) == 0 {
+		displayText = "Enter prediction..."
+	}
+	p.drawTextAtOffset(screen, displayText, panelX+padding+8, inputY+8, p.theme.TextPrimary)
+}
+
+// drawTextAtOffset is a helper to draw text at a specific position with color.
+func (p *OraclePoolPanel) drawTextAtOffset(screen *ebiten.Image, txt string, x, y float32, col color.Color) {
+	op := &text.DrawOptions{}
+	op.GeoM.Translate(float64(x), float64(y))
+	op.ColorScale.ScaleWithColor(col)
+	text.Draw(screen, txt, defaultFont, op)
 }
 
 // formatStatus returns a human-readable status.

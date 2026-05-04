@@ -408,60 +408,72 @@ func (p *GiftPanel) getTitleForMode() string {
 
 // drawEffectSelect renders the effect selection screen.
 func (p *GiftPanel) drawEffectSelect(dst *ebiten.Image, startY int) {
-	y := startY
-
-	// Show Resonance and remaining gifts.
-	if p.callbacks.GetMyResonance != nil {
-		resonance := p.callbacks.GetMyResonance()
-		info := fmt.Sprintf("Your Resonance: %d", resonance)
-		p.drawText(dst, info, p.panelX+p.theme.Padding, y, p.theme.TextSecondary)
-		y += 20
-	}
-
-	if p.callbacks.GetRemainingGiftsToday != nil {
-		remaining := p.callbacks.GetRemainingGiftsToday()
-		info := fmt.Sprintf("Gifts remaining today: %d/%d", remaining, gifts.MaxGiftsPerDay)
-		p.drawText(dst, info, p.panelX+p.theme.Padding, y, p.theme.TextSecondary)
-		y += 25
-	}
-
-	// Check if any effects available.
+	y := p.drawResonanceInfo(dst, startY)
 	if len(p.availableEffects) == 0 {
-		p.drawText(dst, "Resonance too low for gifts.", p.panelX+p.theme.Padding, y, p.theme.TextError)
-		p.drawText(dst, "Reach Resonance 25 to unlock!", p.panelX+p.theme.Padding, y+20, p.theme.TextSecondary)
+		p.drawNoEffectsAvailable(dst, y)
 		return
 	}
+	p.drawEffectList(dst, y)
+}
 
-	// Draw effect list.
+// drawResonanceInfo draws resonance and remaining gifts info.
+func (p *GiftPanel) drawResonanceInfo(dst *ebiten.Image, startY int) int {
+	y := startY
+	if p.callbacks.GetMyResonance != nil {
+		resonance := p.callbacks.GetMyResonance()
+		p.drawText(dst, fmt.Sprintf("Your Resonance: %d", resonance), p.panelX+p.theme.Padding, y, p.theme.TextSecondary)
+		y += 20
+	}
+	if p.callbacks.GetRemainingGiftsToday != nil {
+		remaining := p.callbacks.GetRemainingGiftsToday()
+		p.drawText(dst, fmt.Sprintf("Gifts remaining today: %d/%d", remaining, gifts.MaxGiftsPerDay), p.panelX+p.theme.Padding, y, p.theme.TextSecondary)
+		y += 25
+	}
+	return y
+}
+
+// drawNoEffectsAvailable draws the no-effects message.
+func (p *GiftPanel) drawNoEffectsAvailable(dst *ebiten.Image, y int) {
+	p.drawText(dst, "Resonance too low for gifts.", p.panelX+p.theme.Padding, y, p.theme.TextError)
+	p.drawText(dst, "Reach Resonance 25 to unlock!", p.panelX+p.theme.Padding, y+20, p.theme.TextSecondary)
+}
+
+// drawEffectList draws the list of available effects.
+func (p *GiftPanel) drawEffectList(dst *ebiten.Image, y int) {
 	p.drawText(dst, "Available Effects:", p.panelX+p.theme.Padding, y, p.theme.TextPrimary)
 	y += 25
-
 	visibleCount := 10
 	for i := 0; i < visibleCount && i < len(p.availableEffects); i++ {
-		effect := p.availableEffects[i]
-		isSelected := i == p.selectedEffect
-
-		// Highlight selected.
-		if isSelected {
-			vector.DrawFilledRect(dst,
-				float32(p.panelX+p.theme.Padding-2), float32(y-2),
-				float32(p.panelW-p.theme.Padding*2+4), 22,
-				p.theme.Selection, true)
-		}
-
-		// Effect name with tier indicator.
-		tier := gifts.RequiredResonance(effect)
-		tierStr := p.tierString(tier)
-		name := gifts.EffectName(effect)
-		text := fmt.Sprintf("%s [%s]", name, tierStr)
-
-		textColor := p.theme.TextPrimary
-		if isSelected {
-			textColor = p.theme.AccentPrimary
-		}
-		p.drawText(dst, text, p.panelX+p.theme.Padding+10, y, textColor)
-		y += 22
+		y = p.drawEffectItem(dst, i, y)
 	}
+}
+
+// drawEffectItem draws a single effect item.
+func (p *GiftPanel) drawEffectItem(dst *ebiten.Image, index, y int) int {
+	effect := p.availableEffects[index]
+	isSelected := index == p.selectedEffect
+
+	if isSelected {
+		p.drawSelectionHighlight(dst, y)
+	}
+
+	tier := gifts.RequiredResonance(effect)
+	name := gifts.EffectName(effect)
+	text := fmt.Sprintf("%s [%s]", name, p.tierString(tier))
+	textColor := p.theme.TextPrimary
+	if isSelected {
+		textColor = p.theme.AccentPrimary
+	}
+	p.drawText(dst, text, p.panelX+p.theme.Padding+10, y, textColor)
+	return y + 22
+}
+
+// drawSelectionHighlight draws the selection highlight rectangle.
+func (p *GiftPanel) drawSelectionHighlight(dst *ebiten.Image, y int) {
+	vector.DrawFilledRect(dst,
+		float32(p.panelX+p.theme.Padding-2), float32(y-2),
+		float32(p.panelW-p.theme.Padding*2+4), 22,
+		p.theme.Selection, true)
 }
 
 // tierString returns a tier indicator string.
@@ -481,56 +493,70 @@ func (p *GiftPanel) tierString(tier int) string {
 // drawRecipientSelect renders the recipient selection screen.
 func (p *GiftPanel) drawRecipientSelect(dst *ebiten.Image, startY int) {
 	y := startY
-
 	validRecipients := p.getValidRecipients()
 
-	// Show selected effect.
-	if p.selectedEffect < len(p.availableEffects) {
-		effect := p.availableEffects[p.selectedEffect]
-		effectName := gifts.EffectName(effect)
-		p.drawText(dst, fmt.Sprintf("Effect: %s", effectName), p.panelX+p.theme.Padding, y, p.theme.TextSecondary)
-		y += 25
-	}
-
+	y = p.drawSelectedEffectInfo(dst, y)
 	if len(validRecipients) == 0 {
-		p.drawText(dst, "No recipients available.", p.panelX+p.theme.Padding, y, p.theme.TextError)
-		p.drawText(dst, "Connect with more nodes to gift!", p.panelX+p.theme.Padding, y+20, p.theme.TextSecondary)
+		p.drawNoRecipientsAvailable(dst, y)
 		return
 	}
 
 	p.drawText(dst, "Select Recipient:", p.panelX+p.theme.Padding, y, p.theme.TextPrimary)
 	y += 25
 
-	// Draw recipient list with scroll.
+	y = p.drawRecipientList(dst, validRecipients, y)
+	p.drawScrollIndicatorIfNeeded(dst, validRecipients, y)
+}
+
+// drawSelectedEffectInfo draws the selected effect name.
+func (p *GiftPanel) drawSelectedEffectInfo(dst *ebiten.Image, y int) int {
+	if p.selectedEffect < len(p.availableEffects) {
+		effect := p.availableEffects[p.selectedEffect]
+		effectName := gifts.EffectName(effect)
+		p.drawText(dst, fmt.Sprintf("Effect: %s", effectName), p.panelX+p.theme.Padding, y, p.theme.TextSecondary)
+		return y + 25
+	}
+	return y
+}
+
+// drawNoRecipientsAvailable draws the no-recipients message.
+func (p *GiftPanel) drawNoRecipientsAvailable(dst *ebiten.Image, y int) {
+	p.drawText(dst, "No recipients available.", p.panelX+p.theme.Padding, y, p.theme.TextError)
+	p.drawText(dst, "Connect with more nodes to gift!", p.panelX+p.theme.Padding, y+20, p.theme.TextSecondary)
+}
+
+// drawRecipientList draws the scrollable recipient list.
+func (p *GiftPanel) drawRecipientList(dst *ebiten.Image, validRecipients []RecipientInfo, y int) int {
 	visibleCount := 8
 	for i := p.recipientScroll; i < p.recipientScroll+visibleCount && i < len(validRecipients); i++ {
-		r := validRecipients[i]
-		isSelected := i == p.selectedRecipient
+		y = p.drawRecipientItem(dst, validRecipients[i], i, y)
+	}
+	return y
+}
 
-		// Highlight selected.
-		if isSelected {
-			vector.DrawFilledRect(dst,
-				float32(p.panelX+p.theme.Padding-2), float32(y-2),
-				float32(p.panelW-p.theme.Padding*2+4), 22,
-				p.theme.Selection, true)
-		}
-
-		// Recipient info.
-		layerStr := "Specter"
-		if r.IsSurface {
-			layerStr = "Surface"
-		}
-		text := fmt.Sprintf("%s (%s)", r.DisplayName, layerStr)
-
-		textColor := p.theme.TextPrimary
-		if isSelected {
-			textColor = p.theme.AccentPrimary
-		}
-		p.drawText(dst, text, p.panelX+p.theme.Padding+10, y, textColor)
-		y += 22
+// drawRecipientItem draws a single recipient item.
+func (p *GiftPanel) drawRecipientItem(dst *ebiten.Image, recipient RecipientInfo, index, y int) int {
+	isSelected := index == p.selectedRecipient
+	if isSelected {
+		p.drawSelectionHighlight(dst, y)
 	}
 
-	// Scroll indicator.
+	layerStr := "Specter"
+	if recipient.IsSurface {
+		layerStr = "Surface"
+	}
+	text := fmt.Sprintf("%s (%s)", recipient.DisplayName, layerStr)
+	textColor := p.theme.TextPrimary
+	if isSelected {
+		textColor = p.theme.AccentPrimary
+	}
+	p.drawText(dst, text, p.panelX+p.theme.Padding+10, y, textColor)
+	return y + 22
+}
+
+// drawScrollIndicatorIfNeeded draws scroll position indicator if list is scrollable.
+func (p *GiftPanel) drawScrollIndicatorIfNeeded(dst *ebiten.Image, validRecipients []RecipientInfo, y int) {
+	visibleCount := 8
 	if len(validRecipients) > visibleCount {
 		scrollInfo := fmt.Sprintf("(%d-%d of %d)",
 			p.recipientScroll+1,

@@ -190,55 +190,35 @@ func DecodeNFCIgnitionData(data []byte) (*NFCIgnitionData, error) {
 		return nil, ErrNFCInvalidPayload
 	}
 
-	idx := 0
-
-	// Version.
-	version := data[idx]
-	idx++
-	if version != NFCVersion {
-		return nil, ErrVersionMismatch
+	version, idx, err := parseVersionField(data, 0)
+	if err != nil {
+		return nil, err
 	}
 
-	// Public key.
-	publicKey := make(ed25519.PublicKey, 32)
-	copy(publicKey, data[idx:idx+32])
-	idx += 32
-
-	// Token.
-	var token [TokenSize]byte
-	copy(token[:], data[idx:idx+TokenSize])
-	idx += TokenSize
-
-	// Timestamp.
-	timestamp := binary.BigEndian.Uint32(data[idx : idx+4])
-	idx += 4
-
-	// Address type+count.
-	if idx >= len(data) {
-		return nil, ErrNFCInvalidPayload
-	}
-	addrByte := data[idx]
-	idx++
-	addrType := NFCAddressType(addrByte & 0xF0)
-	addrCount := int(addrByte & 0x0F)
-
-	// Parse addresses.
-	addresses := make([]NFCAddress, 0, addrCount)
-	for i := 0; i < addrCount; i++ {
-		addr, n, err := readAddressCompact(data[idx:], addrType)
-		if err != nil {
-			return nil, err
-		}
-		addresses = append(addresses, addr)
-		idx += n
+	publicKey, idx, err := parsePublicKeyField(data, idx)
+	if err != nil {
+		return nil, err
 	}
 
-	// Signature should be at the end.
-	if idx+ed25519.SignatureSize > len(data) {
-		return nil, ErrNFCInvalidPayload
+	token, idx, err := parseTokenField(data, idx)
+	if err != nil {
+		return nil, err
 	}
-	signature := make([]byte, ed25519.SignatureSize)
-	copy(signature, data[idx:idx+ed25519.SignatureSize])
+
+	timestamp, idx, err := parseTimestampField(data, idx)
+	if err != nil {
+		return nil, err
+	}
+
+	addresses, idx, err := parseAddressesField(data, idx)
+	if err != nil {
+		return nil, err
+	}
+
+	signature, err := parseSignatureField(data, idx)
+	if err != nil {
+		return nil, err
+	}
 
 	result := &NFCIgnitionData{
 		Version:   version,
@@ -249,13 +229,85 @@ func DecodeNFCIgnitionData(data []byte) (*NFCIgnitionData, error) {
 		Signature: signature,
 	}
 
-	// Verify signature.
-	sigInput := result.signatureInput()
-	if !ed25519.Verify(publicKey, sigInput, signature) {
-		return nil, ErrInvalidSignature
+	if err := verifySignature(result); err != nil {
+		return nil, err
 	}
 
 	return result, nil
+}
+
+// parseVersionField extracts and validates the version byte.
+func parseVersionField(data []byte, idx int) (byte, int, error) {
+	version := data[idx]
+	idx++
+	if version != NFCVersion {
+		return 0, idx, ErrVersionMismatch
+	}
+	return version, idx, nil
+}
+
+// parsePublicKeyField extracts the Ed25519 public key.
+func parsePublicKeyField(data []byte, idx int) (ed25519.PublicKey, int, error) {
+	publicKey := make(ed25519.PublicKey, 32)
+	copy(publicKey, data[idx:idx+32])
+	idx += 32
+	return publicKey, idx, nil
+}
+
+// parseTokenField extracts the token.
+func parseTokenField(data []byte, idx int) ([TokenSize]byte, int, error) {
+	var token [TokenSize]byte
+	copy(token[:], data[idx:idx+TokenSize])
+	idx += TokenSize
+	return token, idx, nil
+}
+
+// parseTimestampField extracts the timestamp.
+func parseTimestampField(data []byte, idx int) (uint32, int, error) {
+	timestamp := binary.BigEndian.Uint32(data[idx : idx+4])
+	idx += 4
+	return timestamp, idx, nil
+}
+
+// parseAddressesField extracts the addresses.
+func parseAddressesField(data []byte, idx int) ([]NFCAddress, int, error) {
+	if idx >= len(data) {
+		return nil, idx, ErrNFCInvalidPayload
+	}
+	addrByte := data[idx]
+	idx++
+	addrType := NFCAddressType(addrByte & 0xF0)
+	addrCount := int(addrByte & 0x0F)
+
+	addresses := make([]NFCAddress, 0, addrCount)
+	for i := 0; i < addrCount; i++ {
+		addr, n, err := readAddressCompact(data[idx:], addrType)
+		if err != nil {
+			return nil, idx, err
+		}
+		addresses = append(addresses, addr)
+		idx += n
+	}
+	return addresses, idx, nil
+}
+
+// parseSignatureField extracts the signature.
+func parseSignatureField(data []byte, idx int) ([]byte, error) {
+	if idx+ed25519.SignatureSize > len(data) {
+		return nil, ErrNFCInvalidPayload
+	}
+	signature := make([]byte, ed25519.SignatureSize)
+	copy(signature, data[idx:idx+ed25519.SignatureSize])
+	return signature, nil
+}
+
+// verifySignature verifies the Ed25519 signature over the ignition data.
+func verifySignature(result *NFCIgnitionData) error {
+	sigInput := result.signatureInput()
+	if !ed25519.Verify(result.PublicKey, sigInput, result.Signature) {
+		return ErrInvalidSignature
+	}
+	return nil
 }
 
 // Verify checks that the NFC ignition data has a valid signature.

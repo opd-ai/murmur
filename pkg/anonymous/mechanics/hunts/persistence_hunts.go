@@ -143,25 +143,42 @@ func huntToProto(h *Hunt) *pb.SpecterHunt {
 
 // protoToHunt converts a protobuf SpecterHunt to a Hunt.
 func protoToHunt(pbHunt *pb.SpecterHunt) *Hunt {
-	if len(pbHunt.Id) != 32 || len(pbHunt.OrganizerPubkey) != 32 {
+	if !validateHuntIDs(pbHunt) {
 		return nil
 	}
 
-	state := HuntPending
-	switch pbHunt.State {
-	case pb.HuntState_HUNT_STATE_PENDING:
-		state = HuntPending
-	case pb.HuntState_HUNT_STATE_ACTIVE:
-		state = HuntActive
-	case pb.HuntState_HUNT_STATE_COMPLETED:
-		state = HuntCompleted
-	case pb.HuntState_HUNT_STATE_CANCELLED:
-		state = HuntExpired
-	}
-
+	state := convertHuntState(pbHunt.State)
 	createdAt := time.Unix(pbHunt.StartTime, 0)
 	expiresAt := time.Unix(pbHunt.EndTime, 0)
 
+	hunt := buildHuntFromProto(pbHunt, state, createdAt, expiresAt)
+	convertTargetsToFragments(pbHunt.Targets, hunt)
+	return hunt
+}
+
+// validateHuntIDs checks that ID and organizer pubkey are 32 bytes.
+func validateHuntIDs(pbHunt *pb.SpecterHunt) bool {
+	return len(pbHunt.Id) == 32 && len(pbHunt.OrganizerPubkey) == 32
+}
+
+// convertHuntState maps protobuf hunt state to internal state.
+func convertHuntState(pbState pb.HuntState) HuntState {
+	switch pbState {
+	case pb.HuntState_HUNT_STATE_PENDING:
+		return HuntPending
+	case pb.HuntState_HUNT_STATE_ACTIVE:
+		return HuntActive
+	case pb.HuntState_HUNT_STATE_COMPLETED:
+		return HuntCompleted
+	case pb.HuntState_HUNT_STATE_CANCELLED:
+		return HuntExpired
+	default:
+		return HuntPending
+	}
+}
+
+// buildHuntFromProto constructs a Hunt from protobuf fields.
+func buildHuntFromProto(pbHunt *pb.SpecterHunt, state HuntState, createdAt, expiresAt time.Time) *Hunt {
 	hunt := &Hunt{
 		Theme:         pbHunt.Title,
 		CreatedAt:     createdAt,
@@ -172,27 +189,34 @@ func protoToHunt(pbHunt *pb.SpecterHunt) *Hunt {
 	}
 	copy(hunt.ID[:], pbHunt.Id)
 	copy(hunt.InitiatorKey[:], pbHunt.OrganizerPubkey)
+	return hunt
+}
 
-	// Convert targets to fragments.
-	for i, target := range pbHunt.Targets {
-		fragment := &Fragment{
-			Index:   i,
-			Claimed: target.Found,
-		}
-		if len(target.LocationHash) == 32 {
-			copy(fragment.LocationHash[:], target.LocationHash)
-		}
-		if len(target.FinderPubkey) == 32 {
-			var claimer [32]byte
-			copy(claimer[:], target.FinderPubkey)
-			fragment.ClaimerKey = &claimer
-		}
-		if target.FoundAt > 0 {
-			claimedAt := time.Unix(target.FoundAt, 0)
-			fragment.ClaimedAt = &claimedAt
-		}
+// convertTargetsToFragments converts protobuf targets to hunt fragments.
+func convertTargetsToFragments(targets []*pb.HuntTarget, hunt *Hunt) {
+	for i, target := range targets {
+		fragment := buildFragmentFromTarget(target, i)
 		hunt.Fragments = append(hunt.Fragments, fragment)
 	}
+}
 
-	return hunt
+// buildFragmentFromTarget constructs a Fragment from a protobuf target.
+func buildFragmentFromTarget(target *pb.HuntTarget, index int) *Fragment {
+	fragment := &Fragment{
+		Index:   index,
+		Claimed: target.Found,
+	}
+	if len(target.LocationHash) == 32 {
+		copy(fragment.LocationHash[:], target.LocationHash)
+	}
+	if len(target.FinderPubkey) == 32 {
+		var claimer [32]byte
+		copy(claimer[:], target.FinderPubkey)
+		fragment.ClaimerKey = &claimer
+	}
+	if target.FoundAt > 0 {
+		claimedAt := time.Unix(target.FoundAt, 0)
+		fragment.ClaimedAt = &claimedAt
+	}
+	return fragment
 }

@@ -483,66 +483,66 @@ func (o *EchoChainOverlay) drawPulse(screen *ebiten.Image, chain *EchoChainInfo,
 		return
 	}
 
-	// Pulse travels the full chain length every 3 seconds.
 	pulseT := float32(math.Mod(o.time/3.0, 1.0))
-
-	// Calculate total chain length.
-	totalLen := 0.0
-	for i := 0; i < len(chain.Nodes)-1; i++ {
-		node1 := chain.Nodes[i]
-		node2 := chain.Nodes[i+1]
-		dx := node2.X - node1.X
-		dy := node2.Y - node1.Y
-		totalLen += math.Sqrt(dx*dx + dy*dy)
-	}
-
+	totalLen := calculateChainLength(chain.Nodes)
 	if totalLen < 1 {
 		return
 	}
 
-	// Find pulse position along chain.
+	pulseX, pulseY, found := findPulsePosition(chain.Nodes, pulseT, totalLen)
+	if !found {
+		return
+	}
+
+	sx := centerX + (pulseX-cameraX)*zoom
+	sy := centerY + (pulseY-cameraY)*zoom
+	drawPulseGraphics(screen, float32(sx), float32(sy), float32(zoom), fadeFactor)
+}
+
+// calculateChainLength computes the total length of the chain path.
+func calculateChainLength(nodes []*ChainNodeInfo) float64 {
+	totalLen := 0.0
+	for i := 0; i < len(nodes)-1; i++ {
+		dx := nodes[i+1].X - nodes[i].X
+		dy := nodes[i+1].Y - nodes[i].Y
+		totalLen += math.Sqrt(dx*dx + dy*dy)
+	}
+	return totalLen
+}
+
+// findPulsePosition locates the pulse along the chain at normalized position pulseT.
+func findPulsePosition(nodes []*ChainNodeInfo, pulseT float32, totalLen float64) (x, y float64, found bool) {
 	targetDist := pulseT * float32(totalLen)
 	currentDist := float32(0)
 
-	for i := 0; i < len(chain.Nodes)-1; i++ {
-		node1 := chain.Nodes[i]
-		node2 := chain.Nodes[i+1]
-
+	for i := 0; i < len(nodes)-1; i++ {
+		node1 := nodes[i]
+		node2 := nodes[i+1]
 		dx := node2.X - node1.X
 		dy := node2.Y - node1.Y
 		segLen := float32(math.Sqrt(dx*dx + dy*dy))
 
 		if currentDist+segLen >= targetDist {
-			// Pulse is on this segment.
 			t := (targetDist - currentDist) / segLen
-			pulseX := node1.X + float64(t)*dx
-			pulseY := node1.Y + float64(t)*dy
-
-			// Transform to screen coordinates.
-			sx := centerX + (pulseX-cameraX)*zoom
-			sy := centerY + (pulseY-cameraY)*zoom
-
-			// Draw pulse.
-			pulseSize := float32(zoom) * 4 * fadeFactor
-			if pulseSize < 2 {
-				pulseSize = 2
-			}
-
-			pulseAlpha := uint8(200 * fadeFactor)
-			pulseColor := color.RGBA{255, 255, 255, pulseAlpha}
-
-			// Glow.
-			glowColor := color.RGBA{255, 255, 200, uint8(float32(pulseAlpha) / 2)}
-			vector.DrawFilledCircle(screen, float32(sx), float32(sy), pulseSize*2, glowColor, true)
-
-			// Core.
-			vector.DrawFilledCircle(screen, float32(sx), float32(sy), pulseSize, pulseColor, true)
-
-			return
+			return node1.X + float64(t)*dx, node1.Y + float64(t)*dy, true
 		}
-
 		currentDist += segLen
 	}
+	return 0, 0, false
+}
+
+// drawPulseGraphics draws the pulse glow and core.
+func drawPulseGraphics(screen *ebiten.Image, sx, sy, zoom, fadeFactor float32) {
+	pulseSize := zoom * 4 * fadeFactor
+	if pulseSize < 2 {
+		pulseSize = 2
+	}
+	pulseAlpha := uint8(200 * fadeFactor)
+	pulseColor := color.RGBA{255, 255, 255, pulseAlpha}
+	glowColor := color.RGBA{255, 255, 200, uint8(float32(pulseAlpha) / 2)}
+
+	vector.DrawFilledCircle(screen, sx, sy, pulseSize*2, glowColor, true)
+	vector.DrawFilledCircle(screen, sx, sy, pulseSize, pulseColor, true)
 }
 
 // ChainCount returns the total number of chains.

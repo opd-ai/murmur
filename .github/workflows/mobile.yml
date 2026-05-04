@@ -1,0 +1,89 @@
+name: Mobile Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  # Run nightly to catch mobile build issues early
+  schedule:
+    - cron: '0 2 * * *'
+
+jobs:
+  android:
+    name: Android Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: Install gomobile
+        run: go install golang.org/x/mobile/cmd/gomobile@latest
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Initialize gomobile
+        run: gomobile init
+
+      - name: Build Android APK
+        run: bash scripts/build-mobile.sh android
+
+      - name: Verify APK exists
+        run: |
+          if [ ! -f build/murmur.apk ]; then
+            echo "ERROR: APK not found at build/murmur.apk"
+            exit 1
+          fi
+          echo "APK build successful: $(ls -lh build/murmur.apk)"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: murmur-android
+          path: build/murmur.apk
+          retention-days: 7
+
+  # iOS build requires macOS runner which is expensive. 
+  # Run on schedule only, not on every push.
+  ios:
+    name: iOS Build
+    runs-on: macos-latest
+    if: github.event_name == 'schedule'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: Install gomobile
+        run: go install golang.org/x/mobile/cmd/gomobile@latest
+
+      - name: Initialize gomobile
+        run: gomobile init
+
+      - name: Build iOS Framework
+        run: bash scripts/build-mobile.sh ios
+
+      - name: Verify xcframework exists
+        run: |
+          if [ ! -d build/Murmur.xcframework ]; then
+            echo "ERROR: xcframework not found at build/Murmur.xcframework"
+            exit 1
+          fi
+          echo "xcframework build successful"
+
+      - name: Upload xcframework artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: murmur-ios
+          path: build/Murmur.xcframework
+          retention-days: 7

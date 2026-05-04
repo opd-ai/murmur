@@ -740,3 +740,9 @@ func abs(x int) int {
 	}
 	return x
 }
+
+// Layout returns the screen dimensions for Ebitengine.
+// This implements the ebiten.Game interface.
+func (s *Screen) Layout(outsideWidth, outsideHeight int) (int, int) {
+	return outsideWidth, outsideHeight
+}

@@ -208,82 +208,103 @@ func (o *GiftOverlay) renderExpandedEffect(dst *ebiten.Image, e GiftEffect, x, y
 
 	switch e.Effect {
 	case gifts.EffectOrbitingGeometric:
-		// 3 small geometric shapes orbiting the node
-		for i := 0; i < 3; i++ {
-			angle := e.Phase + float32(i)*2.09 // 120 degrees apart
-			orbitRadius := radius * 1.6
-			ox := x + orbitRadius*float32(math.Cos(float64(angle)))
-			oy := y + orbitRadius*float32(math.Sin(float64(angle)))
-			c := color.RGBA{150, 200, 255, alphaU8}
-			// Draw small diamond shape
-			vector.StrokeLine(dst, ox-4, oy, ox, oy-6, 2, c, true)
-			vector.StrokeLine(dst, ox, oy-6, ox+4, oy, 2, c, true)
-			vector.StrokeLine(dst, ox+4, oy, ox, oy+6, 2, c, true)
-			vector.StrokeLine(dst, ox, oy+6, ox-4, oy, 2, c, true)
-		}
-
+		o.renderOrbitingGeometric(dst, e.Phase, x, y, radius, alphaU8)
 	case gifts.EffectAuroraColorShift:
-		// Color-shifting aurora bands
-		for band := 0; band < 3; band++ {
-			bandY := y - radius*0.5 - float32(band)*8
-			hueShift := e.Phase + float32(band)*0.5
-			r := uint8(128 + 127*float32(math.Sin(float64(hueShift))))
-			g := uint8(128 + 127*float32(math.Sin(float64(hueShift+2))))
-			b := uint8(128 + 127*float32(math.Sin(float64(hueShift+4))))
-			c := color.RGBA{r, g, b, alphaU8 / 2}
-			vector.StrokeLine(dst, x-radius, bandY, x+radius, bandY, 3, c, true)
-		}
-
+		o.renderAuroraColorShift(dst, e.Phase, x, y, radius, alphaU8)
 	case gifts.EffectCrystallineFracture:
-		// Crystalline fracture lines radiating from center
-		for i := 0; i < 6; i++ {
-			angle := float32(i) * 1.047 // 60 degrees
-			length := radius * (1.0 + 0.3*sinPhase)
-			c := color.RGBA{200, 230, 255, alphaU8}
-			endX := x + length*float32(math.Cos(float64(angle)))
-			endY := y + length*float32(math.Sin(float64(angle)))
-			vector.StrokeLine(dst, x, y, endX, endY, 1, c, true)
-		}
-
+		o.renderCrystallineFracture(dst, e.Phase, x, y, radius, alphaU8, sinPhase)
 	case gifts.EffectEmberTrails:
-		// Glowing ember particles rising
-		for i := 0; i < 4; i++ {
-			offset := float32(i) * 0.5
-			pY := y - radius*float32(math.Mod(float64(e.Phase+offset), math.Pi))/math.Pi*2
-			pX := x + radius*0.4*sinPhase
-			emberAlpha := uint8(float32(alphaU8) * (1 - float32(math.Mod(float64(e.Phase+offset), math.Pi))/math.Pi))
-			c := color.RGBA{255, 100, 50, emberAlpha}
-			vector.DrawFilledCircle(dst, pX+float32(i)*5, pY, 3, c, true)
-		}
-
+		o.renderEmberTrails(dst, e.Phase, x, y, radius, alphaU8, sinPhase)
 	case gifts.EffectRippleDistortion:
-		// Expanding ripple circles
-		for ring := 0; ring < 3; ring++ {
-			rippleRadius := radius * (1.0 + float32(math.Mod(float64(e.Phase+float32(ring)*0.7), math.Pi*2))/math.Pi)
-			rippleAlpha := uint8(float32(alphaU8) * (1 - float32(math.Mod(float64(e.Phase+float32(ring)*0.7), math.Pi*2))/(math.Pi*2)))
-			c := color.RGBA{180, 200, 255, rippleAlpha}
-			vector.StrokeCircle(dst, x, y, rippleRadius, 1, c, true)
-		}
-
+		o.renderRippleDistortion(dst, e.Phase, x, y, radius, alphaU8)
 	case gifts.EffectStarlightSparkle:
-		// Twinkling star sparkles
-		for i := 0; i < 6; i++ {
-			angle := e.Phase*0.3 + float32(i)*1.05
-			dist := radius * (0.8 + 0.4*float32(math.Sin(float64(angle*3))))
-			starX := x + dist*float32(math.Cos(float64(angle*2)))
-			starY := y + dist*float32(math.Sin(float64(angle*2)))
-			starAlpha := uint8(float32(alphaU8) * (0.5 + 0.5*float32(math.Sin(float64(e.Phase*4+float32(i))))))
-			c := color.RGBA{255, 255, 255, starAlpha}
-			vector.DrawFilledCircle(dst, starX, starY, 2, c, true)
-		}
-
+		o.renderStarlightSparkle(dst, e.Phase, x, y, radius, alphaU8)
 	default:
-		// Fallback: orbiting glow
-		orbitX := x + radius*1.5*cosPhase
-		orbitY := y + radius*1.5*sinPhase
-		c := color.RGBA{200, 200, 255, alphaU8}
-		vector.DrawFilledCircle(dst, orbitX, orbitY, 5, c, true)
+		o.renderOrbitingGlowFallback(dst, x, y, radius, alphaU8, cosPhase, sinPhase)
 	}
+}
+
+// renderOrbitingGeometric draws 3 orbiting diamond shapes.
+func (o *GiftOverlay) renderOrbitingGeometric(dst *ebiten.Image, phase, x, y, radius float32, alphaU8 uint8) {
+	for i := 0; i < 3; i++ {
+		angle := phase + float32(i)*2.09 // 120 degrees apart
+		orbitRadius := radius * 1.6
+		ox := x + orbitRadius*float32(math.Cos(float64(angle)))
+		oy := y + orbitRadius*float32(math.Sin(float64(angle)))
+		c := color.RGBA{150, 200, 255, alphaU8}
+		vector.StrokeLine(dst, ox-4, oy, ox, oy-6, 2, c, true)
+		vector.StrokeLine(dst, ox, oy-6, ox+4, oy, 2, c, true)
+		vector.StrokeLine(dst, ox+4, oy, ox, oy+6, 2, c, true)
+		vector.StrokeLine(dst, ox, oy+6, ox-4, oy, 2, c, true)
+	}
+}
+
+// renderAuroraColorShift draws color-shifting aurora bands.
+func (o *GiftOverlay) renderAuroraColorShift(dst *ebiten.Image, phase, x, y, radius float32, alphaU8 uint8) {
+	for band := 0; band < 3; band++ {
+		bandY := y - radius*0.5 - float32(band)*8
+		hueShift := phase + float32(band)*0.5
+		r := uint8(128 + 127*float32(math.Sin(float64(hueShift))))
+		g := uint8(128 + 127*float32(math.Sin(float64(hueShift+2))))
+		b := uint8(128 + 127*float32(math.Sin(float64(hueShift+4))))
+		c := color.RGBA{r, g, b, alphaU8 / 2}
+		vector.StrokeLine(dst, x-radius, bandY, x+radius, bandY, 3, c, true)
+	}
+}
+
+// renderCrystallineFracture draws crystalline fracture lines radiating from center.
+func (o *GiftOverlay) renderCrystallineFracture(dst *ebiten.Image, phase, x, y, radius float32, alphaU8 uint8, sinPhase float32) {
+	for i := 0; i < 6; i++ {
+		angle := float32(i) * 1.047 // 60 degrees
+		length := radius * (1.0 + 0.3*sinPhase)
+		c := color.RGBA{200, 230, 255, alphaU8}
+		endX := x + length*float32(math.Cos(float64(angle)))
+		endY := y + length*float32(math.Sin(float64(angle)))
+		vector.StrokeLine(dst, x, y, endX, endY, 1, c, true)
+	}
+}
+
+// renderEmberTrails draws glowing ember particles rising.
+func (o *GiftOverlay) renderEmberTrails(dst *ebiten.Image, phase, x, y, radius float32, alphaU8 uint8, sinPhase float32) {
+	for i := 0; i < 4; i++ {
+		offset := float32(i) * 0.5
+		pY := y - radius*float32(math.Mod(float64(phase+offset), math.Pi))/math.Pi*2
+		pX := x + radius*0.4*sinPhase
+		emberAlpha := uint8(float32(alphaU8) * (1 - float32(math.Mod(float64(phase+offset), math.Pi))/math.Pi))
+		c := color.RGBA{255, 100, 50, emberAlpha}
+		vector.DrawFilledCircle(dst, pX+float32(i)*5, pY, 3, c, true)
+	}
+}
+
+// renderRippleDistortion draws expanding ripple circles.
+func (o *GiftOverlay) renderRippleDistortion(dst *ebiten.Image, phase, x, y, radius float32, alphaU8 uint8) {
+	for ring := 0; ring < 3; ring++ {
+		rippleRadius := radius * (1.0 + float32(math.Mod(float64(phase+float32(ring)*0.7), math.Pi*2))/math.Pi)
+		rippleAlpha := uint8(float32(alphaU8) * (1 - float32(math.Mod(float64(phase+float32(ring)*0.7), math.Pi*2))/(math.Pi*2)))
+		c := color.RGBA{180, 200, 255, rippleAlpha}
+		vector.StrokeCircle(dst, x, y, rippleRadius, 1, c, true)
+	}
+}
+
+// renderStarlightSparkle draws twinkling star sparkles.
+func (o *GiftOverlay) renderStarlightSparkle(dst *ebiten.Image, phase, x, y, radius float32, alphaU8 uint8) {
+	for i := 0; i < 6; i++ {
+		angle := phase*0.3 + float32(i)*1.05
+		dist := radius * (0.8 + 0.4*float32(math.Sin(float64(angle*3))))
+		starX := x + dist*float32(math.Cos(float64(angle*2)))
+		starY := y + dist*float32(math.Sin(float64(angle*2)))
+		starAlpha := uint8(float32(alphaU8) * (0.5 + 0.5*float32(math.Sin(float64(phase*4+float32(i))))))
+		c := color.RGBA{255, 255, 255, starAlpha}
+		vector.DrawFilledCircle(dst, starX, starY, 2, c, true)
+	}
+}
+
+// renderOrbitingGlowFallback draws a simple orbiting glow as fallback.
+func (o *GiftOverlay) renderOrbitingGlowFallback(dst *ebiten.Image, x, y, radius float32, alphaU8 uint8, cosPhase, sinPhase float32) {
+	orbitX := x + radius*1.5*cosPhase
+	orbitY := y + radius*1.5*sinPhase
+	c := color.RGBA{200, 200, 255, alphaU8}
+	vector.DrawFilledCircle(dst, orbitX, orbitY, 5, c, true)
 }
 
 // renderPremiumEffect draws Premium tier effects (Resonance 100+).
