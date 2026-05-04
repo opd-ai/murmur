@@ -201,35 +201,37 @@ func (o *EchoChainOverlay) Draw(screen *ebiten.Image, cameraX, cameraY, zoom flo
 	screenH := float64(screen.Bounds().Dy())
 	centerX := screenW / 2
 	centerY := screenH / 2
-
 	now := time.Now()
 
 	for _, chain := range o.chains {
-		if len(chain.Nodes) < 2 {
+		if o.shouldSkipChain(chain, now) {
 			continue
 		}
-
-		// Skip expired chains.
-		if now.After(chain.ExpiresAt) {
-			continue
-		}
-
-		// Calculate fade factor based on time remaining.
-		totalDuration := chain.ExpiresAt.Sub(chain.FormedAt).Seconds()
-		remaining := chain.ExpiresAt.Sub(now).Seconds()
-		fadeFactor := 1.0
-		if totalDuration > 0 {
-			fadeFactor = remaining / totalDuration
-			if fadeFactor > 1 {
-				fadeFactor = 1
-			}
-			if fadeFactor < 0 {
-				fadeFactor = 0
-			}
-		}
-
+		fadeFactor := o.calculateFadeFactor(chain, now)
 		o.drawChain(screen, chain, centerX, centerY, cameraX, cameraY, zoom, float32(fadeFactor))
 	}
+}
+
+// shouldSkipChain returns true if the chain should not be drawn.
+func (o *EchoChainOverlay) shouldSkipChain(chain *EchoChainInfo, now time.Time) bool {
+	return len(chain.Nodes) < 2 || now.After(chain.ExpiresAt)
+}
+
+// calculateFadeFactor computes the fade factor based on remaining time until expiration.
+func (o *EchoChainOverlay) calculateFadeFactor(chain *EchoChainInfo, now time.Time) float64 {
+	totalDuration := chain.ExpiresAt.Sub(chain.FormedAt).Seconds()
+	if totalDuration <= 0 {
+		return 1.0
+	}
+	remaining := chain.ExpiresAt.Sub(now).Seconds()
+	fadeFactor := remaining / totalDuration
+	if fadeFactor > 1 {
+		return 1
+	}
+	if fadeFactor < 0 {
+		return 0
+	}
+	return fadeFactor
 }
 
 // drawChain draws a single echo chain.
@@ -316,33 +318,50 @@ func (o *EchoChainOverlay) segmentIntersectsRect(x1, y1, x2, y2, left, top, righ
 
 // drawArc draws a curved arc between two points.
 func (o *EchoChainOverlay) drawArc(screen *ebiten.Image, x1, y1, x2, y2, zoom float32, arcColor color.RGBA, hasShimmer bool, segmentIndex int) {
-	// Calculate arc parameters.
-	dx := x2 - x1
-	dy := y2 - y1
-	dist := float32(math.Sqrt(float64(dx*dx + dy*dy)))
-
+	dist := calculateDistance(x1, y1, x2, y2)
 	if dist < 5 {
 		return // Too close to draw meaningful arc.
 	}
 
-	// Arc width based on zoom.
+	arcWidth := calculateArcWidth(zoom)
+	controlX, controlY := calculateArcControlPoint(x1, y1, x2, y2, dist, segmentIndex)
+
+	o.drawArcSegments(screen, x1, y1, x2, y2, controlX, controlY, arcWidth, arcColor)
+
+	if hasShimmer {
+		o.drawShimmer(screen, x1, y1, x2, y2, controlX, controlY, zoom, segmentIndex)
+	}
+}
+
+// calculateDistance computes the Euclidean distance between two points.
+func calculateDistance(x1, y1, x2, y2 float32) float32 {
+	dx := x2 - x1
+	dy := y2 - y1
+	return float32(math.Sqrt(float64(dx*dx + dy*dy)))
+}
+
+// calculateArcWidth determines the arc width based on zoom level.
+func calculateArcWidth(zoom float32) float32 {
 	arcWidth := 3.0 * zoom
 	if arcWidth < 1.5 {
-		arcWidth = 1.5
+		return 1.5
 	}
 	if arcWidth > 6 {
-		arcWidth = 6
+		return 6
 	}
+	return arcWidth
+}
 
-	// Calculate control point for quadratic bezier (arc bulge).
+// calculateArcControlPoint computes the control point for quadratic bezier arc.
+func calculateArcControlPoint(x1, y1, x2, y2, dist float32, segmentIndex int) (float32, float32) {
 	midX := (x1 + x2) / 2
 	midY := (y1 + y2) / 2
 
-	// Perpendicular offset for arc curve.
+	dx := x2 - x1
+	dy := y2 - y1
 	perpX := -dy / dist
 	perpY := dx / dist
 
-	// Arc height based on distance.
 	arcHeight := dist * 0.2
 	if arcHeight < 10 {
 		arcHeight = 10
@@ -351,7 +370,6 @@ func (o *EchoChainOverlay) drawArc(screen *ebiten.Image, x1, y1, x2, y2, zoom fl
 		arcHeight = 50
 	}
 
-	// Alternate arc direction based on segment index.
 	direction := float32(1.0)
 	if segmentIndex%2 == 1 {
 		direction = -1.0
@@ -359,27 +377,22 @@ func (o *EchoChainOverlay) drawArc(screen *ebiten.Image, x1, y1, x2, y2, zoom fl
 
 	controlX := midX + perpX*arcHeight*direction
 	controlY := midY + perpY*arcHeight*direction
+	return controlX, controlY
+}
 
-	// Draw arc as series of line segments (quadratic bezier approximation).
-	segments := 12
+// drawArcSegments draws the arc as a series of quadratic bezier segments.
+func (o *EchoChainOverlay) drawArcSegments(screen *ebiten.Image, x1, y1, x2, y2, controlX, controlY, arcWidth float32, arcColor color.RGBA) {
+	const segments = 12
 	prevX, prevY := x1, y1
 
 	for i := 1; i <= segments; i++ {
 		t := float32(i) / float32(segments)
-
-		// Quadratic bezier: (1-t)^2 * P0 + 2*(1-t)*t * P1 + t^2 * P2
 		oneMinusT := 1 - t
 		px := oneMinusT*oneMinusT*x1 + 2*oneMinusT*t*controlX + t*t*x2
 		py := oneMinusT*oneMinusT*y1 + 2*oneMinusT*t*controlY + t*t*y2
 
-		vector.StrokeLine(screen, prevX, prevY, px, py, float32(arcWidth), arcColor, true)
-
+		vector.StrokeLine(screen, prevX, prevY, px, py, arcWidth, arcColor, true)
 		prevX, prevY = px, py
-	}
-
-	// Draw shimmer effect for long chains.
-	if hasShimmer {
-		o.drawShimmer(screen, x1, y1, x2, y2, controlX, controlY, zoom, segmentIndex)
 	}
 }
 

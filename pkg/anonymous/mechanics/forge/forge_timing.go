@@ -120,30 +120,7 @@ type ForgeTiming struct {
 
 // NewForgeTiming creates a new timing manager for a forge challenge.
 func NewForgeTiming(config ForgeTimingConfig) *ForgeTiming {
-	now := time.Now()
-
-	warmupEnd := now
-	if config.WarmupDuration > 0 {
-		warmupEnd = now.Add(config.WarmupDuration)
-	}
-
-	submissionEnd := warmupEnd.Add(config.SubmissionDuration)
-	evaluationEnd := submissionEnd.Add(config.EvaluationDuration)
-
-	phase := ForgePhaseWarmup
-	if config.WarmupDuration == 0 {
-		phase = ForgePhaseOpen
-	}
-
-	return &ForgeTiming{
-		Config:             config,
-		StartTime:          now,
-		WarmupEndTime:      warmupEnd,
-		SubmissionDeadline: submissionEnd,
-		EvaluationDeadline: evaluationEnd,
-		CurrentPhase:       phase,
-		lastUpdateTime:     now,
-	}
+	return NewForgeTimingAt(config, time.Now())
 }
 
 // NewForgeTimingAt creates a timing manager starting at a specific time.
@@ -280,36 +257,31 @@ func (ft *ForgeTiming) IsCancelled() bool {
 	return ft.CurrentPhase == ForgePhaseCancelled
 }
 
-// Cancel marks the forge as cancelled.
-func (ft *ForgeTiming) Cancel() {
-	ft.mu.Lock()
-	defer ft.mu.Unlock()
-
+// transitionPhase updates CurrentPhase and fires callbacks without holding the lock.
+func (ft *ForgeTiming) transitionPhase(newPhase ForgePhase) {
 	oldPhase := ft.CurrentPhase
-	ft.CurrentPhase = ForgePhaseCancelled
+	ft.CurrentPhase = newPhase
 
 	callbacks := ft.onPhaseChange
 	ft.mu.Unlock()
 	for _, cb := range callbacks {
-		cb(oldPhase, ForgePhaseCancelled)
+		cb(oldPhase, newPhase)
 	}
 	ft.mu.Lock()
+}
+
+// Cancel marks the forge as cancelled.
+func (ft *ForgeTiming) Cancel() {
+	ft.mu.Lock()
+	defer ft.mu.Unlock()
+	ft.transitionPhase(ForgePhaseCancelled)
 }
 
 // ForceComplete marks the forge as complete (after evaluation finishes).
 func (ft *ForgeTiming) ForceComplete() {
 	ft.mu.Lock()
 	defer ft.mu.Unlock()
-
-	oldPhase := ft.CurrentPhase
-	ft.CurrentPhase = ForgePhaseComplete
-
-	callbacks := ft.onPhaseChange
-	ft.mu.Unlock()
-	for _, cb := range callbacks {
-		cb(oldPhase, ForgePhaseComplete)
-	}
-	ft.mu.Lock()
+	ft.transitionPhase(ForgePhaseComplete)
 }
 
 // TimeRemaining returns the time remaining until the next phase transition.

@@ -135,15 +135,8 @@ func (s *SpecterDeclaration) powPayload() []byte {
 	buf := make([]byte, 0, size)
 
 	buf = append(buf, s.PublicKey...)
-
-	lenBuf := make([]byte, 4)
-	binary.BigEndian.PutUint32(lenBuf, uint32(len(s.Pseudonym)))
-	buf = append(buf, lenBuf...)
-	buf = append(buf, []byte(s.Pseudonym)...)
-
-	tsBuf := make([]byte, 8)
-	binary.BigEndian.PutUint64(tsBuf, uint64(s.CreatedAt))
-	buf = append(buf, tsBuf...)
+	buf = appendStringWithLen(buf, s.Pseudonym)
+	buf = appendU64BigEndian(buf, uint64(s.CreatedAt))
 
 	return buf
 }
@@ -236,20 +229,11 @@ func (s *SpecterDeclaration) signingPayload() []byte {
 	buf := make([]byte, 0, size)
 
 	buf = append(buf, s.PublicKey...)
+	buf = appendStringWithLen(buf, s.Pseudonym)
+	buf = appendU64BigEndian(buf, uint64(s.CreatedAt))
+	buf = appendU64BigEndian(buf, s.PoWNonce)
 
 	lenBuf := make([]byte, 4)
-	binary.BigEndian.PutUint32(lenBuf, uint32(len(s.Pseudonym)))
-	buf = append(buf, lenBuf...)
-	buf = append(buf, []byte(s.Pseudonym)...)
-
-	tsBuf := make([]byte, 8)
-	binary.BigEndian.PutUint64(tsBuf, uint64(s.CreatedAt))
-	buf = append(buf, tsBuf...)
-
-	nonceBuf := make([]byte, 8)
-	binary.BigEndian.PutUint64(nonceBuf, s.PoWNonce)
-	buf = append(buf, nonceBuf...)
-
 	binary.BigEndian.PutUint32(lenBuf, uint32(len(s.SigilPNG)))
 	buf = append(buf, lenBuf...)
 	buf = append(buf, s.SigilPNG...)

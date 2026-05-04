@@ -10,14 +10,17 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"time"
 
 	"github.com/opd-ai/murmur/pkg/anonymous/shroud"
+	"github.com/opd-ai/murmur/pkg/content/pow"
 	"github.com/opd-ai/murmur/pkg/content/storage"
 	"github.com/opd-ai/murmur/pkg/identity/keys"
 	"github.com/opd-ai/murmur/pkg/murerr"
 	"github.com/opd-ai/murmur/pkg/networking/gossip"
+	"github.com/opd-ai/murmur/pkg/networking/health"
 	"github.com/opd-ai/murmur/pkg/networking/transport"
 	"github.com/opd-ai/murmur/pkg/store"
 	pb "github.com/opd-ai/murmur/proto"
@@ -55,6 +58,14 @@ type Config struct {
 	// RelayBandwidth is the advertised bandwidth for relay operations (bytes/sec).
 	// Only relevant if EnableRelay is true. Defaults to 10 MiB/s.
 	RelayBandwidth uint64
+
+	// EnableHealthEndpoint enables HTTP health check endpoint for monitoring.
+	// Default false for privacy; bootstrap nodes should set true.
+	EnableHealthEndpoint bool
+
+	// HealthEndpointPort is the port for the health check endpoint.
+	// Only relevant if EnableHealthEndpoint is true. Defaults to 8080.
+	HealthEndpointPort int
 }
 
 // Subsystems holds references to all initialized subsystems.
@@ -92,6 +103,10 @@ type Subsystems struct {
 	// OnboardingFlow manages the six-phase onboarding sequence.
 	// Nil if not first run or if SkipUI is true.
 	OnboardingFlow interface{} // Actual type: *flow.Controller
+
+	// HealthServer provides HTTP health check endpoint for monitoring.
+	// Nil if EnableHealthEndpoint is false (default).
+	HealthServer interface{} // Actual type: *health.Server
 
 	// PulseMapUI is the Ebitengine game loop for the Pulse Map visualization.
 	// Nil if SkipUI is true. Type is interface{} to avoid hard ebiten dependency
@@ -224,6 +239,13 @@ func (a *App) initializeSubsystems() error {
 		return murerr.WrapNetworkError(err)
 	}
 	fmt.Println("  [3/7] Networking initialized")
+
+	// Initialize health check endpoint if enabled
+	if a.config.EnableHealthEndpoint {
+		if err := a.initHealthServer(); err != nil {
+			return fmt.Errorf("initializing health server: %w", err)
+		}
+	}
 
 	if err := a.initContent(); err != nil {
 		return murerr.WrapContentError(err)
@@ -384,6 +406,22 @@ func (a *App) initNetworking() error {
 	return nil
 }
 
+// initHealthServer initializes the HTTP health check endpoint.
+// Per AUDIT.md MEDIUM finding, this enables bootstrap node operators to monitor
+// node status, peer connections, and subscribed topics.
+func (a *App) initHealthServer() error {
+	server := health.NewServer(a.subsystems.Host.Host, a.subsystems.PubSub)
+	a.subsystems.HealthServer = server
+
+	port := a.config.HealthEndpointPort
+	if err := server.Start(a.ctx, port); err != nil {
+		return fmt.Errorf("starting health server on port %d: %w", port, err)
+	}
+
+	fmt.Printf("  [3.5/7] Health server listening on port %d\n", port)
+	return nil
+}
+
 // initContent initializes the content subsystem (Wave cache and GossipSub handlers).
 // Per TECHNICAL_IMPLEMENTATION.md §3.1, handlers are registered for all core topics.
 func (a *App) initContent() error {
@@ -394,9 +432,19 @@ func (a *App) initContent() error {
 	}
 	a.subsystems.WaveCache = cache
 
-	// Create message handlers.
+	// Restore persisted difficulty from previous session.
+	// Per AUDIT.md HIGH finding remediation.
+	if persistedDifficulty := cache.LoadPersistedDifficulty(); persistedDifficulty > 0 {
+		cfg := pow.GetGlobalConfig()
+		if cfg.SetStandard(persistedDifficulty) {
+			fmt.Printf("Restored persisted PoW difficulty: %d bits\n", persistedDifficulty)
+		}
+	}
+
+	// Create message handlers with Beacon for relay discovery.
 	handlers, err := NewHandlers(HandlersConfig{
-		Cache: cache,
+		Cache:  cache,
+		Beacon: a.subsystems.Beacon,
 	})
 	if err != nil {
 		return fmt.Errorf("creating handlers: %w", err)
@@ -428,6 +476,15 @@ func (a *App) initContent() error {
 	go func() {
 		defer a.wg.Done()
 		cache.StartGC(a.ctx, storage.GCInterval)
+	}()
+
+	// Start memory budget enforcement goroutine.
+	// Per AUDIT.md HIGH "No memory budget enforcement", this monitors memory
+	// usage every 60 seconds and evicts content if exceeding 200 MiB target.
+	a.wg.Add(1)
+	go func() {
+		defer a.wg.Done()
+		a.runMemoryMonitor(cache)
 	}()
 
 	return nil
@@ -544,6 +601,53 @@ func (a *App) runRelayPruneLoop() {
 			if beacon != nil {
 				beacon.PruneExpiredRelays(2 * shroud.AdvertisementTTL)
 			}
+		}
+	}
+}
+
+// runMemoryMonitor periodically checks memory usage and triggers eviction.
+// Per AUDIT.md HIGH "No memory budget enforcement", this enforces the
+// 256 MiB memory budget stated in TECHNICAL_IMPLEMENTATION.md §6.
+func (a *App) runMemoryMonitor(cache *storage.Cache) {
+	ticker := time.NewTicker(60 * time.Second)
+	defer ticker.Stop()
+
+	const (
+		targetMemory  = 200 * 1024 * 1024 // 200 MiB - trigger eviction
+		warningMemory = 240 * 1024 * 1024 // 240 MiB - log warning
+		maxMemory     = 256 * 1024 * 1024 // 256 MiB - stated target
+	)
+
+	for {
+		select {
+		case <-a.ctx.Done():
+			return
+		case <-ticker.C:
+			var m runtime.MemStats
+			runtime.ReadMemStats(&m)
+			allocMB := m.Alloc / (1024 * 1024)
+
+			// Memory within budget - no action needed.
+			if m.Alloc < targetMemory {
+				continue
+			}
+
+			// Memory pressure detected - evict oldest Waves.
+			fmt.Printf("Memory pressure: %d MiB allocated (target 200 MiB), evicting Waves...\n", allocMB)
+			evicted := cache.EvictOldest(1000)
+			fmt.Printf("  -> Evicted %d oldest Waves\n", evicted)
+
+			// Check if eviction was sufficient.
+			runtime.ReadMemStats(&m)
+			allocMB = m.Alloc / (1024 * 1024)
+
+			if m.Alloc >= warningMemory {
+				fmt.Printf("WARNING: Memory still high after eviction: %d MiB (target 256 MiB)\n", allocMB)
+				fmt.Println("  -> Consider stopping to accept new Waves or increasing eviction threshold")
+			}
+
+			// Force GC to reclaim freed memory.
+			runtime.GC()
 		}
 	}
 }

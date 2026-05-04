@@ -397,29 +397,47 @@ func (o *SparkOverlay) drawWaveRelayIcon(screen *ebiten.Image, x, y, scale float
 
 // drawEchoRaceIcon draws the Echo Race racing flag icon.
 func (o *SparkOverlay) drawEchoRaceIcon(screen *ebiten.Image, x, y, scale float32, spark *SparkInfo) {
-	baseColor := o.echoRaceColor
-	if spark.State == SparkExpired || spark.State == SparkCancelled {
-		baseColor = o.expiredColor
-	} else if spark.State == SparkCompleted {
-		baseColor = o.completedColor
-	}
+	baseColor := o.getSparkBaseColor(spark)
 
-	// Draw flag pole.
 	poleHeight := 25 * scale
 	poleWidth := 2 * scale
-	poleColor := color.RGBA{80, 80, 90, 255}
-	vector.DrawFilledRect(screen, x-poleWidth/2, y-poleHeight/2, poleWidth, poleHeight, poleColor, true)
+	o.drawFlagPole(screen, x, y, poleWidth, poleHeight)
 
-	// Draw checkered flag.
 	flagWidth := 18 * scale
 	flagHeight := 12 * scale
 	flagX := x
 	flagY := y - poleHeight/2 + flagHeight/2
 
-	// Flag background.
+	o.drawCheckeredFlag(screen, flagX, flagY, flagWidth, flagHeight, baseColor)
+
+	if spark.State == SparkActive {
+		o.drawFlagMotionLines(screen, flagX, flagY, flagWidth, scale, baseColor)
+	}
+
+	o.drawLetter(screen, x+flagWidth/2, flagY, scale*0.6, "E", color.RGBA{255, 255, 255, 200})
+}
+
+// getSparkBaseColor determines the base color for a spark icon based on its state.
+func (o *SparkOverlay) getSparkBaseColor(spark *SparkInfo) color.RGBA {
+	if spark.State == SparkExpired || spark.State == SparkCancelled {
+		return o.expiredColor
+	}
+	if spark.State == SparkCompleted {
+		return o.completedColor
+	}
+	return o.echoRaceColor
+}
+
+// drawFlagPole draws the vertical pole of a flag icon.
+func (o *SparkOverlay) drawFlagPole(screen *ebiten.Image, x, y, poleWidth, poleHeight float32) {
+	poleColor := color.RGBA{80, 80, 90, 255}
+	vector.DrawFilledRect(screen, x-poleWidth/2, y-poleHeight/2, poleWidth, poleHeight, poleColor, true)
+}
+
+// drawCheckeredFlag draws a checkered flag pattern.
+func (o *SparkOverlay) drawCheckeredFlag(screen *ebiten.Image, flagX, flagY, flagWidth, flagHeight float32, baseColor color.RGBA) {
 	vector.DrawFilledRect(screen, flagX, flagY-flagHeight/2, flagWidth, flagHeight, baseColor, true)
 
-	// Checkered pattern (simplified).
 	checkSize := flagWidth / 4
 	darkColor := color.RGBA{30, 30, 40, 255}
 	for row := 0; row < 2; row++ {
@@ -431,23 +449,19 @@ func (o *SparkOverlay) drawEchoRaceIcon(screen *ebiten.Image, x, y, scale float3
 			}
 		}
 	}
+}
 
-	// Wave the flag for active sparks.
-	if spark.State == SparkActive {
-		wavePhase := float32(math.Sin(o.time * 4))
-		// Draw motion lines.
-		for i := 0; i < 3; i++ {
-			lineX := flagX + flagWidth + 5*scale + float32(i)*4*scale
-			lineY := flagY + wavePhase*2*scale + float32(i)*2*scale
-			lineLen := 8*scale - float32(i)*2*scale
-			lineAlpha := uint8(150 - i*40)
-			lineColor := color.RGBA{baseColor.R, baseColor.G, baseColor.B, lineAlpha}
-			vector.StrokeLine(screen, lineX, lineY-lineLen/2, lineX, lineY+lineLen/2, 2, lineColor, true)
-		}
+// drawFlagMotionLines draws animated motion lines for active flag waving.
+func (o *SparkOverlay) drawFlagMotionLines(screen *ebiten.Image, flagX, flagY, flagWidth, scale float32, baseColor color.RGBA) {
+	wavePhase := float32(math.Sin(o.time * 4))
+	for i := 0; i < 3; i++ {
+		lineX := flagX + flagWidth + 5*scale + float32(i)*4*scale
+		lineY := flagY + wavePhase*2*scale + float32(i)*2*scale
+		lineLen := 8*scale - float32(i)*2*scale
+		lineAlpha := uint8(150 - i*40)
+		lineColor := color.RGBA{baseColor.R, baseColor.G, baseColor.B, lineAlpha}
+		vector.StrokeLine(screen, lineX, lineY-lineLen/2, lineX, lineY+lineLen/2, 2, lineColor, true)
 	}
-
-	// Draw "E" for Echo Race.
-	o.drawLetter(screen, x+flagWidth/2, flagY, scale*0.6, "E", color.RGBA{255, 255, 255, 200})
 }
 
 // drawLetter draws a simplified letter at position.
@@ -526,35 +540,48 @@ func (o *SparkOverlay) drawTimeRemaining(screen *ebiten.Image, x, y, scale float
 		return
 	}
 
-	total := spark.ExpiresAt.Sub(spark.CreatedAt).Seconds()
-	remaining := spark.ExpiresAt.Sub(now).Seconds()
-	if total <= 0 {
+	fraction := calculateTimeFraction(spark, now)
+	if fraction <= 0 {
 		return
 	}
 
-	fraction := remaining / total
-	if fraction > 1 {
-		fraction = 1
-	}
-	if fraction < 0 {
-		fraction = 0
-	}
-
-	// Draw arc from top, clockwise.
 	arcRadius := 18 * scale
 	arcWidth := float32(3.0)
+	arcColor := selectArcColor(fraction)
 
-	// Color transitions from green to yellow to red as time runs out.
-	var arcColor color.RGBA
-	if fraction > 0.5 {
-		arcColor = color.RGBA{80, 200, 80, 200}
-	} else if fraction > 0.2 {
-		arcColor = color.RGBA{220, 200, 50, 200}
-	} else {
-		arcColor = color.RGBA{220, 80, 80, 200}
+	drawTimerArc(screen, x, y, arcRadius, arcWidth, fraction, arcColor)
+}
+
+// calculateTimeFraction computes remaining time as fraction of total.
+func calculateTimeFraction(spark *SparkInfo, now time.Time) float64 {
+	total := spark.ExpiresAt.Sub(spark.CreatedAt).Seconds()
+	if total <= 0 {
+		return 0
 	}
+	remaining := spark.ExpiresAt.Sub(now).Seconds()
+	fraction := remaining / total
+	if fraction > 1 {
+		return 1
+	}
+	if fraction < 0 {
+		return 0
+	}
+	return fraction
+}
 
-	// Draw arc segments.
+// selectArcColor returns color based on remaining time fraction.
+func selectArcColor(fraction float64) color.RGBA {
+	if fraction > 0.5 {
+		return color.RGBA{80, 200, 80, 200}
+	}
+	if fraction > 0.2 {
+		return color.RGBA{220, 200, 50, 200}
+	}
+	return color.RGBA{220, 80, 80, 200}
+}
+
+// drawTimerArc renders segmented arc indicating time remaining.
+func drawTimerArc(screen *ebiten.Image, x, y, radius, width float32, fraction float64, arcColor color.RGBA) {
 	startAngle := -math.Pi / 2
 	endAngle := startAngle + 2*math.Pi*fraction
 	segments := int(fraction * 20)
@@ -568,12 +595,12 @@ func (o *SparkOverlay) drawTimeRemaining(screen *ebiten.Image, x, y, scale float
 		a0 := startAngle + (endAngle-startAngle)*t0
 		a1 := startAngle + (endAngle-startAngle)*t1
 
-		x0 := x + arcRadius*float32(math.Cos(a0))
-		y0 := y + arcRadius*float32(math.Sin(a0))
-		x1 := x + arcRadius*float32(math.Cos(a1))
-		y1 := y + arcRadius*float32(math.Sin(a1))
+		x0 := x + radius*float32(math.Cos(a0))
+		y0 := y + radius*float32(math.Sin(a0))
+		x1 := x + radius*float32(math.Cos(a1))
+		y1 := y + radius*float32(math.Sin(a1))
 
-		vector.StrokeLine(screen, x0, y0, x1, y1, arcWidth, arcColor, true)
+		vector.StrokeLine(screen, x0, y0, x1, y1, width, arcColor, true)
 	}
 }
 

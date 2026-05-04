@@ -62,11 +62,11 @@ func TestIntegrationTwoNodeGossip(t *testing.T) {
 	}
 
 	// Setup connection managers
-	m1 := mesh.NewManager(h1.Host)
+	m1 := mesh.NewManager(h1.Host, 0)
 	m1.Start()
 	defer m1.Stop()
 
-	m2 := mesh.NewManager(h2.Host)
+	m2 := mesh.NewManager(h2.Host, 0)
 	m2.Start()
 	defer m2.Stop()
 

@@ -407,20 +407,37 @@ func (mp *MaskedEventPanel) handleJoinInput() {
 
 // handleLobbyInput processes input in lobby mode.
 func (mp *MaskedEventPanel) handleLobbyInput() {
-	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
-		mp.mode = MaskedEventModeList
-		mp.activeEvent = nil
+	if mp.handleLobbyEscape() {
 		return
 	}
 
-	// Compose new Wave.
+	mp.handleLobbyCompose()
+	mp.handleLobbyLeave()
+	mp.handleLobbyNavigation()
+	mp.handleLobbyAmplify()
+}
+
+// handleLobbyEscape processes Escape key to return to event list.
+func (mp *MaskedEventPanel) handleLobbyEscape() bool {
+	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
+		mp.mode = MaskedEventModeList
+		mp.activeEvent = nil
+		return true
+	}
+	return false
+}
+
+// handleLobbyCompose processes 'C' key to enter compose mode.
+func (mp *MaskedEventPanel) handleLobbyCompose() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyC) {
 		mp.mode = MaskedEventModeCompose
 		mp.composeContent = ""
 		mp.composeCharIdx = 0
 	}
+}
 
-	// Leave event.
+// handleLobbyLeave processes 'L' key to leave the active event.
+func (mp *MaskedEventPanel) handleLobbyLeave() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyL) {
 		if mp.activeEvent != nil && mp.onLeave != nil {
 			mp.onLeave(mp.activeEvent.EventID)
@@ -428,16 +445,20 @@ func (mp *MaskedEventPanel) handleLobbyInput() {
 		mp.mode = MaskedEventModeList
 		mp.activeEvent = nil
 	}
+}
 
-	// Navigate Waves.
+// handleLobbyNavigation processes up/down keys for Wave navigation.
+func (mp *MaskedEventPanel) handleLobbyNavigation() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyUp) && mp.selectedIdx > 0 {
 		mp.selectedIdx--
 	}
 	if inpututil.IsKeyJustPressed(ebiten.KeyDown) && mp.selectedIdx < len(mp.waves)-1 {
 		mp.selectedIdx++
 	}
+}
 
-	// Amplify selected Wave.
+// handleLobbyAmplify processes 'A' key to amplify selected Wave.
+func (mp *MaskedEventPanel) handleLobbyAmplify() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyA) && len(mp.waves) > 0 {
 		wave := mp.waves[mp.selectedIdx]
 		if mp.activeEvent != nil && mp.onAmplify != nil {

@@ -316,38 +316,32 @@ func (r *HuntReceiver) handleClueReveal(event *pb.HuntEvent) error {
 	return nil
 }
 
-// handleHuntCompleted processes a hunt completion event.
-func (r *HuntReceiver) handleHuntCompleted(event *pb.HuntEvent) error {
-	var huntID [32]byte
-	copy(huntID[:], event.HuntId)
-
+// updateHuntState retrieves a hunt by ID and updates its state atomically.
+func (r *HuntReceiver) updateHuntState(huntID [32]byte, newState HuntState) error {
 	hunt := r.huntStore.GetHunt(huntID)
 	if hunt == nil {
 		return ErrHuntNotFound
 	}
 
 	hunt.mu.Lock()
-	hunt.State = HuntCompleted
+	hunt.State = newState
 	hunt.mu.Unlock()
 
 	return nil
+}
+
+// handleHuntCompleted processes a hunt completion event.
+func (r *HuntReceiver) handleHuntCompleted(event *pb.HuntEvent) error {
+	var huntID [32]byte
+	copy(huntID[:], event.HuntId)
+	return r.updateHuntState(huntID, HuntCompleted)
 }
 
 // handleHuntExpired processes a hunt expiration event.
 func (r *HuntReceiver) handleHuntExpired(event *pb.HuntEvent) error {
 	var huntID [32]byte
 	copy(huntID[:], event.HuntId)
-
-	hunt := r.huntStore.GetHunt(huntID)
-	if hunt == nil {
-		return ErrHuntNotFound
-	}
-
-	hunt.mu.Lock()
-	hunt.State = HuntExpired
-	hunt.mu.Unlock()
-
-	return nil
+	return r.updateHuntState(huntID, HuntExpired)
 }
 
 // huntToNetworkProto converts a Hunt to the network protobuf format (pb.Hunt).

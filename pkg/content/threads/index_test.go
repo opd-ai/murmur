@@ -4,9 +4,37 @@ import (
 	"os"
 	"testing"
 
+	"github.com/opd-ai/murmur/pkg/content/waves"
+	"github.com/opd-ai/murmur/pkg/identity/keys"
 	"github.com/opd-ai/murmur/pkg/store"
 	pb "github.com/opd-ai/murmur/proto"
 )
+
+// createValidTestWave creates a valid Wave with proper PoW and signature for testing.
+// Per AUDIT.md remediation, tests now use properly validated Waves.
+func createValidTestWave(name string, content, parentHash []byte) *pb.Wave {
+	// Generate keypair for test Wave
+	kp, err := keys.GenerateKeyPair()
+	if err != nil {
+		return nil
+	}
+
+	// Create Wave using proper factory functions
+	var wave *pb.Wave
+	if len(parentHash) > 0 {
+		// Create reply Wave
+		wave, err = waves.CreateReply(content, parentHash, kp)
+	} else {
+		// Create surface Wave
+		wave, err = waves.CreateSurface(content, kp)
+	}
+
+	if err != nil {
+		return nil
+	}
+
+	return wave
+}
 
 func createTestDB(t *testing.T) (*store.DB, func()) {
 	t.Helper()
@@ -358,12 +386,25 @@ func TestLoadThread(t *testing.T) {
 
 	idx, _ := NewIndex(db)
 
-	// Build tree.
-	waves := map[string]*pb.Wave{
-		"root":   {WaveId: []byte("root"), Content: []byte("root content")},
-		"reply1": {WaveId: []byte("reply1"), ParentHash: []byte("root"), Content: []byte("reply1 content")},
-		"reply2": {WaveId: []byte("reply2"), ParentHash: []byte("root"), Content: []byte("reply2 content")},
+	// Create valid test Waves (per AUDIT.md remediation).
+	root := createValidTestWave("root", []byte("root content"), nil)
+	if root == nil {
+		t.Fatal("failed to create root wave")
 	}
+	reply1 := createValidTestWave("reply1", []byte("reply1 content"), root.WaveId)
+	if reply1 == nil {
+		t.Fatal("failed to create reply1 wave")
+	}
+	reply2 := createValidTestWave("reply2", []byte("reply2 content"), root.WaveId)
+	if reply2 == nil {
+		t.Fatal("failed to create reply2 wave")
+	}
+
+	// Use actual Wave IDs for lookup (not string identifiers).
+	waves := make(map[string]*pb.Wave)
+	waves[string(root.WaveId)] = root
+	waves[string(reply1.WaveId)] = reply1
+	waves[string(reply2.WaveId)] = reply2
 
 	for _, w := range waves {
 		idx.Add(w)
@@ -376,7 +417,7 @@ func TestLoadThread(t *testing.T) {
 		return nil, ErrNotFound
 	}
 
-	thread, err := idx.LoadThread([]byte("root"), loader)
+	thread, err := idx.LoadThread(root.WaveId, loader)
 	if err != nil {
 		t.Fatalf("LoadThread failed: %v", err)
 	}

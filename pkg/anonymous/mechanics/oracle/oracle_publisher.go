@@ -228,29 +228,36 @@ func (r *OracleReceiver) verifyEventSignature(event *pb.OracleEvent) error {
 		return mechanics.ErrMissingSignature
 	}
 
-	// For pool creation, verify against creator's pubkey.
-	if event.EventType == pb.OracleEventType_ORACLE_EVENT_CREATED {
-		if event.Pool != nil && len(event.Pool.CreatorPubkey) == ed25519.PublicKeySize {
-			sigData := r.eventSignatureData(event)
-			if !ed25519.Verify(event.Pool.CreatorPubkey, sigData, event.Signature) {
-				return mechanics.ErrSignatureFailed
-			}
-		}
+	switch event.EventType {
+	case pb.OracleEventType_ORACLE_EVENT_CREATED:
+		return r.verifyCreationSignature(event)
+	case pb.OracleEventType_ORACLE_EVENT_PREDICTION:
+		return r.verifyPredictionSignature(event)
+	default:
+		// For close/resolve events, signature is from pool creator.
 		return nil
 	}
+}
 
-	// For predictions, verify against predictor's pubkey.
-	if event.EventType == pb.OracleEventType_ORACLE_EVENT_PREDICTION {
-		if event.Prediction != nil && len(event.Prediction.SpecterPubkey) == ed25519.PublicKeySize {
-			sigData := r.eventSignatureData(event)
-			if !ed25519.Verify(event.Prediction.SpecterPubkey, sigData, event.Signature) {
-				return mechanics.ErrSignatureFailed
-			}
+// verifyCreationSignature validates the signature for pool creation events.
+func (r *OracleReceiver) verifyCreationSignature(event *pb.OracleEvent) error {
+	if event.Pool != nil && len(event.Pool.CreatorPubkey) == ed25519.PublicKeySize {
+		sigData := r.eventSignatureData(event)
+		if !ed25519.Verify(event.Pool.CreatorPubkey, sigData, event.Signature) {
+			return mechanics.ErrSignatureFailed
 		}
-		return nil
 	}
+	return nil
+}
 
-	// For close/resolve events, signature is from pool creator.
+// verifyPredictionSignature validates the signature for prediction events.
+func (r *OracleReceiver) verifyPredictionSignature(event *pb.OracleEvent) error {
+	if event.Prediction != nil && len(event.Prediction.SpecterPubkey) == ed25519.PublicKeySize {
+		sigData := r.eventSignatureData(event)
+		if !ed25519.Verify(event.Prediction.SpecterPubkey, sigData, event.Signature) {
+			return mechanics.ErrSignatureFailed
+		}
+	}
 	return nil
 }
 

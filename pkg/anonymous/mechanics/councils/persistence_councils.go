@@ -116,14 +116,6 @@ func councilToProto(c *PhantomCouncil) *pb.PhantomCouncil {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	state := pb.CouncilState_COUNCIL_STATE_UNSPECIFIED
-	switch c.State {
-	case CouncilActive:
-		state = pb.CouncilState_COUNCIL_STATE_ACTIVE
-	case CouncilDisbanded:
-		state = pb.CouncilState_COUNCIL_STATE_DISSOLVED
-	}
-
 	pbCouncil := &pb.PhantomCouncil{
 		Id:            c.ID[:],
 		Name:          c.Name,
@@ -131,50 +123,73 @@ func councilToProto(c *PhantomCouncil) *pb.PhantomCouncil {
 		CreatedAt:     c.CreatedAt.Unix(),
 		MinResonance:  uint32(c.MinResonance),
 		Quorum:        uint32(len(c.Members) / 2), // Majority quorum.
-		State:         state,
-	}
-
-	// Convert members.
-	for _, m := range c.Members {
-		if m.Status == MemberActive {
-			role := pb.CouncilRole_COUNCIL_ROLE_MEMBER
-			if m.SpecterKey == c.CreatorKey {
-				role = pb.CouncilRole_COUNCIL_ROLE_FOUNDER
-			}
-			pbMember := &pb.CouncilMember{
-				SpecterPubkey: m.SpecterKey[:],
-				JoinedAt:      m.JoinedAt.Unix(),
-				VoteWeight:    uint32(1),
-				Role:          role,
-			}
-			pbCouncil.Members = append(pbCouncil.Members, pbMember)
-		}
-	}
-
-	// Convert proposals.
-	for _, p := range c.Proposals {
-		proposalState := pb.ProposalState_PROPOSAL_STATE_PENDING
-		if p.Resolved {
-			if p.Passed {
-				proposalState = pb.ProposalState_PROPOSAL_STATE_PASSED
-			} else {
-				proposalState = pb.ProposalState_PROPOSAL_STATE_REJECTED
-			}
-		}
-
-		pbProposal := &pb.CouncilProposal{
-			Id:             p.ID[:],
-			ProposerPubkey: p.ProposerKey[:],
-			Title:          p.Text, // Text field used for proposal content.
-			Description:    "",
-			CreatedAt:      p.CreatedAt.Unix(),
-			VotingEndsAt:   p.CreatedAt.Add(72 * time.Hour).Unix(), // 72h voting period.
-			State:          proposalState,
-		}
-		pbCouncil.Proposals = append(pbCouncil.Proposals, pbProposal)
+		State:         convertCouncilState(c.State),
+		Members:       convertMembersToProto(c.Members, c.CreatorKey),
+		Proposals:     convertProposalsToProto(c.Proposals),
 	}
 
 	return pbCouncil
+}
+
+// convertCouncilState maps internal CouncilState to protobuf CouncilState.
+func convertCouncilState(state CouncilState) pb.CouncilState {
+	switch state {
+	case CouncilActive:
+		return pb.CouncilState_COUNCIL_STATE_ACTIVE
+	case CouncilDisbanded:
+		return pb.CouncilState_COUNCIL_STATE_DISSOLVED
+	default:
+		return pb.CouncilState_COUNCIL_STATE_UNSPECIFIED
+	}
+}
+
+// convertMembersToProto converts council members to protobuf representation.
+func convertMembersToProto(members []*CouncilMember, creatorKey [32]byte) []*pb.CouncilMember {
+	var pbMembers []*pb.CouncilMember
+	for _, m := range members {
+		if m.Status != MemberActive {
+			continue
+		}
+		role := pb.CouncilRole_COUNCIL_ROLE_MEMBER
+		if m.SpecterKey == creatorKey {
+			role = pb.CouncilRole_COUNCIL_ROLE_FOUNDER
+		}
+		pbMembers = append(pbMembers, &pb.CouncilMember{
+			SpecterPubkey: m.SpecterKey[:],
+			JoinedAt:      m.JoinedAt.Unix(),
+			VoteWeight:    uint32(1),
+			Role:          role,
+		})
+	}
+	return pbMembers
+}
+
+// convertProposalsToProto converts council proposals to protobuf representation.
+func convertProposalsToProto(proposals []*CouncilProposal) []*pb.CouncilProposal {
+	var pbProposals []*pb.CouncilProposal
+	for _, p := range proposals {
+		pbProposals = append(pbProposals, &pb.CouncilProposal{
+			Id:             p.ID[:],
+			ProposerPubkey: p.ProposerKey[:],
+			Title:          p.Text,
+			Description:    "",
+			CreatedAt:      p.CreatedAt.Unix(),
+			VotingEndsAt:   p.CreatedAt.Add(72 * time.Hour).Unix(),
+			State:          convertProposalState(*p),
+		})
+	}
+	return pbProposals
+}
+
+// convertProposalState maps proposal resolution state to protobuf ProposalState.
+func convertProposalState(p CouncilProposal) pb.ProposalState {
+	if !p.Resolved {
+		return pb.ProposalState_PROPOSAL_STATE_PENDING
+	}
+	if p.Passed {
+		return pb.ProposalState_PROPOSAL_STATE_PASSED
+	}
+	return pb.ProposalState_PROPOSAL_STATE_REJECTED
 }
 
 // protoToCouncil converts a protobuf PhantomCouncil to a PhantomCouncil.
@@ -183,27 +198,38 @@ func protoToCouncil(pbCouncil *pb.PhantomCouncil) *PhantomCouncil {
 		return nil
 	}
 
-	state := CouncilActive
-	switch pbCouncil.State {
-	case pb.CouncilState_COUNCIL_STATE_ACTIVE:
-		state = CouncilActive
-	case pb.CouncilState_COUNCIL_STATE_DISSOLVED:
-		state = CouncilDisbanded
-	}
-
 	council := &PhantomCouncil{
 		Name:             pbCouncil.Name,
 		CreatedAt:        time.Unix(pbCouncil.CreatedAt, 0),
 		MinResonance:     float64(pbCouncil.MinResonance),
-		State:            state,
+		State:            convertProtoCouncilState(pbCouncil.State),
 		memberByKey:      make(map[string]*CouncilMember),
 		applicationByKey: make(map[string]*CouncilApplication),
 	}
 	copy(council.ID[:], pbCouncil.Id)
 	copy(council.CreatorKey[:], pbCouncil.FounderPubkey)
 
-	// Convert members.
-	for _, pbMember := range pbCouncil.Members {
+	populateMembersFromProto(council, pbCouncil.Members)
+	populateProposalsFromProto(council, pbCouncil.Proposals)
+
+	return council
+}
+
+// convertProtoCouncilState maps protobuf CouncilState to internal CouncilState.
+func convertProtoCouncilState(state pb.CouncilState) CouncilState {
+	switch state {
+	case pb.CouncilState_COUNCIL_STATE_ACTIVE:
+		return CouncilActive
+	case pb.CouncilState_COUNCIL_STATE_DISSOLVED:
+		return CouncilDisbanded
+	default:
+		return CouncilActive
+	}
+}
+
+// populateMembersFromProto converts and adds protobuf members to council.
+func populateMembersFromProto(council *PhantomCouncil, pbMembers []*pb.CouncilMember) {
+	for _, pbMember := range pbMembers {
 		if len(pbMember.SpecterPubkey) != 32 {
 			continue
 		}
@@ -215,23 +241,15 @@ func protoToCouncil(pbCouncil *pb.PhantomCouncil) *PhantomCouncil {
 		council.Members = append(council.Members, member)
 		council.memberByKey[hex.EncodeToString(member.SpecterKey[:])] = member
 	}
+}
 
-	// Convert proposals.
-	for _, pbProposal := range pbCouncil.Proposals {
+// populateProposalsFromProto converts and adds protobuf proposals to council.
+func populateProposalsFromProto(council *PhantomCouncil, pbProposals []*pb.CouncilProposal) {
+	for _, pbProposal := range pbProposals {
 		if len(pbProposal.Id) != 32 || len(pbProposal.ProposerPubkey) != 32 {
 			continue
 		}
-		resolved := false
-		passed := false
-		switch pbProposal.State {
-		case pb.ProposalState_PROPOSAL_STATE_PASSED:
-			resolved = true
-			passed = true
-		case pb.ProposalState_PROPOSAL_STATE_REJECTED:
-			resolved = true
-			passed = false
-		}
-
+		resolved, passed := convertProtoProposalState(pbProposal.State)
 		proposal := &CouncilProposal{
 			Text:      pbProposal.Title,
 			CreatedAt: time.Unix(pbProposal.CreatedAt, 0),
@@ -243,6 +261,16 @@ func protoToCouncil(pbCouncil *pb.PhantomCouncil) *PhantomCouncil {
 		copy(proposal.ProposerKey[:], pbProposal.ProposerPubkey)
 		council.Proposals = append(council.Proposals, proposal)
 	}
+}
 
-	return council
+// convertProtoProposalState converts protobuf ProposalState to resolved/passed flags.
+func convertProtoProposalState(state pb.ProposalState) (resolved, passed bool) {
+	switch state {
+	case pb.ProposalState_PROPOSAL_STATE_PASSED:
+		return true, true
+	case pb.ProposalState_PROPOSAL_STATE_REJECTED:
+		return true, false
+	default:
+		return false, false
+	}
 }

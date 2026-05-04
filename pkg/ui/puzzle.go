@@ -195,29 +195,48 @@ func (p *PuzzlePanel) Update() bool {
 // handleFieldNavigation processes Tab/Arrow keys to move between fields.
 func (p *PuzzlePanel) handleFieldNavigation() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyTab) {
-		if ebiten.IsKeyPressed(ebiten.KeyShift) {
-			p.selectedField--
-			if p.selectedField < 0 {
-				p.selectedField = 3
-			}
-		} else {
-			p.selectedField++
-			if p.selectedField > 3 {
-				p.selectedField = 0
-			}
-		}
+		p.handleTabNavigation()
 	}
+	if p.selectedField != 3 {
+		p.handleArrowNavigation()
+	}
+}
 
-	if inpututil.IsKeyJustPressed(ebiten.KeyUp) && p.selectedField != 3 {
-		p.selectedField--
-		if p.selectedField < 0 {
-			p.selectedField = 0
+// handleTabNavigation processes Tab/Shift+Tab field cycling.
+func (p *PuzzlePanel) handleTabNavigation() {
+	if ebiten.IsKeyPressed(ebiten.KeyShift) {
+		p.moveToPreviousField()
+	} else {
+		p.moveToNextField()
+	}
+}
+
+// moveToPreviousField moves selection to previous field (wrap around).
+func (p *PuzzlePanel) moveToPreviousField() {
+	p.selectedField--
+	if p.selectedField < 0 {
+		p.selectedField = 3
+	}
+}
+
+// moveToNextField moves selection to next field (wrap around).
+func (p *PuzzlePanel) moveToNextField() {
+	p.selectedField++
+	if p.selectedField > 3 {
+		p.selectedField = 0
+	}
+}
+
+// handleArrowNavigation processes Up/Down arrow navigation (no wrap).
+func (p *PuzzlePanel) handleArrowNavigation() {
+	if inpututil.IsKeyJustPressed(ebiten.KeyUp) {
+		if p.selectedField > 0 {
+			p.selectedField--
 		}
 	}
-	if inpututil.IsKeyJustPressed(ebiten.KeyDown) && p.selectedField != 3 {
-		p.selectedField++
-		if p.selectedField > 3 {
-			p.selectedField = 3
+	if inpututil.IsKeyJustPressed(ebiten.KeyDown) {
+		if p.selectedField < 3 {
+			p.selectedField++
 		}
 	}
 }
@@ -280,32 +299,44 @@ func (p *PuzzlePanel) handleDurationInput() {
 
 // handleSeedInput handles text input for the seed field.
 func (p *PuzzlePanel) handleSeedInput() {
-	// Character input.
+	p.handleCharacterInput()
+	p.handleBackspace()
+	p.handleCursorMovement()
+}
+
+// handleCharacterInput processes character input for the seed field.
+func (p *PuzzlePanel) handleCharacterInput() {
 	chars := ebiten.AppendInputChars(nil)
 	for _, ch := range chars {
-		if len(p.seed) < 64 { // Max seed length.
-			runes := []rune(p.seed)
-			newRunes := make([]rune, 0, len(runes)+1)
-			newRunes = append(newRunes, runes[:p.seedCursorPos]...)
-			newRunes = append(newRunes, ch)
-			newRunes = append(newRunes, runes[p.seedCursorPos:]...)
-			p.seed = string(newRunes)
-			p.seedCursorPos++
+		if len(p.seed) >= 64 {
+			continue
+		}
+		runes := []rune(p.seed)
+		newRunes := make([]rune, 0, len(runes)+1)
+		newRunes = append(newRunes, runes[:p.seedCursorPos]...)
+		newRunes = append(newRunes, ch)
+		newRunes = append(newRunes, runes[p.seedCursorPos:]...)
+		p.seed = string(newRunes)
+		p.seedCursorPos++
+	}
+}
+
+// handleBackspace processes backspace key for seed editing.
+func (p *PuzzlePanel) handleBackspace() {
+	if !inpututil.IsKeyJustPressed(ebiten.KeyBackspace) && inpututil.KeyPressDuration(ebiten.KeyBackspace) <= 20 {
+		return
+	}
+	if p.seedCursorPos > 0 && len(p.seed) > 0 {
+		runes := []rune(p.seed)
+		if p.seedCursorPos <= len(runes) {
+			p.seed = string(runes[:p.seedCursorPos-1]) + string(runes[p.seedCursorPos:])
+			p.seedCursorPos--
 		}
 	}
+}
 
-	// Backspace.
-	if inpututil.IsKeyJustPressed(ebiten.KeyBackspace) || inpututil.KeyPressDuration(ebiten.KeyBackspace) > 20 {
-		if p.seedCursorPos > 0 && len(p.seed) > 0 {
-			runes := []rune(p.seed)
-			if p.seedCursorPos <= len(runes) {
-				p.seed = string(runes[:p.seedCursorPos-1]) + string(runes[p.seedCursorPos:])
-				p.seedCursorPos--
-			}
-		}
-	}
-
-	// Cursor movement.
+// handleCursorMovement processes left/right arrow keys for seed cursor.
+func (p *PuzzlePanel) handleCursorMovement() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyLeft) && p.seedCursorPos > 0 {
 		p.seedCursorPos--
 	}
@@ -331,18 +362,13 @@ func (p *PuzzlePanel) Draw(screen *ebiten.Image) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	if !p.visible {
+	ctx := InitPanelDrawWithScreen(screen, p.visible, p.calculatePosition, &p.screenWidth, &p.screenHeight)
+	if ctx == nil {
 		return
 	}
 
-	// Get screen dimensions.
-	w, h := screen.Bounds().Dx(), screen.Bounds().Dy()
-	p.screenWidth = w
-	p.screenHeight = h
-
-	// Calculate panel position.
-	px, py := p.calculatePosition(w, h)
-	py += int(p.slideOffset)
+	px := ctx.PanelX
+	py := ctx.PanelY + int(p.slideOffset)
 
 	// Draw panel background with border.
 	p.drawBackground(screen, px, py)
@@ -516,21 +542,7 @@ func (p *PuzzlePanel) drawSeedField(screen *ebiten.Image, px, py int) {
 
 // drawButtons draws the submit and cancel buttons.
 func (p *PuzzlePanel) drawButtons(screen *ebiten.Image, px, py int) {
-	buttonY := py + p.height - p.theme.Padding - p.theme.ButtonHeight
-
-	// Cancel button.
-	cancelX := px + p.theme.Padding
-	cancelW := 80
-	vector.DrawFilledRect(screen, float32(cancelX), float32(buttonY),
-		float32(cancelW), float32(p.theme.ButtonHeight), p.theme.ButtonBackground, true)
-	vector.StrokeRect(screen, float32(cancelX), float32(buttonY),
-		float32(cancelW), float32(p.theme.ButtonHeight), 1.0, p.theme.PanelBorder, true)
-
-	// Create button.
-	submitX := px + p.width - p.theme.Padding - 120
-	submitW := 120
-	vector.DrawFilledRect(screen, float32(submitX), float32(buttonY),
-		float32(submitW), float32(p.theme.ButtonHeight), p.theme.AccentPrimary, true)
+	DrawCancelSubmitButtons(screen, px, py, p.width, p.height, p.theme, 120, "Create", true)
 }
 
 // drawError draws the error message.

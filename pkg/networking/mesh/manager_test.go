@@ -25,7 +25,7 @@ func TestNewManager(t *testing.T) {
 	}
 	defer h.Close()
 
-	m := NewManager(h.Host)
+	m := NewManager(h.Host, 0)
 	if m == nil {
 		t.Error("NewManager returned nil")
 	}
@@ -59,7 +59,7 @@ func TestPeerConnectDisconnect(t *testing.T) {
 	}
 	defer h2.Close()
 
-	m1 := NewManager(h1.Host)
+	m1 := NewManager(h1.Host, 0)
 	m1.Start()
 	defer m1.Stop()
 
@@ -122,7 +122,7 @@ func TestRecordHeartbeat(t *testing.T) {
 	}
 	defer h2.Close()
 
-	m1 := NewManager(h1.Host)
+	m1 := NewManager(h1.Host, 0)
 	m1.Start()
 	defer m1.Stop()
 
@@ -164,7 +164,7 @@ func TestSetPriority(t *testing.T) {
 	h2, _ := transport.NewHost(ctx, cfg2)
 	defer h2.Close()
 
-	m1 := NewManager(h1.Host)
+	m1 := NewManager(h1.Host, 0)
 	m1.Start()
 	defer m1.Stop()
 
@@ -195,7 +195,7 @@ func TestNeedsMorePeers(t *testing.T) {
 	h, _ := transport.NewHost(ctx, cfg)
 	defer h.Close()
 
-	m := NewManager(h.Host)
+	m := NewManager(h.Host, 0)
 
 	// With no peers, should need more
 	if !m.NeedsMorePeers() {
@@ -210,9 +210,7 @@ func TestConstants(t *testing.T) {
 	if MaxPeers != 12 {
 		t.Errorf("MaxPeers = %d, want 12", MaxPeers)
 	}
-	if HeartbeatInterval != 30*time.Second {
-		t.Errorf("HeartbeatInterval = %v, want 30s", HeartbeatInterval)
-	}
+	// HeartbeatInterval is now configurable via NewManager parameter, no longer a constant
 	if MissedHeartbeatsThreshold != 3 {
 		t.Errorf("MissedHeartbeatsThreshold = %d, want 3", MissedHeartbeatsThreshold)
 	}
@@ -229,7 +227,7 @@ func TestHasTooManyPeers(t *testing.T) {
 	h, _ := transport.NewHost(ctx, cfg)
 	defer h.Close()
 
-	m := NewManager(h.Host)
+	m := NewManager(h.Host, 0)
 
 	// With no peers, should not have too many
 	if m.HasTooManyPeers() {
@@ -248,7 +246,7 @@ func TestPruneLowestPriorityNoPeers(t *testing.T) {
 	h, _ := transport.NewHost(ctx, cfg)
 	defer h.Close()
 
-	m := NewManager(h.Host)
+	m := NewManager(h.Host, 0)
 
 	// Pruning with no peers should return empty
 	pruned := m.PruneLowestPriority()
@@ -278,7 +276,7 @@ func TestPeersSnapshot(t *testing.T) {
 	h2, _ := transport.NewHost(ctx, cfg2)
 	defer h2.Close()
 
-	m1 := NewManager(h1.Host)
+	m1 := NewManager(h1.Host, 0)
 	m1.Start()
 	defer m1.Stop()
 
@@ -319,7 +317,7 @@ func TestSetPriorityNonExistentPeer(t *testing.T) {
 	h, _ := transport.NewHost(ctx, cfg)
 	defer h.Close()
 
-	m := NewManager(h.Host)
+	m := NewManager(h.Host, 0)
 
 	// Setting priority on non-existent peer should not panic
 	m.SetPriority("12D3KooWNonExistent", PriorityIdentity)
@@ -341,7 +339,7 @@ func TestRecordHeartbeatNonExistentPeer(t *testing.T) {
 	h, _ := transport.NewHost(ctx, cfg)
 	defer h.Close()
 
-	m := NewManager(h.Host)
+	m := NewManager(h.Host, 0)
 	m.Start()
 	defer m.Stop()
 
@@ -366,7 +364,7 @@ func TestManagerStopIdempotent(t *testing.T) {
 	h, _ := transport.NewHost(ctx, cfg)
 	defer h.Close()
 
-	m := NewManager(h.Host)
+	m := NewManager(h.Host, 0)
 	m.Start()
 
 	// Stop multiple times should not panic
@@ -395,7 +393,7 @@ func TestPeerStateFields(t *testing.T) {
 	h2, _ := transport.NewHost(ctx, cfg2)
 	defer h2.Close()
 
-	m1 := NewManager(h1.Host)
+	m1 := NewManager(h1.Host, 0)
 	m1.Start()
 	defer m1.Stop()
 
@@ -434,7 +432,7 @@ func TestCheckHeartbeatsNoPeers(t *testing.T) {
 	h, _ := transport.NewHost(ctx, cfg)
 	defer h.Close()
 
-	m := NewManager(h.Host)
+	m := NewManager(h.Host, 0)
 
 	// Directly call checkHeartbeats with no peers - should not panic
 	m.checkHeartbeats()
@@ -482,7 +480,7 @@ func TestFindLowestPriorityPeer(t *testing.T) {
 	h4, _ := transport.NewHost(ctx, cfg4)
 	defer h4.Close()
 
-	m1 := NewManager(h1.Host)
+	m1 := NewManager(h1.Host, 0)
 	m1.Start()
 	defer m1.Stop()
 
@@ -540,7 +538,7 @@ func TestRemoveLowestPriorityPeer(t *testing.T) {
 	h3, _ := transport.NewHost(ctx, cfg3)
 	defer h3.Close()
 
-	m1 := NewManager(h1.Host)
+	m1 := NewManager(h1.Host, 0)
 	m1.Start()
 	defer m1.Stop()
 
@@ -582,7 +580,7 @@ func TestPruneLowestPriorityWithPeers(t *testing.T) {
 	h1, _ := transport.NewHost(ctx, cfg1)
 	defer h1.Close()
 
-	m1 := NewManager(h1.Host)
+	m1 := NewManager(h1.Host, 0)
 	m1.Start()
 	defer m1.Stop()
 
@@ -641,7 +639,7 @@ func TestCheckHeartbeatsMissedThreshold(t *testing.T) {
 	h2, _ := transport.NewHost(ctx, cfg2)
 	defer h2.Close()
 
-	m1 := NewManager(h1.Host)
+	m1 := NewManager(h1.Host, 0)
 	// Don't call Start() so we control heartbeat checking manually
 
 	// Connect
@@ -655,7 +653,7 @@ func TestCheckHeartbeatsMissedThreshold(t *testing.T) {
 	// Manually set LastSeen to far in the past to simulate missed heartbeats
 	m1.mu.Lock()
 	for _, state := range m1.peers {
-		state.LastSeen = time.Now().Add(-HeartbeatInterval * 3)
+		state.LastSeen = time.Now().Add(-m1.heartbeatInterval * 3)
 		state.MissedHeartbeat = MissedHeartbeatsThreshold // Trigger disconnect threshold
 	}
 	m1.mu.Unlock()

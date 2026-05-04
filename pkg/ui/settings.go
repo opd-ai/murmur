@@ -328,18 +328,21 @@ func (p *SettingsPanel) drawSlider(screen *ebiten.Image, x, y, width int, value,
 		10, p.theme.TextPrimary, true)
 }
 
+// drawInputBox draws a bordered input box at the specified position.
+func (p *SettingsPanel) drawInputBox(screen *ebiten.Image, x, y, width, height int) {
+	boxW := width - 20
+	boxX := x + 10
+	boxY := y + 10
+
+	vector.DrawFilledRect(screen, float32(boxX), float32(boxY),
+		float32(boxW), float32(height), p.theme.InputBackground, true)
+	vector.StrokeRect(screen, float32(boxX), float32(boxY),
+		float32(boxW), float32(height), 1.0, p.theme.PanelBorder, true)
+}
+
 // drawSelect draws a dropdown selector.
 func (p *SettingsPanel) drawSelect(screen *ebiten.Image, x, y, width int, value string, options []string) {
-	selectW := width - 20
-	selectH := 30
-	selectX := x + 10
-	selectY := y + 10
-
-	vector.DrawFilledRect(screen, float32(selectX), float32(selectY),
-		float32(selectW), float32(selectH), p.theme.InputBackground, true)
-	vector.StrokeRect(screen, float32(selectX), float32(selectY),
-		float32(selectW), float32(selectH), 1.0, p.theme.PanelBorder, true)
-
+	p.drawInputBox(screen, x, y, width, 30)
 	// Value text would be rendered with text/v2.
 	_ = value
 	_ = options
@@ -347,16 +350,7 @@ func (p *SettingsPanel) drawSelect(screen *ebiten.Image, x, y, width int, value 
 
 // drawTextInput draws a text input field.
 func (p *SettingsPanel) drawTextInput(screen *ebiten.Image, x, y, width int, value string) {
-	inputW := width - 20
-	inputH := 30
-	inputX := x + 10
-	inputY := y + 10
-
-	vector.DrawFilledRect(screen, float32(inputX), float32(inputY),
-		float32(inputW), float32(inputH), p.theme.InputBackground, true)
-	vector.StrokeRect(screen, float32(inputX), float32(inputY),
-		float32(inputW), float32(inputH), 1.0, p.theme.PanelBorder, true)
-
+	p.drawInputBox(screen, x, y, width, 30)
 	// Value text would be rendered with text/v2.
 	_ = value
 }
@@ -382,29 +376,46 @@ func (p *SettingsPanel) SetSetting(key string, value interface{}) {
 	defer p.mu.Unlock()
 
 	for i, cat := range p.categories {
-		for j, s := range cat.Settings {
-			if s.Key == key {
-				p.categories[i].Settings[j].Value = value
-				if p.onChange != nil {
-					// Convert value to string for callback.
-					var strValue string
-					switch v := value.(type) {
-					case bool:
-						if v {
-							strValue = "true"
-						} else {
-							strValue = "false"
-						}
-					case float64:
-						strValue = ""
-					case string:
-						strValue = v
-					}
-					p.onChange(key, strValue)
-				}
-				return
-			}
+		if p.updateSettingInCategory(i, key, value, &cat) {
+			return
 		}
+	}
+}
+
+// updateSettingInCategory searches for and updates a setting within a category.
+func (p *SettingsPanel) updateSettingInCategory(catIdx int, key string, value interface{}, cat *SettingCategory) bool {
+	for j, s := range cat.Settings {
+		if s.Key == key {
+			p.categories[catIdx].Settings[j].Value = value
+			p.notifyOnChange(key, value)
+			return true
+		}
+	}
+	return false
+}
+
+// notifyOnChange invokes the onChange callback with the setting key and string value.
+func (p *SettingsPanel) notifyOnChange(key string, value interface{}) {
+	if p.onChange == nil {
+		return
+	}
+	p.onChange(key, p.convertValueToString(value))
+}
+
+// convertValueToString converts an interface{} value to a string representation.
+func (p *SettingsPanel) convertValueToString(value interface{}) string {
+	switch v := value.(type) {
+	case bool:
+		if v {
+			return "true"
+		}
+		return "false"
+	case string:
+		return v
+	case float64:
+		return ""
+	default:
+		return ""
 	}
 }
 

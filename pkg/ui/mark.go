@@ -217,16 +217,28 @@ func (p *MarkPanel) Update() error {
 
 // updateCategorySelect handles input in category selection mode.
 func (p *MarkPanel) updateCategorySelect() {
-	// Escape to close.
+	if p.handleCategoryEscape() {
+		return
+	}
+
+	p.handleCategoryNavigation()
+	p.handleCategoryConfirmation()
+}
+
+// handleCategoryEscape processes Escape key to close the panel.
+func (p *MarkPanel) handleCategoryEscape() bool {
 	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
 		p.visible = false
 		if p.callbacks.OnClose != nil {
 			go p.callbacks.OnClose()
 		}
-		return
+		return true
 	}
+	return false
+}
 
-	// Up/Down to select category.
+// handleCategoryNavigation processes up/down keys for category selection.
+func (p *MarkPanel) handleCategoryNavigation() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyUp) || inpututil.IsKeyJustPressed(ebiten.KeyK) {
 		if p.selectedCategory > 0 {
 			p.selectedCategory--
@@ -237,8 +249,10 @@ func (p *MarkPanel) updateCategorySelect() {
 			p.selectedCategory++
 		}
 	}
+}
 
-	// Enter to proceed.
+// handleCategoryConfirmation processes Enter/Space to confirm category.
+func (p *MarkPanel) handleCategoryConfirmation() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) || inpututil.IsKeyJustPressed(ebiten.KeySpace) {
 		if len(p.targets) == 0 {
 			p.mode = MarkModeError

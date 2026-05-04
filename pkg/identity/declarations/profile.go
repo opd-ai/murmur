@@ -272,20 +272,11 @@ func (d *Declaration) signingPayload() []byte {
 	buf := make([]byte, 0, size)
 
 	buf = append(buf, d.PublicKey...)
+	buf = appendStringWithLen(buf, d.DisplayName)
+	buf = appendStringWithLen(buf, d.Bio)
+	buf = appendU64BigEndian(buf, uint64(d.Timestamp))
 
 	lenBuf := make([]byte, 4)
-	binary.BigEndian.PutUint32(lenBuf, uint32(len(d.DisplayName)))
-	buf = append(buf, lenBuf...)
-	buf = append(buf, []byte(d.DisplayName)...)
-
-	binary.BigEndian.PutUint32(lenBuf, uint32(len(d.Bio)))
-	buf = append(buf, lenBuf...)
-	buf = append(buf, []byte(d.Bio)...)
-
-	tsBuf := make([]byte, 8)
-	binary.BigEndian.PutUint64(tsBuf, uint64(d.Timestamp))
-	buf = append(buf, tsBuf...)
-
 	binary.BigEndian.PutUint32(lenBuf, d.Version)
 	buf = append(buf, lenBuf...)
 

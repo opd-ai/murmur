@@ -824,10 +824,10 @@
 
 ### Monitoring & Observability
 
-- [ ] Prometheus metrics integration (connection count, message rates, Resonance distribution)
+- [x] Prometheus metrics integration (connection count, message rates, Resonance distribution)
 - [ ] OpenTelemetry tracing for subsystem interactions
-- [ ] Health check endpoint for bootstrap node operators
-- [ ] Memory usage monitoring (<256 MiB budget enforcement)
+- [x] Health check endpoint for bootstrap node operators
+- [x] Memory usage monitoring (<256 MiB budget enforcement)
 - [ ] Bbolt database size monitoring (<50 MiB budget)
 - [ ] GC sweep duration monitoring (<100ms target)
 
@@ -880,7 +880,7 @@
 
 - [x] Proof of Work computational cost per Wave
 - [x] Peer scoring with invalid message penalties
-- [ ] Rate limiting per peer (configurable msg/sec caps)
+- [x] Rate limiting per peer (configurable msg/sec caps)
 - [ ] Resonance gating on all privileged actions (gifts, marks, games, councils)
 - [ ] Connection pruning for consistently low-score peers
 - [ ] PoW requirement for identity creation

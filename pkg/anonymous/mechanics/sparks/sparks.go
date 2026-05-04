@@ -225,44 +225,54 @@ func (s *SparkStore) RespondToSpark(
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	spark, err := s.validateSparkResponse(sparkID, responderID)
+	if err != nil {
+		return nil, err
+	}
+
+	response := s.createSparkResponse(sparkID, responderID, waveID, privKey)
+	s.responses[sparkID] = append(s.responses[sparkID], response)
+
+	s.processEchoRaceWinner(spark, sparkID, responderID, response.CreatedAt)
+
+	return response, nil
+}
+
+// validateSparkResponse validates that a spark can accept a response.
+func (s *SparkStore) validateSparkResponse(sparkID [32]byte, responderID []byte) (*Spark, error) {
 	spark, ok := s.sparks[sparkID]
 	if !ok {
 		return nil, ErrSparkNotFound
 	}
 
-	// Check spark is still active.
 	if spark.IsExpired() {
 		return nil, ErrSparkExpired
 	}
 
-	// For EchoRace, check if there's already a winner (comes before state check).
 	if spark.Type == SparkEchoRace && spark.WinnerID != nil {
 		return nil, ErrSparkAlreadyWon
 	}
 
-	// Check state (for WaveRelay, State should still be Active).
 	if spark.State != SparkActive {
 		return nil, ErrSparkExpired
 	}
 
-	// Cannot respond to own spark.
 	if mechanics.KeyToHex(spark.InitiatorID) == mechanics.KeyToHex(responderID) {
 		return nil, ErrSparkSelfResponse
 	}
 
-	// Generate response ID.
-	h := blake3.New()
-	h.Write(sparkID[:])
-	h.Write(responderID)
-	h.Write(waveID[:])
+	return spark, nil
+}
+
+// createSparkResponse builds and signs a new spark response.
+func (s *SparkStore) createSparkResponse(
+	sparkID [32]byte,
+	responderID []byte,
+	waveID [32]byte,
+	privKey ed25519.PrivateKey,
+) *SparkResponse {
 	now := time.Now()
-	nowBytes := make([]byte, 8)
-	for i := 0; i < 8; i++ {
-		nowBytes[i] = byte(now.UnixNano() >> (8 * i))
-	}
-	h.Write(nowBytes)
-	var id [32]byte
-	copy(id[:], h.Sum(nil))
+	id := generateResponseID(sparkID, responderID, waveID, now)
 
 	response := &SparkResponse{
 		ID:          id,
@@ -272,7 +282,6 @@ func (s *SparkStore) RespondToSpark(
 		CreatedAt:   now,
 	}
 
-	// Sign the response.
 	if privKey != nil {
 		signData := append(id[:], sparkID[:]...)
 		signData = append(signData, responderID...)
@@ -280,30 +289,48 @@ func (s *SparkStore) RespondToSpark(
 		response.Signature = ed25519.Sign(privKey, signData)
 	}
 
-	s.responses[sparkID] = append(s.responses[sparkID], response)
+	return response
+}
 
-	// For EchoRace, first response wins.
-	if spark.Type == SparkEchoRace {
-		spark.WinnerID = responderID
-		spark.WinnerTime = now
-		spark.State = SparkCompleted
+// generateResponseID creates a unique response ID from spark data.
+func generateResponseID(sparkID [32]byte, responderID []byte, waveID [32]byte, now time.Time) [32]byte {
+	h := blake3.New()
+	h.Write(sparkID[:])
+	h.Write(responderID)
+	h.Write(waveID[:])
 
-		// Grant crown to winner.
-		winnerHex := mechanics.KeyToHex(responderID)
-		s.crownHolders[winnerHex] = now.Add(SparkCrownDuration)
+	nowBytes := make([]byte, 8)
+	for i := 0; i < 8; i++ {
+		nowBytes[i] = byte(now.UnixNano() >> (8 * i))
+	}
+	h.Write(nowBytes)
 
-		// Record result.
-		s.results[sparkID] = &SparkResult{
-			SparkID:        sparkID,
-			Type:           spark.Type,
-			WinnerID:       responderID,
-			ResponseTime:   now.Sub(spark.CreatedAt),
-			TotalResponses: 1,
-			CompletedAt:    now,
-		}
+	var id [32]byte
+	copy(id[:], h.Sum(nil))
+	return id
+}
+
+// processEchoRaceWinner handles winner logic for EchoRace sparks.
+func (s *SparkStore) processEchoRaceWinner(spark *Spark, sparkID [32]byte, responderID []byte, now time.Time) {
+	if spark.Type != SparkEchoRace {
+		return
 	}
 
-	return response, nil
+	spark.WinnerID = responderID
+	spark.WinnerTime = now
+	spark.State = SparkCompleted
+
+	winnerHex := mechanics.KeyToHex(responderID)
+	s.crownHolders[winnerHex] = now.Add(SparkCrownDuration)
+
+	s.results[sparkID] = &SparkResult{
+		SparkID:        sparkID,
+		Type:           spark.Type,
+		WinnerID:       responderID,
+		ResponseTime:   now.Sub(spark.CreatedAt),
+		TotalResponses: 1,
+		CompletedAt:    now,
+	}
 }
 
 // GetSpark retrieves a spark by ID.

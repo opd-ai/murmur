@@ -430,22 +430,33 @@ func (r *CouncilReceiver) handleMemberJoined(event *pb.CouncilEvent) error {
 	return nil
 }
 
+// getCouncilAndProposalID extracts council ID and proposal ID from an event and retrieves the council.
+// Returns (council, proposalID, nil) on success, (nil, zero, error) on failure.
+func (r *CouncilReceiver) getCouncilAndProposalID(event *pb.CouncilEvent) (*PhantomCouncil, [32]byte, error) {
+	var councilID [32]byte
+	copy(councilID[:], event.CouncilId)
+
+	council := r.councilStore.GetCouncil(councilID)
+	if council == nil {
+		return nil, [32]byte{}, fmt.Errorf("council not found")
+	}
+
+	var proposalID [32]byte
+	copy(proposalID[:], event.Proposal.Id)
+
+	return council, proposalID, nil
+}
+
 // handleProposal processes a new proposal event.
 func (r *CouncilReceiver) handleProposal(event *pb.CouncilEvent) error {
 	if event.Proposal == nil {
 		return fmt.Errorf("proposal event missing proposal data")
 	}
 
-	var councilID [32]byte
-	copy(councilID[:], event.CouncilId)
-
-	council := r.councilStore.GetCouncil(councilID)
-	if council == nil {
-		return fmt.Errorf("council not found")
+	council, proposalID, err := r.getCouncilAndProposalID(event)
+	if err != nil {
+		return err
 	}
-
-	var proposalID [32]byte
-	copy(proposalID[:], event.Proposal.Id)
 
 	var proposerKey [32]byte
 	copy(proposerKey[:], event.Proposal.ProposerPubkey)
@@ -480,56 +491,65 @@ func (r *CouncilReceiver) handleVote(event *pb.CouncilEvent) error {
 		return fmt.Errorf("vote event missing vote data")
 	}
 
-	var councilID [32]byte
-	copy(councilID[:], event.CouncilId)
+	councilID, proposalID, voterKey, err := r.extractVoteIDs(event)
+	if err != nil {
+		return err
+	}
 
 	council := r.councilStore.GetCouncil(councilID)
 	if council == nil {
 		return fmt.Errorf("council not found")
 	}
 
-	// Proposal ID comes from the Proposal field for vote events.
-	if event.Proposal == nil {
-		return fmt.Errorf("vote event missing proposal reference")
-	}
-
-	var proposalID [32]byte
-	copy(proposalID[:], event.Proposal.Id)
-
-	var voterKey [32]byte
-	copy(voterKey[:], event.Vote.VoterPubkey)
-
 	council.mu.Lock()
 	defer council.mu.Unlock()
 
-	// Find the proposal.
-	var proposal *CouncilProposal
-	for _, p := range council.Proposals {
-		if p.ID == proposalID {
-			proposal = p
-			break
-		}
-	}
-
+	proposal := r.findProposal(council, proposalID)
 	if proposal == nil {
 		return ErrCouncilProposalNotFound
 	}
 
-	// Convert vote choice.
-	var vote VoteValue
-	switch event.Vote.Choice {
-	case pb.VoteChoice_VOTE_CHOICE_YES:
-		vote = VoteFor
-	case pb.VoteChoice_VOTE_CHOICE_NO:
-		vote = VoteAgainst
-	default:
-		vote = VoteAbstain
-	}
-
+	vote := r.convertVoteChoice(event.Vote.Choice)
 	voterHex := fmt.Sprintf("%x", voterKey[:])
 	proposal.Votes[voterHex] = vote
 
 	return nil
+}
+
+// extractVoteIDs extracts council, proposal, and voter IDs from the vote event.
+func (r *CouncilReceiver) extractVoteIDs(event *pb.CouncilEvent) ([32]byte, [32]byte, [32]byte, error) {
+	var councilID, proposalID, voterKey [32]byte
+	copy(councilID[:], event.CouncilId)
+
+	if event.Proposal == nil {
+		return councilID, proposalID, voterKey, fmt.Errorf("vote event missing proposal reference")
+	}
+	copy(proposalID[:], event.Proposal.Id)
+	copy(voterKey[:], event.Vote.VoterPubkey)
+
+	return councilID, proposalID, voterKey, nil
+}
+
+// findProposal searches for a proposal by ID within a council.
+func (r *CouncilReceiver) findProposal(council *Council, proposalID [32]byte) *CouncilProposal {
+	for _, p := range council.Proposals {
+		if p.ID == proposalID {
+			return p
+		}
+	}
+	return nil
+}
+
+// convertVoteChoice converts a protobuf vote choice to a VoteValue.
+func (r *CouncilReceiver) convertVoteChoice(choice pb.VoteChoice) VoteValue {
+	switch choice {
+	case pb.VoteChoice_VOTE_CHOICE_YES:
+		return VoteFor
+	case pb.VoteChoice_VOTE_CHOICE_NO:
+		return VoteAgainst
+	default:
+		return VoteAbstain
+	}
 }
 
 // handleProposalResolved processes a proposal resolution event.
@@ -538,16 +558,10 @@ func (r *CouncilReceiver) handleProposalResolved(event *pb.CouncilEvent) error {
 		return fmt.Errorf("proposal resolved event missing proposal data")
 	}
 
-	var councilID [32]byte
-	copy(councilID[:], event.CouncilId)
-
-	council := r.councilStore.GetCouncil(councilID)
-	if council == nil {
-		return fmt.Errorf("council not found")
+	council, proposalID, err := r.getCouncilAndProposalID(event)
+	if err != nil {
+		return err
 	}
-
-	var proposalID [32]byte
-	copy(proposalID[:], event.Proposal.Id)
 
 	council.mu.Lock()
 	defer council.mu.Unlock()

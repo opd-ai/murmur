@@ -35,47 +35,52 @@ func (a *App) BroadcastWave(ctx context.Context, wave *pb.Wave) error {
 		return ErrNilWave
 	}
 
-	a.mu.RLock()
-	if !a.running || a.subsystems == nil || a.subsystems.PubSub == nil {
-		a.mu.RUnlock()
-		return ErrNotInitialized
+	identity, ps, cache, err := a.getSubsystems()
+	if err != nil {
+		return err
 	}
-	identity := a.subsystems.Identity
-	ps := a.subsystems.PubSub
-	cache := a.subsystems.WaveCache
-	a.mu.RUnlock()
 
-	// Serialize the Wave.
+	data, err := a.serializeWaveEnvelope(wave, identity)
+	if err != nil {
+		return err
+	}
+
+	a.storeWaveLocally(cache, wave)
+
+	return ps.Publish(ctx, gossip.TopicWaves, data)
+}
+
+// getSubsystems retrieves the necessary subsystems for broadcasting.
+func (a *App) getSubsystems() (*identity.Manager, *pubsub.PubSub, *storage.WaveCache, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+
+	if !a.running || a.subsystems == nil || a.subsystems.PubSub == nil {
+		return nil, nil, nil, ErrNotInitialized
+	}
+	return a.subsystems.Identity, a.subsystems.PubSub, a.subsystems.WaveCache, nil
+}
+
+// serializeWaveEnvelope creates a signed envelope and serializes it.
+func (a *App) serializeWaveEnvelope(wave *pb.Wave, identity *identity.Manager) ([]byte, error) {
 	payload, err := proto.Marshal(wave)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	// Create and sign the envelope.
-	envelope, err := createSignedEnvelope(
-		pb.MessageType_MESSAGE_TYPE_WAVE,
-		payload,
-		identity,
-	)
+	envelope, err := createSignedEnvelope(pb.MessageType_MESSAGE_TYPE_WAVE, payload, identity)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	// Serialize the envelope.
-	data, err := proto.Marshal(envelope)
-	if err != nil {
-		return err
-	}
+	return proto.Marshal(envelope)
+}
 
-	// Store locally first.
+// storeWaveLocally caches the wave locally before network broadcast.
+func (a *App) storeWaveLocally(cache *storage.WaveCache, wave *pb.Wave) {
 	if cache != nil {
-		if err := cache.Put(wave); err != nil {
-			// Log but don't fail - publishing is more important
-		}
+		_ = cache.Put(wave) // Log but don't fail - publishing is more important
 	}
-
-	// Publish to network.
-	return ps.Publish(ctx, gossip.TopicWaves, data)
 }
 
 // BroadcastIdentity publishes an identity declaration to the network.

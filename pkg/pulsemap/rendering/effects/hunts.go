@@ -236,51 +236,7 @@ func (h *HuntEffects) drawHuntConnections(dst *ebiten.Image, frags []*FragmentVi
 func (h *HuntEffects) drawFragment(dst *ebiten.Image, frag *FragmentVisual, huntState HuntState, shaders *Shaders) {
 	const baseSize float32 = 24.0
 
-	// Determine visual parameters based on state.
-	var (
-		glowColor     color.RGBA
-		glowIntensity float32
-		pulseRate     float32
-		drawSigil     bool
-	)
-
-	switch frag.State {
-	case FragmentUnclaimed:
-		// Dim pulsing amber glow.
-		glowColor = color.RGBA{255, 191, 0, 150}
-		glowIntensity = 0.4 + 0.2*float32(math.Sin(float64(h.time*2+float32(frag.Index))))
-		pulseRate = 2.0
-		// Increase brightness with each clue revealed.
-		glowIntensity += float32(frag.ClueLevel) * 0.1
-
-	case FragmentClaimed:
-		// Bright glow with sigil.
-		glowColor = color.RGBA{100, 255, 150, 220}
-		glowIntensity = 0.8 + 0.1*float32(math.Sin(float64(h.time*3)))
-		pulseRate = 3.0
-		drawSigil = true
-
-	case FragmentExpired:
-		// Faded gray.
-		glowColor = color.RGBA{128, 128, 128, 80}
-		glowIntensity = 0.2
-		pulseRate = 0.5
-	}
-
-	// Adjust for hunt state.
-	if huntState == HuntStateExpiring && frag.State == FragmentUnclaimed {
-		// Add red tint warning.
-		glowColor.R = uint8(min(255, int(glowColor.R)+50))
-		glowIntensity += 0.2 * float32(math.Sin(float64(h.time*6)))
-	} else if huntState == HuntStateCompleted {
-		// Victory pulse.
-		glowColor = color.RGBA{255, 215, 0, 255} // Gold.
-		glowIntensity = 0.9 + 0.1*float32(math.Sin(float64(h.time*4)))
-	} else if huntState == HuntStateExpired {
-		// All fragments fade.
-		glowColor = color.RGBA{80, 80, 80, 60}
-		glowIntensity = 0.15
-	}
+	glowColor, glowIntensity, pulseRate, drawSigil := h.computeFragmentVisuals(frag, huntState)
 
 	// Draw glow effect using shader if available.
 	if shaders != nil {
@@ -291,27 +247,72 @@ func (h *HuntEffects) drawFragment(dst *ebiten.Image, frag *FragmentVisual, hunt
 		})
 	}
 
-	// Draw fragment marker (diamond shape).
 	h.drawFragmentMarker(dst, frag.X, frag.Y, baseSize, glowColor, glowIntensity)
 
-	// Draw claimer sigil if claimed.
 	if drawSigil && frag.ClaimerSigil != nil {
-		op := &ebiten.DrawImageOptions{}
-		sigilW, sigilH := frag.ClaimerSigil.Bounds().Dx(), frag.ClaimerSigil.Bounds().Dy()
-		scale := float64(baseSize*0.6) / float64(max(sigilW, sigilH))
-		op.GeoM.Scale(scale, scale)
-		op.GeoM.Translate(
-			float64(frag.X)-float64(sigilW)*scale/2,
-			float64(frag.Y)-float64(sigilH)*scale/2,
-		)
-		op.ColorScale.ScaleAlpha(0.9)
-		dst.DrawImage(frag.ClaimerSigil, op)
+		h.drawClaimerSigil(dst, frag, baseSize)
 	}
 
-	// Draw clue indicator dots.
 	if frag.ClueLevel > 0 && frag.State == FragmentUnclaimed {
 		h.drawClueIndicators(dst, frag.X, frag.Y, baseSize, frag.ClueLevel)
 	}
+}
+
+// computeFragmentVisuals determines color, intensity, and pulse rate for fragment rendering.
+func (h *HuntEffects) computeFragmentVisuals(frag *FragmentVisual, huntState HuntState) (glowColor color.RGBA, glowIntensity, pulseRate float32, drawSigil bool) {
+	switch frag.State {
+	case FragmentUnclaimed:
+		glowColor = color.RGBA{255, 191, 0, 150}
+		glowIntensity = 0.4 + 0.2*float32(math.Sin(float64(h.time*2+float32(frag.Index))))
+		pulseRate = 2.0
+		glowIntensity += float32(frag.ClueLevel) * 0.1
+
+	case FragmentClaimed:
+		glowColor = color.RGBA{100, 255, 150, 220}
+		glowIntensity = 0.8 + 0.1*float32(math.Sin(float64(h.time*3)))
+		pulseRate = 3.0
+		drawSigil = true
+
+	case FragmentExpired:
+		glowColor = color.RGBA{128, 128, 128, 80}
+		glowIntensity = 0.2
+		pulseRate = 0.5
+	}
+
+	glowColor, glowIntensity = adjustForHuntState(glowColor, glowIntensity, frag.State, huntState, h.time)
+	return glowColor, glowIntensity, pulseRate, drawSigil
+}
+
+// adjustForHuntState modifies visual parameters based on hunt state.
+func adjustForHuntState(glowColor color.RGBA, glowIntensity float32, fragState FragmentState, huntState HuntState, time float32) (color.RGBA, float32) {
+	switch huntState {
+	case HuntStateExpiring:
+		if fragState == FragmentUnclaimed {
+			glowColor.R = uint8(min(255, int(glowColor.R)+50))
+			glowIntensity += 0.2 * float32(math.Sin(float64(time*6)))
+		}
+	case HuntStateCompleted:
+		glowColor = color.RGBA{255, 215, 0, 255}
+		glowIntensity = 0.9 + 0.1*float32(math.Sin(float64(time*4)))
+	case HuntStateExpired:
+		glowColor = color.RGBA{80, 80, 80, 60}
+		glowIntensity = 0.15
+	}
+	return glowColor, glowIntensity
+}
+
+// drawClaimerSigil renders the sigil of the Specter who claimed the fragment.
+func (h *HuntEffects) drawClaimerSigil(dst *ebiten.Image, frag *FragmentVisual, baseSize float32) {
+	op := &ebiten.DrawImageOptions{}
+	sigilW, sigilH := frag.ClaimerSigil.Bounds().Dx(), frag.ClaimerSigil.Bounds().Dy()
+	scale := float64(baseSize*0.6) / float64(max(sigilW, sigilH))
+	op.GeoM.Scale(scale, scale)
+	op.GeoM.Translate(
+		float64(frag.X)-float64(sigilW)*scale/2,
+		float64(frag.Y)-float64(sigilH)*scale/2,
+	)
+	op.ColorScale.ScaleAlpha(0.9)
+	dst.DrawImage(frag.ClaimerSigil, op)
 }
 
 // drawFragmentMarker renders the diamond-shaped fragment marker.

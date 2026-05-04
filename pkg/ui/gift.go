@@ -223,13 +223,18 @@ func (p *GiftPanel) updateEffectSelect() {
 
 // updateRecipientSelect handles input in recipient selection mode.
 func (p *GiftPanel) updateRecipientSelect() {
-	// Filter out self from recipients.
 	validRecipients := p.getValidRecipients()
 	if len(validRecipients) == 0 {
 		return
 	}
 
-	// Navigate recipients with up/down.
+	p.handleRecipientNavigation(validRecipients)
+	p.adjustRecipientScroll()
+	p.handleRecipientSelection()
+}
+
+// handleRecipientNavigation processes up/down navigation keys.
+func (p *GiftPanel) handleRecipientNavigation(validRecipients []RecipientInfo) {
 	if inpututil.IsKeyJustPressed(ebiten.KeyUp) || inpututil.IsKeyJustPressed(ebiten.KeyK) {
 		if p.selectedRecipient > 0 {
 			p.selectedRecipient--
@@ -240,17 +245,21 @@ func (p *GiftPanel) updateRecipientSelect() {
 			p.selectedRecipient++
 		}
 	}
+}
 
-	// Scroll adjustment.
-	visibleCount := 8
+// adjustRecipientScroll keeps the selected recipient visible in the scrollable list.
+func (p *GiftPanel) adjustRecipientScroll() {
+	const visibleCount = 8
 	if p.selectedRecipient < p.recipientScroll {
 		p.recipientScroll = p.selectedRecipient
 	}
 	if p.selectedRecipient >= p.recipientScroll+visibleCount {
 		p.recipientScroll = p.selectedRecipient - visibleCount + 1
 	}
+}
 
-	// Select recipient with Enter.
+// handleRecipientSelection processes Enter key to confirm selection.
+func (p *GiftPanel) handleRecipientSelection() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) {
 		p.mode = GiftModeConfirm
 	}

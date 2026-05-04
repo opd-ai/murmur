@@ -92,6 +92,23 @@ test-cover:
 	$(GOCMD) tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report: coverage.html"
 
+test-coverage:
+	@echo "Running coverage tests for critical packages..."
+	@echo "Testing pkg/identity/..."
+	@$(GOTEST) -coverprofile=coverage-identity.out ./pkg/identity/... >/dev/null 2>&1
+	@echo "Testing pkg/content/..."
+	@$(GOTEST) -coverprofile=coverage-content.out ./pkg/content/... >/dev/null 2>&1
+	@echo "Testing pkg/anonymous/..."
+	@$(GOTEST) -coverprofile=coverage-anonymous.out ./pkg/anonymous/... >/dev/null 2>&1
+	@echo ""
+	@echo "Coverage summary:"
+	@echo "  pkg/identity/:  " $$($(GOCMD) tool cover -func=coverage-identity.out | tail -1 | awk '{print $$NF}')
+	@echo "  pkg/content/:   " $$($(GOCMD) tool cover -func=coverage-content.out | tail -1 | awk '{print $$NF}')
+	@echo "  pkg/anonymous/: " $$($(GOCMD) tool cover -func=coverage-anonymous.out | tail -1 | awk '{print $$NF}')
+	@echo ""
+	@echo "Target: >80% coverage for critical packages"
+	@rm -f coverage-identity.out coverage-content.out coverage-anonymous.out
+
 test-verbose:
 	@echo "Running tests (verbose)..."
 	$(GOTEST) -race -v ./...
@@ -167,7 +184,8 @@ help:
 	@echo ""
 	@echo "Test targets:"
 	@echo "  test          - Run tests with race detector"
-	@echo "  test-cover    - Run tests with coverage report"
+	@echo "  test-cover    - Run tests with coverage report (HTML)"
+	@echo "  test-coverage - Run coverage tests for critical packages (identity, content, anonymous)"
 	@echo "  test-verbose  - Run tests with verbose output"
 	@echo ""
 	@echo "Format and lint targets:"

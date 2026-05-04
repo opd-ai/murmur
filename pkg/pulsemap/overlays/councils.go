@@ -109,27 +109,42 @@ func (co *CouncilOverlay) UpdateCouncil(info *CouncilInfo) {
 	oldInfo := co.councils[key]
 	co.councils[key] = info
 
-	// Initialize star phases for new members.
+	co.initializeNewMemberStarPhases(info)
+	co.cleanupRemovedMemberStarPhases(oldInfo, info)
+}
+
+// initializeNewMemberStarPhases sets up star phases for new members.
+func (co *CouncilOverlay) initializeNewMemberStarPhases(info *CouncilInfo) {
 	for i := range info.Members {
 		memberKey := memberStarKey(info.ID, info.Members[i].SpecterKey)
 		if _, exists := co.starPhase[memberKey]; !exists {
 			co.starPhase[memberKey] = float64(i) * 0.5
 		}
 	}
+}
 
-	// Clean up star phases for removed members.
-	if oldInfo != nil {
-		newMembers := make(map[string]bool)
-		for _, m := range info.Members {
-			newMembers[memberStarKey(info.ID, m.SpecterKey)] = true
-		}
-		for _, m := range oldInfo.Members {
-			mKey := memberStarKey(info.ID, m.SpecterKey)
-			if !newMembers[mKey] {
-				delete(co.starPhase, mKey)
-			}
+// cleanupRemovedMemberStarPhases removes star phases for members no longer in the council.
+func (co *CouncilOverlay) cleanupRemovedMemberStarPhases(oldInfo, newInfo *CouncilInfo) {
+	if oldInfo == nil {
+		return
+	}
+
+	newMembers := co.buildMemberSet(newInfo)
+	for _, m := range oldInfo.Members {
+		mKey := memberStarKey(newInfo.ID, m.SpecterKey)
+		if !newMembers[mKey] {
+			delete(co.starPhase, mKey)
 		}
 	}
+}
+
+// buildMemberSet creates a set of current member keys.
+func (co *CouncilOverlay) buildMemberSet(info *CouncilInfo) map[string]bool {
+	members := make(map[string]bool)
+	for _, m := range info.Members {
+		members[memberStarKey(info.ID, m.SpecterKey)] = true
+	}
+	return members
 }
 
 // councilKey converts a council ID to a map key.

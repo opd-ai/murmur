@@ -177,14 +177,8 @@ func (c *ConnectionDeclaration) signingPayload() []byte {
 
 	buf = append(buf, c.InitiatorPublicKey...)
 	buf = append(buf, c.ResponderPublicKey...)
-
-	tsBuf := make([]byte, 8)
-	binary.BigEndian.PutUint64(tsBuf, uint64(c.CreatedAt))
-	buf = append(buf, tsBuf...)
-
-	typeBuf := make([]byte, 4)
-	binary.BigEndian.PutUint32(typeBuf, uint32(c.ConnectionType))
-	buf = append(buf, typeBuf...)
+	buf = appendU64BigEndian(buf, uint64(c.CreatedAt))
+	buf = appendU32BigEndian(buf, uint32(c.ConnectionType))
 
 	lenBuf := make([]byte, 4)
 	binary.BigEndian.PutUint32(lenBuf, uint32(len(c.MutualName)))
@@ -312,19 +306,33 @@ func (r *ConnectionRevocation) signingPayload() []byte {
 
 	buf = append(buf, r.RevokerPublicKey...)
 	buf = append(buf, r.TargetPublicKey...)
-
-	tsBuf := make([]byte, 8)
-	binary.BigEndian.PutUint64(tsBuf, uint64(r.RevokedAt))
-	buf = append(buf, tsBuf...)
-
-	typeBuf := make([]byte, 4)
-	binary.BigEndian.PutUint32(typeBuf, uint32(r.ConnectionType))
-	buf = append(buf, typeBuf...)
-
-	binary.BigEndian.PutUint32(typeBuf, uint32(r.Reason))
-	buf = append(buf, typeBuf...)
+	buf = appendU64BigEndian(buf, uint64(r.RevokedAt))
+	buf = appendU32BigEndian(buf, uint32(r.ConnectionType))
+	buf = appendU32BigEndian(buf, uint32(r.Reason))
 
 	return buf
+}
+
+// appendU64BigEndian appends a uint64 in big-endian format.
+func appendU64BigEndian(buf []byte, val uint64) []byte {
+	tmp := make([]byte, 8)
+	binary.BigEndian.PutUint64(tmp, val)
+	return append(buf, tmp...)
+}
+
+// appendU32BigEndian appends a uint32 in big-endian format.
+func appendU32BigEndian(buf []byte, val uint32) []byte {
+	tmp := make([]byte, 4)
+	binary.BigEndian.PutUint32(tmp, val)
+	return append(buf, tmp...)
+}
+
+// appendStringWithLen appends a string with 4-byte big-endian length prefix.
+func appendStringWithLen(buf []byte, s string) []byte {
+	tmp := make([]byte, 4)
+	binary.BigEndian.PutUint32(tmp, uint32(len(s)))
+	buf = append(buf, tmp...)
+	return append(buf, []byte(s)...)
 }
 
 // Marshal serializes the revocation to protobuf wire format.

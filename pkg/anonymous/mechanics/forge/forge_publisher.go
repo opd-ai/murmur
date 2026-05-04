@@ -230,29 +230,36 @@ func (r *ForgeReceiver) verifyEventSignature(event *pb.ForgeEvent) error {
 		return mechanics.ErrMissingSignature
 	}
 
-	// For forge creation, verify against creator's pubkey.
-	if event.EventType == pb.ForgeEventType_FORGE_EVENT_CREATED {
-		if event.Project != nil && len(event.Project.CreatorPubkey) == ed25519.PublicKeySize {
-			sigData := r.eventSignatureData(event)
-			if !ed25519.Verify(event.Project.CreatorPubkey, sigData, event.Signature) {
-				return mechanics.ErrSignatureFailed
-			}
-		}
+	switch event.EventType {
+	case pb.ForgeEventType_FORGE_EVENT_CREATED:
+		return r.verifyCreationSignature(event)
+	case pb.ForgeEventType_FORGE_EVENT_CONTRIBUTION:
+		return r.verifyContributionSignature(event)
+	default:
+		// For finalized/failed events, signature is from forge creator.
 		return nil
 	}
+}
 
-	// For contributions, verify against contributor's pubkey.
-	if event.EventType == pb.ForgeEventType_FORGE_EVENT_CONTRIBUTION {
-		if event.Contribution != nil && len(event.Contribution.SpecterPubkey) == ed25519.PublicKeySize {
-			sigData := r.eventSignatureData(event)
-			if !ed25519.Verify(event.Contribution.SpecterPubkey, sigData, event.Signature) {
-				return mechanics.ErrSignatureFailed
-			}
+// verifyCreationSignature validates the signature for forge creation events.
+func (r *ForgeReceiver) verifyCreationSignature(event *pb.ForgeEvent) error {
+	if event.Project != nil && len(event.Project.CreatorPubkey) == ed25519.PublicKeySize {
+		sigData := r.eventSignatureData(event)
+		if !ed25519.Verify(event.Project.CreatorPubkey, sigData, event.Signature) {
+			return mechanics.ErrSignatureFailed
 		}
-		return nil
 	}
+	return nil
+}
 
-	// For finalized/failed events, signature is from forge creator.
+// verifyContributionSignature validates the signature for contribution events.
+func (r *ForgeReceiver) verifyContributionSignature(event *pb.ForgeEvent) error {
+	if event.Contribution != nil && len(event.Contribution.SpecterPubkey) == ed25519.PublicKeySize {
+		sigData := r.eventSignatureData(event)
+		if !ed25519.Verify(event.Contribution.SpecterPubkey, sigData, event.Signature) {
+			return mechanics.ErrSignatureFailed
+		}
+	}
 	return nil
 }
 

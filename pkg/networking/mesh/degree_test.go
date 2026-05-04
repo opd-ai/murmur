@@ -36,7 +36,7 @@ func TestNewDegreeController(t *testing.T) {
 	}
 	defer h.Close()
 
-	manager := NewManager(h)
+	manager := NewManager(h, 0)
 	dc := NewDegreeController(h, manager)
 
 	if dc == nil {
@@ -57,7 +57,7 @@ func TestDegreeController_Status(t *testing.T) {
 	}
 	defer h.Close()
 
-	manager := NewManager(h)
+	manager := NewManager(h, 0)
 	dc := NewDegreeController(h, manager)
 
 	// With no peers
@@ -92,7 +92,7 @@ func TestDegreeController_SetCallbacks(t *testing.T) {
 	}
 	defer h.Close()
 
-	manager := NewManager(h)
+	manager := NewManager(h, 0)
 	dc := NewDegreeController(h, manager)
 
 	pruneCalled := false
@@ -124,7 +124,7 @@ func TestDegreeController_StartStop(t *testing.T) {
 	}
 	defer h.Close()
 
-	manager := NewManager(h)
+	manager := NewManager(h, 0)
 	dc := NewDegreeController(h, manager)
 
 	dc.Start()
@@ -144,7 +144,7 @@ func TestDegreeController_ForceAdjust(t *testing.T) {
 	}
 	defer h.Close()
 
-	manager := NewManager(h)
+	manager := NewManager(h, 0)
 	dc := NewDegreeController(h, manager)
 
 	// Should not panic with no peer source
@@ -169,7 +169,7 @@ func TestDegreeController_SetPeerSource(t *testing.T) {
 	}
 	defer h.Close()
 
-	manager := NewManager(h)
+	manager := NewManager(h, 0)
 	dc := NewDegreeController(h, manager)
 
 	source := &mockPeerSource{}
@@ -187,7 +187,7 @@ func TestScoreBasedPruning_New(t *testing.T) {
 	}
 	defer h.Close()
 
-	manager := NewManager(h)
+	manager := NewManager(h, 0)
 	dc := NewDegreeController(h, manager)
 
 	scoreFunc := func(p peer.ID) float64 { return 0 }
@@ -213,7 +213,7 @@ func TestScoreBasedPruning_PruneLowScorePeers(t *testing.T) {
 	}
 	defer h.Close()
 
-	manager := NewManager(h)
+	manager := NewManager(h, 0)
 	dc := NewDegreeController(h, manager)
 
 	scoreFunc := func(p peer.ID) float64 { return -100 } // All peers have low score

@@ -31,6 +31,9 @@ const (
 
 	// ConfirmationStateSize is the minimum size of a confirmation state message.
 	ConfirmationStateSize = 32 + 16 + 64 // pubkey + nonce + signature minimum
+
+	// ConfirmationMessageSize is the size of unsigned confirmation message (session_id + challenge + nonce + timestamp).
+	ConfirmationMessageSize = 88
 )
 
 // ConfirmationState represents the current state of mutual confirmation.
@@ -177,6 +180,16 @@ func deriveSessionID(key1, key2 ed25519.PublicKey) [32]byte {
 	return id
 }
 
+// signConfirmationMessage signs an 88-byte confirmation message and returns msg+signature.
+// Consolidates the duplicate pattern used in ChallengeMessage and ConfirmationMessage.
+func signConfirmationMessage(key ed25519.PrivateKey, msg []byte) []byte {
+	sig := ed25519.Sign(key, msg)
+	result := make([]byte, len(msg)+len(sig))
+	copy(result, msg)
+	copy(result[len(msg):], sig)
+	return result
+}
+
 // ChallengeMessage creates a signed challenge to send to the peer.
 // Per VIRAL_GROWTH_AND_ONBOARDING.md: "Both parties accept" - the challenge
 // proves we control our key and want to connect.
@@ -185,19 +198,13 @@ func (s *ConfirmationSession) ChallengeMessage() ([]byte, error) {
 	defer s.mu.Unlock()
 
 	// Build message: session_id (32) + challenge (32) + nonce (16) + timestamp (8)
-	msg := make([]byte, 88)
+	msg := make([]byte, ConfirmationMessageSize)
 	copy(msg[0:32], s.ID[:])
 	copy(msg[32:64], s.LocalChallenge[:])
 	copy(msg[64:80], s.LocalNonce[:])
 	binary.BigEndian.PutUint64(msg[80:88], uint64(time.Now().Unix()))
 
-	// Sign the message.
-	sig := ed25519.Sign(s.LocalKey, msg)
-
-	// Return message + signature.
-	result := make([]byte, len(msg)+len(sig))
-	copy(result, msg)
-	copy(result[len(msg):], sig)
+	result := signConfirmationMessage(s.LocalKey, msg)
 
 	s.State = StateChallengeSent
 	return result, nil
@@ -259,19 +266,13 @@ func (s *ConfirmationSession) ConfirmationMessage() ([]byte, error) {
 	}
 
 	// Build message: session_id (32) + their_challenge (32) + our_nonce (16) + timestamp (8)
-	msg := make([]byte, 88)
+	msg := make([]byte, ConfirmationMessageSize)
 	copy(msg[0:32], s.ID[:])
 	copy(msg[32:64], s.RemoteChallenge[:])
 	copy(msg[64:80], s.LocalNonce[:])
 	binary.BigEndian.PutUint64(msg[80:88], uint64(time.Now().Unix()))
 
-	// Sign the message.
-	sig := ed25519.Sign(s.LocalKey, msg)
-
-	// Return message + signature.
-	result := make([]byte, len(msg)+len(sig))
-	copy(result, msg)
-	copy(result[len(msg):], sig)
+	result := signConfirmationMessage(s.LocalKey, msg)
 
 	s.LocalConfirmed = true
 	if s.RemoteConfirmed {
@@ -292,49 +293,13 @@ func (s *ConfirmationSession) ProcessConfirmation(msg []byte) (bool, error) {
 		return true, nil
 	}
 
-	// Minimum message size check.
 	if len(msg) < 88+64 {
 		return false, ErrChallengeResponseSize
 	}
 
-	// Extract components.
-	sessionID := msg[0:32]
-	challengeResponse := msg[32:64]
-	nonce := msg[64:80]
-	timestamp := binary.BigEndian.Uint64(msg[80:88])
-	signature := msg[88:152]
-
-	// Verify session ID matches.
-	var expectedID [32]byte
-	copy(expectedID[:], sessionID)
-	if expectedID != s.ID {
-		return false, ErrProtocolViolation
-	}
-
-	// Verify they responded to our challenge.
-	var expectedChallenge [ChallengeSize]byte
-	copy(expectedChallenge[:], challengeResponse)
-	if expectedChallenge != s.LocalChallenge {
-		return false, ErrInvalidChallenge
-	}
-
-	// Verify timestamp is recent.
-	msgTime := time.Unix(int64(timestamp), 0)
-	if time.Since(msgTime) > ConfirmationTimeout {
-		s.State = StateTimeout
-		return false, ErrConfirmationTimeout
-	}
-
-	// Verify nonce matches what we saw in their challenge.
-	var expectedNonce [NonceSize]byte
-	copy(expectedNonce[:], nonce)
-	if s.RemoteNonce != [NonceSize]byte{} && expectedNonce != s.RemoteNonce {
-		return false, ErrInvalidNonce
-	}
-
-	// Verify signature.
-	if !ed25519.Verify(s.RemoteKey, msg[:88], signature) {
-		return false, ErrInvalidSignature
+	confirmation := parseConfirmationMessage(msg)
+	if err := s.validateConfirmation(confirmation, msg); err != nil {
+		return false, err
 	}
 
 	s.RemoteConfirmed = true
@@ -345,6 +310,53 @@ func (s *ConfirmationSession) ProcessConfirmation(msg []byte) (bool, error) {
 	}
 
 	return false, nil
+}
+
+// confirmationMessage holds parsed confirmation message components.
+type confirmationMessage struct {
+	sessionID         [32]byte
+	challengeResponse [ChallengeSize]byte
+	nonce             [NonceSize]byte
+	timestamp         uint64
+	signature         []byte
+}
+
+// parseConfirmationMessage extracts components from a confirmation message.
+func parseConfirmationMessage(msg []byte) *confirmationMessage {
+	var cm confirmationMessage
+	copy(cm.sessionID[:], msg[0:32])
+	copy(cm.challengeResponse[:], msg[32:64])
+	copy(cm.nonce[:], msg[64:80])
+	cm.timestamp = binary.BigEndian.Uint64(msg[80:88])
+	cm.signature = msg[88:152]
+	return &cm
+}
+
+// validateConfirmation verifies all confirmation message fields.
+func (s *ConfirmationSession) validateConfirmation(cm *confirmationMessage, msg []byte) error {
+	if cm.sessionID != s.ID {
+		return ErrProtocolViolation
+	}
+
+	if cm.challengeResponse != s.LocalChallenge {
+		return ErrInvalidChallenge
+	}
+
+	msgTime := time.Unix(int64(cm.timestamp), 0)
+	if time.Since(msgTime) > ConfirmationTimeout {
+		s.State = StateTimeout
+		return ErrConfirmationTimeout
+	}
+
+	if s.RemoteNonce != [NonceSize]byte{} && cm.nonce != s.RemoteNonce {
+		return ErrInvalidNonce
+	}
+
+	if !ed25519.Verify(s.RemoteKey, msg[:88], cm.signature) {
+		return ErrInvalidSignature
+	}
+
+	return nil
 }
 
 // Reject marks the session as rejected by us.

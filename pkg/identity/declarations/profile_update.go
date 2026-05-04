@@ -205,16 +205,10 @@ func (p *ProfileUpdate) signingPayload() []byte {
 	buf := make([]byte, 0, size)
 
 	buf = append(buf, p.PublicKey...)
+	buf = appendStringWithLen(buf, p.DisplayName)
+	buf = appendStringWithLen(buf, p.Bio)
 
 	lenBuf := make([]byte, 4)
-	binary.BigEndian.PutUint32(lenBuf, uint32(len(p.DisplayName)))
-	buf = append(buf, lenBuf...)
-	buf = append(buf, []byte(p.DisplayName)...)
-
-	binary.BigEndian.PutUint32(lenBuf, uint32(len(p.Bio)))
-	buf = append(buf, lenBuf...)
-	buf = append(buf, []byte(p.Bio)...)
-
 	binary.BigEndian.PutUint32(lenBuf, uint32(len(p.SigilPNG)))
 	buf = append(buf, lenBuf...)
 	buf = append(buf, p.SigilPNG...)

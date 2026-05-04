@@ -436,40 +436,55 @@ func (cp *CouncilPanel) handleDetailInput() {
 		return
 	}
 
-	// M for members.
+	cp.handleViewSwitchKeys()
+	cp.handleMemberActionKeys()
+}
+
+// handleViewSwitchKeys processes view switching shortcuts (M, P).
+func (cp *CouncilPanel) handleViewSwitchKeys() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyM) {
-		cp.mode = CouncilModeMembers
-		cp.scrollOffset = 0
+		cp.switchToMode(CouncilModeMembers)
 	}
-
-	// P for proposals.
 	if inpututil.IsKeyJustPressed(ebiten.KeyP) {
-		cp.mode = CouncilModeProposals
-		cp.scrollOffset = 0
+		cp.switchToMode(CouncilModeProposals)
+	}
+}
+
+// handleMemberActionKeys processes member-only actions (I, N, L).
+func (cp *CouncilPanel) handleMemberActionKeys() {
+	if !cp.currentCouncil.IsMember {
+		return
 	}
 
-	// I for invite (if member).
-	if inpututil.IsKeyJustPressed(ebiten.KeyI) && cp.currentCouncil.IsMember {
+	if inpututil.IsKeyJustPressed(ebiten.KeyI) {
 		cp.mode = CouncilModeInvite
 		cp.inviteSpecterKey = ""
 	}
-
-	// N for new proposal (if member).
-	if inpututil.IsKeyJustPressed(ebiten.KeyN) && cp.currentCouncil.IsMember {
+	if inpututil.IsKeyJustPressed(ebiten.KeyN) {
 		cp.mode = CouncilModePropose
 		cp.proposeText = ""
 	}
+	if inpututil.IsKeyJustPressed(ebiten.KeyL) && !cp.currentCouncil.IsCreator {
+		cp.attemptLeaveCouncil()
+	}
+}
 
-	// L for leave (if member and not creator).
-	if inpututil.IsKeyJustPressed(ebiten.KeyL) && cp.currentCouncil.IsMember && !cp.currentCouncil.IsCreator {
-		if cp.onLeaveCouncil != nil {
-			if err := cp.onLeaveCouncil(cp.currentCouncil.ID); err != nil {
-				cp.errorMessage = err.Error()
-			} else {
-				cp.successMessage = "Left council"
-				cp.mode = CouncilModeList
-			}
-		}
+// switchToMode changes mode and resets scroll.
+func (cp *CouncilPanel) switchToMode(mode CouncilPanelMode) {
+	cp.mode = mode
+	cp.scrollOffset = 0
+}
+
+// attemptLeaveCouncil tries to leave the current council.
+func (cp *CouncilPanel) attemptLeaveCouncil() {
+	if cp.onLeaveCouncil == nil {
+		return
+	}
+	if err := cp.onLeaveCouncil(cp.currentCouncil.ID); err != nil {
+		cp.errorMessage = err.Error()
+	} else {
+		cp.successMessage = "Left council"
+		cp.mode = CouncilModeList
 	}
 }
 

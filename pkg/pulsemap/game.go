@@ -21,6 +21,7 @@ import (
 	"github.com/opd-ai/murmur/pkg/pulsemap/interaction"
 	"github.com/opd-ai/murmur/pkg/pulsemap/layout"
 	"github.com/opd-ai/murmur/pkg/pulsemap/rendering"
+	"github.com/opd-ai/murmur/pkg/store"
 	"github.com/opd-ai/murmur/pkg/ui"
 	pb "github.com/opd-ai/murmur/proto"
 	"google.golang.org/protobuf/proto"
@@ -51,6 +52,9 @@ type Game struct {
 	// pubsub is the GossipSub instance for publishing Waves.
 	pubsub *gossip.PubSub
 
+	// store provides access to persisted data for cross-layer artifact queries.
+	store *store.DB
+
 	// ctx is the application context for async operations.
 	ctx context.Context
 
@@ -71,7 +75,7 @@ type Game struct {
 
 // NewGame creates a new Pulse Map game instance.
 // Per AUDIT.md remediation, this wires the Ebitengine game loop.
-func NewGame(ctx context.Context, keypair *keys.KeyPair, pubsub *gossip.PubSub) (*Game, error) {
+func NewGame(ctx context.Context, keypair *keys.KeyPair, pubsub *gossip.PubSub, db *store.DB) (*Game, error) {
 	// Create layout engine with initial self node.
 	engine := layout.NewEngine()
 
@@ -83,8 +87,8 @@ func NewGame(ctx context.Context, keypair *keys.KeyPair, pubsub *gossip.PubSub) 
 	}
 	engine.AddNode(selfNode)
 
-	// Create renderer.
-	renderer, err := rendering.NewRenderer(engine)
+	// Create renderer with store access for cross-layer artifact queries.
+	renderer, err := rendering.NewRenderer(engine, db)
 	if err != nil {
 		return nil, fmt.Errorf("creating renderer: %w", err)
 	}
@@ -117,6 +121,7 @@ func NewGame(ctx context.Context, keypair *keys.KeyPair, pubsub *gossip.PubSub) 
 		input:        input,
 		keypair:      keypair,
 		pubsub:       pubsub,
+		store:        db,
 		ctx:          ctx,
 		screenWidth:  800,
 		screenHeight: 600,
@@ -134,6 +139,13 @@ func NewGame(ctx context.Context, keypair *keys.KeyPair, pubsub *gossip.PubSub) 
 func (g *Game) Update() error {
 	if g.shouldShutdown() {
 		return ebiten.Termination
+	}
+
+	// Handle window resize per AUDIT.md LOW finding.
+	// Query Ebitengine for current window size and update if changed.
+	w, h := ebiten.WindowSize()
+	if w != g.screenWidth || h != g.screenHeight {
+		g.screenWidth, g.screenHeight = w, h
 	}
 
 	g.handleComposePanelToggle()

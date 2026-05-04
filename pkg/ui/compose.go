@@ -242,18 +242,13 @@ func (p *ComposePanel) Draw(screen *ebiten.Image) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	if !p.visible {
+	ctx := InitPanelDrawWithScreen(screen, p.visible, p.calculatePosition, &p.screenWidth, &p.screenHeight)
+	if ctx == nil {
 		return
 	}
 
-	// Get screen dimensions.
-	w, h := screen.Bounds().Dx(), screen.Bounds().Dy()
-	p.screenWidth = w
-	p.screenHeight = h
-
-	// Calculate panel position based on anchor.
-	px, py := p.calculatePosition(w, h)
-	py += int(p.anim.SlideOffset()) // Apply slide animation.
+	px := ctx.PanelX
+	py := ctx.PanelY + int(p.anim.SlideOffset()) // Apply slide animation.
 
 	// Draw panel background with border.
 	p.drawBackground(screen, px, py)
@@ -392,25 +387,8 @@ func (p *ComposePanel) drawCharCount(screen *ebiten.Image, px, py int) {
 
 // drawButtons draws the submit and cancel buttons.
 func (p *ComposePanel) drawButtons(screen *ebiten.Image, px, py int) {
-	buttonY := py + p.height - p.theme.Padding - p.theme.ButtonHeight
-
-	// Cancel button.
-	cancelX := px + p.theme.Padding
-	cancelW := 80
-	vector.DrawFilledRect(screen, float32(cancelX), float32(buttonY),
-		float32(cancelW), float32(p.theme.ButtonHeight), p.theme.ButtonBackground, true)
-	vector.StrokeRect(screen, float32(cancelX), float32(buttonY),
-		float32(cancelW), float32(p.theme.ButtonHeight), 1.0, p.theme.PanelBorder, true)
-
-	// Submit button.
-	submitX := px + p.width - p.theme.Padding - 100
-	submitW := 100
-	submitBg := p.theme.AccentPrimary
-	if len(p.content) == 0 {
-		submitBg = p.theme.ButtonBackground
-	}
-	vector.DrawFilledRect(screen, float32(submitX), float32(buttonY),
-		float32(submitW), float32(p.theme.ButtonHeight), submitBg, true)
+	enabled := len(p.content) > 0
+	DrawCancelSubmitButtons(screen, px, py, p.width, p.height, p.theme, 100, "Submit", enabled)
 }
 
 // drawError draws the error message.

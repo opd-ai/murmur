@@ -338,7 +338,7 @@ func TestChurnHandler_needsMeshRepair(t *testing.T) {
 	}
 
 	// With degree controller
-	manager := NewManager(h)
+	manager := NewManager(h, 0)
 	degreeCtrl := NewDegreeController(h, manager)
 
 	ch2 := NewChurnHandler(h, nil, degreeCtrl)
@@ -380,7 +380,7 @@ func TestChurnHandler_repairMesh(t *testing.T) {
 	}
 	defer h.Close()
 
-	manager := NewManager(h)
+	manager := NewManager(h, 0)
 	degreeCtrl := NewDegreeController(h, manager)
 
 	ch := NewChurnHandler(h, nil, degreeCtrl)

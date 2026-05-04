@@ -356,18 +356,28 @@ func (l *Louvain) Modularity(community map[string]int) float64 {
 	}
 
 	m := l.graph.totalWeight
-	q := 0.0
+	degree := l.computeDegrees()
+	q := l.sumModularityContributions(community, degree, m)
 
-	// Precompute degree.
+	return q / (2 * m)
+}
+
+// computeDegrees calculates the degree (total edge weight) for each node.
+func (l *Louvain) computeDegrees() map[string]float64 {
 	degree := make(map[string]float64)
 	for nodeID, edges := range l.graph.edges {
 		for _, e := range edges {
 			degree[nodeID] += e.Weight
 		}
 	}
+	return degree
+}
 
-	// Sum over all edges (counting each once).
+// sumModularityContributions sums modularity contributions from all edges, counting each edge once.
+func (l *Louvain) sumModularityContributions(community map[string]int, degree map[string]float64, m float64) float64 {
+	q := 0.0
 	counted := make(map[string]bool)
+
 	for nodeID, edges := range l.graph.edges {
 		for _, e := range edges {
 			edgeKey := edgeKeySort(nodeID, e.Target)
@@ -377,15 +387,17 @@ func (l *Louvain) Modularity(community map[string]int) float64 {
 			counted[edgeKey] = true
 
 			if community[nodeID] == community[e.Target] {
-				// Same community: add to modularity.
-				aij := e.Weight
-				expected := l.resolution * degree[nodeID] * degree[e.Target] / (2 * m)
-				q += aij - expected
+				q += l.computeEdgeModularity(e.Weight, degree[nodeID], degree[e.Target], m)
 			}
 		}
 	}
+	return q
+}
 
-	return q / (2 * m)
+// computeEdgeModularity calculates the modularity contribution of a single edge.
+func (l *Louvain) computeEdgeModularity(edgeWeight, degreeI, degreeJ, m float64) float64 {
+	expected := l.resolution * degreeI * degreeJ / (2 * m)
+	return edgeWeight - expected
 }
 
 // edgeKeySort returns a canonical key for an edge (undirected).

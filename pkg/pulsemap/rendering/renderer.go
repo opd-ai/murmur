@@ -10,12 +10,16 @@ package rendering
 
 import (
 	"image/color"
+	"math"
 	"sync"
+	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/vector"
 	"github.com/opd-ai/murmur/pkg/pulsemap/interaction"
 	"github.com/opd-ai/murmur/pkg/pulsemap/layout"
 	"github.com/opd-ai/murmur/pkg/pulsemap/rendering/effects"
+	"github.com/opd-ai/murmur/pkg/store"
 )
 
 // Renderer coordinates rendering of the Pulse Map.
@@ -44,6 +48,11 @@ type Renderer struct {
 
 	// amplificationTrails holds amplification relationships to visualize.
 	amplificationTrails []AmplificationTrailData
+
+	// store provides access to persisted data for cross-layer artifact queries.
+	// Per AUDIT.md HIGH finding "Cross-layer visibility not implemented", this enables
+	// Surface users to see anonymous artifacts (Marks, Gifts, mini-games) on their Pulse Map.
+	store *store.DB
 
 	// backgroundColor is the Pulse Map background color.
 	backgroundColor color.RGBA
@@ -90,7 +99,7 @@ type AmplificationTrailData struct {
 }
 
 // NewRenderer creates a new Pulse Map renderer.
-func NewRenderer(engine *layout.Engine) (*Renderer, error) {
+func NewRenderer(engine *layout.Engine, db *store.DB) (*Renderer, error) {
 	shaders, err := effects.LoadShaders()
 	if err != nil {
 		// Shaders may fail to load in some environments; continue without them.
@@ -105,6 +114,7 @@ func NewRenderer(engine *layout.Engine) (*Renderer, error) {
 		nodeData:            make(map[string]*NodeData),
 		edges:               make([]EdgeData, 0),
 		amplificationTrails: make([]AmplificationTrailData, 0),
+		store:               db,
 		backgroundColor:     color.RGBA{10, 12, 18, 255}, // Dark background per PULSE_MAP.md
 		screenWidth:         800,
 		screenHeight:        600,
@@ -343,6 +353,13 @@ func (r *Renderer) drawNodes(screen *ebiten.Image, positions map[string]layout.P
 			r.drawNodeGlow(screen, float32(screenX), float32(screenY), style)
 		}
 
+		// Render cross-layer artifacts (Specter Marks, Gifts, etc.) if store is available.
+		// Per AUDIT.md HIGH finding "Cross-layer visibility not implemented", this enables
+		// Surface users to see anonymous activity on their Pulse Map.
+		if r.store != nil {
+			r.drawCrossLayerArtifacts(screen, data, float32(screenX), float32(screenY))
+		}
+
 		// Render text label at Micro zoom level.
 		RenderTextLabel(screen, float32(screenX), float32(screenY), data.DisplayName, data.IsSpecter, zoom)
 	}
@@ -555,4 +572,77 @@ func (r *Renderer) SetBackgroundColor(c color.RGBA) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.backgroundColor = c
+}
+
+// drawCrossLayerArtifacts renders anonymous artifacts (Specter Marks, Phantom Gifts, etc.)
+// overlaid on a node. This implements the Shadow Gradient visibility mechanism per PRODUCT_VISION.md:
+// "Open-mode users see the anonymous layer's effects everywhere."
+func (r *Renderer) drawCrossLayerArtifacts(screen *ebiten.Image, nodeData *NodeData, nodeX, nodeY float32) {
+	// Query marks for this node from the store.
+	// Use PublicKey as the target identifier.
+	if len(nodeData.PublicKey) == 0 {
+		return // No pubkey, can't query
+	}
+
+	marks, err := r.store.ListMarksForTarget(nodeData.PublicKey)
+	if err != nil || len(marks) == 0 {
+		return // No marks or query failed
+	}
+
+	// Render marks as orbiting icons.
+	// Per ANONYMOUS_GAME_MECHANICS.md, marks appear as orbiting sigil icons on marked nodes.
+	for i, mark := range marks {
+		if mark == nil {
+			continue
+		}
+
+		// Calculate age for visibility decay (marks decay over 30 days).
+		createdAt := time.Unix(mark.CreatedAt, 0)
+		expiresAt := time.Unix(mark.ExpiresAt, 0)
+		age := time.Since(createdAt)
+		lifetime := expiresAt.Sub(createdAt)
+
+		// Skip expired marks.
+		if time.Now().After(expiresAt) {
+			continue
+		}
+
+		// Calculate visibility (1.0 → 0.0 linear decay over lifetime).
+		visibility := float32(1.0 - (float64(age) / float64(lifetime)))
+		if visibility < 0 {
+			visibility = 0
+		}
+
+		// Stack orbits for multiple marks.
+		orbitRadius := 24.0 + float32(i)*6.0
+
+		// Orbit angle based on elapsed time and mark ID for variety.
+		// Use mark ID's first byte to seed unique orbit speed.
+		orbitSpeed := 0.5 + float32(mark.Id[0]%64)/128.0 // 0.5 to 1.0 rad/sec
+		orbitAngle := float32(r.time) * orbitSpeed
+
+		// Calculate orbit position.
+		x := nodeX + float32(math.Cos(float64(orbitAngle)))*orbitRadius
+		y := nodeY + float32(math.Sin(float64(orbitAngle)))*orbitRadius
+
+		// Draw mark icon as a small circle with pulsing glow.
+		// Color based on first byte of Specter pubkey for variety.
+		alpha := uint8(visibility * 200) // 0-200 alpha
+		markColor := color.RGBA{
+			R: 100 + mark.SpecterPubkey[0]%100,
+			G: 150,
+			B: 200 + mark.SpecterPubkey[1]%55,
+			A: alpha,
+		}
+
+		// Draw outer glow (pulsing).
+		pulsePhase := float32(math.Sin(float64(r.time) * 2))
+		glowRadius := 5.0 + pulsePhase*2.0
+		glowAlpha := uint8(float32(alpha) * 0.3)
+		glowColor := color.RGBA{markColor.R, markColor.G, markColor.B, glowAlpha}
+		vector.DrawFilledCircle(screen, x, y, glowRadius, glowColor, false)
+
+		// Draw core icon.
+		vector.DrawFilledCircle(screen, x, y, 3.0, markColor, false)
+	}
 }

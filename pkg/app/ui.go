@@ -22,6 +22,7 @@ func (a *App) runUI() error {
 	a.mu.RLock()
 	keypair := a.subsystems.Identity
 	pubsub := a.subsystems.PubSub
+	storage := a.subsystems.Storage
 	a.mu.RUnlock()
 
 	if keypair == nil {
@@ -30,9 +31,12 @@ func (a *App) runUI() error {
 	if pubsub == nil {
 		return fmt.Errorf("pubsub not initialized")
 	}
+	if storage == nil {
+		return fmt.Errorf("storage not initialized")
+	}
 
-	// Create the Pulse Map game instance with Wave publishing capability.
-	game, err := pulsemap.NewGame(a.ctx, keypair, pubsub)
+	// Create the Pulse Map game instance with Wave publishing capability and store access.
+	game, err := pulsemap.NewGame(a.ctx, keypair, pubsub, storage)
 	if err != nil {
 		return fmt.Errorf("creating Pulse Map game: %w", err)
 	}

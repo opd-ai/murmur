@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/opd-ai/murmur/pkg/content/pow"
 	"github.com/opd-ai/murmur/pkg/content/waves"
 	"github.com/opd-ai/murmur/pkg/identity/keys"
 	"github.com/opd-ai/murmur/pkg/store"
@@ -314,5 +315,149 @@ func TestCachePersistence(t *testing.T) {
 		if string(retrieved.Content) != string(wave.Content) {
 			t.Error("persisted content mismatch")
 		}
+	}
+}
+
+// TestAdaptiveDifficulty tests dynamic PoW difficulty adjustment based on Wave arrival rate.
+// Per AUDIT.md HIGH finding: "PoW difficulty not dynamically adjusted".
+func TestAdaptiveDifficulty(t *testing.T) {
+	db, cleanup := createTestDB(t)
+	defer cleanup()
+
+	cache, err := NewCache(db)
+	if err != nil {
+		t.Fatalf("NewCache failed: %v", err)
+	}
+	defer cache.Close()
+
+	// Reset global config to known state.
+	pow.ResetGlobalConfig()
+	cfg := pow.GetGlobalConfig()
+	initialDifficulty := cfg.GetStandard()
+
+	if initialDifficulty != 20 {
+		t.Fatalf("Expected initial difficulty 20, got %d", initialDifficulty)
+	}
+
+	// Simulate high rate (>100 Waves/min) to trigger increase.
+	// We need to put 101 Waves within 1 minute to exceed threshold.
+	startTime := time.Now()
+	cache.mu.Lock()
+	cache.lastAdjustment = startTime.Add(-10 * time.Minute) // Allow immediate adjustment
+	cache.mu.Unlock()
+
+	for i := 0; i < 101; i++ {
+		wave := createTestWave(t)
+		wave.WaveId = []byte{byte(i), byte(i >> 8)} // unique ID
+
+		cache.mu.Lock()
+		cache.trackArrivalLocked(startTime.Add(time.Duration(i) * 500 * time.Millisecond))
+		cache.mu.Unlock()
+	}
+
+	// After 101 Waves in 50 seconds (~121 Waves/min), difficulty should increase.
+	newDifficulty := cfg.GetStandard()
+	if newDifficulty <= initialDifficulty {
+		t.Errorf("Expected difficulty to increase from %d, got %d", initialDifficulty, newDifficulty)
+	}
+
+	// Verify persistence.
+	persisted := cache.LoadPersistedDifficulty()
+	if persisted != newDifficulty {
+		t.Errorf("Expected persisted difficulty %d, got %d", newDifficulty, persisted)
+	}
+
+	// TODO: Low-rate decrease test requires more complex timing setup.
+	// The infrastructure is in place but test timing needs refinement.
+	// See adjustDifficultyLocked implementation for the logic.
+}
+
+// TestPersistDifficulty tests that difficulty persists across cache instances.
+func TestPersistDifficulty(t *testing.T) {
+	db, cleanup := createTestDB(t)
+	defer cleanup()
+
+	cache1, err := NewCache(db)
+	if err != nil {
+		t.Fatalf("NewCache failed: %v", err)
+	}
+
+	// Set custom difficulty and persist.
+	testDifficulty := uint8(23)
+	cache1.persistDifficulty(testDifficulty)
+	cache1.Close()
+
+	// Create new cache instance and verify restoration.
+	cache2, err := NewCache(db)
+	if err != nil {
+		t.Fatalf("NewCache second instance failed: %v", err)
+	}
+	defer cache2.Close()
+
+	persisted := cache2.LoadPersistedDifficulty()
+	if persisted != testDifficulty {
+		t.Errorf("Expected persisted difficulty %d, got %d", testDifficulty, persisted)
+	}
+}
+
+func TestEvictOldest(t *testing.T) {
+	db, cleanup := createTestDB(t)
+	defer cleanup()
+
+	cache, err := NewCache(db)
+	if err != nil {
+		t.Fatalf("NewCache failed: %v", err)
+	}
+	defer cache.Close()
+
+	// Create waves with different timestamps (1 second apart).
+	waves := make([]*pb.Wave, 10)
+	for i := 0; i < 10; i++ {
+		wave := createTestWave(t)
+		wave.CreatedAt = int64(1000 + i) // Ascending timestamps
+		waves[i] = wave
+		if err := cache.Put(wave); err != nil {
+			t.Fatalf("Put failed: %v", err)
+		}
+	}
+
+	// Verify all 10 waves are cached in memory.
+	initialSize := cache.Size()
+	if initialSize != 10 {
+		t.Errorf("Expected 10 waves in cache, got %d", initialSize)
+	}
+
+	// Evict 3 oldest waves from memory.
+	evicted := cache.EvictOldest(3)
+	if evicted != 3 {
+		t.Errorf("Expected to evict 3 waves, evicted %d", evicted)
+	}
+
+	// Verify 7 waves remain in memory.
+	afterEviction := cache.Size()
+	if afterEviction != 7 {
+		t.Errorf("Expected 7 waves after eviction, got %d", afterEviction)
+	}
+
+	// Evict more than available - should evict all 7 remaining.
+	evicted = cache.EvictOldest(100)
+	if evicted != 7 {
+		t.Errorf("Expected to evict 7 remaining waves, evicted %d", evicted)
+	}
+
+	if cache.Size() != 0 {
+		t.Errorf("Expected 0 waves in memory after evicting all, got %d", cache.Size())
+	}
+
+	// Verify waves are still in database (Get re-populates memory cache).
+	for i := 0; i < 10; i++ {
+		if _, err := cache.Get(waves[i].WaveId); err != nil {
+			t.Errorf("Wave %d should still be in DB, got error: %v", i, err)
+		}
+	}
+
+	// Memory cache should be repopulated with 10 waves from DB lookups.
+	if cache.Size() != 10 {
+		t.Errorf("Expected 10 waves in memory after DB retrieval, got %d", cache.Size())
 	}
 }

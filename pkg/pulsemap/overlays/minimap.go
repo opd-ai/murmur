@@ -94,16 +94,31 @@ func (m *Minimap) UpdateNodes(nodes []MinimapNode) {
 // calculateWorldBounds computes the bounding box of all nodes.
 func (m *Minimap) calculateWorldBounds() {
 	if len(m.nodes) == 0 {
-		m.worldMinX, m.worldMaxX = -500, 500
-		m.worldMinY, m.worldMaxY = -500, 500
+		m.setDefaultBounds()
 		return
 	}
 
+	m.initializeBoundsFromFirstNode()
+	m.expandBoundsForAllNodes()
+	m.addPaddingToBounds()
+}
+
+// setDefaultBounds uses fallback bounds when no nodes exist.
+func (m *Minimap) setDefaultBounds() {
+	m.worldMinX, m.worldMaxX = -500, 500
+	m.worldMinY, m.worldMaxY = -500, 500
+}
+
+// initializeBoundsFromFirstNode sets initial bounds from first node.
+func (m *Minimap) initializeBoundsFromFirstNode() {
 	m.worldMinX = m.nodes[0].X
 	m.worldMaxX = m.nodes[0].X
 	m.worldMinY = m.nodes[0].Y
 	m.worldMaxY = m.nodes[0].Y
+}
 
+// expandBoundsForAllNodes expands bounds to include all nodes.
+func (m *Minimap) expandBoundsForAllNodes() {
 	for _, node := range m.nodes[1:] {
 		if node.X < m.worldMinX {
 			m.worldMinX = node.X
@@ -118,8 +133,10 @@ func (m *Minimap) calculateWorldBounds() {
 			m.worldMaxY = node.Y
 		}
 	}
+}
 
-	// Add padding (10% of range)
+// addPaddingToBounds expands bounds by 10% of range with minimum 100.
+func (m *Minimap) addPaddingToBounds() {
 	rangeX := m.worldMaxX - m.worldMinX
 	rangeY := m.worldMaxY - m.worldMinY
 	if rangeX < 100 {

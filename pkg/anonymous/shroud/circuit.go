@@ -391,38 +391,53 @@ func (rd *ReplayDetector) Check(seq uint64) bool {
 	rd.mu.Lock()
 	defer rd.mu.Unlock()
 
-	// Reject if too old.
-	if seq < rd.minSeq {
+	if rd.isSequenceTooOld(seq) || rd.isSequenceAlreadySeen(seq) {
 		return false
 	}
 
-	// Reject if already seen.
-	if rd.seen[seq] {
-		return false
-	}
+	rd.recordSequence(seq)
+	rd.updateMaxSeenAndCleanup(seq)
+	return true
+}
 
-	// Accept and record.
+// isSequenceTooOld checks if sequence is below minimum.
+func (rd *ReplayDetector) isSequenceTooOld(seq uint64) bool {
+	return seq < rd.minSeq
+}
+
+// isSequenceAlreadySeen checks if sequence was previously recorded.
+func (rd *ReplayDetector) isSequenceAlreadySeen(seq uint64) bool {
+	return rd.seen[seq]
+}
+
+// recordSequence marks sequence as seen.
+func (rd *ReplayDetector) recordSequence(seq uint64) {
 	rd.seen[seq] = true
+}
 
-	// Update max seen.
-	if seq > rd.maxSeen {
-		rd.maxSeen = seq
-		// Slide window forward.
-		if rd.maxSeen > rd.window {
-			newMin := rd.maxSeen - rd.window
-			if newMin > rd.minSeq {
-				// Clean up old entries.
-				for s := range rd.seen {
-					if s < newMin {
-						delete(rd.seen, s)
-					}
-				}
-				rd.minSeq = newMin
-			}
+// updateMaxSeenAndCleanup updates max seen and slides window forward.
+func (rd *ReplayDetector) updateMaxSeenAndCleanup(seq uint64) {
+	if seq <= rd.maxSeen {
+		return
+	}
+	rd.maxSeen = seq
+	if rd.maxSeen > rd.window {
+		rd.slideWindowForward()
+	}
+}
+
+// slideWindowForward advances the replay window and prunes old entries.
+func (rd *ReplayDetector) slideWindowForward() {
+	newMin := rd.maxSeen - rd.window
+	if newMin <= rd.minSeq {
+		return
+	}
+	for s := range rd.seen {
+		if s < newMin {
+			delete(rd.seen, s)
 		}
 	}
-
-	return true
+	rd.minSeq = newMin
 }
 
 // MaxSeen returns the maximum seen sequence number.

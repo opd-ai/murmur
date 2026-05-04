@@ -190,12 +190,7 @@ func encryptVeiledContent(content, authorPubKey, recipientPubKey []byte) ([]byte
 // wrapSymmetricKey wraps a symmetric key using both public keys.
 // This creates a key wrapping that can be unwrapped by the recipient.
 func wrapSymmetricKey(symmetricKey, authorPubKey, recipientPubKey []byte) []byte {
-	// Derive wrapping key from both public keys.
-	h := blake3.New()
-	h.Write([]byte("murmur-veiled-wrap-v1"))
-	h.Write(authorPubKey)
-	h.Write(recipientPubKey)
-	wrapKey := h.Sum(nil)[:SymmetricKeySize]
+	wrapKey := deriveVeiledWrapKey(authorPubKey, recipientPubKey)
 
 	// XOR the symmetric key with the wrap key.
 	wrapped := make([]byte, len(symmetricKey))
@@ -206,18 +201,23 @@ func wrapSymmetricKey(symmetricKey, authorPubKey, recipientPubKey []byte) []byte
 	return wrapped
 }
 
+// deriveVeiledWrapKey derives a wrapping key from both public keys.
+// Consolidated helper for wrapSymmetricKey and UnwrapSymmetricKey.
+func deriveVeiledWrapKey(authorPubKey, recipientPubKey []byte) []byte {
+	h := blake3.New()
+	h.Write([]byte("murmur-veiled-wrap-v1"))
+	h.Write(authorPubKey)
+	h.Write(recipientPubKey)
+	return h.Sum(nil)[:SymmetricKeySize]
+}
+
 // UnwrapSymmetricKey unwraps a symmetric key for decryption.
 func UnwrapSymmetricKey(wrappedKey, authorPubKey, recipientPubKey []byte) ([]byte, error) {
 	if len(wrappedKey) != SymmetricKeySize {
 		return nil, ErrInvalidWrappedKey
 	}
 
-	// Derive the same wrapping key.
-	h := blake3.New()
-	h.Write([]byte("murmur-veiled-wrap-v1"))
-	h.Write(authorPubKey)
-	h.Write(recipientPubKey)
-	wrapKey := h.Sum(nil)[:SymmetricKeySize]
+	wrapKey := deriveVeiledWrapKey(authorPubKey, recipientPubKey)
 
 	// XOR to unwrap.
 	symmetricKey := make([]byte, len(wrappedKey))

@@ -76,16 +76,22 @@ func (d *DHTNamespaceResolver) collectPeers(ctx context.Context, peerChan <-chan
 			if !ok {
 				return d.finalizePeerList(peers)
 			}
-			if d.shouldIncludePeer(p) {
-				peers = append(peers, p)
-				if len(peers) >= targetPeerCount {
-					return peers, nil
-				}
+			peers = d.addPeerIfValid(peers, p, targetPeerCount)
+			if len(peers) >= targetPeerCount {
+				return peers, nil
 			}
 		case <-ctx.Done():
 			return d.finalizePeerList(peers)
 		}
 	}
+}
+
+// addPeerIfValid adds a peer to the list if it passes validation.
+func (d *DHTNamespaceResolver) addPeerIfValid(peers []peer.AddrInfo, p peer.AddrInfo, targetCount int) []peer.AddrInfo {
+	if d.shouldIncludePeer(p) {
+		return append(peers, p)
+	}
+	return peers
 }
 
 // shouldIncludePeer returns true if the peer should be added to the list.

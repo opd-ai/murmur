@@ -103,46 +103,59 @@ func (cp *CouncilPanel) drawCouncilList(screen *ebiten.Image, x, y, w, h float32
 	itemHeight := float32(50)
 
 	if len(cp.councils) == 0 {
-		// Draw empty state.
-		emptyColor := cp.theme.TextSecondary
-		vector.DrawFilledCircle(screen, x+w/2, y+h/3, 30, emptyColor, true)
+		cp.drawEmptyState(screen, x, y, w, h)
 		return
 	}
 
 	for i, council := range cp.councils {
 		itemY := y + padding + float32(i)*itemHeight
-
-		// Highlight selected.
-		if i == cp.selectedCouncil {
-			vector.DrawFilledRect(screen, x+padding, itemY, w-padding*2, itemHeight-5, cp.theme.Selection, true)
-		}
-
-		// Draw council name.
-		nameColor := cp.theme.TextPrimary
-		if council.State == CouncilStateDormant {
-			nameColor = cp.theme.TextSecondary
-		}
-		vector.DrawFilledRect(screen, x+padding+5, itemY+5, 5, itemHeight-15, nameColor, true)
-
-		// Draw member count indicator.
-		memberCount := 0
-		for _, m := range council.Members {
-			if m.Status == MemberStatusActive {
-				memberCount++
-			}
-		}
-		radius := float32(8 + memberCount)
-		if radius > 20 {
-			radius = 20
-		}
-		vector.DrawFilledCircle(screen, x+w-padding-20, itemY+itemHeight/2, radius, cp.theme.AccentPrimary, true)
+		cp.drawCouncilItem(screen, x, itemY, w, itemHeight, i, council, padding)
 	}
 
-	// Draw help text.
-	helpY := y + h - 25
+	cp.drawListHelpText(screen, x, y+h-25, w)
+}
+
+// drawEmptyState renders the empty council list state.
+func (cp *CouncilPanel) drawEmptyState(screen *ebiten.Image, x, y, w, h float32) {
+	emptyColor := cp.theme.TextSecondary
+	vector.DrawFilledCircle(screen, x+w/2, y+h/3, 30, emptyColor, true)
+}
+
+// drawCouncilItem renders a single council list item.
+func (cp *CouncilPanel) drawCouncilItem(screen *ebiten.Image, x, itemY, w, itemHeight float32, index int, council *CouncilInfo, padding float32) {
+	if index == cp.selectedCouncil {
+		vector.DrawFilledRect(screen, x+padding, itemY, w-padding*2, itemHeight-5, cp.theme.Selection, true)
+	}
+
+	nameColor := cp.theme.TextPrimary
+	if council.State == CouncilStateDormant {
+		nameColor = cp.theme.TextSecondary
+	}
+	vector.DrawFilledRect(screen, x+padding+5, itemY+5, 5, itemHeight-15, nameColor, true)
+
+	cp.drawMemberCountIndicator(screen, x+w-padding-20, itemY+itemHeight/2, council.Members)
+}
+
+// drawMemberCountIndicator draws a circle sized by active member count.
+func (cp *CouncilPanel) drawMemberCountIndicator(screen *ebiten.Image, x, y float32, members []CouncilMemberInfo) {
+	memberCount := 0
+	for _, m := range members {
+		if m.Status == MemberStatusActive {
+			memberCount++
+		}
+	}
+	radius := float32(8 + memberCount)
+	if radius > 20 {
+		radius = 20
+	}
+	vector.DrawFilledCircle(screen, x, y, radius, cp.theme.AccentPrimary, true)
+}
+
+// drawListHelpText renders the help text at the bottom of the list.
+func (cp *CouncilPanel) drawListHelpText(screen *ebiten.Image, x, y, w float32) {
 	helpBg := cp.theme.PanelBackground
 	helpBg.A = 200
-	vector.DrawFilledRect(screen, x, helpY, w, 25, helpBg, true)
+	vector.DrawFilledRect(screen, x, y, w, 25, helpBg, true)
 }
 
 // drawCreateForm draws the council creation form.

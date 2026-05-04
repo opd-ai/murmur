@@ -135,56 +135,59 @@ func (p *DHTProximityProof) AddAttestation(att ProximityAttestation) {
 // Verify validates the proximity proof against the target and max hops.
 // Returns true if the proof demonstrates the claimer is within maxHops.
 func (p *DHTProximityProof) Verify(targetHash [32]byte, maxHops int) bool {
-	// Target hash must match.
-	if p.TargetHash != targetHash {
+	if !p.hasValidTarget(targetHash) {
 		return false
 	}
 
-	// Must have at least one attestation.
-	if len(p.Attestations) == 0 {
-		return false
-	}
-
-	// Calculate the XOR distance threshold for maxHops.
-	// In Kademlia, each hop roughly halves the XOR distance.
-	// For maxHops=3, we allow distances up to 2^(256-3*bucket_size).
-	// Using a simplified model: threshold = 2^(256 - maxHops*42).
 	threshold := calculateXORThreshold(maxHops)
+	validCount := p.countValidAttestations(threshold)
 
+	// Per ANONYMOUS_GAME_MECHANICS.md, need attestation from peer within maxHops.
+	return validCount > 0
+}
+
+// hasValidTarget checks if the proof's target hash matches and has attestations.
+func (p *DHTProximityProof) hasValidTarget(targetHash [32]byte) bool {
+	return p.TargetHash == targetHash && len(p.Attestations) > 0
+}
+
+// countValidAttestations returns the number of valid attestations within the XOR threshold.
+func (p *DHTProximityProof) countValidAttestations(threshold *big.Int) int {
 	validAttestations := 0
 	for i := range p.Attestations {
 		att := &p.Attestations[i]
-
-		// Skip self-attestations.
-		if att.AttesterPubKey == p.ClaimerPubKey {
-			continue
-		}
-
-		// Verify signature.
-		if !att.Verify() {
-			continue
-		}
-
-		// Check expiration.
-		if att.IsExpired() {
-			continue
-		}
-
-		// Check attestation matches this proof.
-		if att.ClaimerPubKey != p.ClaimerPubKey || att.TargetHash != p.TargetHash {
-			continue
-		}
-
-		// Check XOR distance is within threshold.
-		attDistance := att.GetXORDistance()
-		if attDistance.Cmp(threshold) <= 0 {
+		if p.isAttestationValid(att, threshold) {
 			validAttestations++
 		}
 	}
+	return validAttestations
+}
 
-	// Per ANONYMOUS_GAME_MECHANICS.md, need attestation from peer within maxHops.
-	// We require at least one valid attestation from a peer close enough.
-	return validAttestations > 0
+// isAttestationValid checks if an attestation is valid for this proof.
+func (p *DHTProximityProof) isAttestationValid(att *ProximityAttestation, threshold *big.Int) bool {
+	// Skip self-attestations.
+	if att.AttesterPubKey == p.ClaimerPubKey {
+		return false
+	}
+
+	// Verify signature.
+	if !att.Verify() {
+		return false
+	}
+
+	// Check expiration.
+	if att.IsExpired() {
+		return false
+	}
+
+	// Check attestation matches this proof.
+	if att.ClaimerPubKey != p.ClaimerPubKey || att.TargetHash != p.TargetHash {
+		return false
+	}
+
+	// Check XOR distance is within threshold.
+	attDistance := att.GetXORDistance()
+	return attDistance.Cmp(threshold) <= 0
 }
 
 // calculateXORThreshold computes the maximum XOR distance for the given hop count.

@@ -159,28 +159,46 @@ func (p *SettingsPanel) SetSetting(key string, value interface{}) {
 	defer p.mu.Unlock()
 
 	for i, cat := range p.categories {
-		for j, s := range cat.Settings {
-			if s.Key == key {
-				p.categories[i].Settings[j].Value = value
-				if p.onChange != nil {
-					var strValue string
-					switch v := value.(type) {
-					case bool:
-						if v {
-							strValue = "true"
-						} else {
-							strValue = "false"
-						}
-					case float64:
-						strValue = ""
-					case string:
-						strValue = v
-					}
-					p.onChange(key, strValue)
-				}
-				return
-			}
+		if p.updateSettingInCategory(i, key, value, &cat) {
+			return
 		}
+	}
+}
+
+// updateSettingInCategory searches for and updates a setting within a category.
+func (p *SettingsPanel) updateSettingInCategory(catIdx int, key string, value interface{}, cat *SettingCategory) bool {
+	for j, s := range cat.Settings {
+		if s.Key == key {
+			p.categories[catIdx].Settings[j].Value = value
+			p.notifyOnChange(key, value)
+			return true
+		}
+	}
+	return false
+}
+
+// notifyOnChange invokes the onChange callback with the setting key and string value.
+func (p *SettingsPanel) notifyOnChange(key string, value interface{}) {
+	if p.onChange == nil {
+		return
+	}
+	p.onChange(key, p.convertValueToString(value))
+}
+
+// convertValueToString converts an interface{} value to a string representation.
+func (p *SettingsPanel) convertValueToString(value interface{}) string {
+	switch v := value.(type) {
+	case bool:
+		if v {
+			return "true"
+		}
+		return "false"
+	case string:
+		return v
+	case float64:
+		return ""
+	default:
+		return ""
 	}
 }
 

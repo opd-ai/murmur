@@ -290,53 +290,67 @@ func parseIgnitionData(data []byte) (*IgnitionData, error) {
 	}
 
 	parser := &ignitionParser{data: data}
-
-	version, err := parser.readVersion()
+	result, err := parser.parseAllFields()
 	if err != nil {
 		return nil, err
 	}
 
-	publicKey, err := parser.readPublicKey()
+	if err := verifyIgnitionSignature(result); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+// parseAllFields parses all ignition data fields from the binary format.
+func (p *ignitionParser) parseAllFields() (*IgnitionData, error) {
+	version, err := p.readVersion()
 	if err != nil {
 		return nil, err
 	}
 
-	addresses, err := parser.readAddresses()
+	publicKey, err := p.readPublicKey()
 	if err != nil {
 		return nil, err
 	}
 
-	token, err := parser.readToken()
+	addresses, err := p.readAddresses()
 	if err != nil {
 		return nil, err
 	}
 
-	timestamp, err := parser.readTimestamp()
+	token, err := p.readToken()
 	if err != nil {
 		return nil, err
 	}
 
-	signature, err := parser.readSignature()
+	timestamp, err := p.readTimestamp()
 	if err != nil {
 		return nil, err
 	}
 
-	result := &IgnitionData{
+	signature, err := p.readSignature()
+	if err != nil {
+		return nil, err
+	}
+
+	return &IgnitionData{
 		Version:   version,
 		PublicKey: publicKey,
 		Addresses: addresses,
 		Token:     token,
 		Timestamp: timestamp,
 		Signature: signature,
-	}
+	}, nil
+}
 
-	// Verify signature.
-	sigInput := result.signatureInput()
-	if !ed25519.Verify(publicKey, sigInput, signature) {
-		return nil, ErrInvalidSignature
+// verifyIgnitionSignature validates the signature on ignition data.
+func verifyIgnitionSignature(data *IgnitionData) error {
+	sigInput := data.signatureInput()
+	if !ed25519.Verify(data.PublicKey, sigInput, data.Signature) {
+		return ErrInvalidSignature
 	}
-
-	return result, nil
+	return nil
 }
 
 // ignitionParser assists with parsing ignition data fields sequentially.
@@ -458,40 +472,48 @@ func (d *IgnitionData) PublicKeyHash() []byte {
 // a full QR library like github.com/skip2/go-qrcode.
 func (d *IgnitionData) QRCodeImage(moduleSize, margin int) (image.Image, error) {
 	encoded := d.Encode()
-
-	// Generate QR code matrix using simplified encoding.
-	// In production, use a proper QR library.
 	matrix := generateQRMatrix(encoded)
 
-	// Create image.
 	size := (len(matrix) + 2*margin) * moduleSize
 	img := image.NewRGBA(image.Rect(0, 0, size, size))
 
-	// Fill with white background.
+	fillWhiteBackground(img, size)
+	drawQRModules(img, matrix, moduleSize, margin)
+
+	return img, nil
+}
+
+// fillWhiteBackground fills the entire image with white pixels.
+func fillWhiteBackground(img *image.RGBA, size int) {
 	white := color.RGBA{255, 255, 255, 255}
-	black := color.RGBA{0, 0, 0, 255}
 	for y := 0; y < size; y++ {
 		for x := 0; x < size; x++ {
 			img.Set(x, y, white)
 		}
 	}
+}
 
-	// Draw QR modules.
+// drawQRModules renders black modules from the QR matrix onto the image.
+func drawQRModules(img *image.RGBA, matrix [][]bool, moduleSize, margin int) {
+	black := color.RGBA{0, 0, 0, 255}
 	for my, row := range matrix {
 		for mx, module := range row {
 			if module {
-				x0 := (mx + margin) * moduleSize
-				y0 := (my + margin) * moduleSize
-				for dy := 0; dy < moduleSize; dy++ {
-					for dx := 0; dx < moduleSize; dx++ {
-						img.Set(x0+dx, y0+dy, black)
-					}
-				}
+				drawModule(img, mx, my, moduleSize, margin, black)
 			}
 		}
 	}
+}
 
-	return img, nil
+// drawModule fills a single QR module at the given matrix position.
+func drawModule(img *image.RGBA, mx, my, moduleSize, margin int, c color.RGBA) {
+	x0 := (mx + margin) * moduleSize
+	y0 := (my + margin) * moduleSize
+	for dy := 0; dy < moduleSize; dy++ {
+		for dx := 0; dx < moduleSize; dx++ {
+			img.Set(x0+dx, y0+dy, c)
+		}
+	}
 }
 
 // QRCodePNG returns the QR code as PNG-encoded bytes.

@@ -278,16 +278,13 @@ func (p *PuzzleSolverPanel) Draw(screen *ebiten.Image) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	if !p.visible {
+	ctx := InitPanelDrawWithScreen(screen, p.visible, p.calculatePosition, &p.screenWidth, &p.screenHeight)
+	if ctx == nil {
 		return
 	}
 
-	w, h := screen.Bounds().Dx(), screen.Bounds().Dy()
-	p.screenWidth = w
-	p.screenHeight = h
-
-	px, py := p.calculatePosition(w, h)
-	py += int(p.slideOffset)
+	px := ctx.PanelX
+	py := ctx.PanelY + int(p.slideOffset)
 
 	p.drawBackground(screen, px, py)
 	p.drawTitle(screen, px, py)
@@ -453,25 +450,8 @@ func (p *PuzzleSolverPanel) drawTimer(screen *ebiten.Image, px, py int) {
 
 // drawButtons draws submit and cancel buttons.
 func (p *PuzzleSolverPanel) drawButtons(screen *ebiten.Image, px, py int) {
-	buttonY := py + p.height - p.theme.Padding - p.theme.ButtonHeight
-
-	// Cancel button.
-	cancelX := px + p.theme.Padding
-	cancelW := 80
-	vector.DrawFilledRect(screen, float32(cancelX), float32(buttonY),
-		float32(cancelW), float32(p.theme.ButtonHeight), p.theme.ButtonBackground, true)
-	vector.StrokeRect(screen, float32(cancelX), float32(buttonY),
-		float32(cancelW), float32(p.theme.ButtonHeight), 1.0, p.theme.PanelBorder, true)
-
-	// Submit button.
-	submitX := px + p.width - p.theme.Padding - 130
-	submitW := 130
-	submitBg := p.theme.AccentPrimary
-	if len(p.solution) == 0 {
-		submitBg = p.theme.ButtonBackground
-	}
-	vector.DrawFilledRect(screen, float32(submitX), float32(buttonY),
-		float32(submitW), float32(p.theme.ButtonHeight), submitBg, true)
+	enabled := len(p.solution) > 0
+	DrawCancelSubmitButtons(screen, px, py, p.width, p.height, p.theme, 130, "Submit", enabled)
 }
 
 // drawFeedback draws success or error messages.

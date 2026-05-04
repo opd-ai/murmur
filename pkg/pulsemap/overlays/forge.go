@@ -327,68 +327,76 @@ func (o *ForgeOverlay) drawOrbitingEntries(screen *ebiten.Image, x, y, scale flo
 		return
 	}
 
-	// Orbit radius.
 	orbitRadius := 55 * scale
-
-	// Limit displayed entries to prevent clutter.
-	maxDisplayed := 8
-	displayCount := len(forge.Entries)
-	if displayCount > maxDisplayed {
-		displayCount = maxDisplayed
-	}
-
-	// Orbit speed varies by forge state.
-	orbitSpeed := 0.3
-	if forge.State == ForgeActive {
-		orbitSpeed = 0.5
-	}
+	displayCount := calculateDisplayCount(forge.Entries, 8)
+	orbitSpeed := calculateOrbitSpeed(forge.State)
 
 	for i := 0; i < displayCount; i++ {
 		entry := &forge.Entries[i]
+		entryX, entryY := calculateOrbitPosition(x, y, orbitRadius, orbitSpeed, o.time, i, displayCount)
+		entrySize := calculateEntrySize(entry.Score, scale)
+		entryColor := resolveEntryColor(entry.SigilColor, o.entryOrbitColor)
 
-		// Calculate orbit position.
-		angle := o.time*orbitSpeed + float64(i)*2*math.Pi/float64(displayCount)
-		entryX := x + orbitRadius*float32(math.Cos(angle))
-		entryY := y + orbitRadius*float32(math.Sin(angle))
-
-		// Entry size based on score (larger = higher score).
-		baseSize := 6 * scale
-		scoreBonus := float32(math.Min(entry.Score/100, 1)) * 4 * scale
-		entrySize := baseSize + scoreBonus
-
-		// Use entry's sigil color or default.
-		entryColor := entry.SigilColor
-		if entryColor.A == 0 {
-			entryColor = o.entryOrbitColor
-		}
-
-		// Draw orbit trail.
-		trailAlpha := uint8(30)
-		trailColor := color.RGBA{entryColor.R, entryColor.G, entryColor.B, trailAlpha}
-		for j := 1; j <= 3; j++ {
-			trailAngle := angle - float64(j)*0.1
-			trailX := x + orbitRadius*float32(math.Cos(trailAngle))
-			trailY := y + orbitRadius*float32(math.Sin(trailAngle))
-			trailSize := entrySize * float32(1-float64(j)*0.2)
-			vector.DrawFilledCircle(screen, trailX, trailY, trailSize, trailColor, true)
-		}
-
-		// Draw entry marker.
+		o.drawEntryTrail(screen, x, y, orbitRadius, orbitSpeed, entrySize, entryColor, i, displayCount)
 		vector.DrawFilledCircle(screen, entryX, entryY, entrySize, entryColor, true)
 
-		// Winner gets a special ring.
 		if entry.IsWinner {
 			vector.StrokeCircle(screen, entryX, entryY, entrySize+3*scale, 2, o.winnerColor, true)
 		}
 	}
+}
 
-	// Show count if there are more entries.
-	if len(forge.Entries) > maxDisplayed {
-		// Draw indicator at bottom to show there are more entries.
-		indicatorY := y + orbitRadius + 15*scale
-		indicatorColor := color.RGBA{200, 200, 200, 180}
-		vector.DrawFilledCircle(screen, x, indicatorY, 8*scale, indicatorColor, true)
-		// Additional entries beyond maxDisplayed are indicated by this marker.
+// calculateDisplayCount limits entries to prevent clutter.
+func calculateDisplayCount(entries []ForgeEntry, max int) int {
+	if len(entries) > max {
+		return max
+	}
+	return len(entries)
+}
+
+// calculateOrbitSpeed returns speed based on forge state.
+func calculateOrbitSpeed(state ForgeState) float64 {
+	if state == ForgeActive {
+		return 0.5
+	}
+	return 0.3
+}
+
+// calculateOrbitPosition computes x, y for an entry at orbit angle.
+func calculateOrbitPosition(centerX, centerY, radius float32, speed, time float64, index, count int) (float32, float32) {
+	angle := time*speed + float64(index)*2*math.Pi/float64(count)
+	x := centerX + radius*float32(math.Cos(angle))
+	y := centerY + radius*float32(math.Sin(angle))
+	return x, y
+}
+
+// calculateEntrySize returns size based on score (higher = larger).
+func calculateEntrySize(score float64, scale float32) float32 {
+	baseSize := 6 * scale
+	scoreBonus := float32(math.Min(score/100, 1)) * 4 * scale
+	return baseSize + scoreBonus
+}
+
+// resolveEntryColor picks entry color or fallback.
+func resolveEntryColor(sigilColor, fallback color.RGBA) color.RGBA {
+	if sigilColor.A == 0 {
+		return fallback
+	}
+	return sigilColor
+}
+
+// drawEntryTrail renders trailing particles behind an entry.
+func (o *ForgeOverlay) drawEntryTrail(screen *ebiten.Image, centerX, centerY, radius float32, speed float64, entrySize float32, entryColor color.RGBA, index, count int) {
+	trailAlpha := uint8(30)
+	trailColor := color.RGBA{entryColor.R, entryColor.G, entryColor.B, trailAlpha}
+	angle := o.time*speed + float64(index)*2*math.Pi/float64(count)
+
+	for j := 1; j <= 3; j++ {
+		trailAngle := angle - float64(j)*0.1
+		trailX := centerX + radius*float32(math.Cos(trailAngle))
+		trailY := centerY + radius*float32(math.Sin(trailAngle))
+		trailSize := entrySize * float32(1-float64(j)*0.2)
+		vector.DrawFilledCircle(screen, trailX, trailY, trailSize, trailColor, true)
 	}
 }
 

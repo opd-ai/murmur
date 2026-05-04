@@ -99,6 +99,21 @@ func CollectExpiredFromMap[T Expirable](items map[[32]byte]T) [][32]byte {
 	return expiredIDs
 }
 
+// GetItemByID retrieves an item from a map by ID, checking for expiration.
+// This consolidates the duplicate Get pattern found in gifts.go and marks.go.
+// Returns (item, nil) if found and not expired, (zero value, notFoundErr) if not found or expired.
+func GetItemByID[T Expirable](items map[[32]byte]T, id [32]byte, notFoundErr error) (T, error) {
+	var zero T
+	item, ok := items[id]
+	if !ok {
+		return zero, notFoundErr
+	}
+	if item.IsExpired() {
+		return zero, notFoundErr
+	}
+	return item, nil
+}
+
 // DeleteFromDB deletes a list of IDs from a Bbolt bucket.
 // It ignores errors for robustness during garbage collection.
 func DeleteFromDB(db *store.DB, bucket []byte, ids [][32]byte) {

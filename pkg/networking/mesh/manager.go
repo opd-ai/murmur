@@ -21,9 +21,6 @@ const (
 	// MaxPeers is the maximum number of peer connections to maintain.
 	MaxPeers = 12
 
-	// HeartbeatInterval is the interval between heartbeat pings.
-	HeartbeatInterval = 30 * time.Second
-
 	// MissedHeartbeatsThreshold is the number of missed heartbeats before disconnect.
 	MissedHeartbeatsThreshold = 3
 
@@ -58,23 +55,30 @@ type PeerState struct {
 
 // Manager manages peer connections and mesh health.
 type Manager struct {
-	h          host.Host
-	peers      map[peer.ID]*PeerState
-	mu         sync.RWMutex
-	ctx        context.Context
-	cancel     context.CancelFunc
-	heartbeatC chan peer.ID
+	h                 host.Host
+	peers             map[peer.ID]*PeerState
+	mu                sync.RWMutex
+	ctx               context.Context
+	cancel            context.CancelFunc
+	heartbeatC        chan peer.ID
+	heartbeatInterval time.Duration
+	scoreFunc         PeerScoreFunc // Optional: for score-based pruning
 }
 
-// NewManager creates a new connection manager.
-func NewManager(h host.Host) *Manager {
+// NewManager creates a new connection manager with the given heartbeat interval.
+// If interval is 0, defaults to 30 seconds.
+func NewManager(h host.Host, heartbeatInterval time.Duration) *Manager {
+	if heartbeatInterval == 0 {
+		heartbeatInterval = 30 * time.Second
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	m := &Manager{
-		h:          h,
-		peers:      make(map[peer.ID]*PeerState),
-		ctx:        ctx,
-		cancel:     cancel,
-		heartbeatC: make(chan peer.ID, 100),
+		h:                 h,
+		peers:             make(map[peer.ID]*PeerState),
+		ctx:               ctx,
+		cancel:            cancel,
+		heartbeatC:        make(chan peer.ID, 100),
+		heartbeatInterval: heartbeatInterval,
 	}
 
 	// Register connection notifee
@@ -94,11 +98,73 @@ func NewManager(h host.Host) *Manager {
 func (m *Manager) Start() {
 	go m.heartbeatLoop()
 	go m.processHeartbeats()
+	if m.scoreFunc != nil {
+		go m.scorePruneLoop()
+	}
 }
 
 // Stop stops the connection manager.
 func (m *Manager) Stop() {
 	m.cancel()
+}
+
+// SetScoreFunc configures the peer scoring function for score-based pruning.
+// Per AUDIT.md remediation, scores < -50 trigger peer disconnection.
+func (m *Manager) SetScoreFunc(f PeerScoreFunc) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.scoreFunc = f
+}
+
+// scorePruneLoop periodically prunes peers with low GossipSub scores.
+// Runs every 5 minutes per AUDIT.md specification.
+func (m *Manager) scorePruneLoop() {
+	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-m.ctx.Done():
+			return
+		case <-ticker.C:
+			m.pruneByScore()
+		}
+	}
+}
+
+// pruneByScore disconnects peers with scores below -50.
+// Respects priority tiers: never prunes Identity-priority peers.
+func (m *Manager) pruneByScore() {
+	m.mu.RLock()
+	scoreFunc := m.scoreFunc
+	m.mu.RUnlock()
+
+	if scoreFunc == nil {
+		return
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for peerID, state := range m.peers {
+		// Never prune Identity-priority peers (direct connections)
+		if state.Priority == PriorityIdentity {
+			continue
+		}
+
+		// Check score threshold
+		score := scoreFunc(peerID)
+		if score < -50.0 {
+			// Don't prune if we'd go below minimum
+			if len(m.peers) <= MinPeers {
+				break
+			}
+
+			// Close connection
+			_ = m.h.Network().ClosePeer(peerID)
+			delete(m.peers, peerID)
+		}
+	}
 }
 
 func (m *Manager) onConnect(p peer.ID) {
@@ -120,7 +186,7 @@ func (m *Manager) onDisconnect(p peer.ID) {
 }
 
 func (m *Manager) heartbeatLoop() {
-	ticker := time.NewTicker(HeartbeatInterval)
+	ticker := time.NewTicker(m.heartbeatInterval)
 	defer ticker.Stop()
 
 	for {
@@ -142,7 +208,7 @@ func (m *Manager) checkHeartbeats() {
 
 	for id, state := range m.peers {
 		// Check if heartbeat is overdue
-		if now.Sub(state.LastSeen) > HeartbeatInterval*2 {
+		if now.Sub(state.LastSeen) > m.heartbeatInterval*2 {
 			state.MissedHeartbeat++
 			if state.MissedHeartbeat >= MissedHeartbeatsThreshold {
 				toDisconnect = append(toDisconnect, id)

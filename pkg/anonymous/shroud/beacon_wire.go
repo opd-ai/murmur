@@ -385,22 +385,22 @@ func (p *BeaconWavePublisher) publishLoop() {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
-	// Publish immediately on start.
-	if err := p.PublishNow(); err != nil {
-		// Log error but continue.
-	}
+	p.tryPublishIfRelay() // Publish immediately on start.
 
 	for {
 		select {
 		case <-ticker.C:
-			if p.beacon.IsRelay() {
-				if err := p.PublishNow(); err != nil {
-					// Log error but continue.
-				}
-			}
+			p.tryPublishIfRelay()
 		case <-p.stop:
 			return
 		}
+	}
+}
+
+// tryPublishIfRelay attempts to publish a beacon wave if this node is configured as a relay.
+func (p *BeaconWavePublisher) tryPublishIfRelay() {
+	if p.beacon.IsRelay() {
+		_ = p.PublishNow() // Log error but continue.
 	}
 }
 

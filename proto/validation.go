@@ -54,38 +54,43 @@ func ValidateEnvelope(env *MurmurEnvelope) error {
 		return errors.New("nil envelope")
 	}
 
-	// Version check
+	if err := validateEnvelopeMetadata(env); err != nil {
+		return err
+	}
+
+	if err := validateEnvelopeContent(env); err != nil {
+		return err
+	}
+
+	return validateEnvelopeSignature(env)
+}
+
+// validateEnvelopeMetadata validates protocol version and message type.
+func validateEnvelopeMetadata(env *MurmurEnvelope) error {
 	if err := ValidateVersion(env.Version); err != nil {
 		return err
 	}
+	return ValidateMessageType(env.Type)
+}
 
-	// Message type check
-	if err := ValidateMessageType(env.Type); err != nil {
-		return err
-	}
-
-	// Payload presence check
+// validateEnvelopeContent validates payload, timestamp, and message ID.
+func validateEnvelopeContent(env *MurmurEnvelope) error {
 	if len(env.Payload) == 0 {
 		return ErrEmptyPayload
 	}
 
-	// Timestamp check
 	if err := ValidateTimestamp(env.TimestampUnix); err != nil {
 		return err
 	}
 
-	// Message ID check
-	if err := ValidateMessageID(env.MessageId, env.Payload); err != nil {
-		return err
-	}
+	return ValidateMessageID(env.MessageId, env.Payload)
+}
 
-	// For non-anonymous messages, validate signature
+// validateEnvelopeSignature validates the signature for non-anonymous messages.
+func validateEnvelopeSignature(env *MurmurEnvelope) error {
 	if !isZeroBytes(env.SenderPubkey) {
-		if err := ValidateSignature(env); err != nil {
-			return err
-		}
+		return ValidateSignature(env)
 	}
-
 	return nil
 }
 

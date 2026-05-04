@@ -6,6 +6,7 @@ import (
 	"errors"
 	"sync"
 
+	"github.com/opd-ai/murmur/pkg/content/waves"
 	"github.com/opd-ai/murmur/pkg/store"
 	pb "github.com/opd-ai/murmur/proto"
 	"google.golang.org/protobuf/proto"
@@ -16,12 +17,14 @@ const MaxThreadDepth = 100
 
 // Errors for thread operations.
 var (
-	ErrNotFound     = errors.New("thread not found")
-	ErrNilStore     = errors.New("store is nil")
-	ErrInvalidWave  = errors.New("invalid wave")
-	ErrNoParent     = errors.New("wave has no parent")
-	ErrCyclicThread = errors.New("cyclic thread detected")
-	ErrMaxDepth     = errors.New("maximum thread depth exceeded")
+	ErrNotFound         = errors.New("thread not found")
+	ErrNilStore         = errors.New("store is nil")
+	ErrInvalidWave      = errors.New("invalid wave")
+	ErrNoParent         = errors.New("wave has no parent")
+	ErrCyclicThread     = errors.New("cyclic thread detected")
+	ErrMaxDepth         = errors.New("maximum thread depth exceeded")
+	ErrInvalidParent    = errors.New("parent wave validation failed")
+	ErrInvalidParentPoW = errors.New("parent wave PoW verification failed")
 )
 
 // Index maintains reply chain relationships for Wave threading.
@@ -270,6 +273,7 @@ type ThreadNode struct {
 
 // LoadThread loads a complete thread tree from storage.
 // Requires a loader function to fetch Waves by ID.
+// Per AUDIT.md remediation, validates root Wave and all parent Waves.
 func (idx *Index) LoadThread(
 	rootID []byte,
 	loader func([]byte) (*pb.Wave, error),
@@ -279,11 +283,16 @@ func (idx *Index) LoadThread(
 		return nil, err
 	}
 
+	// Per AUDIT.md remediation, validate root Wave (includes signature and PoW verification).
+	if err := waves.Validate(root, waves.DefaultDifficulty); err != nil {
+		return nil, ErrInvalidParent
+	}
+
 	thread := &Thread{
 		Root: root,
 	}
 
-	// Load replies recursively.
+	// Load replies recursively (validation happens in loadSingleReply).
 	thread.Replies, err = idx.loadReplies(rootID, loader, make(map[string]bool), 0)
 	if err != nil {
 		return nil, err
@@ -336,6 +345,7 @@ func (idx *Index) buildReplyNodes(
 }
 
 // loadSingleReply loads one reply and its children if not already seen.
+// Per AUDIT.md remediation, validates parent Wave signatures and PoW.
 func (idx *Index) loadSingleReply(
 	replyID string,
 	loader func([]byte) (*pb.Wave, error),
@@ -349,6 +359,13 @@ func (idx *Index) loadSingleReply(
 
 	wave, err := loader([]byte(replyID))
 	if err != nil {
+		return nil
+	}
+
+	// Per AUDIT.md remediation, validate parent Wave after fetching.
+	// waves.Validate performs complete validation including signature and PoW verification.
+	if err := waves.Validate(wave, waves.DefaultDifficulty); err != nil {
+		// Parent Wave validation failed; mark thread as broken (return nil).
 		return nil
 	}
 

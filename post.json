@@ -1,20 +1,20 @@
 {
   "metadata": {
     "repository": "/home/user/go/src/github.com/opd-ai/murmur",
-    "generated_at": "2026-05-04T09:35:28.814321141-04:00",
-    "analysis_time": 3364436081,
-    "files_processed": 280,
+    "generated_at": "2026-05-04T12:23:12.249900602-04:00",
+    "analysis_time": 3654421277,
+    "files_processed": 283,
     "tool_version": "1.0.0",
     "go_version": ""
   },
   "overview": {
-    "total_lines_of_code": 44906,
-    "total_functions": 1173,
-    "total_methods": 4073,
-    "total_structs": 732,
+    "total_lines_of_code": 45239,
+    "total_functions": 1222,
+    "total_methods": 4156,
+    "total_structs": 736,
     "total_interfaces": 36,
-    "total_packages": 54,
-    "total_files": 280
+    "total_packages": 56,
+    "total_files": 283
   },
   "functions": null,
   "structs": null,
@@ -112,9 +112,9 @@
     "complexity_score": 0
   },
   "duplication": {
-    "clone_pairs": 81,
-    "duplicated_lines": 1159,
-    "duplication_ratio": 0.012333461030945387,
+    "clone_pairs": 61,
+    "duplicated_lines": 809,
+    "duplication_ratio": 0.008515879114516995,
     "largest_clone_size": 44,
     "clones": [
       {
@@ -279,26 +279,14 @@
           },
           {
             "file": "pkg/app/handlers.go",
-            "start_line": 611,
-            "end_line": 617,
-            "node_count": 52
-          },
-          {
-            "file": "pkg/identity/declarations/connection.go",
-            "start_line": 181,
-            "end_line": 187,
-            "node_count": 52
-          },
-          {
-            "file": "pkg/identity/declarations/connection.go",
-            "start_line": 316,
-            "end_line": 322,
+            "start_line": 634,
+            "end_line": 640,
             "node_count": 52
           }
         ],
         "line_count": 7,
-        "severity": "violation",
-        "suggestion": "Extract 7-line duplicate code block into a shared function. Found in 5 locations. Consider using generics or interface-based abstraction"
+        "severity": "warning",
+        "suggestion": "Extract 7-line duplicate code block into a shared function. Found in 3 locations. Consider using generics or interface-based abstraction"
       },
       {
         "hash": "67f5f1d831b55402",
@@ -320,33 +308,6 @@
         "line_count": 7,
         "severity": "warning",
         "suggestion": "Extract 7-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
-      },
-      {
-        "hash": "b3d2c8d5ef13047d",
-        "type": "renamed",
-        "instances": [
-          {
-            "file": "pkg/identity/declarations/profile.go",
-            "start_line": 281,
-            "end_line": 287,
-            "node_count": 58
-          },
-          {
-            "file": "pkg/identity/declarations/specter.go",
-            "start_line": 140,
-            "end_line": 146,
-            "node_count": 58
-          },
-          {
-            "file": "pkg/identity/declarations/specter.go",
-            "start_line": 241,
-            "end_line": 247,
-            "node_count": 58
-          }
-        ],
-        "line_count": 7,
-        "severity": "warning",
-        "suggestion": "Extract 7-line duplicate code block into a shared function. Found in 3 locations. Consider using generics or interface-based abstraction"
       },
       {
         "hash": "ec98940c0804be92",
@@ -402,8 +363,8 @@
           },
           {
             "file": "pkg/app/handlers.go",
-            "start_line": 556,
-            "end_line": 563,
+            "start_line": 579,
+            "end_line": 586,
             "node_count": 45
           }
         ],
@@ -460,34 +421,13 @@
         "suggestion": "Extract 8-line duplicate code block into a shared function. Found in 2 locations"
       },
       {
-        "hash": "6b2bc3c901094f8a",
-        "type": "exact",
-        "instances": [
-          {
-            "file": "pkg/anonymous/mechanics/sparks/sparks.go",
-            "start_line": 157,
-            "end_line": 164,
-            "node_count": 61
-          },
-          {
-            "file": "pkg/anonymous/mechanics/sparks/sparks.go",
-            "start_line": 258,
-            "end_line": 265,
-            "node_count": 61
-          }
-        ],
-        "line_count": 8,
-        "severity": "warning",
-        "suggestion": "Extract 8-line duplicate code block into a shared function. Found in 2 locations"
-      },
-      {
         "hash": "73bfe8d3931bd068",
         "type": "renamed",
         "instances": [
           {
             "file": "pkg/ui/mark.go",
-            "start_line": 422,
-            "end_line": 429,
+            "start_line": 436,
+            "end_line": 443,
             "node_count": 57
           },
           {
@@ -513,20 +453,14 @@
           },
           {
             "file": "pkg/app/handlers.go",
-            "start_line": 423,
-            "end_line": 430,
-            "node_count": 50
-          },
-          {
-            "file": "pkg/app/handlers.go",
-            "start_line": 607,
-            "end_line": 613,
+            "start_line": 630,
+            "end_line": 636,
             "node_count": 50
           }
         ],
         "line_count": 8,
         "severity": "warning",
-        "suggestion": "Extract 8-line duplicate code block into a shared function. Found in 3 locations. Consider using generics or interface-based abstraction"
+        "suggestion": "Extract 8-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
       },
       {
         "hash": "898d00a97c50596d",
@@ -655,27 +589,6 @@
         "suggestion": "Extract 8-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
       },
       {
-        "hash": "283470aeb0b6ab34",
-        "type": "renamed",
-        "instances": [
-          {
-            "file": "pkg/identity/ignition/confirmation.go",
-            "start_line": 218,
-            "end_line": 226,
-            "node_count": 51
-          },
-          {
-            "file": "pkg/identity/ignition/confirmation.go",
-            "start_line": 301,
-            "end_line": 309,
-            "node_count": 51
-          }
-        ],
-        "line_count": 9,
-        "severity": "warning",
-        "suggestion": "Extract 9-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
-      },
-      {
         "hash": "2b03c0c7d90734fe",
         "type": "renamed",
         "instances": [
@@ -687,8 +600,8 @@
           },
           {
             "file": "pkg/app/handlers.go",
-            "start_line": 611,
-            "end_line": 619,
+            "start_line": 634,
+            "end_line": 642,
             "node_count": 54
           }
         ],
@@ -798,30 +711,9 @@
           },
           {
             "file": "pkg/ui/masked_event.go",
-            "start_line": 490,
-            "end_line": 501,
+            "start_line": 511,
+            "end_line": 522,
             "node_count": 52
-          }
-        ],
-        "line_count": 9,
-        "severity": "warning",
-        "suggestion": "Extract 9-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
-      },
-      {
-        "hash": "eaa07e2234f3f9b7",
-        "type": "renamed",
-        "instances": [
-          {
-            "file": "pkg/app/broadcast.go",
-            "start_line": 289,
-            "end_line": 297,
-            "node_count": 61
-          },
-          {
-            "file": "pkg/identity/declarations/specter.go",
-            "start_line": 243,
-            "end_line": 251,
-            "node_count": 61
           }
         ],
         "line_count": 9,
@@ -882,14 +774,14 @@
         "instances": [
           {
             "file": "pkg/ui/mark.go",
-            "start_line": 470,
-            "end_line": 479,
+            "start_line": 484,
+            "end_line": 493,
             "node_count": 52
           },
           {
             "file": "pkg/ui/mark.go",
-            "start_line": 667,
-            "end_line": 674,
+            "start_line": 681,
+            "end_line": 688,
             "node_count": 52
           }
         ],
@@ -1020,26 +912,20 @@
         "instances": [
           {
             "file": "pkg/anonymous/mechanics/councils/councils_publisher.go",
-            "start_line": 571,
-            "end_line": 580,
+            "start_line": 576,
+            "end_line": 585,
             "node_count": 37
           },
           {
             "file": "pkg/anonymous/mechanics/hunts/hunt_publisher.go",
-            "start_line": 324,
-            "end_line": 333,
-            "node_count": 37
-          },
-          {
-            "file": "pkg/anonymous/mechanics/hunts/hunt_publisher.go",
-            "start_line": 341,
-            "end_line": 350,
+            "start_line": 321,
+            "end_line": 330,
             "node_count": 37
           }
         ],
         "line_count": 10,
         "severity": "warning",
-        "suggestion": "Extract 10-line duplicate code block into a shared function. Found in 3 locations. Consider using generics or interface-based abstraction"
+        "suggestion": "Extract 10-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
       },
       {
         "hash": "b01a6d4f5252b245",
@@ -1047,14 +933,14 @@
         "instances": [
           {
             "file": "pkg/ui/hunt_tracker.go",
-            "start_line": 299,
-            "end_line": 308,
+            "start_line": 300,
+            "end_line": 309,
             "node_count": 63
           },
           {
             "file": "pkg/ui/puzzle.go",
-            "start_line": 351,
-            "end_line": 365,
+            "start_line": 377,
+            "end_line": 391,
             "node_count": 63
           }
         ],
@@ -1068,14 +954,14 @@
         "instances": [
           {
             "file": "pkg/ui/mark.go",
-            "start_line": 687,
-            "end_line": 696,
+            "start_line": 701,
+            "end_line": 710,
             "node_count": 68
           },
           {
             "file": "pkg/ui/mark.go",
-            "start_line": 701,
-            "end_line": 710,
+            "start_line": 715,
+            "end_line": 724,
             "node_count": 68
           }
         ],
@@ -1110,14 +996,14 @@
         "instances": [
           {
             "file": "pkg/ui/hunt_tracker.go",
-            "start_line": 372,
-            "end_line": 381,
+            "start_line": 373,
+            "end_line": 382,
             "node_count": 59
           },
           {
             "file": "pkg/ui/puzzle_solver.go",
-            "start_line": 350,
-            "end_line": 359,
+            "start_line": 347,
+            "end_line": 356,
             "node_count": 59
           }
         ],
@@ -1140,27 +1026,6 @@
             "start_line": 105,
             "end_line": 113,
             "node_count": 51
-          }
-        ],
-        "line_count": 11,
-        "severity": "warning",
-        "suggestion": "Extract 11-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
-      },
-      {
-        "hash": "1e6f56c78b1ad0a8",
-        "type": "renamed",
-        "instances": [
-          {
-            "file": "pkg/content/waves/veiled.go",
-            "start_line": 194,
-            "end_line": 204,
-            "node_count": 60
-          },
-          {
-            "file": "pkg/content/waves/veiled.go",
-            "start_line": 216,
-            "end_line": 226,
-            "node_count": 60
           }
         ],
         "line_count": 11,
@@ -1210,27 +1075,6 @@
         "suggestion": "Extract 11-line duplicate code block into a shared function. Found in 2 locations"
       },
       {
-        "hash": "9b9ec8e1f9263812",
-        "type": "renamed",
-        "instances": [
-          {
-            "file": "pkg/app/broadcast.go",
-            "start_line": 269,
-            "end_line": 279,
-            "node_count": 58
-          },
-          {
-            "file": "pkg/app/handlers.go",
-            "start_line": 423,
-            "end_line": 433,
-            "node_count": 58
-          }
-        ],
-        "line_count": 11,
-        "severity": "warning",
-        "suggestion": "Extract 11-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
-      },
-      {
         "hash": "af1ef1bb2902b02d",
         "type": "renamed",
         "instances": [
@@ -1257,83 +1101,20 @@
         "instances": [
           {
             "file": "pkg/pulsemap/overlays/echochains.go",
-            "start_line": 544,
-            "end_line": 554,
+            "start_line": 555,
+            "end_line": 565,
             "node_count": 43
           },
           {
             "file": "pkg/pulsemap/overlays/sparks.go",
-            "start_line": 672,
-            "end_line": 682,
+            "start_line": 699,
+            "end_line": 709,
             "node_count": 43
           }
         ],
         "line_count": 11,
         "severity": "warning",
         "suggestion": "Extract 11-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
-      },
-      {
-        "hash": "39aa21951572f4a7",
-        "type": "renamed",
-        "instances": [
-          {
-            "file": "pkg/anonymous/mechanics/forge/forge_timing.go",
-            "start_line": 285,
-            "end_line": 296,
-            "node_count": 53
-          },
-          {
-            "file": "pkg/anonymous/mechanics/forge/forge_timing.go",
-            "start_line": 301,
-            "end_line": 312,
-            "node_count": 53
-          }
-        ],
-        "line_count": 12,
-        "severity": "warning",
-        "suggestion": "Extract 12-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
-      },
-      {
-        "hash": "40cda63f35d0b1a8",
-        "type": "renamed",
-        "instances": [
-          {
-            "file": "pkg/identity/declarations/connection.go",
-            "start_line": 176,
-            "end_line": 187,
-            "node_count": 76
-          },
-          {
-            "file": "pkg/identity/declarations/connection.go",
-            "start_line": 311,
-            "end_line": 322,
-            "node_count": 76
-          }
-        ],
-        "line_count": 12,
-        "severity": "warning",
-        "suggestion": "Extract 12-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
-      },
-      {
-        "hash": "4f1dfd750f148105",
-        "type": "renamed",
-        "instances": [
-          {
-            "file": "pkg/identity/declarations/profile.go",
-            "start_line": 272,
-            "end_line": 283,
-            "node_count": 87
-          },
-          {
-            "file": "pkg/identity/declarations/profile_update.go",
-            "start_line": 205,
-            "end_line": 216,
-            "node_count": 87
-          }
-        ],
-        "line_count": 12,
-        "severity": "warning",
-        "suggestion": "Extract 12-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
       },
       {
         "hash": "7b1caf46e49ea3b3",
@@ -1363,27 +1144,6 @@
         "suggestion": "Extract 12-line duplicate code block into a shared function. Found in 3 locations. Consider using generics or interface-based abstraction"
       },
       {
-        "hash": "7b2a18abc609a947",
-        "type": "renamed",
-        "instances": [
-          {
-            "file": "pkg/ui/settings.go",
-            "start_line": 333,
-            "end_line": 344,
-            "node_count": 70
-          },
-          {
-            "file": "pkg/ui/settings.go",
-            "start_line": 350,
-            "end_line": 361,
-            "node_count": 70
-          }
-        ],
-        "line_count": 12,
-        "severity": "warning",
-        "suggestion": "Extract 12-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
-      },
-      {
         "hash": "7dc80999288b7def",
         "type": "renamed",
         "instances": [
@@ -1405,190 +1165,25 @@
         "suggestion": "Extract 12-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
       },
       {
-        "hash": "911132baef704ea3",
-        "type": "renamed",
-        "instances": [
-          {
-            "file": "pkg/anonymous/mechanics/forge/forge_timing.go",
-            "start_line": 125,
-            "end_line": 136,
-            "node_count": 50
-          },
-          {
-            "file": "pkg/anonymous/mechanics/forge/forge_timing.go",
-            "start_line": 152,
-            "end_line": 163,
-            "node_count": 50
-          }
-        ],
-        "line_count": 12,
-        "severity": "warning",
-        "suggestion": "Extract 12-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
-      },
-      {
-        "hash": "c9abd67ce47594f3",
-        "type": "renamed",
-        "instances": [
-          {
-            "file": "pkg/identity/ignition/confirmation.go",
-            "start_line": 191,
-            "end_line": 202,
-            "node_count": 73
-          },
-          {
-            "file": "pkg/identity/ignition/confirmation.go",
-            "start_line": 265,
-            "end_line": 276,
-            "node_count": 73
-          }
-        ],
-        "line_count": 12,
-        "severity": "warning",
-        "suggestion": "Extract 12-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
-      },
-      {
-        "hash": "d7f9fe7bd35afd39",
-        "type": "exact",
-        "instances": [
-          {
-            "file": "pkg/identity/declarations/specter.go",
-            "start_line": 135,
-            "end_line": 146,
-            "node_count": 81
-          },
-          {
-            "file": "pkg/identity/declarations/specter.go",
-            "start_line": 236,
-            "end_line": 247,
-            "node_count": 81
-          }
-        ],
-        "line_count": 12,
-        "severity": "warning",
-        "suggestion": "Extract 12-line duplicate code block into a shared function. Found in 2 locations"
-      },
-      {
-        "hash": "c246d5672643e68c",
-        "type": "renamed",
-        "instances": [
-          {
-            "file": "pkg/anonymous/mechanics/gifts/gifts.go",
-            "start_line": 306,
-            "end_line": 318,
-            "node_count": 41
-          },
-          {
-            "file": "pkg/anonymous/mechanics/marks/marks.go",
-            "start_line": 240,
-            "end_line": 252,
-            "node_count": 41
-          }
-        ],
-        "line_count": 13,
-        "severity": "warning",
-        "suggestion": "Extract 13-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
-      },
-      {
-        "hash": "d2f8146237a402ae",
-        "type": "renamed",
-        "instances": [
-          {
-            "file": "pkg/ui/compose.go",
-            "start_line": 395,
-            "end_line": 407,
-            "node_count": 106
-          },
-          {
-            "file": "pkg/ui/puzzle.go",
-            "start_line": 519,
-            "end_line": 531,
-            "node_count": 106
-          },
-          {
-            "file": "pkg/ui/puzzle_solver.go",
-            "start_line": 456,
-            "end_line": 468,
-            "node_count": 106
-          }
-        ],
-        "line_count": 13,
-        "severity": "warning",
-        "suggestion": "Extract 13-line duplicate code block into a shared function. Found in 3 locations. Consider using generics or interface-based abstraction"
-      },
-      {
-        "hash": "f95cac8eef1855e0",
-        "type": "renamed",
-        "instances": [
-          {
-            "file": "pkg/anonymous/mechanics/hunts/hunt_publisher.go",
-            "start_line": 321,
-            "end_line": 333,
-            "node_count": 52
-          },
-          {
-            "file": "pkg/anonymous/mechanics/hunts/hunt_publisher.go",
-            "start_line": 338,
-            "end_line": 350,
-            "node_count": 52
-          }
-        ],
-        "line_count": 13,
-        "severity": "warning",
-        "suggestion": "Extract 13-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
-      },
-      {
         "hash": "92ec47c48e104f67",
         "type": "renamed",
         "instances": [
           {
             "file": "pkg/identity/ignition/ignition.go",
-            "start_line": 294,
-            "end_line": 307,
+            "start_line": 307,
+            "end_line": 320,
             "node_count": 45
           },
           {
             "file": "pkg/identity/ignition/ignition.go",
-            "start_line": 309,
-            "end_line": 322,
+            "start_line": 322,
+            "end_line": 335,
             "node_count": 45
           }
         ],
         "line_count": 14,
         "severity": "warning",
         "suggestion": "Extract 14-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
-      },
-      {
-        "hash": "c632f0b3c9fbf326",
-        "type": "exact",
-        "instances": [
-          {
-            "file": "pkg/ui/compose.go",
-            "start_line": 242,
-            "end_line": 255,
-            "node_count": 57
-          },
-          {
-            "file": "pkg/ui/hunt_tracker.go",
-            "start_line": 285,
-            "end_line": 296,
-            "node_count": 57
-          },
-          {
-            "file": "pkg/ui/puzzle.go",
-            "start_line": 331,
-            "end_line": 344,
-            "node_count": 57
-          },
-          {
-            "file": "pkg/ui/puzzle_solver.go",
-            "start_line": 278,
-            "end_line": 289,
-            "node_count": 57
-          }
-        ],
-        "line_count": 14,
-        "severity": "violation",
-        "suggestion": "Extract 14-line duplicate code block into a shared function. Found in 4 locations"
       },
       {
         "hash": "e4b1300bd75ee6dc",
@@ -1610,27 +1205,6 @@
         "line_count": 14,
         "severity": "warning",
         "suggestion": "Extract 14-line duplicate code block into a shared function. Found in 2 locations"
-      },
-      {
-        "hash": "f2108107eca19b64",
-        "type": "renamed",
-        "instances": [
-          {
-            "file": "pkg/anonymous/mechanics/councils/councils_publisher.go",
-            "start_line": 435,
-            "end_line": 448,
-            "node_count": 65
-          },
-          {
-            "file": "pkg/anonymous/mechanics/councils/councils_publisher.go",
-            "start_line": 537,
-            "end_line": 550,
-            "node_count": 65
-          }
-        ],
-        "line_count": 14,
-        "severity": "warning",
-        "suggestion": "Extract 14-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
       },
       {
         "hash": "152168100ebe814f",
@@ -1717,67 +1291,19 @@
         "suggestion": "Extract 17-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
       },
       {
-        "hash": "06f30c416beab68a",
-        "type": "renamed",
-        "instances": [
-          {
-            "file": "pkg/ui/compose.go",
-            "start_line": 395,
-            "end_line": 413,
-            "node_count": 153
-          },
-          {
-            "file": "pkg/ui/puzzle_solver.go",
-            "start_line": 456,
-            "end_line": 474,
-            "node_count": 153
-          }
-        ],
-        "line_count": 19,
-        "severity": "warning",
-        "suggestion": "Extract 19-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
-      },
-      {
-        "hash": "56583ac374f6dd5d",
-        "type": "renamed",
-        "instances": [
-          {
-            "file": "pkg/ui/hunt_tracker.go",
-            "start_line": 285,
-            "end_line": 304,
-            "node_count": 112
-          },
-          {
-            "file": "pkg/ui/puzzle.go",
-            "start_line": 331,
-            "end_line": 357,
-            "node_count": 112
-          },
-          {
-            "file": "pkg/ui/puzzle_solver.go",
-            "start_line": 278,
-            "end_line": 297,
-            "node_count": 112
-          }
-        ],
-        "line_count": 20,
-        "severity": "warning",
-        "suggestion": "Extract 20-line duplicate code block into a shared function. Found in 3 locations. Consider using generics or interface-based abstraction"
-      },
-      {
         "hash": "b8aff240fe0c64a2",
         "type": "exact",
         "instances": [
           {
             "file": "pkg/pulsemap/rendering/effects/gpu_particles.go",
-            "start_line": 75,
-            "end_line": 95,
+            "start_line": 81,
+            "end_line": 101,
             "node_count": 117
           },
           {
             "file": "pkg/pulsemap/rendering/effects/gpu_particles_stub.go",
-            "start_line": 46,
-            "end_line": 65,
+            "start_line": 52,
+            "end_line": 71,
             "node_count": 117
           }
         ],
@@ -1833,14 +1359,14 @@
         "instances": [
           {
             "file": "pkg/pulsemap/overlays/marks.go",
-            "start_line": 50,
-            "end_line": 72,
+            "start_line": 56,
+            "end_line": 78,
             "node_count": 103
           },
           {
             "file": "pkg/pulsemap/overlays/marks_stub.go",
-            "start_line": 38,
-            "end_line": 57,
+            "start_line": 44,
+            "end_line": 63,
             "node_count": 103
           }
         ],
@@ -1854,14 +1380,14 @@
         "instances": [
           {
             "file": "pkg/pulsemap/overlays/marks.go",
-            "start_line": 323,
-            "end_line": 346,
+            "start_line": 329,
+            "end_line": 352,
             "node_count": 87
           },
           {
             "file": "pkg/pulsemap/overlays/marks_stub.go",
-            "start_line": 162,
-            "end_line": 185,
+            "start_line": 168,
+            "end_line": 191,
             "node_count": 87
           }
         ],
@@ -1870,25 +1396,25 @@
         "suggestion": "Extract 24-line duplicate code block into a shared function. Found in 2 locations"
       },
       {
-        "hash": "53e2e605d55ae27d",
+        "hash": "deceba632d0c9536",
         "type": "renamed",
         "instances": [
           {
             "file": "pkg/ui/puzzle.go",
-            "start_line": 331,
-            "end_line": 360,
-            "node_count": 120
+            "start_line": 362,
+            "end_line": 386,
+            "node_count": 111
           },
           {
             "file": "pkg/ui/puzzle_solver.go",
             "start_line": 278,
-            "end_line": 298,
-            "node_count": 120
+            "end_line": 295,
+            "node_count": 111
           }
         ],
-        "line_count": 30,
+        "line_count": 25,
         "severity": "violation",
-        "suggestion": "Extract 30-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
+        "suggestion": "Extract 25-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
       },
       {
         "hash": "12371ed94308de5f",

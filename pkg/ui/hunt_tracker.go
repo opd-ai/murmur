@@ -202,32 +202,36 @@ func (p *HuntTrackerPanel) Update() bool {
 // handleTabInput handles Tab key to switch tabs.
 func (p *HuntTrackerPanel) handleTabInput() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyTab) {
-		if ebiten.IsKeyPressed(ebiten.KeyShift) {
-			p.selectedTab--
-			if p.selectedTab < 0 {
-				p.selectedTab = 2
-			}
-		} else {
-			p.selectedTab++
-			if p.selectedTab > 2 {
-				p.selectedTab = 0
-			}
-		}
-		p.scrollOffset = 0
+		p.cycleTab()
 	}
+	p.handleDirectTabSelection()
+}
 
-	// Direct number keys.
-	if inpututil.IsKeyJustPressed(ebiten.Key1) {
-		p.selectedTab = 0
-		p.scrollOffset = 0
+// cycleTab cycles through tabs forward or backward based on Shift key.
+func (p *HuntTrackerPanel) cycleTab() {
+	if ebiten.IsKeyPressed(ebiten.KeyShift) {
+		p.selectedTab--
+		if p.selectedTab < 0 {
+			p.selectedTab = 2
+		}
+	} else {
+		p.selectedTab++
+		if p.selectedTab > 2 {
+			p.selectedTab = 0
+		}
 	}
-	if inpututil.IsKeyJustPressed(ebiten.Key2) {
-		p.selectedTab = 1
-		p.scrollOffset = 0
-	}
-	if inpututil.IsKeyJustPressed(ebiten.Key3) {
-		p.selectedTab = 2
-		p.scrollOffset = 0
+	p.scrollOffset = 0
+}
+
+// handleDirectTabSelection handles number keys 1-3 for direct tab selection.
+func (p *HuntTrackerPanel) handleDirectTabSelection() {
+	tabKeys := []ebiten.Key{ebiten.Key1, ebiten.Key2, ebiten.Key3}
+	for i, key := range tabKeys {
+		if inpututil.IsKeyJustPressed(key) {
+			p.selectedTab = i
+			p.scrollOffset = 0
+			return
+		}
 	}
 }
 
@@ -258,21 +262,30 @@ func (p *HuntTrackerPanel) handleFragmentInput() {
 		return
 	}
 
-	// Number keys 0-9 for quick fragment selection.
+	p.handleNumberKeySelection()
+	p.handleEnterKeyClaim()
+}
+
+// handleNumberKeySelection checks for number key presses to select fragments.
+func (p *HuntTrackerPanel) handleNumberKeySelection() {
 	for i := 0; i <= 9; i++ {
 		key := ebiten.Key0 + ebiten.Key(i)
-		if inpututil.IsKeyJustPressed(key) {
-			idx := i
-			if idx < len(p.hunt.Fragments) {
-				p.hunt.SelectedFragment = idx
-				if p.onFragmentSelect != nil {
-					p.onFragmentSelect(p.hunt.ID, idx)
-				}
-			}
+		if inpututil.IsKeyJustPressed(key) && i < len(p.hunt.Fragments) {
+			p.selectFragment(i)
 		}
 	}
+}
 
-	// Enter to attempt claim on selected fragment.
+// selectFragment marks the fragment at the given index as selected and notifies the callback.
+func (p *HuntTrackerPanel) selectFragment(idx int) {
+	p.hunt.SelectedFragment = idx
+	if p.onFragmentSelect != nil {
+		p.onFragmentSelect(p.hunt.ID, idx)
+	}
+}
+
+// handleEnterKeyClaim checks for Enter key press to attempt a claim on the selected fragment.
+func (p *HuntTrackerPanel) handleEnterKeyClaim() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) && p.hunt.SelectedFragment >= 0 {
 		if p.onClaimAttempt != nil {
 			p.onClaimAttempt(p.hunt.ID, p.hunt.SelectedFragment)
@@ -285,16 +298,13 @@ func (p *HuntTrackerPanel) Draw(screen *ebiten.Image) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	if !p.visible {
+	ctx := InitPanelDrawWithScreen(screen, p.visible, p.calculatePosition, &p.screenWidth, &p.screenHeight)
+	if ctx == nil {
 		return
 	}
 
-	w, h := screen.Bounds().Dx(), screen.Bounds().Dy()
-	p.screenWidth = w
-	p.screenHeight = h
-
-	px, py := p.calculatePosition(w, h)
-	px += int(p.slideOffset) // Slide from right.
+	px := ctx.PanelX + int(p.slideOffset) // Slide from right.
+	py := ctx.PanelY
 
 	p.drawBackground(screen, px, py)
 	p.drawTitle(screen, px, py)

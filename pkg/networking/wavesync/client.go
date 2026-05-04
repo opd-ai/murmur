@@ -336,53 +336,71 @@ func (ss *SyncSession) SetWaveCallback(cb func([]byte)) {
 
 // CatchUp performs a catch-up sync from the last sync time.
 func (ss *SyncSession) CatchUp(ctx context.Context) (int, error) {
-	ss.mu.Lock()
-	since := ss.lastSync
-	cb := ss.onWave
-	ss.mu.Unlock()
+	since, cb := ss.getSyncParameters()
+	totalReceived, err := ss.fetchWavesLoop(ctx, since, cb)
 
-	if since.IsZero() {
-		since = time.Now().Add(-24 * time.Hour) // Default: last 24 hours
+	if err == nil || totalReceived > 0 {
+		ss.updateLastSync()
 	}
 
+	return totalReceived, err
+}
+
+// getSyncParameters retrieves the last sync timestamp and callback under lock.
+func (ss *SyncSession) getSyncParameters() (time.Time, func([]byte)) {
+	ss.mu.Lock()
+	defer ss.mu.Unlock()
+
+	since := ss.lastSync
+	if since.IsZero() {
+		since = time.Now().Add(-24 * time.Hour)
+	}
+	return since, ss.onWave
+}
+
+// fetchWavesLoop fetches waves from the peer until all are retrieved or error.
+func (ss *SyncSession) fetchWavesLoop(ctx context.Context, since time.Time, cb func([]byte)) (int, error) {
 	totalReceived := 0
 
 	for {
 		resp, err := ss.client.RequestSince(ctx, ss.peer, since, MaxMessagesPerRequest)
 		if err != nil {
 			if totalReceived > 0 {
-				// Partial success
 				break
 			}
 			return totalReceived, err
 		}
 
-		for _, wave := range resp.Waves {
-			ss.mu.Lock()
-			ss.receivedWaves = append(ss.receivedWaves, wave)
-			ss.mu.Unlock()
-
-			if cb != nil {
-				cb(wave)
-			}
-		}
-
+		ss.processWavesBatch(resp.Waves, cb)
 		totalReceived += len(resp.Waves)
 
 		if !resp.More || len(resp.Waves) == 0 {
 			break
 		}
-
-		// Update since for next page (would need Wave timestamp parsing)
-		// For now, just break after first batch
 		break
 	}
 
+	return totalReceived, nil
+}
+
+// processWavesBatch appends received waves and invokes callback.
+func (ss *SyncSession) processWavesBatch(waves [][]byte, cb func([]byte)) {
+	for _, wave := range waves {
+		ss.mu.Lock()
+		ss.receivedWaves = append(ss.receivedWaves, wave)
+		ss.mu.Unlock()
+
+		if cb != nil {
+			cb(wave)
+		}
+	}
+}
+
+// updateLastSync sets lastSync to current time.
+func (ss *SyncSession) updateLastSync() {
 	ss.mu.Lock()
 	ss.lastSync = time.Now()
 	ss.mu.Unlock()
-
-	return totalReceived, nil
 }
 
 // FetchMissing fetches specific missing Waves by hash.

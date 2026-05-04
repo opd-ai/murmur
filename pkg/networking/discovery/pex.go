@@ -162,31 +162,42 @@ func (p *PEX) samplePeers(n int) []PeerInfo {
 		return nil
 	}
 
-	// Filter out self.
+	validPeers := p.filterSelfFromPeers(allPeers)
+	if len(validPeers) == 0 {
+		return nil
+	}
+
+	sampledPeers := p.shuffleAndLimitPeers(validPeers, n)
+	return p.buildPeerInfoList(sampledPeers)
+}
+
+// filterSelfFromPeers removes the local host ID from the peer list.
+func (p *PEX) filterSelfFromPeers(allPeers []peer.ID) []peer.ID {
 	selfID := p.h.ID()
-	var validPeers []peer.ID
+	validPeers := make([]peer.ID, 0, len(allPeers))
 	for _, peerID := range allPeers {
 		if peerID != selfID {
 			validPeers = append(validPeers, peerID)
 		}
 	}
+	return validPeers
+}
 
-	if len(validPeers) == 0 {
-		return nil
-	}
-
-	// Shuffle and take up to n peers.
-	rand.Shuffle(len(validPeers), func(i, j int) {
-		validPeers[i], validPeers[j] = validPeers[j], validPeers[i]
+// shuffleAndLimitPeers randomizes and limits peer list to n entries.
+func (p *PEX) shuffleAndLimitPeers(peers []peer.ID, n int) []peer.ID {
+	rand.Shuffle(len(peers), func(i, j int) {
+		peers[i], peers[j] = peers[j], peers[i]
 	})
-
-	if len(validPeers) > n {
-		validPeers = validPeers[:n]
+	if len(peers) > n {
+		return peers[:n]
 	}
+	return peers
+}
 
-	// Build PeerInfo list.
-	result := make([]PeerInfo, 0, len(validPeers))
-	for _, peerID := range validPeers {
+// buildPeerInfoList constructs PeerInfo structs with addresses.
+func (p *PEX) buildPeerInfoList(peerIDs []peer.ID) []PeerInfo {
+	result := make([]PeerInfo, 0, len(peerIDs))
+	for _, peerID := range peerIDs {
 		addrs := p.h.Peerstore().Addrs(peerID)
 		if len(addrs) > PEXMaxAddrs {
 			addrs = addrs[:PEXMaxAddrs]
@@ -198,7 +209,6 @@ func (p *PEX) samplePeers(n int) []PeerInfo {
 			})
 		}
 	}
-
 	return result
 }
 

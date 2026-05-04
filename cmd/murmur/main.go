@@ -36,12 +36,16 @@ func main() {
 func run() error {
 	// Parse command-line flags.
 	cliMode := flag.Bool("cli", false, "Run in CLI mode (interactive REPL)")
+	enableHealth := flag.Bool("enable-health", false, "Enable HTTP health check endpoint (for bootstrap nodes)")
+	healthPort := flag.Int("health-port", 8080, "Port for health check endpoint")
 	flag.Parse()
 
 	return runWithConfig(app.Config{
-		Version: Version,
-		SkipUI:  *cliMode, // Skip UI in CLI mode
-		CLIMode: *cliMode,
+		Version:              Version,
+		SkipUI:               *cliMode, // Skip UI in CLI mode
+		CLIMode:              *cliMode,
+		EnableHealthEndpoint: *enableHealth,
+		HealthEndpointPort:   *healthPort,
 	})
 }
 

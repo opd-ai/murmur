@@ -125,6 +125,10 @@ type MaskedEvent struct {
 	// specterJoins tracks which Specters have joined (by Specter key hex).
 	specterJoins map[string]bool
 
+	// keypairs stores generated keypairs for destruction when event ends.
+	// Per SECURITY_PRIVACY.md §2.1, single-use keypairs must be zeroed.
+	keypairs []*MaskedKeypair
+
 	// onStateChange callback for state transitions.
 	onStateChange []func(MaskedEventState, MaskedEventState)
 }
@@ -216,6 +220,7 @@ func NewMaskedEvent(
 		CreatedAt:         now,
 		participants:      make(map[string]*MaskedParticipant),
 		specterJoins:      make(map[string]bool),
+		keypairs:          make([]*MaskedKeypair, 0, maxParticipants),
 	}, nil
 }
 
@@ -353,6 +358,13 @@ func (e *MaskedEvent) Update() {
 // Must be called with lock held.
 func (e *MaskedEvent) fireStateChange(old, new MaskedEventState) {
 	callbacks := e.onStateChange
+
+	// Destroy all keypairs when event ends.
+	// Per AUDIT.md MEDIUM finding, keypairs must be zeroed post-event.
+	if new == MaskedEventEnded {
+		e.destroyAllKeypairs()
+	}
+
 	// Fire outside lock.
 	e.mu.Unlock()
 	for _, cb := range callbacks {
@@ -393,6 +405,20 @@ func (e *MaskedEvent) End() {
 	e.EndTime = time.Now()
 
 	e.fireStateChange(oldState, MaskedEventEnded)
+}
+
+// destroyAllKeypairs zeroes all generated keypairs.
+// Must be called with lock held.
+// Per AUDIT.md MEDIUM finding and SECURITY_PRIVACY.md §2.1,
+// single-use keypairs must be destroyed post-event for unlinkability.
+func (e *MaskedEvent) destroyAllKeypairs() {
+	for _, kp := range e.keypairs {
+		if kp != nil {
+			kp.Destroy()
+		}
+	}
+	// Clear the slice to allow GC.
+	e.keypairs = nil
 }
 
 // Join adds a participant to the event.
@@ -453,6 +479,10 @@ func (e *MaskedEvent) Join(specterKey [32]byte) (*MaskedKeypair, error) {
 
 	// Track Specter join.
 	e.specterJoins[specterHex] = true
+
+	// Store keypair for destruction when event ends.
+	// Per AUDIT.md MEDIUM finding, keypairs must be destroyed post-event.
+	e.keypairs = append(e.keypairs, keypair)
 
 	return keypair, nil
 }

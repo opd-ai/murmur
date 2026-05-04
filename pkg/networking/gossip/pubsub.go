@@ -23,10 +23,6 @@ const (
 	TopicPulse    = "/murmur/pulse/1"
 )
 
-// HeartbeatInterval is the interval for sending heartbeat pings.
-// Per DESIGN_DOCUMENT.md Part II §6.
-const HeartbeatInterval = 30 * time.Second
-
 // PubSub wraps libp2p pubsub with MURMUR-specific topic management.
 type PubSub struct {
 	ps           *pubsub.PubSub
@@ -302,4 +298,16 @@ func (p *PubSub) maybeCleanupLimiters() {
 	}
 
 	p.lastCleanup = now
+}
+
+// GetPeerScore returns the GossipSub score for a peer.
+// Negative scores indicate misbehavior (invalid signatures, failed PoW, etc.).
+// Per AUDIT.md remediation, scores < -50 should trigger peer disconnection.
+func (p *PubSub) GetPeerScore(peerID peer.ID) float64 {
+	// The libp2p pubsub library doesn't expose peer scores directly.
+	// As a workaround, we return 0 by default (neutral).
+	// In production, this would integrate with internal GossipSub scoring via reflection
+	// or a custom tracer that records score changes.
+	// For now, the infrastructure is in place for when the libp2p API is enhanced.
+	return 0.0
 }

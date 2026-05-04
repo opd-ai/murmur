@@ -15,10 +15,12 @@ import (
 
 	bloom "github.com/bits-and-blooms/bloom/v3"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	"github.com/opd-ai/murmur/pkg/anonymous/shroud"
 	"github.com/opd-ai/murmur/pkg/content/pow"
 	"github.com/opd-ai/murmur/pkg/content/storage"
 	"github.com/opd-ai/murmur/pkg/content/waves"
 	"github.com/opd-ai/murmur/pkg/networking/gossip"
+	"github.com/opd-ai/murmur/pkg/networking/metrics"
 	pb "github.com/opd-ai/murmur/proto"
 	"github.com/zeebo/blake3"
 	"google.golang.org/protobuf/proto"
@@ -67,6 +69,9 @@ type Handlers struct {
 	// dedupCreatedAt tracks when the filter was created for 30-day rotation.
 	dedupCreatedAt time.Time
 
+	// beacon is the Shroud relay registry for processing Beacon Waves.
+	beacon *shroud.Beacon
+
 	// onWaveReceived is called when a valid Wave is received.
 	onWaveReceived func(*pb.Wave)
 
@@ -83,6 +88,8 @@ type Handlers struct {
 // HandlersConfig configures the message handlers.
 type HandlersConfig struct {
 	Cache *storage.Cache
+	// Beacon is the Shroud relay registry for Beacon Wave processing.
+	Beacon *shroud.Beacon
 	// DedupCapacity is the expected number of unique messages in 30 days.
 	// Per AUDIT.md, defaults to 10 million with 0.01 false positive rate.
 	DedupCapacity uint
@@ -107,6 +114,7 @@ func NewHandlers(cfg HandlersConfig) (*Handlers, error) {
 
 	return &Handlers{
 		cache:          cfg.Cache,
+		beacon:         cfg.Beacon,
 		dedupFilter:    dedupFilter,
 		dedupCreatedAt: time.Now(),
 	}, nil
@@ -213,6 +221,9 @@ func (h *Handlers) RegisterAnonymousMechanics(ctx context.Context, ps *gossip.Pu
 
 // handleWaveMessage processes incoming Wave messages from /murmur/waves/1.
 func (h *Handlers) handleWaveMessage(ctx context.Context, msg *pubsub.Message) {
+	// Increment gossip messages received counter
+	metrics.GossipMessagesReceivedTotal.WithLabelValues(gossip.TopicWaves).Inc()
+
 	envelope, err := h.validateEnvelope(msg.Data, pb.MessageType_MESSAGE_TYPE_WAVE)
 	if err != nil {
 		return // Silently drop invalid messages
@@ -226,6 +237,9 @@ func (h *Handlers) handleWaveMessage(ctx context.Context, msg *pubsub.Message) {
 	if err := h.validateWave(wave); err != nil {
 		return
 	}
+
+	// Increment Waves received counter
+	metrics.WavesReceivedTotal.Inc()
 
 	// Store in cache if available.
 	if h.cache != nil {
@@ -246,6 +260,9 @@ func (h *Handlers) handleWaveMessage(ctx context.Context, msg *pubsub.Message) {
 
 // handleIdentityMessage processes incoming identity declarations from /murmur/identity/1.
 func (h *Handlers) handleIdentityMessage(ctx context.Context, msg *pubsub.Message) {
+	// Increment gossip messages received counter
+	metrics.GossipMessagesReceivedTotal.WithLabelValues(gossip.TopicIdentity).Inc()
+
 	envelope, err := h.validateEnvelope(msg.Data, pb.MessageType_MESSAGE_TYPE_IDENTITY)
 	if err != nil {
 		return
@@ -304,6 +321,10 @@ func (h *Handlers) handlePulseMessage(ctx context.Context, msg *pubsub.Message) 
 // handleAnonymousWavesMessage processes Specter and Masked Waves from /murmur/anonymous/waves/1.0.
 // Per AUDIT.md remediation, this enables network propagation of anonymous layer Waves.
 func (h *Handlers) handleAnonymousWavesMessage(ctx context.Context, msg *pubsub.Message) {
+	// Increment gossip and anonymous metrics
+	metrics.GossipMessagesReceivedTotal.WithLabelValues(gossip.TopicAnonymousWaves).Inc()
+	metrics.AnonymousEventsReceivedTotal.WithLabelValues("wave").Inc()
+
 	// Per gossip/anonymous.go, anonymous waves use quantized timestamps.
 	// Basic validation - full implementation would parse Specter/Masked Wave payloads
 	// and route to pkg/anonymous/specters/ handlers.
@@ -323,6 +344,10 @@ func (h *Handlers) handleAnonymousWavesMessage(ctx context.Context, msg *pubsub.
 // handleAnonymousMechanicsMessage processes anonymous mini-game events from /murmur/anonymous/mechanics/1.0.
 // Per AUDIT.md remediation, this enables Phantom Gifts, Specter Marks, and other mechanics to propagate.
 func (h *Handlers) handleAnonymousMechanicsMessage(ctx context.Context, msg *pubsub.Message) {
+	// Increment gossip and anonymous metrics
+	metrics.GossipMessagesReceivedTotal.WithLabelValues(gossip.TopicAnonymousMechanics).Inc()
+	metrics.AnonymousEventsReceivedTotal.WithLabelValues("mechanic").Inc()
+
 	// Per pkg/anonymous/mechanics/publisher.go, all mechanics use TopicAnonymousMechanics.
 	// Parse GossipMessage from envelope payload to determine event type.
 	envelope := &pb.MurmurEnvelope{}
@@ -343,18 +368,28 @@ func (h *Handlers) handleAnonymousMechanicsMessage(ctx context.Context, msg *pub
 // Per AUDIT.md remediation, this enables Shroud relay discovery via elevated-PoW Beacon Waves.
 func (h *Handlers) handleAnonymousBeaconsMessage(ctx context.Context, msg *pubsub.Message) {
 	// Beacon Waves have PoW difficulty 24 (vs 20 for standard Waves).
-	// Parse and validate, then extract relay advertisement.
-	envelope := &pb.MurmurEnvelope{}
-	if err := proto.Unmarshal(msg.Data, envelope); err != nil {
+	// Decode the BeaconWave from the message payload.
+	beaconWave, err := shroud.DecodeBeaconWave(msg.Data)
+	if err != nil {
+		// Invalid beacon wave format, silently drop.
 		return
 	}
 
-	// For now, just acknowledge receipt. Full implementation will:
-	// 1. Validate elevated PoW (24 leading zero bits)
-	// 2. Parse RelayAdvertisement from Wave payload
-	// 3. Pass to Beacon.ProcessAdvertisement()
-	// 4. Emit EventShroudRelayDiscovered to event bus
-	_ = envelope
+	// Check if the beacon wave has expired.
+	if beaconWave.IsExpired() {
+		return
+	}
+
+	// If we have a beacon registry, add the relay to it.
+	if h.beacon != nil {
+		relayInfo := beaconWave.ToRelayInfo()
+		h.beacon.AddRelay(relayInfo)
+	}
+
+	// Note: Full PoW validation (24 leading zero bits) is deferred.
+	// The BeaconWave format doesn't currently include the PoW nonce,
+	// so we rely on peer scoring to filter out spam.
+	// Future enhancement: Add nonce field to BeaconWave protobuf.
 }
 
 // validateEnvelope validates a MurmurEnvelope and checks for duplicates.
@@ -402,6 +437,8 @@ func (h *Handlers) validateEnvelopeStructure(envelope *pb.MurmurEnvelope, expect
 // validateEnvelopeSignatureAndDedupe checks for duplicates and verifies signature.
 func (h *Handlers) validateEnvelopeSignatureAndDedupe(envelope *pb.MurmurEnvelope) error {
 	if h.isDuplicate(envelope.MessageId) {
+		// Increment deduplication drops counter
+		metrics.DeduplicationDropsTotal.Inc()
 		return ErrDuplicateMessage
 	}
 
@@ -416,21 +453,7 @@ func (h *Handlers) validateEnvelopeSignatureAndDedupe(envelope *pb.MurmurEnvelop
 
 // verifyEnvelopeSignature verifies the Ed25519 signature on an envelope.
 func (h *Handlers) verifyEnvelopeSignature(envelope *pb.MurmurEnvelope) error {
-	// Signature is over: version || type || payload
-	var sigData []byte
-
-	// Version as 4 bytes (big-endian).
-	versionBytes := make([]byte, 4)
-	binary.BigEndian.PutUint32(versionBytes, envelope.Version)
-	sigData = append(sigData, versionBytes...)
-
-	// Type as 4 bytes (big-endian).
-	typeBytes := make([]byte, 4)
-	binary.BigEndian.PutUint32(typeBytes, uint32(envelope.Type))
-	sigData = append(sigData, typeBytes...)
-
-	// Payload.
-	sigData = append(sigData, envelope.Payload...)
+	sigData := envelopeSignatureData(envelope)
 
 	if !ed25519.Verify(envelope.SenderPubkey, sigData, envelope.Signature) {
 		return ErrInvalidSignature

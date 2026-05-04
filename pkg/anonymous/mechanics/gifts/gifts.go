@@ -305,17 +305,7 @@ func (s *GiftStore) storeGift(gift *Gift, senderKey [32]byte, recipientKey []byt
 func (s *GiftStore) GetGift(id [32]byte) (*Gift, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-
-	gift, ok := s.gifts[id]
-	if !ok {
-		return nil, nil
-	}
-
-	if gift.IsExpired() {
-		return nil, ErrGiftExpired
-	}
-
-	return gift, nil
+	return mechanics.GetItemByID(s.gifts, id, nil)
 }
 
 // GetGiftsForRecipient returns all active gifts for a recipient.

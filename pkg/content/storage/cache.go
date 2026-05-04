@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/opd-ai/murmur/pkg/content/pow"
 	"github.com/opd-ai/murmur/pkg/content/waves"
 	"github.com/opd-ai/murmur/pkg/store"
 	pb "github.com/opd-ai/murmur/proto"
@@ -47,6 +48,12 @@ type Cache struct {
 	memory  map[string]*pb.Wave // wave ID -> Wave
 	maxSize int
 	closed  bool
+
+	// Rate tracking for adaptive difficulty adjustment.
+	// Per AUDIT.md HIGH finding "PoW difficulty not dynamically adjusted".
+	rateWindow     []time.Time // timestamps of recent Wave arrivals (5-minute sliding window)
+	lastRateCheck  time.Time   // last time rate was evaluated
+	lastAdjustment time.Time   // last time difficulty was adjusted
 }
 
 // CacheConfig configures the Wave cache.
@@ -61,9 +68,12 @@ func NewCache(db *store.DB) (*Cache, error) {
 	}
 
 	return &Cache{
-		db:      db,
-		memory:  make(map[string]*pb.Wave),
-		maxSize: DefaultCacheSize,
+		db:             db,
+		memory:         make(map[string]*pb.Wave),
+		maxSize:        DefaultCacheSize,
+		rateWindow:     make([]time.Time, 0, 100),
+		lastRateCheck:  time.Now(),
+		lastAdjustment: time.Now(),
 	}, nil
 }
 
@@ -79,9 +89,12 @@ func NewCacheWithConfig(db *store.DB, cfg CacheConfig) (*Cache, error) {
 	}
 
 	return &Cache{
-		db:      db,
-		memory:  make(map[string]*pb.Wave),
-		maxSize: maxSize,
+		db:             db,
+		memory:         make(map[string]*pb.Wave),
+		maxSize:        maxSize,
+		rateWindow:     make([]time.Time, 0, 100),
+		lastRateCheck:  time.Now(),
+		lastAdjustment: time.Now(),
 	}, nil
 }
 
@@ -101,6 +114,9 @@ func (c *Cache) Put(wave *pb.Wave) error {
 	if err := c.ensureCapacityLocked(); err != nil {
 		return err
 	}
+
+	// Track arrival time for rate-based difficulty adjustment.
+	c.trackArrivalLocked(time.Now())
 
 	c.memory[string(wave.WaveId)] = wave
 	return c.persistWave(wave)
@@ -329,6 +345,49 @@ func (c *Cache) removeFromDatabase(expiredIDs [][]byte) {
 	}
 }
 
+// EvictOldest evicts up to count oldest Waves from memory cache.
+// Per AUDIT.md HIGH "No memory budget enforcement", this is called
+// during memory pressure to free space. Returns number of Waves evicted.
+func (c *Cache) EvictOldest(count int) int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.closed || count <= 0 {
+		return 0
+	}
+
+	// Collect all waves with their timestamps.
+	type waveWithTime struct {
+		id   string
+		time int64
+	}
+	waves := make([]waveWithTime, 0, len(c.memory))
+	for id, wave := range c.memory {
+		waves = append(waves, waveWithTime{
+			id:   id,
+			time: wave.CreatedAt,
+		})
+	}
+
+	// Sort by timestamp ascending (oldest first).
+	for i := 0; i < len(waves); i++ {
+		for j := i + 1; j < len(waves); j++ {
+			if waves[i].time > waves[j].time {
+				waves[i], waves[j] = waves[j], waves[i]
+			}
+		}
+	}
+
+	// Evict up to count oldest waves.
+	evicted := 0
+	for i := 0; i < len(waves) && i < count; i++ {
+		delete(c.memory, waves[i].id)
+		evicted++
+	}
+
+	return evicted
+}
+
 // StartGC runs periodic garbage collection.
 // Returns a cancel function to stop the GC goroutine.
 func (c *Cache) StartGC(ctx context.Context, interval time.Duration) context.CancelFunc {
@@ -360,14 +419,29 @@ func (c *Cache) List(limit int) ([]*pb.Wave, error) {
 		return nil, ErrStoreClosed
 	}
 
+	waveList := c.collectNonExpiredWaves()
+	sortWavesByNewest(waveList)
+
+	if len(waveList) > limit {
+		waveList = waveList[:limit]
+	}
+
+	return waveList, nil
+}
+
+// collectNonExpiredWaves gathers all non-expired waves from memory.
+func (c *Cache) collectNonExpiredWaves() []*pb.Wave {
 	waveList := make([]*pb.Wave, 0, len(c.memory))
 	for _, wave := range c.memory {
 		if !waves.IsExpired(wave) {
 			waveList = append(waveList, wave)
 		}
 	}
+	return waveList
+}
 
-	// Sort by timestamp descending (newest first).
+// sortWavesByNewest sorts waves by timestamp descending (newest first).
+func sortWavesByNewest(waveList []*pb.Wave) {
 	for i := 0; i < len(waveList); i++ {
 		for j := i + 1; j < len(waveList); j++ {
 			if waveList[i].CreatedAt < waveList[j].CreatedAt {
@@ -375,12 +449,6 @@ func (c *Cache) List(limit int) ([]*pb.Wave, error) {
 			}
 		}
 	}
-
-	if len(waveList) > limit {
-		waveList = waveList[:limit]
-	}
-
-	return waveList, nil
 }
 
 // Close closes the cache.
@@ -391,6 +459,114 @@ func (c *Cache) Close() error {
 	c.closed = true
 	c.memory = nil
 	return nil
+}
+
+// trackArrivalLocked records a Wave arrival timestamp and checks for difficulty adjustment.
+// Must be called with c.mu held.
+// Per AUDIT.md HIGH finding: "PoW difficulty not dynamically adjusted".
+func (c *Cache) trackArrivalLocked(arrivalTime time.Time) {
+	// Add current arrival to window.
+	c.rateWindow = append(c.rateWindow, arrivalTime)
+
+	// Check rate every 30 seconds to avoid constant recalculation.
+	timeSinceLastCheck := arrivalTime.Sub(c.lastRateCheck)
+	if timeSinceLastCheck < 30*time.Second {
+		return
+	}
+	c.lastRateCheck = arrivalTime
+
+	// Prune window to last 5 minutes.
+	windowStart := arrivalTime.Add(-5 * time.Minute)
+	validIdx := 0
+	for i, t := range c.rateWindow {
+		if t.After(windowStart) {
+			validIdx = i
+			break
+		}
+	}
+	c.rateWindow = c.rateWindow[validIdx:]
+
+	// Calculate rate (Waves per minute).
+	if len(c.rateWindow) == 0 {
+		return
+	}
+	duration := arrivalTime.Sub(c.rateWindow[0]).Minutes()
+	if duration < 0.1 { // avoid division by near-zero
+		return
+	}
+	rate := float64(len(c.rateWindow)) / duration
+
+	// Adjust difficulty if needed (but not more often than every 5 minutes).
+	timeSinceLastAdjustment := arrivalTime.Sub(c.lastAdjustment)
+	if timeSinceLastAdjustment < 5*time.Minute {
+		return
+	}
+
+	c.adjustDifficultyLocked(rate, arrivalTime)
+}
+
+// adjustDifficultyLocked modifies PoW difficulty based on incoming Wave rate.
+// Per AUDIT.md remediation: "If rate exceeds 100 Waves/min, increment difficulty by 1 bit.
+// If rate drops below 20 Waves/min for 10 minutes, decrement by 1 (min 16)."
+// Must be called with c.mu held.
+func (c *Cache) adjustDifficultyLocked(ratePerMinute float64, currentTime time.Time) {
+	cfg := pow.GetGlobalConfig()
+	currentDifficulty := cfg.GetStandard()
+
+	newDifficulty, adjusted := c.computeNewDifficulty(ratePerMinute, currentTime, currentDifficulty, cfg)
+
+	if adjusted && cfg.SetStandard(newDifficulty) {
+		c.lastAdjustment = currentTime
+		c.persistDifficulty(newDifficulty)
+	}
+}
+
+// computeNewDifficulty calculates the new difficulty level based on rate.
+func (c *Cache) computeNewDifficulty(ratePerMinute float64, currentTime time.Time, currentDifficulty uint8, cfg *pow.DifficultyConfig) (uint8, bool) {
+	if ratePerMinute > 100 {
+		return c.increaseDifficulty(currentDifficulty, cfg)
+	}
+	if ratePerMinute < 20 {
+		return c.decreaseDifficulty(currentTime, currentDifficulty, cfg)
+	}
+	return currentDifficulty, false
+}
+
+// increaseDifficulty increments difficulty to throttle high rate.
+func (c *Cache) increaseDifficulty(currentDifficulty uint8, cfg *pow.DifficultyConfig) (uint8, bool) {
+	newDifficulty := currentDifficulty + 1
+	if newDifficulty > cfg.GetMaxAcceptable() {
+		newDifficulty = cfg.GetMaxAcceptable()
+	}
+	return newDifficulty, newDifficulty != currentDifficulty
+}
+
+// decreaseDifficulty decrements difficulty if low rate sustained for 10+ minutes.
+func (c *Cache) decreaseDifficulty(currentTime time.Time, currentDifficulty uint8, cfg *pow.DifficultyConfig) (uint8, bool) {
+	timeSinceLastAdjustment := currentTime.Sub(c.lastAdjustment)
+	if timeSinceLastAdjustment > 10*time.Minute && currentDifficulty > cfg.GetMinAcceptable() {
+		return currentDifficulty - 1, true
+	}
+	return currentDifficulty, false
+}
+
+// persistDifficulty stores the current difficulty in the config bucket for restart persistence.
+func (c *Cache) persistDifficulty(difficulty uint8) {
+	key := []byte("pow_difficulty_standard")
+	value := []byte{difficulty}
+	// Ignore errors; difficulty will reset to default on restart if persistence fails.
+	c.db.Put(store.BucketConfig, key, value)
+}
+
+// LoadPersistedDifficulty restores difficulty from the config bucket on startup.
+// Returns the persisted difficulty, or 0 if not found.
+func (c *Cache) LoadPersistedDifficulty() uint8 {
+	key := []byte("pow_difficulty_standard")
+	value, err := c.db.Get(store.BucketConfig, key)
+	if err != nil || len(value) == 0 {
+		return 0
+	}
+	return value[0]
 }
 
 // waveExpirationKey generates a key for expiration index.

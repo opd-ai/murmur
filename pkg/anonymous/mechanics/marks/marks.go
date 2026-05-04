@@ -239,17 +239,7 @@ func (s *MarkStore) storeMark(mark *Mark) {
 func (s *MarkStore) GetMark(id [32]byte) (*Mark, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-
-	mark, ok := s.marks[id]
-	if !ok {
-		return nil, ErrMarkNotFound
-	}
-
-	if mark.IsExpired() {
-		return nil, ErrMarkNotFound
-	}
-
-	return mark, nil
+	return mechanics.GetItemByID(s.marks, id, ErrMarkNotFound)
 }
 
 // GetMarksOnTarget returns all active marks on a target.
