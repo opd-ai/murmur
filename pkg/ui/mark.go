@@ -511,67 +511,91 @@ func (p *MarkPanel) drawTargetSelect(screen *ebiten.Image) {
 
 	category := getCategoryFromIndex(p.selectedCategory)
 
-	// Title.
+	y = p.drawTargetSelectHeader(screen, x, y, category)
+	y = p.drawTargetList(screen, x, y)
+	p.drawTargetSelectFooter(screen, x)
+}
+
+// drawTargetSelectHeader renders the title and instructions.
+func (p *MarkPanel) drawTargetSelectHeader(screen *ebiten.Image, x, y float32, category marks.MarkCategory) float32 {
 	title := fmt.Sprintf("Select Target (%s)", marks.CategoryString(category))
 	p.drawText(screen, title, x, y, p.theme.TextPrimary)
 	y += 30
 
-	// Instructions.
 	p.drawText(screen, "↑/↓ to select, Enter to confirm", x, y, p.theme.TextSecondary)
 	y += 35
+	return y
+}
 
-	// Target list.
+// drawTargetList renders the scrollable target list.
+func (p *MarkPanel) drawTargetList(screen *ebiten.Image, x, y float32) float32 {
 	maxVisible := 5
 	if len(p.targets) == 0 {
 		p.drawText(screen, "No targets available", x, y, p.theme.TextPlaceholder)
-	} else {
-		end := p.targetScroll + maxVisible
-		if end > len(p.targets) {
-			end = len(p.targets)
-		}
-
-		for i := p.targetScroll; i < end; i++ {
-			target := p.targets[i]
-			bgColor := p.theme.PanelBackground
-			textColor := p.theme.TextPrimary
-			if i == p.selectedTarget {
-				bgColor = p.theme.Selection
-			}
-			if target.IsSelf || target.HasMark {
-				textColor = p.theme.TextPlaceholder
-			}
-
-			// Draw selection background.
-			vector.DrawFilledRect(screen, x-5, y-2, float32(p.panelW-30), 38, bgColor, false)
-
-			// Draw target info.
-			name := target.DisplayName
-			if target.IsSelf {
-				name += " (self)"
-			} else if target.HasMark {
-				name += " (marked)"
-			}
-			p.drawText(screen, name, x, y, textColor)
-
-			// Layer indicator.
-			layerText := "Surface"
-			if !target.IsSurface {
-				layerText = "Specter"
-			}
-			p.drawText(screen, layerText, x+20, y+18, p.theme.TextSecondary)
-			y += 42
-		}
-
-		// Scroll indicators.
-		if p.targetScroll > 0 {
-			p.drawText(screen, "▲ more above", x, float32(p.panelY+p.panelH-60), p.theme.TextPlaceholder)
-		}
-		if end < len(p.targets) {
-			p.drawText(screen, "▼ more below", x+200, float32(p.panelY+p.panelH-60), p.theme.TextPlaceholder)
-		}
+		return y
 	}
 
-	// Hint at bottom.
+	end := p.targetScroll + maxVisible
+	if end > len(p.targets) {
+		end = len(p.targets)
+	}
+
+	for i := p.targetScroll; i < end; i++ {
+		y = p.drawTargetItem(screen, x, y, i)
+	}
+
+	p.drawScrollIndicators(screen, x, end)
+	return y
+}
+
+// drawTargetItem renders a single target entry.
+func (p *MarkPanel) drawTargetItem(screen *ebiten.Image, x, y float32, index int) float32 {
+	target := p.targets[index]
+	bgColor := p.theme.PanelBackground
+	textColor := p.theme.TextPrimary
+	if index == p.selectedTarget {
+		bgColor = p.theme.Selection
+	}
+	if target.IsSelf || target.HasMark {
+		textColor = p.theme.TextPlaceholder
+	}
+
+	vector.DrawFilledRect(screen, x-5, y-2, float32(p.panelW-30), 38, bgColor, false)
+
+	name := p.formatTargetName(target)
+	p.drawText(screen, name, x, y, textColor)
+
+	layerText := "Surface"
+	if !target.IsSurface {
+		layerText = "Specter"
+	}
+	p.drawText(screen, layerText, x+20, y+18, p.theme.TextSecondary)
+	return y + 42
+}
+
+// formatTargetName formats the target display name with status.
+func (p *MarkPanel) formatTargetName(target TargetInfo) string {
+	name := target.DisplayName
+	if target.IsSelf {
+		name += " (self)"
+	} else if target.HasMark {
+		name += " (marked)"
+	}
+	return name
+}
+
+// drawScrollIndicators renders up/down arrows when scrollable.
+func (p *MarkPanel) drawScrollIndicators(screen *ebiten.Image, x float32, end int) {
+	if p.targetScroll > 0 {
+		p.drawText(screen, "▲ more above", x, float32(p.panelY+p.panelH-60), p.theme.TextPlaceholder)
+	}
+	if end < len(p.targets) {
+		p.drawText(screen, "▼ more below", x+200, float32(p.panelY+p.panelH-60), p.theme.TextPlaceholder)
+	}
+}
+
+// drawTargetSelectFooter renders the escape hint.
+func (p *MarkPanel) drawTargetSelectFooter(screen *ebiten.Image, x float32) {
 	p.drawText(screen, "Esc to go back", x, float32(p.panelY+p.panelH-35), p.theme.TextPlaceholder)
 }
 

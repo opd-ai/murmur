@@ -311,53 +311,64 @@ func (o *PulseBeatOverlay) drawOnScreenIndicator(screen *ebiten.Image, x, y floa
 
 // drawEdgeIndicator draws the beat indicator at the screen edge pointing to target.
 func (o *PulseBeatOverlay) drawEdgeIndicator(screen *ebiten.Image, centerX, centerY, targetX, targetY, screenW, screenH float32, beat *DisplayBeat, index int, now time.Time) {
-	// Calculate direction to target.
+	dirX, dirY := o.calculateDirection(centerX, centerY, targetX, targetY)
+	if dirX == 0 && dirY == 0 {
+		return
+	}
+
+	margin := o.edgeMargin
+	edgeX, edgeY := o.findEdgeIntersection(centerX, centerY, dirX, dirY, screenW, screenH, margin)
+	edgeX, edgeY = o.applyStackOffset(edgeX, edgeY, screenW, screenH, margin, index)
+
+	alpha := o.calculateFadeAlpha(beat, now)
+	o.drawBeatGlyph(screen, edgeX, edgeY, dirX, dirY, beat, alpha, index)
+}
+
+// calculateDirection computes and normalizes the direction vector to target.
+func (o *PulseBeatOverlay) calculateDirection(centerX, centerY, targetX, targetY float32) (float32, float32) {
 	dx := targetX - centerX
 	dy := targetY - centerY
 	dist := float32(math.Sqrt(float64(dx*dx + dy*dy)))
 	if dist < 1 {
-		return
+		return 0, 0
 	}
+	return dx / dist, dy / dist
+}
 
-	// Normalize direction.
-	dirX := dx / dist
-	dirY := dy / dist
-
-	// Find intersection with screen edge.
-	margin := o.edgeMargin
-	edgeX, edgeY := o.findEdgeIntersection(centerX, centerY, dirX, dirY, screenW, screenH, margin)
-
-	// Stack multiple beats vertically if on same edge.
+// applyStackOffset adjusts edge position to stack multiple beats vertically.
+func (o *PulseBeatOverlay) applyStackOffset(edgeX, edgeY, screenW, screenH, margin float32, index int) (float32, float32) {
 	stackOffset := float32(index) * 50
 
-	// Adjust position based on which edge we're on.
 	if edgeX <= margin {
-		// Left edge.
-		edgeY += stackOffset
-		if edgeY > screenH-margin-40 {
-			edgeY = screenH - margin - 40
-		}
+		edgeY = o.clampVertical(edgeY+stackOffset, screenH, margin)
 	} else if edgeX >= screenW-margin {
-		// Right edge.
-		edgeY += stackOffset
-		if edgeY > screenH-margin-40 {
-			edgeY = screenH - margin - 40
-		}
+		edgeY = o.clampVertical(edgeY+stackOffset, screenH, margin)
 	} else if edgeY <= margin {
-		// Top edge.
-		edgeX += stackOffset
-		if edgeX > screenW-margin-40 {
-			edgeX = screenW - margin - 40
-		}
+		edgeX = o.clampHorizontal(edgeX+stackOffset, screenW, margin)
 	} else {
-		// Bottom edge.
-		edgeX += stackOffset
-		if edgeX > screenW-margin-40 {
-			edgeX = screenW - margin - 40
-		}
+		edgeX = o.clampHorizontal(edgeX+stackOffset, screenW, margin)
 	}
+	return edgeX, edgeY
+}
 
-	// Calculate fade based on display time.
+// clampVertical clamps Y coordinate to screen bounds.
+func (o *PulseBeatOverlay) clampVertical(y, screenH, margin float32) float32 {
+	if y > screenH-margin-40 {
+		return screenH - margin - 40
+	}
+	return y
+}
+
+// clampHorizontal clamps X coordinate to screen bounds.
+func (o *PulseBeatOverlay) clampHorizontal(x, screenW, margin float32) float32 {
+	if x > screenW-margin-40 {
+		return screenW - margin - 40
+	}
+	return x
+}
+
+// calculateFadeAlpha computes alpha based on display time.
+func (o *PulseBeatOverlay) calculateFadeAlpha(beat *DisplayBeat, now time.Time) float32 {
 	elapsed := now.Sub(beat.DisplayedAt).Seconds()
 	displaySecs := o.displayTime.Seconds()
 	fadeSecs := o.fadeTime.Seconds()
@@ -369,9 +380,7 @@ func (o *PulseBeatOverlay) drawEdgeIndicator(screen *ebiten.Image, centerX, cent
 			alpha = 0
 		}
 	}
-
-	// Draw the beat indicator.
-	o.drawBeatGlyph(screen, edgeX, edgeY, dirX, dirY, beat, alpha, index)
+	return alpha
 }
 
 // findEdgeIntersection finds where a ray from center intersects the screen edge.

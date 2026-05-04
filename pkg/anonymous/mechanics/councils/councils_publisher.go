@@ -250,22 +250,12 @@ func NewCouncilReceiver(store *CouncilStore) *CouncilReceiver {
 
 // HandleMessage processes an incoming council event.
 func (r *CouncilReceiver) HandleMessage(data []byte) error {
-	var gossipMsg pb.GossipMessage
-	if err := proto.Unmarshal(data, &gossipMsg); err != nil {
-		return fmt.Errorf("failed to unmarshal gossip message: %w", err)
-	}
-
-	councilEvent := gossipMsg.GetCouncilEvent()
-	if councilEvent == nil {
-		return nil // Not a council event.
-	}
-
-	// Verify signature.
-	if err := r.verifyEventSignature(councilEvent); err != nil {
-		return err
-	}
-
-	return r.processEvent(councilEvent)
+	return mechanics.ProcessGossipEvent(
+		data,
+		func(msg *pb.GossipMessage) *pb.CouncilEvent { return msg.GetCouncilEvent() },
+		r.verifyEventSignature,
+		r.processEvent,
+	)
 }
 
 // verifyEventSignature checks the event signature.
@@ -274,42 +264,9 @@ func (r *CouncilReceiver) verifyEventSignature(event *pb.CouncilEvent) error {
 		return mechanics.ErrMissingSignature
 	}
 
-	// For council events, we need to extract the sender's public key.
-	// This can come from different places depending on event type.
-	var senderPubkey []byte
-
-	switch event.EventType {
-	case pb.CouncilEventType_COUNCIL_EVENT_CREATED:
-		if event.Council != nil {
-			senderPubkey = event.Council.FounderPubkey
-		}
-	case pb.CouncilEventType_COUNCIL_EVENT_MEMBER_JOIN:
-		if event.Member != nil {
-			senderPubkey = event.Member.SpecterPubkey
-		}
-	case pb.CouncilEventType_COUNCIL_EVENT_PROPOSAL:
-		if event.Proposal != nil {
-			senderPubkey = event.Proposal.ProposerPubkey
-		}
-	case pb.CouncilEventType_COUNCIL_EVENT_VOTE:
-		if event.Vote != nil {
-			senderPubkey = event.Vote.VoterPubkey
-		}
-	case pb.CouncilEventType_COUNCIL_EVENT_RESOLVED, pb.CouncilEventType_COUNCIL_EVENT_DISSOLVED:
-		// For these events, we get the founder key from the stored council.
-		// Only the council founder can dissolve or resolve proposals.
-		if len(event.CouncilId) == 32 {
-			var councilID [32]byte
-			copy(councilID[:], event.CouncilId)
-			council := r.councilStore.GetCouncil(councilID)
-			if council != nil {
-				senderPubkey = council.CreatorKey[:]
-			}
-		}
-	}
-
-	if len(senderPubkey) != ed25519.PublicKeySize {
-		return mechanics.ErrSignatureFailed
+	senderPubkey, err := r.extractSenderPubkey(event)
+	if err != nil {
+		return err
 	}
 
 	sigData := r.eventSignatureData(event)
@@ -317,6 +274,74 @@ func (r *CouncilReceiver) verifyEventSignature(event *pb.CouncilEvent) error {
 		return mechanics.ErrSignatureFailed
 	}
 
+	return nil
+}
+
+// extractSenderPubkey extracts the sender's public key based on event type.
+func (r *CouncilReceiver) extractSenderPubkey(event *pb.CouncilEvent) ([]byte, error) {
+	var senderPubkey []byte
+
+	switch event.EventType {
+	case pb.CouncilEventType_COUNCIL_EVENT_CREATED:
+		senderPubkey = r.getPubkeyFromCouncil(event)
+	case pb.CouncilEventType_COUNCIL_EVENT_MEMBER_JOIN:
+		senderPubkey = r.getPubkeyFromMember(event)
+	case pb.CouncilEventType_COUNCIL_EVENT_PROPOSAL:
+		senderPubkey = r.getPubkeyFromProposal(event)
+	case pb.CouncilEventType_COUNCIL_EVENT_VOTE:
+		senderPubkey = r.getPubkeyFromVote(event)
+	case pb.CouncilEventType_COUNCIL_EVENT_RESOLVED, pb.CouncilEventType_COUNCIL_EVENT_DISSOLVED:
+		senderPubkey = r.getPubkeyFromFounder(event)
+	}
+
+	if len(senderPubkey) != ed25519.PublicKeySize {
+		return nil, mechanics.ErrSignatureFailed
+	}
+	return senderPubkey, nil
+}
+
+// getPubkeyFromCouncil extracts pubkey from council creation event.
+func (r *CouncilReceiver) getPubkeyFromCouncil(event *pb.CouncilEvent) []byte {
+	if event.Council != nil {
+		return event.Council.FounderPubkey
+	}
+	return nil
+}
+
+// getPubkeyFromMember extracts pubkey from member join event.
+func (r *CouncilReceiver) getPubkeyFromMember(event *pb.CouncilEvent) []byte {
+	if event.Member != nil {
+		return event.Member.SpecterPubkey
+	}
+	return nil
+}
+
+// getPubkeyFromProposal extracts pubkey from proposal event.
+func (r *CouncilReceiver) getPubkeyFromProposal(event *pb.CouncilEvent) []byte {
+	if event.Proposal != nil {
+		return event.Proposal.ProposerPubkey
+	}
+	return nil
+}
+
+// getPubkeyFromVote extracts pubkey from vote event.
+func (r *CouncilReceiver) getPubkeyFromVote(event *pb.CouncilEvent) []byte {
+	if event.Vote != nil {
+		return event.Vote.VoterPubkey
+	}
+	return nil
+}
+
+// getPubkeyFromFounder extracts founder pubkey from stored council.
+func (r *CouncilReceiver) getPubkeyFromFounder(event *pb.CouncilEvent) []byte {
+	if len(event.CouncilId) == 32 {
+		var councilID [32]byte
+		copy(councilID[:], event.CouncilId)
+		council := r.councilStore.GetCouncil(councilID)
+		if council != nil {
+			return council.CreatorKey[:]
+		}
+	}
 	return nil
 }
 

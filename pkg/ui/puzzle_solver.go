@@ -174,21 +174,35 @@ func (p *PuzzleSolverPanel) Update() bool {
 
 // handleTextInput processes keyboard input for the solution field.
 func (p *PuzzleSolverPanel) handleTextInput() {
-	// Character input.
+	p.handleCharacterInput()
+	p.handleBackspace()
+	p.handleDelete()
+	p.handleCursorMovement()
+}
+
+// handleCharacterInput processes character key presses.
+func (p *PuzzleSolverPanel) handleCharacterInput() {
 	chars := ebiten.AppendInputChars(nil)
 	for _, ch := range chars {
-		if len(p.solution) < 256 { // Max solution length.
-			runes := []rune(p.solution)
-			newRunes := make([]rune, 0, len(runes)+1)
-			newRunes = append(newRunes, runes[:p.cursorPos]...)
-			newRunes = append(newRunes, ch)
-			newRunes = append(newRunes, runes[p.cursorPos:]...)
-			p.solution = string(newRunes)
-			p.cursorPos++
+		if len(p.solution) < 256 {
+			p.insertCharAtCursor(ch)
 		}
 	}
+}
 
-	// Backspace.
+// insertCharAtCursor inserts a character at the current cursor position.
+func (p *PuzzleSolverPanel) insertCharAtCursor(ch rune) {
+	runes := []rune(p.solution)
+	newRunes := make([]rune, 0, len(runes)+1)
+	newRunes = append(newRunes, runes[:p.cursorPos]...)
+	newRunes = append(newRunes, ch)
+	newRunes = append(newRunes, runes[p.cursorPos:]...)
+	p.solution = string(newRunes)
+	p.cursorPos++
+}
+
+// handleBackspace processes backspace key.
+func (p *PuzzleSolverPanel) handleBackspace() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyBackspace) || inpututil.KeyPressDuration(ebiten.KeyBackspace) > 20 {
 		if p.cursorPos > 0 && len(p.solution) > 0 {
 			runes := []rune(p.solution)
@@ -198,16 +212,20 @@ func (p *PuzzleSolverPanel) handleTextInput() {
 			}
 		}
 	}
+}
 
-	// Delete.
+// handleDelete processes delete key.
+func (p *PuzzleSolverPanel) handleDelete() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyDelete) {
 		runes := []rune(p.solution)
 		if p.cursorPos < len(runes) {
 			p.solution = string(runes[:p.cursorPos]) + string(runes[p.cursorPos+1:])
 		}
 	}
+}
 
-	// Cursor movement.
+// handleCursorMovement processes arrow and home/end keys.
+func (p *PuzzleSolverPanel) handleCursorMovement() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyLeft) && p.cursorPos > 0 {
 		p.cursorPos--
 	}

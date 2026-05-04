@@ -349,7 +349,12 @@ func (o *MarkOverlay) SyncFromStore(store *marks.MarkStore) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
-	// Clear expired marks first.
+	o.clearExpiredMarks()
+	o.addNewMarks(store)
+}
+
+// clearExpiredMarks removes expired marks from the overlay.
+func (o *MarkOverlay) clearExpiredMarks() {
 	for targetID, displays := range o.marks {
 		active := displays[:0]
 		for _, d := range displays {
@@ -363,8 +368,10 @@ func (o *MarkOverlay) SyncFromStore(store *marks.MarkStore) {
 			delete(o.marks, targetID)
 		}
 	}
+}
 
-	// Add any new marks from store.
+// addNewMarks syncs new marks from the store.
+func (o *MarkOverlay) addNewMarks(store *marks.MarkStore) {
 	allMarks := store.GetAllActiveMarks()
 	for _, mark := range allMarks {
 		if mark == nil || mark.IsExpired() {
@@ -372,26 +379,31 @@ func (o *MarkOverlay) SyncFromStore(store *marks.MarkStore) {
 		}
 
 		targetID := keyToHex(mark.TargetKey[:])
-
-		// Check if already tracked.
-		found := false
-		for _, d := range o.marks[targetID] {
-			if d.Mark != nil && d.Mark.ID == mark.ID {
-				found = true
-				break
-			}
-		}
-
-		if !found {
-			orbitSpeed := 0.5 + float32(mark.ID[0]%64)/128.0
-			o.marks[targetID] = append(o.marks[targetID], &MarkDisplay{
-				Mark:       mark,
-				OrbitAngle: float32(mark.ID[1]) / 40.0,
-				OrbitSpeed: orbitSpeed,
-				PulsePhase: 0,
-			})
+		if !o.isMarkTracked(targetID, mark.ID) {
+			o.addMarkDisplay(targetID, mark)
 		}
 	}
+}
+
+// isMarkTracked checks if a mark is already being tracked.
+func (o *MarkOverlay) isMarkTracked(targetID string, markID [32]byte) bool {
+	for _, d := range o.marks[targetID] {
+		if d.Mark != nil && d.Mark.ID == markID {
+			return true
+		}
+	}
+	return false
+}
+
+// addMarkDisplay creates and adds a new mark display.
+func (o *MarkOverlay) addMarkDisplay(targetID string, mark *marks.Mark) {
+	orbitSpeed := 0.5 + float32(mark.ID[0]%64)/128.0
+	o.marks[targetID] = append(o.marks[targetID], &MarkDisplay{
+		Mark:       mark,
+		OrbitAngle: float32(mark.ID[1]) / 40.0,
+		OrbitSpeed: orbitSpeed,
+		PulsePhase: 0,
+	})
 }
 
 // keyToHex converts a byte slice to hex string.

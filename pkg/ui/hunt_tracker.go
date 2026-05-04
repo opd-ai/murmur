@@ -440,69 +440,85 @@ func (p *HuntTrackerPanel) drawTabContent(screen *ebiten.Image, px, py int) {
 func (p *HuntTrackerPanel) drawFragmentsTab(screen *ebiten.Image, x, y, w, h int) {
 	itemH := 36
 	visibleItems := h / itemH
-
-	startIdx := p.scrollOffset
-	if startIdx > len(p.hunt.Fragments)-visibleItems {
-		startIdx = len(p.hunt.Fragments) - visibleItems
-		if startIdx < 0 {
-			startIdx = 0
-		}
-	}
+	startIdx := p.calculateStartIndex(visibleItems)
 
 	for i := 0; i < visibleItems && startIdx+i < len(p.hunt.Fragments); i++ {
 		frag := p.hunt.Fragments[startIdx+i]
 		itemY := y + i*itemH + 4
-
-		// Item background.
-		itemBg := color.RGBA{40, 42, 50, 255}
-		if frag.Claimed {
-			if frag.ClaimedByMe {
-				itemBg = color.RGBA{40, 60, 40, 255} // Green tint for my claims.
-			} else {
-				itemBg = color.RGBA{50, 45, 45, 255} // Red tint for others' claims.
-			}
-		} else if p.hunt.SelectedFragment == startIdx+i {
-			itemBg = color.RGBA{50, 60, 80, 255} // Highlight selected.
-		}
-
-		vector.DrawFilledRect(screen, float32(x+4), float32(itemY),
-			float32(w-8), float32(itemH-4), itemBg, true)
-
-		// Fragment icon.
-		iconX := x + 12
-		iconY := itemY + 10
-		iconColor := p.theme.AccentPrimary
-		if frag.Claimed {
-			iconColor = p.theme.TextSecondary
-		} else {
-			// Pulse effect for unclaimed.
-			pulse := 0.5 + 0.5*float64(1+int(p.pulseTime*2)%2)
-			iconColor = color.RGBA{
-				R: uint8(float64(p.theme.AccentPrimary.R) * pulse),
-				G: uint8(float64(p.theme.AccentPrimary.G) * pulse),
-				B: uint8(float64(p.theme.AccentPrimary.B) * pulse),
-				A: 255,
-			}
-		}
-		vector.DrawFilledRect(screen, float32(iconX), float32(iconY),
-			12, 12, iconColor, true)
-
-		// Status indicator.
-		statusX := x + w - 30
-		statusY := itemY + 12
-		if frag.Claimed {
-			// Checkmark shape.
-			vector.StrokeLine(screen, float32(statusX), float32(statusY+4),
-				float32(statusX+4), float32(statusY+8), 2, p.theme.AccentSecondary, true)
-			vector.StrokeLine(screen, float32(statusX+4), float32(statusY+8),
-				float32(statusX+10), float32(statusY), 2, p.theme.AccentSecondary, true)
-		} else {
-			// Empty circle.
-			vector.StrokeCircle(screen, float32(statusX+5), float32(statusY+4), 5, 1.5, p.theme.TextSecondary, true)
-		}
+		p.drawFragmentItem(screen, x, itemY, w, itemH, frag, startIdx+i)
 	}
 
-	// Scroll indicators.
+	p.drawFragmentScrollIndicators(screen, x, y, w, h, startIdx, visibleItems)
+}
+
+// calculateStartIndex computes the scroll start index.
+func (p *HuntTrackerPanel) calculateStartIndex(visibleItems int) int {
+	startIdx := p.scrollOffset
+	maxStart := len(p.hunt.Fragments) - visibleItems
+	if startIdx > maxStart {
+		startIdx = maxStart
+		if startIdx < 0 {
+			startIdx = 0
+		}
+	}
+	return startIdx
+}
+
+// drawFragmentItem renders a single fragment list item.
+func (p *HuntTrackerPanel) drawFragmentItem(screen *ebiten.Image, x, itemY, w, itemH int, frag FragmentInfo, index int) {
+	itemBg := p.selectFragmentBackground(frag, index)
+	vector.DrawFilledRect(screen, float32(x+4), float32(itemY),
+		float32(w-8), float32(itemH-4), itemBg, true)
+
+	p.drawFragmentIcon(screen, x+12, itemY+10, frag)
+	p.drawFragmentStatus(screen, x+w-30, itemY+12, frag)
+}
+
+// selectFragmentBackground picks background color based on fragment state.
+func (p *HuntTrackerPanel) selectFragmentBackground(frag FragmentInfo, index int) color.RGBA {
+	if frag.Claimed {
+		if frag.ClaimedByMe {
+			return color.RGBA{40, 60, 40, 255}
+		}
+		return color.RGBA{50, 45, 45, 255}
+	}
+	if p.hunt.SelectedFragment == index {
+		return color.RGBA{50, 60, 80, 255}
+	}
+	return color.RGBA{40, 42, 50, 255}
+}
+
+// drawFragmentIcon renders the fragment icon with pulse effect.
+func (p *HuntTrackerPanel) drawFragmentIcon(screen *ebiten.Image, iconX, iconY int, frag FragmentInfo) {
+	iconColor := p.theme.AccentPrimary
+	if frag.Claimed {
+		iconColor = p.theme.TextSecondary
+	} else {
+		pulse := 0.5 + 0.5*float64(1+int(p.pulseTime*2)%2)
+		iconColor = color.RGBA{
+			R: uint8(float64(p.theme.AccentPrimary.R) * pulse),
+			G: uint8(float64(p.theme.AccentPrimary.G) * pulse),
+			B: uint8(float64(p.theme.AccentPrimary.B) * pulse),
+			A: 255,
+		}
+	}
+	vector.DrawFilledRect(screen, float32(iconX), float32(iconY), 12, 12, iconColor, true)
+}
+
+// drawFragmentStatus renders checkmark or empty circle.
+func (p *HuntTrackerPanel) drawFragmentStatus(screen *ebiten.Image, statusX, statusY int, frag FragmentInfo) {
+	if frag.Claimed {
+		vector.StrokeLine(screen, float32(statusX), float32(statusY+4),
+			float32(statusX+4), float32(statusY+8), 2, p.theme.AccentSecondary, true)
+		vector.StrokeLine(screen, float32(statusX+4), float32(statusY+8),
+			float32(statusX+10), float32(statusY), 2, p.theme.AccentSecondary, true)
+	} else {
+		vector.StrokeCircle(screen, float32(statusX+5), float32(statusY+4), 5, 1.5, p.theme.TextSecondary, true)
+	}
+}
+
+// drawFragmentScrollIndicators renders scroll arrows.
+func (p *HuntTrackerPanel) drawFragmentScrollIndicators(screen *ebiten.Image, x, y, w, h, startIdx, visibleItems int) {
 	if startIdx > 0 {
 		vector.DrawFilledRect(screen, float32(x+w/2-10), float32(y+2), 20, 3, p.theme.AccentPrimary, true)
 	}

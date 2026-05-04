@@ -114,22 +114,12 @@ func NewGiftReceiver(store *GiftStore) *GiftReceiver {
 
 // HandleMessage processes an incoming gift event.
 func (r *GiftReceiver) HandleMessage(data []byte) error {
-	var gossipMsg pb.GossipMessage
-	if err := proto.Unmarshal(data, &gossipMsg); err != nil {
-		return fmt.Errorf("failed to unmarshal gossip message: %w", err)
-	}
-
-	giftEvent := gossipMsg.GetGiftEvent()
-	if giftEvent == nil {
-		return nil // Not a gift event.
-	}
-
-	// Verify signature.
-	if err := r.verifyEventSignature(giftEvent); err != nil {
-		return err
-	}
-
-	return r.processEvent(giftEvent)
+	return mechanics.ProcessGossipEvent(
+		data,
+		func(msg *pb.GossipMessage) *pb.GiftEvent { return msg.GetGiftEvent() },
+		r.verifyEventSignature,
+		r.processEvent,
+	)
 }
 
 // verifyEventSignature checks the event signature.

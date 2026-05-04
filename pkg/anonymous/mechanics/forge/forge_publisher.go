@@ -216,22 +216,12 @@ func NewForgeReceiver(store *ForgeStore) *ForgeReceiver {
 
 // HandleMessage processes an incoming forge event.
 func (r *ForgeReceiver) HandleMessage(data []byte) error {
-	var gossipMsg pb.GossipMessage
-	if err := proto.Unmarshal(data, &gossipMsg); err != nil {
-		return fmt.Errorf("failed to unmarshal gossip message: %w", err)
-	}
-
-	forgeEvent := gossipMsg.GetForgeEvent()
-	if forgeEvent == nil {
-		return nil // Not a forge event.
-	}
-
-	// Verify signature.
-	if err := r.verifyEventSignature(forgeEvent); err != nil {
-		return err
-	}
-
-	return r.processEvent(forgeEvent)
+	return mechanics.ProcessGossipEvent(
+		data,
+		func(msg *pb.GossipMessage) *pb.ForgeEvent { return msg.GetForgeEvent() },
+		r.verifyEventSignature,
+		r.processEvent,
+	)
 }
 
 // verifyEventSignature checks the event signature.

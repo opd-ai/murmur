@@ -202,24 +202,43 @@ func (p *SpecterDetailPanel) Update() bool {
 
 	p.animTime += 1.0 / 60.0
 
-	// Get mouse position.
 	mx, my := ebiten.CursorPosition()
 
-	// Check if click is inside panel.
-	if mx < p.panelX || mx > p.panelX+p.panelW ||
-		my < p.panelY || my > p.panelY+p.panelH {
-		// Click outside panel - close it if clicked.
-		if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
-			p.visible = false
-			if p.callbacks.OnClose != nil {
-				p.callbacks.OnClose()
-			}
-			return true
-		}
-		return false
+	if !p.isMouseInPanel(mx, my) {
+		return p.handleOutsideClick()
 	}
 
-	// Handle tab selection.
+	if p.handleTabSelection(mx, my) {
+		return true
+	}
+
+	if p.handleCloseButton(mx, my) {
+		return true
+	}
+
+	return p.handleModeInput(mx, my)
+}
+
+// isMouseInPanel checks if mouse is inside panel bounds.
+func (p *SpecterDetailPanel) isMouseInPanel(mx, my int) bool {
+	return mx >= p.panelX && mx <= p.panelX+p.panelW &&
+		my >= p.panelY && my <= p.panelY+p.panelH
+}
+
+// handleOutsideClick closes panel if user clicks outside.
+func (p *SpecterDetailPanel) handleOutsideClick() bool {
+	if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
+		p.visible = false
+		if p.callbacks.OnClose != nil {
+			p.callbacks.OnClose()
+		}
+		return true
+	}
+	return false
+}
+
+// handleTabSelection processes tab clicks.
+func (p *SpecterDetailPanel) handleTabSelection(mx, my int) bool {
 	tabY := p.panelY + 60
 	tabHeight := 30
 	if my >= tabY && my < tabY+tabHeight {
@@ -236,8 +255,11 @@ func (p *SpecterDetailPanel) Update() bool {
 	} else {
 		p.hoverButton = -1
 	}
+	return false
+}
 
-	// Handle close button click.
+// handleCloseButton processes close button click.
+func (p *SpecterDetailPanel) handleCloseButton(mx, my int) bool {
 	closeX := p.panelX + p.panelW - 30
 	closeY := p.panelY + 10
 	if mx >= closeX && mx < closeX+20 && my >= closeY && my < closeY+20 {
@@ -249,15 +271,17 @@ func (p *SpecterDetailPanel) Update() bool {
 			return true
 		}
 	}
+	return false
+}
 
-	// Handle mode-specific input.
+// handleModeInput dispatches to mode-specific handlers.
+func (p *SpecterDetailPanel) handleModeInput(mx, my int) bool {
 	switch p.mode {
 	case SpecterModeTrophies:
 		return p.updateTrophies(mx, my)
 	case SpecterModeInteract:
 		return p.updateInteract(mx, my)
 	}
-
 	return true
 }
 

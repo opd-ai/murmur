@@ -200,22 +200,12 @@ func NewHuntReceiver(store *HuntStore) *HuntReceiver {
 
 // HandleMessage processes an incoming hunt event.
 func (r *HuntReceiver) HandleMessage(data []byte) error {
-	var gossipMsg pb.GossipMessage
-	if err := proto.Unmarshal(data, &gossipMsg); err != nil {
-		return fmt.Errorf("failed to unmarshal gossip message: %w", err)
-	}
-
-	huntEvent := gossipMsg.GetHuntEvent()
-	if huntEvent == nil {
-		return nil // Not a hunt event.
-	}
-
-	// Verify signature.
-	if err := r.verifyEventSignature(huntEvent); err != nil {
-		return err
-	}
-
-	return r.processEvent(huntEvent)
+	return mechanics.ProcessGossipEvent(
+		data,
+		func(msg *pb.GossipMessage) *pb.HuntEvent { return msg.GetHuntEvent() },
+		r.verifyEventSignature,
+		r.processEvent,
+	)
 }
 
 // verifyEventSignature checks the event signature.

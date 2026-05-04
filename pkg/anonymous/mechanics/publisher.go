@@ -5,6 +5,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
+	pb "github.com/opd-ai/murmur/proto"
+	"google.golang.org/protobuf/proto"
 )
 
 // TopicAnonymousMechanics is the GossipSub topic for all anonymous mechanics events.
@@ -50,4 +53,40 @@ func hexDigit(c byte) byte {
 	default:
 		return 0
 	}
+}
+
+// EventExtractor extracts a specific event type from a GossipMessage.
+type EventExtractor[T any] func(*pb.GossipMessage) T
+
+// EventVerifier verifies an event's signature.
+type EventVerifier[T any] func(T) error
+
+// EventProcessor processes a verified event.
+type EventProcessor[T any] func(T) error
+
+// ProcessGossipEvent unmarshals a GossipMessage, extracts a typed event,
+// verifies its signature, and processes it. This consolidates the common
+// pattern used across all mechanics receivers.
+func ProcessGossipEvent[T any](
+	data []byte,
+	extract EventExtractor[T],
+	verify EventVerifier[T],
+	process EventProcessor[T],
+) error {
+	var gossipMsg pb.GossipMessage
+	if err := proto.Unmarshal(data, &gossipMsg); err != nil {
+		return fmt.Errorf("failed to unmarshal gossip message: %w", err)
+	}
+
+	event := extract(&gossipMsg)
+	var zero T
+	if any(event) == any(zero) {
+		return nil // Event type not present in message.
+	}
+
+	if err := verify(event); err != nil {
+		return err
+	}
+
+	return process(event)
 }

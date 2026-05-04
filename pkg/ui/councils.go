@@ -547,7 +547,12 @@ func (cp *CouncilPanel) handleProposeInput() {
 
 // handleVoteInput handles input in vote mode.
 func (cp *CouncilPanel) handleVoteInput() {
-	// Left/Right to change vote.
+	cp.handleVoteNavigation()
+	cp.handleVoteSubmission()
+}
+
+// handleVoteNavigation processes left/right arrow keys for vote selection.
+func (cp *CouncilPanel) handleVoteNavigation() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyLeft) {
 		if cp.selectedVote > VoteValueFor {
 			cp.selectedVote--
@@ -558,32 +563,54 @@ func (cp *CouncilPanel) handleVoteInput() {
 			cp.selectedVote++
 		}
 	}
+}
 
-	// Enter to submit vote.
-	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) && cp.currentCouncil != nil {
-		var err error
-		switch cp.voteType {
-		case VoteTypeAdmit:
-			if app, ok := cp.voteTarget.(*CouncilApplicationInfo); ok && cp.onVoteAdmit != nil {
-				err = cp.onVoteAdmit(cp.currentCouncil.ID, app.ApplicantKey, cp.selectedVote)
-			}
-		case VoteTypeExpel:
-			if member, ok := cp.voteTarget.(*CouncilMemberInfo); ok && cp.onVoteExpel != nil {
-				err = cp.onVoteExpel(cp.currentCouncil.ID, member.SpecterKey, cp.selectedVote)
-			}
-		case VoteTypeProposal:
-			if prop, ok := cp.voteTarget.(*CouncilProposalInfo); ok && cp.onVoteProposal != nil {
-				err = cp.onVoteProposal(cp.currentCouncil.ID, prop.ID, cp.selectedVote)
-			}
-		}
-
-		if err != nil {
-			cp.errorMessage = err.Error()
-		} else {
-			cp.successMessage = "Vote submitted!"
-			cp.mode = CouncilModeDetail
-		}
+// handleVoteSubmission processes Enter key to submit vote.
+func (cp *CouncilPanel) handleVoteSubmission() {
+	if !inpututil.IsKeyJustPressed(ebiten.KeyEnter) || cp.currentCouncil == nil {
+		return
 	}
+
+	var err error
+	switch cp.voteType {
+	case VoteTypeAdmit:
+		err = cp.submitAdmitVote()
+	case VoteTypeExpel:
+		err = cp.submitExpelVote()
+	case VoteTypeProposal:
+		err = cp.submitProposalVote()
+	}
+
+	if err != nil {
+		cp.errorMessage = err.Error()
+	} else {
+		cp.successMessage = "Vote submitted!"
+		cp.mode = CouncilModeDetail
+	}
+}
+
+// submitAdmitVote submits an admit vote.
+func (cp *CouncilPanel) submitAdmitVote() error {
+	if app, ok := cp.voteTarget.(*CouncilApplicationInfo); ok && cp.onVoteAdmit != nil {
+		return cp.onVoteAdmit(cp.currentCouncil.ID, app.ApplicantKey, cp.selectedVote)
+	}
+	return nil
+}
+
+// submitExpelVote submits an expel vote.
+func (cp *CouncilPanel) submitExpelVote() error {
+	if member, ok := cp.voteTarget.(*CouncilMemberInfo); ok && cp.onVoteExpel != nil {
+		return cp.onVoteExpel(cp.currentCouncil.ID, member.SpecterKey, cp.selectedVote)
+	}
+	return nil
+}
+
+// submitProposalVote submits a proposal vote.
+func (cp *CouncilPanel) submitProposalVote() error {
+	if prop, ok := cp.voteTarget.(*CouncilProposalInfo); ok && cp.onVoteProposal != nil {
+		return cp.onVoteProposal(cp.currentCouncil.ID, prop.ID, cp.selectedVote)
+	}
+	return nil
 }
 
 // handleTextInput processes keyboard input for text fields.

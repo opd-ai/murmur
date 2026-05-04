@@ -114,22 +114,12 @@ func NewMarkReceiver(store *MarkStore) *MarkReceiver {
 
 // HandleMessage processes an incoming mark event.
 func (r *MarkReceiver) HandleMessage(data []byte) error {
-	var gossipMsg pb.GossipMessage
-	if err := proto.Unmarshal(data, &gossipMsg); err != nil {
-		return fmt.Errorf("failed to unmarshal gossip message: %w", err)
-	}
-
-	markEvent := gossipMsg.GetMarkEvent()
-	if markEvent == nil {
-		return nil // Not a mark event.
-	}
-
-	// Verify signature.
-	if err := r.verifyEventSignature(markEvent); err != nil {
-		return err
-	}
-
-	return r.processEvent(markEvent)
+	return mechanics.ProcessGossipEvent(
+		data,
+		func(msg *pb.GossipMessage) *pb.MarkEvent { return msg.GetMarkEvent() },
+		r.verifyEventSignature,
+		r.processEvent,
+	)
 }
 
 // verifyEventSignature checks the event signature.

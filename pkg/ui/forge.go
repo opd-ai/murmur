@@ -527,15 +527,20 @@ func (p *ForgePanel) drawViewHints(screen *ebiten.Image, x, y, padding int) {
 
 func (p *ForgePanel) drawCreateMode(screen *ebiten.Image, x, y, w, h, padding int) {
 	lineY := y + padding
+	lineY = p.drawTypeSelection(screen, x, lineY, w, padding)
+	lineY = p.drawDurationSelection(screen, x, lineY, padding)
+	lineY = p.drawPromptInput(screen, x, lineY, w, padding)
+	p.drawCreateInstructions(screen, x, y, h, padding)
+}
 
-	// Forge type selection.
+// drawTypeSelection renders forge type options.
+func (p *ForgePanel) drawTypeSelection(screen *ebiten.Image, x, lineY, w, padding int) int {
 	types := []string{"Sigil Art", "Micro-Fiction", "Remix Chain"}
 	for i, typeName := range types {
 		isSelected := ForgeType(i) == p.selectedType
 		typeColor := p.theme.TextSecondary
 		if isSelected {
 			typeColor = p.theme.AccentPrimary
-			// Draw selection indicator.
 			vector.DrawFilledRect(screen, float32(x+padding-5), float32(lineY-2),
 				float32(w-padding*2+10), 22, p.theme.Selection, true)
 		}
@@ -552,10 +557,11 @@ func (p *ForgePanel) drawCreateMode(screen *ebiten.Image, x, y, w, h, padding in
 		}
 		lineY += 25
 	}
+	return lineY + 10
+}
 
-	lineY += 10
-
-	// Duration selection.
+// drawDurationSelection renders duration options.
+func (p *ForgePanel) drawDurationSelection(screen *ebiten.Image, x, lineY, padding int) int {
 	durations := []string{"30 minutes", "60 minutes"}
 	if defaultFont != nil {
 		op := &text.DrawOptions{}
@@ -564,9 +570,11 @@ func (p *ForgePanel) drawCreateMode(screen *ebiten.Image, x, y, w, h, padding in
 		durText := fmt.Sprintf("Duration: %s (D to change)", durations[p.durationChoice])
 		text.Draw(screen, durText, defaultFont, op)
 	}
-	lineY += 30
+	return lineY + 30
+}
 
-	// Prompt input.
+// drawPromptInput renders the prompt input box.
+func (p *ForgePanel) drawPromptInput(screen *ebiten.Image, x, lineY, w, padding int) int {
 	if defaultFont != nil {
 		op := &text.DrawOptions{}
 		op.GeoM.Translate(float64(x+padding), float64(lineY))
@@ -575,12 +583,17 @@ func (p *ForgePanel) drawCreateMode(screen *ebiten.Image, x, y, w, h, padding in
 	}
 	lineY += 20
 
-	// Input box.
 	vector.DrawFilledRect(screen, float32(x+padding), float32(lineY),
 		float32(w-padding*2), 60, p.theme.InputBackground, true)
 	vector.StrokeRect(screen, float32(x+padding), float32(lineY),
 		float32(w-padding*2), 60, 1, p.theme.PanelBorder, true)
 
+	p.drawPromptText(screen, x, lineY, padding)
+	return lineY
+}
+
+// drawPromptText renders the prompt text inside the input box.
+func (p *ForgePanel) drawPromptText(screen *ebiten.Image, x, lineY, padding int) {
 	if defaultFont != nil {
 		displayText := p.promptText
 		if displayText == "" {
@@ -595,8 +608,10 @@ func (p *ForgePanel) drawCreateMode(screen *ebiten.Image, x, y, w, h, padding in
 		op.ColorScale.ScaleWithColor(textColor)
 		text.Draw(screen, truncateString(displayText, 60), defaultFont, op)
 	}
+}
 
-	// Instructions.
+// drawCreateInstructions renders keyboard shortcuts at the bottom.
+func (p *ForgePanel) drawCreateInstructions(screen *ebiten.Image, x, y, h, padding int) {
 	if defaultFont != nil {
 		op := &text.DrawOptions{}
 		op.GeoM.Translate(float64(x+padding), float64(y+h-40))

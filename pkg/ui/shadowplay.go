@@ -306,27 +306,33 @@ func (sp *ShadowPlayPanel) handleVoteInput() {
 		return
 	}
 
-	// Get eligible players (not eliminated, not self).
 	eligible := sp.getEligibleVoteTargets()
 	if len(eligible) == 0 {
 		return
 	}
 
-	// Navigate selection.
+	sp.handleVoteNavigation(len(eligible))
+	sp.handleVoteConfirmation(eligible)
+}
+
+// handleVoteNavigation processes up/down arrow keys for vote selection.
+func (sp *ShadowPlayPanel) handleVoteNavigation(eligibleCount int) {
 	if inpututil.IsKeyJustPressed(ebiten.KeyUp) {
 		sp.selectedIdx--
 		if sp.selectedIdx < 0 {
-			sp.selectedIdx = len(eligible) - 1
+			sp.selectedIdx = eligibleCount - 1
 		}
 	}
 	if inpututil.IsKeyJustPressed(ebiten.KeyDown) {
 		sp.selectedIdx++
-		if sp.selectedIdx >= len(eligible) {
+		if sp.selectedIdx >= eligibleCount {
 			sp.selectedIdx = 0
 		}
 	}
+}
 
-	// Confirm vote.
+// handleVoteConfirmation processes Enter key to confirm vote.
+func (sp *ShadowPlayPanel) handleVoteConfirmation(eligible []ShadowPlayPlayer) {
 	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) {
 		if sp.selectedIdx < len(eligible) {
 			target := eligible[sp.selectedIdx]
