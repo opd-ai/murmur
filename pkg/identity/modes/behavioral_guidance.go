@@ -46,6 +46,7 @@ const (
 	RiskHigh
 )
 
+// String returns the human-readable representation of the correlation risk level.
 func (r CorrelationRisk) String() string {
 	switch r {
 	case RiskLow:

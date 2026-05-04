@@ -1,194 +1,129 @@
-═══════════════════════════════════════════════════════════════════════
- CODE DEDUPLICATION REPORT
- MURMUR Project - Autonomous Consolidation
- Date: 2026-05-04
-═══════════════════════════════════════════════════════════════════════
+# Code Deduplication Report
 
-EXECUTIVE SUMMARY
-─────────────────────────────────────────────────────────────────────
+## Summary
+Successfully consolidated 3 significant code clone groups, reducing duplication ratio from 1.33% to 1.27%.
 
-Duplication reduced from 1.69% → 1.48% (-0.21 percentage points)
-191 duplicate lines eliminated across 4 major consolidation groups
-All 49 test packages pass with zero regressions
+## Metrics
+| Metric | Baseline | Final | Change |
+|--------|----------|-------|--------|
+| Duplication Ratio | 1.33% | 1.27% | -0.06% |
+| Total Clone Groups | 85 | 83 | -2 groups |
+| Priority Clones (≥20 lines) | 10 | 9 | -1 |
+| Largest Clone Size | 44 lines | 44 lines | unchanged |
 
-═══════════════════════════════════════════════════════════════════════
- METRICS
-═══════════════════════════════════════════════════════════════════════
+## Consolidated Clone Groups
 
-Metric                  Baseline    Final      Improvement
-─────────────────────────────────────────────────────────────────────
-Clone Pairs             93          89         -4 (-4.3%)
-Duplicated Lines        1487        1296       -191 (-12.9%)
-Duplication Ratio       1.69%       1.48%      -0.21%
-Total Lines of Code     42,321      42,130     -191
+### Clone Group 1: HTTP Resolver Fetch Logic (42 lines, 2 instances) ✅
+**Priority**: CRITICAL
+**Strategy**: Extract function
+**Files**:
+- pkg/networking/discovery/gist_resolver.go:39-80
+- pkg/networking/discovery/pages_resolver.go:39-80
 
-═══════════════════════════════════════════════════════════════════════
- CONSOLIDATIONS COMPLETED
-═══════════════════════════════════════════════════════════════════════
+**Consolidation**:
+- Created `fetchAndVerifyPeerList()` in new file `http_resolver.go`
+- Consolidated HTTP GET, JSON parsing, signature verification, and peer conversion
+- Both resolvers now delegate to shared function with source-specific error messages
+- Removed 42 lines of duplication per instance (84 total → 3 wrapper calls + 60 shared)
 
-[1] GossipSub Event Processing: 8 instances × 16 lines = 128 total (CRITICAL)
-  Strategy: Extract generic function with type-specific callbacks
-  Consolidated into: pkg/anonymous/mechanics/publisher.go::ProcessGossipEvent()
-  Tests: PASS
+**Tests**: PASS ✅
 
-  Files consolidated:
-    • pkg/anonymous/mechanics/councils/councils_publisher.go:253-268
-    • pkg/anonymous/mechanics/forge/forge_publisher.go:219-234
-    • pkg/anonymous/mechanics/gifts/gifts_publisher.go:117-132
-    • pkg/anonymous/mechanics/hunts/hunt_publisher.go:203-218
-    • pkg/anonymous/mechanics/marks/marks_publisher.go:117-132
-    • pkg/anonymous/mechanics/oracle/oracle_publisher.go:217-232
-    • pkg/anonymous/mechanics/shadowplay/shadowplay_publisher.go:234-250
-    • pkg/anonymous/mechanics/territory/territory_publisher.go:173-188
+---
 
-[2] Handler Callback Invocation: 3 instances × 15 lines = 45 total (HIGH)
-  Strategy: Extract methods per callback type
-  Consolidated into: pkg/app/handlers.go::invoke{Identity,RelayAd,Heartbeat}Callback()
-  Tests: PASS
+### Clone Group 2: Topic Cleanup Pattern (16 lines, 2 instances) ✅
+**Priority**: HIGH
+**Strategy**: Extract helper function
+**Files**:
+- pkg/networking/gossip/ephemeral.go:184-199
+- pkg/networking/gossip/ephemeral.go:370-385
 
-  Files consolidated:
-    • pkg/app/handlers.go:189-203
-    • pkg/app/handlers.go:214-228
-    • pkg/app/handlers.go:239-253
+**Consolidation**:
+- Created `cleanupTopicEntry()` helper for subscription and topic closure
+- Both `LeaveEventTopic()` and `LeaveCouncilTopic()` now use shared cleanup
+- Preserved CouncilTopic's encryption key zeroing as post-cleanup step
+- Reduced duplication by 16 lines per instance (32 total → 2 wrapper calls + 20 shared)
 
-[3] Ephemeral Topic Subscription: 2 instances × 21 lines = 42 total (HIGH)
-  Strategy: Extract helper with lock-check-subscribe pattern
-  Consolidated into: pkg/networking/gossip/ephemeral.go::subscribe{Ephemeral,Council}Topic()
-  Tests: PASS
+**Tests**: PASS ✅
 
-  Files consolidated:
-    • pkg/networking/gossip/ephemeral.go:102-122
-    • pkg/networking/gossip/ephemeral.go:297-316
+---
 
-[4] Ed25519 Signature Verification: 2 instances × 28 lines = 56 total (MEDIUM)
-  Strategy: Extract common validation + verification
-  Consolidated into: pkg/anonymous/mechanics/publisher.go::VerifyEd25519Signature()
-  Tests: PASS
+### Clone Group 3: Line Transform & Cull (16 lines, 2 instances) ✅
+**Priority**: HIGH
+**Strategy**: Extract method
+**Files**:
+- pkg/pulsemap/rendering/renderer.go:253-268
+- pkg/pulsemap/rendering/renderer.go:292-307
 
-  Files consolidated:
-    • pkg/anonymous/mechanics/gifts/gifts_publisher.go:127-154
-    • pkg/anonymous/mechanics/marks/marks_publisher.go:127-150
+**Consolidation**:
+- Created `transformAndCullLine()` method for world→screen coordinate transformation and culling
+- Edge and amplification trail rendering both use shared transformation
+- Improved readability with explicit visibility return value
+- Reduced 16 lines per instance (32 total → 2 wrapper calls + 18 shared method)
 
-═══════════════════════════════════════════════════════════════════════
- IMPACT BREAKDOWN
-═══════════════════════════════════════════════════════════════════════
+**Tests**: PASS ✅
 
-Consolidation                      Lines Eliminated    Priority    Status
-───────────────────────────────────────────────────────────────────────
-GossipSub Event Processing         128                 CRITICAL    ✓ DONE
-Ephemeral Topic Subscription       42                  HIGH        ✓ DONE
-Handler Callback Invocation        33                  HIGH        ✓ DONE
-Ed25519 Signature Verification     48                  MEDIUM      ✓ DONE
-───────────────────────────────────────────────────────────────────────
-TOTAL                              251*
+---
 
-* Note: Actual net reduction is 191 lines because helper implementations
-  added 60 lines (4 new functions).
+## Analysis: Remaining Duplications
 
-═══════════════════════════════════════════════════════════════════════
- VALIDATION RESULTS
-═══════════════════════════════════════════════════════════════════════
+### Stub File Duplications (44 lines each, multiple instances)
+**Decision**: KEEP
+**Rationale**: These are build-tag-gated stub implementations for testing (`//go:build test`). The real implementations use Ebitengine (`//go:build !test`). Duplication is intentional to maintain identical interfaces across build configurations without runtime abstraction cost.
 
-✓ All 49 test packages pass
-✓ go test -race ./... — no data races detected
-✓ go vet ./... — clean
-✓ gofumpt — all code formatted
-✓ Zero regressions
-✓ Zero breaking API changes
+**Examples**:
+- pkg/ui/mark.go ↔ pkg/ui/mark_stub.go (44 lines)
+- pkg/ui/gift.go ↔ pkg/ui/gift_stub.go (22 lines)
+- pkg/pulsemap/rendering/effects/*.go ↔ *_stub.go (10 pairs)
 
-═══════════════════════════════════════════════════════════════════════
- ARCHITECTURAL IMPROVEMENTS
-═══════════════════════════════════════════════════════════════════════
+---
 
-Type Safety
-  • Generic ProcessGossipEvent<T> provides compile-time guarantees
-  • Signature verification centralized with consistent error handling
+### Domain-Specific Publisher Patterns (22 lines, multiple instances)
+**Decision**: KEEP
+**Rationale**: While structurally similar, these serve distinct domain entities (Gifts, Marks, Puzzles, Sparks) with type-specific validation, error handling, and storage. Generifying would harm:
+- Domain-driven design clarity
+- Type safety
+- Error message specificity
+- Code navigability
 
-Consistency
-  • All 8 mechanics receivers follow identical dispatch pattern
-  • Subscription flow uniform across ephemeral and council topics
+**Examples**:
+- pkg/anonymous/mechanics/gifts/gifts_publisher.go:147-168
+- pkg/anonymous/mechanics/marks/marks_publisher.go:147-168
 
-Maintainability
-  • Single source of truth for gossip message processing
-  • Cryptographic operations use canonical implementations
+---
 
-Testability
-  • Helpers can be tested independently of receivers
-  • Mock injection points remain unchanged
+### UI Panel Draw Setup (14 lines, 4 instances)
+**Decision**: DEFER
+**Rationale**: While the pattern is repetitive, each panel has unique post-setup logic. Extraction would require higher-order functions or interface callbacks, increasing cognitive load. Current duplication is contained and does not violate DRY principles significantly given the immediate-mode UI pattern.
 
-═══════════════════════════════════════════════════════════════════════
- REMAINING DUPLICATION ANALYSIS
-═══════════════════════════════════════════════════════════════════════
+**Pattern**:
+```go
+p.mu.RLock()
+defer p.mu.RUnlock()
+if !p.visible { return }
+w, h := screen.Bounds().Dx(), screen.Bounds().Dy()
+p.screenWidth, p.screenHeight = w, h
+px, py := p.calculatePosition(w, h)
+// ... unique panel rendering
+```
 
-Category                           Instances    Lines    Recommendation
-───────────────────────────────────────────────────────────────────────
-UI stub/mock files                 8            352      Accept (test doubles)
-UI render boilerplate              4            56       Accept (context-specific)
-Resonance cache checks             3            12       Accept (extraction overhead)
-Cross-layer effects stubs          2            64       Accept (intentional mocks)
+---
 
-Total remaining acceptable: 89 clone pairs, 1296 duplicate lines (1.48%)
+## Results
 
-═══════════════════════════════════════════════════════════════════════
- RECOMMENDATIONS
-═══════════════════════════════════════════════════════════════════════
+✅ All tests pass after consolidation
+✅ Zero regressions
+✅ Duplication ratio below 5% target (1.27%)
+✅ Code maintainability improved through shared helpers
+✅ Domain model clarity preserved
 
-Immediate
-  1. Set CI duplication threshold at 1.5% to prevent regression
-  2. Add godoc examples for ProcessGossipEvent and VerifyEd25519Signature
-  3. Update CONTRIBUTING.md with new helper usage patterns
+## Recommendations
 
-Short-term
-  4. Consider code generation for UI stub files
-  5. Monitor publisher pattern adoption in future mechanics
-  6. Review Resonance cache pattern if additional scorers are added
+1. **Monitor stub file divergence**: Ensure build-tag stubs stay synchronized with real implementations
+2. **Publisher pattern review**: Consider interface-based abstraction if more publishers are added (threshold: 6+ similar patterns)
+3. **Panel base class opportunity**: If 10+ more panels are added, revisit extraction of common setup/teardown
 
-Long-term
-  7. Evaluate protocol buffer code generation for reducing wire-format duplication
-  8. Consider domain-specific language (DSL) for mechanics event handlers
+---
 
-═══════════════════════════════════════════════════════════════════════
- FILES MODIFIED
-═══════════════════════════════════════════════════════════════════════
-
-Core Infrastructure
-  • pkg/anonymous/mechanics/publisher.go (+60 lines, 2 new functions)
-  • pkg/app/handlers.go (+45 lines, 3 new methods)
-  • pkg/networking/gossip/ephemeral.go (+50 lines, 2 new helpers)
-
-Mechanics Publishers (8 files)
-  • pkg/anonymous/mechanics/councils/councils_publisher.go (-16 lines)
-  • pkg/anonymous/mechanics/forge/forge_publisher.go (-16 lines)
-  • pkg/anonymous/mechanics/gifts/gifts_publisher.go (-43 lines)
-  • pkg/anonymous/mechanics/hunts/hunt_publisher.go (-16 lines)
-  • pkg/anonymous/mechanics/marks/marks_publisher.go (-38 lines)
-  • pkg/anonymous/mechanics/oracle/oracle_publisher.go (-16 lines)
-  • pkg/anonymous/mechanics/shadowplay/shadowplay_publisher.go (-16 lines)
-  • pkg/anonymous/mechanics/territory/territory_publisher.go (-16 lines)
-
-App Handlers
-  • pkg/app/handlers.go (-33 lines in 3 methods)
-
-Network Gossip
-  • pkg/networking/gossip/ephemeral.go (-42 lines in 2 methods)
-
-UI Package (structural cleanup)
-  • pkg/ui/panel.go (import cleanup)
-
-═══════════════════════════════════════════════════════════════════════
- CONCLUSION
-═══════════════════════════════════════════════════════════════════════
-
-Successfully consolidated the top 4 highest-impact code clone groups,
-eliminating 191 net duplicate lines (12.9% reduction). All consolidations
-follow idiomatic Go patterns, maintain zero test regressions, and improve
-architectural consistency.
-
-The remaining duplication (1.48%) consists primarily of intentional test
-stubs and context-specific rendering code that should not be consolidated.
-
-Project is now well-positioned for continued low-duplication development
-with established patterns for GossipSub event handling, signature
-verification, and topic subscription.
-
-═══════════════════════════════════════════════════════════════════════
+**Executed**: 2026-05-04
+**Tool**: go-stats-generator v0.x
+**Thresholds**: min-block-lines=6, similarity-threshold=0.80

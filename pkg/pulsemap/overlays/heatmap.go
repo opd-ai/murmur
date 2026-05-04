@@ -149,18 +149,22 @@ func (h *ActivityHeatMap) regenerateHeatMap(screen *ebiten.Image, cameraX, camer
 	screenW := screen.Bounds().Dx()
 	screenH := screen.Bounds().Dy()
 
-	// Clear grid
+	h.rebuildGrid()
+	h.createOrRecreateImage(screenW, screenH)
+	h.renderHeatMapCells(screenW, screenH, cameraX, cameraY, zoom)
+}
+
+// rebuildGrid clears and regenerates the grid from samples with decay.
+func (h *ActivityHeatMap) rebuildGrid() {
 	for k := range h.grid {
 		delete(h.grid, k)
 	}
 
-	// Aggregate samples into grid cells
 	for _, sample := range h.samples {
 		cellX := int(math.Floor(sample.X / float64(h.config.GridCellSize)))
 		cellY := int(math.Floor(sample.Y / float64(h.config.GridCellSize)))
 		key := gridKey{cellX, cellY}
 
-		// Apply time decay (samples fade over window duration)
 		age := time.Since(sample.Timestamp)
 		decay := 1.0 - float32(age.Seconds())/float32(h.config.WindowDuration.Seconds())
 		if decay < 0 {
@@ -169,18 +173,21 @@ func (h *ActivityHeatMap) regenerateHeatMap(screen *ebiten.Image, cameraX, camer
 
 		h.grid[key] += sample.Intensity * decay
 	}
+}
 
-	// Create or recreate heat map image
+// createOrRecreateImage creates or resizes the heat map image if needed.
+func (h *ActivityHeatMap) createOrRecreateImage(screenW, screenH int) {
 	if h.heatMapImage == nil || h.heatMapImage.Bounds().Dx() != screenW || h.heatMapImage.Bounds().Dy() != screenH {
 		if h.heatMapImage != nil {
-			h.heatMapImage.Dispose()
+			h.heatMapImage.Deallocate()
 		}
 		h.heatMapImage = ebiten.NewImage(screenW, screenH)
 	}
-
 	h.heatMapImage.Clear()
+}
 
-	// Render heat map cells
+// renderHeatMapCells draws all grid cells to the heat map image.
+func (h *ActivityHeatMap) renderHeatMapCells(screenW, screenH int, cameraX, cameraY, zoom float64) {
 	centerX := float64(screenW) / 2
 	centerY := float64(screenH) / 2
 
@@ -189,44 +196,46 @@ func (h *ActivityHeatMap) regenerateHeatMap(screen *ebiten.Image, cameraX, camer
 			continue
 		}
 
-		// Calculate world center of this cell
-		worldCellX := float64(key.x)*float64(h.config.GridCellSize) + float64(h.config.GridCellSize)/2
-		worldCellY := float64(key.y)*float64(h.config.GridCellSize) + float64(h.config.GridCellSize)/2
+		screenX, screenY, cellRadius := h.transformCellToScreen(key, centerX, centerY, cameraX, cameraY, zoom)
 
-		// Transform to screen coordinates
-		screenX := centerX + (worldCellX-cameraX)*zoom
-		screenY := centerY + (worldCellY-cameraY)*zoom
-
-		// Skip off-screen cells
-		cellRadius := float64(h.config.GridCellSize) * zoom / 2
-		if screenX+cellRadius < 0 || screenX-cellRadius > float64(screenW) ||
-			screenY+cellRadius < 0 || screenY-cellRadius > float64(screenH) {
+		if h.isCellOffScreen(screenX, screenY, cellRadius, screenW, screenH) {
 			continue
 		}
 
-		// Calculate color (blue to red gradient)
-		normalizedIntensity := (intensity - h.config.MinIntensity) / (h.config.MaxIntensity - h.config.MinIntensity)
-		if normalizedIntensity > 1 {
-			normalizedIntensity = 1
-		}
-
-		col := heatMapColor(normalizedIntensity)
-
-		// Draw cell as filled circle with blur
-		radius := float32(cellRadius)
-		if radius < 5 {
-			radius = 5
-		}
-
-		vector.DrawFilledCircle(
-			h.heatMapImage,
-			float32(screenX),
-			float32(screenY),
-			radius,
-			col,
-			true,
-		)
+		h.drawHeatMapCell(screenX, screenY, cellRadius, intensity)
 	}
+}
+
+// transformCellToScreen converts grid cell to screen coordinates.
+func (h *ActivityHeatMap) transformCellToScreen(key gridKey, centerX, centerY, cameraX, cameraY, zoom float64) (float64, float64, float64) {
+	worldCellX := float64(key.x)*float64(h.config.GridCellSize) + float64(h.config.GridCellSize)/2
+	worldCellY := float64(key.y)*float64(h.config.GridCellSize) + float64(h.config.GridCellSize)/2
+	screenX := centerX + (worldCellX-cameraX)*zoom
+	screenY := centerY + (worldCellY-cameraY)*zoom
+	cellRadius := float64(h.config.GridCellSize) * zoom / 2
+	return screenX, screenY, cellRadius
+}
+
+// isCellOffScreen checks if a cell is outside the visible screen area.
+func (h *ActivityHeatMap) isCellOffScreen(screenX, screenY, cellRadius float64, screenW, screenH int) bool {
+	return screenX+cellRadius < 0 || screenX-cellRadius > float64(screenW) ||
+		screenY+cellRadius < 0 || screenY-cellRadius > float64(screenH)
+}
+
+// drawHeatMapCell draws a single heat map cell at the given position.
+func (h *ActivityHeatMap) drawHeatMapCell(screenX, screenY, cellRadius float64, intensity float32) {
+	normalizedIntensity := (intensity - h.config.MinIntensity) / (h.config.MaxIntensity - h.config.MinIntensity)
+	if normalizedIntensity > 1 {
+		normalizedIntensity = 1
+	}
+
+	col := heatMapColor(normalizedIntensity)
+	radius := float32(cellRadius)
+	if radius < 5 {
+		radius = 5
+	}
+
+	vector.DrawFilledCircle(h.heatMapImage, float32(screenX), float32(screenY), radius, col, true)
 }
 
 // heatMapColor maps intensity (0-1) to blue-to-red gradient.
@@ -320,7 +329,7 @@ func (h *ActivityHeatMap) SampleCount() int {
 // Dispose releases GPU resources.
 func (h *ActivityHeatMap) Dispose() {
 	if h.heatMapImage != nil {
-		h.heatMapImage.Dispose()
+		h.heatMapImage.Deallocate()
 		h.heatMapImage = nil
 	}
 }

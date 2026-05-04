@@ -13,18 +13,22 @@ type flowControllerAdapter struct {
 	controller *flow.Controller
 }
 
+// Start begins the onboarding flow.
 func (f *flowControllerAdapter) Start() {
 	f.controller.Start()
 }
 
+// CurrentPhase returns the current onboarding phase.
 func (f *flowControllerAdapter) CurrentPhase() onboardingPhase {
 	return phaseAdapter{f.controller.CurrentPhase()}
 }
 
+// CompleteCurrentPhase marks the current phase as complete and advances.
 func (f *flowControllerAdapter) CompleteCurrentPhase() {
 	f.controller.CompleteCurrentPhase()
 }
 
+// IsComplete returns true if the onboarding flow is complete.
 func (f *flowControllerAdapter) IsComplete() bool {
 	return f.controller.IsComplete()
 }
@@ -34,6 +38,7 @@ type phaseAdapter struct {
 	phase flow.Phase
 }
 
+// String returns the string representation of the onboarding phase.
 func (p phaseAdapter) String() string {
 	return p.phase.String()
 }

@@ -23,6 +23,9 @@ require (
 	google.golang.org/protobuf v1.36.11
 )
 
+// Exclude libp2p core v0.43.0-rc2 — release candidate with breaking API changes.
+// This version introduced incompatible ResourceManager interface methods that
+// caused build failures. Excluded until stable v0.43.0 release.
 exclude github.com/libp2p/go-libp2p/core v0.43.0-rc2
 
 require (
@@ -32,6 +35,8 @@ require (
 	github.com/Jorropo/jsync v1.0.1 // indirect
 	github.com/benbjohnson/clock v1.3.5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
+	github.com/bits-and-blooms/bitset v1.24.2 // indirect
+	github.com/bits-and-blooms/bloom/v3 v3.7.1 // indirect
 	github.com/btcsuite/btcd v0.21.0-beta.0.20201114000516-e9c7a5ac6401 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/consensys/gnark-crypto v0.5.3 // indirect

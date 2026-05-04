@@ -654,13 +654,13 @@
 - [x] Long-press detection
 - [x] **Momentum scrolling** — inertial pan with deceleration
 - [x] **Double-tap/click** — node centering zoom
-- [ ] **Quick-Action Radial Menu** — right-click/long-press context menu with options:
-  - [ ] Compose Wave to node
-  - [ ] Send Phantom Gift
-  - [ ] Place Specter Mark
-  - [ ] Send Whisper
-  - [ ] Join active mini-game
-  - [ ] View node detail
+- [x] **Quick-Action Radial Menu** — right-click/long-press context menu with options:
+  - [x] Compose Wave to node
+  - [x] Send Phantom Gift
+  - [x] Place Specter Mark
+  - [x] Send Whisper
+  - [x] Join active mini-game
+  - [x] View node detail
 - [ ] **Node Detail Panel** — slide-in card with:
   - [ ] Profile information (display name, Sigil, public key fingerprint)
   - [ ] Recent Waves list

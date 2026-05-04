@@ -95,6 +95,19 @@ func (a *PanelAnimation) ResetAnimation() {
 	a.errorTime = 0
 }
 
+// DrawSetup performs common panel draw setup: checks visibility, updates screen dimensions.
+// Returns the screen width and height, or (0, 0) if the panel should not be drawn.
+// This consolidates the common pattern across all panel Draw() methods.
+func DrawSetup(visible bool, screenWidth, screenHeight *int, screen Screen) (int, int) {
+	if !visible {
+		return 0, 0
+	}
+	w, h := screen.Bounds().Width, screen.Bounds().Height
+	*screenWidth = w
+	*screenHeight = h
+	return w, h
+}
+
 // Screen is an abstraction over ebiten.Image for rendering.
 // This allows testing without Ebitengine dependency.
 type Screen interface {

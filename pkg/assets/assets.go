@@ -6,6 +6,7 @@ package assets
 import (
 	"bufio"
 	"embed"
+	"fmt"
 	"strings"
 )
 
@@ -43,4 +44,46 @@ func loadWordlist(path string) []string {
 // WordlistFS provides direct access to the embedded wordlist filesystem.
 func WordlistFS() embed.FS {
 	return wordlistFS
+}
+
+// LoadWordlist loads a wordlist from the embedded filesystem.
+// This is a public wrapper around loadWordlist for external use.
+func LoadWordlist(path string) ([]string, error) {
+	words := loadWordlist(path)
+	if words == nil {
+		return nil, fmt.Errorf("failed to load wordlist from %s", path)
+	}
+	return words, nil
+}
+
+// GetSpecterName returns the Specter name at the given index.
+// Per DESIGN_DOCUMENT.md, Specter names are deterministically generated
+// from the public key using index % 65536.
+func GetSpecterName(index int) (string, error) {
+	if len(SpecterWordlist) == 0 {
+		return "", fmt.Errorf("SpecterWordlist not loaded")
+	}
+	if index < 0 {
+		return "", fmt.Errorf("index must be non-negative")
+	}
+	idx := index % len(SpecterWordlist)
+	return SpecterWordlist[idx], nil
+}
+
+// SpecterWordlistSize returns the number of entries in the Specter wordlist.
+func SpecterWordlistSize() int {
+	return len(SpecterWordlist)
+}
+
+// ValidateWordlist checks that the Specter wordlist has the expected size.
+// Per DESIGN_DOCUMENT.md, the wordlist must contain exactly 65,536 entries.
+func ValidateWordlist() error {
+	const expectedSize = 65536
+	if len(SpecterWordlist) == 0 {
+		return fmt.Errorf("SpecterWordlist is empty")
+	}
+	if len(SpecterWordlist) != expectedSize {
+		return fmt.Errorf("SpecterWordlist has %d entries, expected %d", len(SpecterWordlist), expectedSize)
+	}
+	return nil
 }

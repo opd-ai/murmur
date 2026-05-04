@@ -103,21 +103,12 @@ func (ps *PersistentMarkStore) persistMark(mark *Mark) error {
 // GarbageCollect removes expired marks from memory and database.
 func (ps *PersistentMarkStore) GarbageCollect() int {
 	ps.MarkStore.mu.RLock()
-	var expiredIDs [][32]byte
-	for id, mark := range ps.MarkStore.marks {
-		if mark.IsExpired() {
-			expiredIDs = append(expiredIDs, id)
-		}
-	}
+	expiredIDs := mechanics.CollectExpiredFromMap(ps.MarkStore.marks)
 	ps.MarkStore.mu.RUnlock()
 
 	removed := ps.MarkStore.GarbageCollect()
 
-	if ps.db != nil {
-		for _, id := range expiredIDs {
-			_ = ps.db.Delete(store.BucketMarks, id[:])
-		}
-	}
+	mechanics.DeleteFromDB(ps.db, store.BucketMarks, expiredIDs)
 
 	return removed
 }

@@ -134,66 +134,83 @@ func (d *DCUtRService) Unsubscribe(ch <-chan HolePunchEvent) {
 // If already connected via relay, attempts to upgrade to direct.
 // Per NETWORK_ARCHITECTURE.md, this uses DCUtR protocol.
 func (d *DCUtRService) TryHolePunch(ctx context.Context, peerID peer.ID) (HolePunchResult, error) {
-	d.mu.Lock()
-	if d.inProgress[peerID] {
-		d.mu.Unlock()
-		return HolePunchUnknown, nil // Already in progress
+	if !d.markInProgress(peerID) {
+		return HolePunchUnknown, nil
 	}
-	d.inProgress[peerID] = true
-	d.mu.Unlock()
+	defer d.unmarkInProgress(peerID)
 
-	defer func() {
-		d.mu.Lock()
-		delete(d.inProgress, peerID)
-		d.mu.Unlock()
-	}()
-
-	// Check if we have a hole punch service
-	d.mu.RLock()
-	hps := d.hpService
-	d.mu.RUnlock()
-
+	hps := d.getHolePunchService()
 	if hps == nil {
 		return HolePunchFailed, network.ErrNoConn
 	}
 
-	// Check if we're already directly connected
 	if d.isDirectlyConnected(peerID) {
 		d.recordResult(peerID, HolePunchSuccess)
 		return HolePunchSuccess, nil
 	}
 
-	// Create timeout context
 	ctx, cancel := context.WithTimeout(ctx, DCUtRTimeout)
 	defer cancel()
 
-	// Attempt hole punch with retries
+	return d.attemptHolePunchWithRetries(ctx, peerID, hps)
+}
+
+// markInProgress marks a peer as having a hole punch in progress.
+// Returns false if already in progress.
+func (d *DCUtRService) markInProgress(peerID peer.ID) bool {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.inProgress[peerID] {
+		return false
+	}
+	d.inProgress[peerID] = true
+	return true
+}
+
+// unmarkInProgress removes the in-progress marker for a peer.
+func (d *DCUtRService) unmarkInProgress(peerID peer.ID) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	delete(d.inProgress, peerID)
+}
+
+// getHolePunchService safely retrieves the hole punch service.
+func (d *DCUtRService) getHolePunchService() *holepunch.Service {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.hpService
+}
+
+// attemptHolePunchWithRetries tries to establish a direct connection with retries.
+func (d *DCUtRService) attemptHolePunchWithRetries(ctx context.Context, peerID peer.ID, hps *holepunch.Service) (HolePunchResult, error) {
 	var lastErr error
 	for i := 0; i < DCUtRRetries; i++ {
-		err := hps.DirectConnect(peerID)
-		if err == nil {
-			// Verify we got a direct connection
-			if d.isDirectlyConnected(peerID) {
-				d.recordResult(peerID, HolePunchSuccess)
-				return HolePunchSuccess, nil
-			}
+		if result, err := d.tryDirectConnect(ctx, peerID, hps); result != HolePunchFailed || err == context.Canceled {
+			return result, err
+		} else {
+			lastErr = err
 		}
-		lastErr = err
 
-		// Check context
-		select {
-		case <-ctx.Done():
+		if ctx.Err() != nil {
 			d.recordResult(peerID, HolePunchTimeout)
 			return HolePunchTimeout, ctx.Err()
-		default:
 		}
 
-		// Brief delay before retry
 		time.Sleep(100 * time.Millisecond)
 	}
 
 	d.recordResult(peerID, HolePunchFailed)
 	return HolePunchFailed, lastErr
+}
+
+// tryDirectConnect attempts a single hole punch connection.
+func (d *DCUtRService) tryDirectConnect(ctx context.Context, peerID peer.ID, hps *holepunch.Service) (HolePunchResult, error) {
+	err := hps.DirectConnect(peerID)
+	if err == nil && d.isDirectlyConnected(peerID) {
+		d.recordResult(peerID, HolePunchSuccess)
+		return HolePunchSuccess, nil
+	}
+	return HolePunchFailed, err
 }
 
 // isDirectlyConnected checks if we have a direct (non-relay) connection to peer.
@@ -277,6 +294,7 @@ type connectionNotifee struct {
 	dcutr *DCUtRService
 }
 
+// Connected is called when a new connection is established. It attempts hole punching for relayed connections.
 func (n *connectionNotifee) Connected(net network.Network, conn network.Conn) {
 	// Check if this is a relay connection that we should try to upgrade
 	if isRelayedConnection(conn) {
@@ -294,6 +312,11 @@ func (n *connectionNotifee) Connected(net network.Network, conn network.Conn) {
 	}
 }
 
-func (n *connectionNotifee) Disconnected(network.Network, network.Conn)       {}
-func (n *connectionNotifee) Listen(network.Network, multiaddr.Multiaddr)      {}
+// Disconnected is called when a connection is closed. No-op for DCUtR.
+func (n *connectionNotifee) Disconnected(network.Network, network.Conn) {}
+
+// Listen is called when a new listener is created. No-op for DCUtR.
+func (n *connectionNotifee) Listen(network.Network, multiaddr.Multiaddr) {}
+
+// ListenClose is called when a listener is closed. No-op for DCUtR.
 func (n *connectionNotifee) ListenClose(network.Network, multiaddr.Multiaddr) {}

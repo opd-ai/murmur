@@ -236,6 +236,3 @@ func min(a, b int) int {
 	}
 	return b
 }
-
-// Stub types and functions for non-Ebiten builds.
-type color_RGBA = color.RGBA

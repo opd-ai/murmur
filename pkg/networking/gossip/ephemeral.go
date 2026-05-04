@@ -104,6 +104,38 @@ func subscribeToCouncilTopic(
 	return sub, entry.EncryptKey, nil
 }
 
+// cleanupTopicEntry closes the subscription and topic for a topic entry.
+// Caller must hold the lock. Does not delete from map or zero keys.
+func cleanupTopicEntry(entry interface{}) {
+	// Handle both ephemeralTopicEntry and councilTopicEntry
+	type topicEntry interface {
+		getSub() *pubsub.Subscription
+		getTopic() *pubsub.Topic
+	}
+
+	// Type assert to either ephemeral or council entry
+	var sub *pubsub.Subscription
+	var topic *pubsub.Topic
+
+	switch e := entry.(type) {
+	case *ephemeralTopicEntry:
+		sub = e.sub
+		topic = e.topic
+	case *councilTopicEntry:
+		sub = e.sub
+		topic = e.topic
+	default:
+		return
+	}
+
+	if sub != nil {
+		sub.Cancel()
+	}
+	if topic != nil {
+		_ = topic.Close()
+	}
+}
+
 // NewEphemeralTopicManager creates a new ephemeral topic manager.
 func NewEphemeralTopicManager(ps *PubSub, handlers *AnonymousTopicHandlers) *EphemeralTopicManager {
 	return &EphemeralTopicManager{
@@ -191,13 +223,7 @@ func (m *EphemeralTopicManager) LeaveEventTopic(eventID string) error {
 		return nil // Already gone
 	}
 
-	if entry.sub != nil {
-		entry.sub.Cancel()
-	}
-	if entry.topic != nil {
-		_ = entry.topic.Close()
-	}
-
+	cleanupTopicEntry(entry)
 	delete(m.topics, topicName)
 	return nil
 }
@@ -377,12 +403,7 @@ func (m *CouncilTopicManager) LeaveCouncilTopic(councilID string) error {
 		return nil
 	}
 
-	if entry.sub != nil {
-		entry.sub.Cancel()
-	}
-	if entry.topic != nil {
-		_ = entry.topic.Close()
-	}
+	cleanupTopicEntry(entry)
 
 	// Zero out the encryption key
 	for i := range entry.EncryptKey {

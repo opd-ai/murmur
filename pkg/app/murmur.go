@@ -403,10 +403,25 @@ func (a *App) initContent() error {
 	}
 	a.subsystems.Handlers = handlers
 
-	// Register handlers for all topics.
+	// Register handlers for all core topics.
 	if err := handlers.RegisterAll(a.ctx, a.subsystems.PubSub); err != nil {
 		return fmt.Errorf("registering handlers: %w", err)
 	}
+
+	// Per AUDIT.md remediation: Register anonymous mechanics topics.
+	// All nodes can receive anonymous events (Shadow Gradient visibility).
+	// Even Open-mode users see anonymous artifacts as incentive to upgrade.
+	if err := handlers.RegisterAnonymousMechanics(a.ctx, a.subsystems.PubSub); err != nil {
+		return fmt.Errorf("registering anonymous mechanics: %w", err)
+	}
+
+	// Start deduplication filter rotation goroutine.
+	// Per AUDIT.md, Bloom filter is rotated every 30 days to prevent unbounded growth.
+	a.wg.Add(1)
+	go func() {
+		defer a.wg.Done()
+		handlers.StartDedupRotation(a.ctx)
+	}()
 
 	// Start garbage collection goroutine.
 	a.wg.Add(1)

@@ -12,7 +12,7 @@ package ui
 
 import (
 	"fmt"
-	"sync"
+	"image/color"
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -21,70 +21,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
-// ForgeType represents the type of Sigil Forge event.
-type ForgeType uint8
-
-const (
-	ForgeTypeSigilArt   ForgeType = iota // Sigil art creation.
-	ForgeTypeMicroFic                    // Micro-fiction writing.
-	ForgeTypeRemixChain                  // Collaborative remix.
-)
-
-// ForgeEntryInfo contains information about a forge entry.
-type ForgeEntryInfo struct {
-	EntryID        [32]byte
-	SpecterKey     [32]byte
-	SpecterName    string
-	Preview        string // Short preview of entry content.
-	Amplifications int
-	SubmittedAt    time.Time
-	IsOwn          bool // True if this is the current user's entry.
-	IsWinner       bool
-}
-
-// ForgeInfo contains information about a forge event.
-type ForgeInfo struct {
-	ForgeID   [32]byte
-	Type      ForgeType
-	Prompt    string
-	Duration  time.Duration
-	StartTime time.Time
-	EndTime   time.Time
-	IsActive  bool
-	IsCreator bool // True if current user created this forge.
-	Entries   []ForgeEntryInfo
-}
-
-// ForgePanelMode represents the current panel mode.
-type ForgePanelMode uint8
-
-const (
-	ForgeModeView    ForgePanelMode = iota // Viewing forge details.
-	ForgeModeCreate                        // Creating a new forge.
-	ForgeModeSubmit                        // Submitting an entry.
-	ForgeModeEntries                       // Browsing entries.
-)
-
-// ForgePanel provides UI for Sigil Forge interaction.
-type ForgePanel struct {
-	mu sync.RWMutex
-
-	visible        bool
-	forge          *ForgeInfo
-	mode           ForgePanelMode
-	selectedEntry  int
-	scrollOffset   int
-	entryText      string // For submission.
-	promptText     string // For creation.
-	selectedType   ForgeType
-	durationChoice int // 0=30min, 1=60min.
-	errorMessage   string
-	theme          Theme
-
-	onCreate  func(forgeType ForgeType, prompt string, duration time.Duration)
-	onSubmit  func(forgeID [32]byte, content string)
-	onAmplify func(forgeID, entryID [32]byte)
-}
+// All types moved to forge_types.go to eliminate duplication with forge_stub.go.
 
 // NewForgePanel creates a new Forge panel.
 func NewForgePanel(theme Theme) *ForgePanel {
@@ -622,7 +559,13 @@ func (p *ForgePanel) drawCreateInstructions(screen *ebiten.Image, x, y, h, paddi
 
 func (p *ForgePanel) drawSubmitMode(screen *ebiten.Image, x, y, w, h, padding int) {
 	lineY := y + padding
+	lineY = p.drawForgePromptLabel(screen, x, lineY, padding)
+	lineY = p.drawEntryInputArea(screen, x, lineY, w, h, padding)
+	p.drawSubmitFooter(screen, x, y, w, h, padding)
+}
 
+// drawForgePromptLabel renders the forge prompt at the top.
+func (p *ForgePanel) drawForgePromptLabel(screen *ebiten.Image, x, lineY, padding int) int {
 	if p.forge != nil && defaultFont != nil {
 		promptText := "Prompt: " + truncateString(p.forge.Prompt, 45)
 		op := &text.DrawOptions{}
@@ -630,9 +573,11 @@ func (p *ForgePanel) drawSubmitMode(screen *ebiten.Image, x, y, w, h, padding in
 		op.ColorScale.ScaleWithColor(p.theme.TextSecondary)
 		text.Draw(screen, promptText, defaultFont, op)
 	}
-	lineY += 30
+	return lineY + 30
+}
 
-	// Entry input area.
+// drawEntryInputArea renders the large text input box for entry submission.
+func (p *ForgePanel) drawEntryInputArea(screen *ebiten.Image, x, lineY, w, h, padding int) int {
 	if defaultFont != nil {
 		op := &text.DrawOptions{}
 		op.GeoM.Translate(float64(x+padding), float64(lineY))
@@ -641,64 +586,69 @@ func (p *ForgePanel) drawSubmitMode(screen *ebiten.Image, x, y, w, h, padding in
 	}
 	lineY += 20
 
-	// Large input box.
 	inputH := h - 120
+	p.drawInputBox(screen, x, lineY, w, inputH, padding)
+	p.drawEntryText(screen, x, lineY, padding)
+	return lineY
+}
+
+// drawInputBox renders the input box background and border.
+func (p *ForgePanel) drawInputBox(screen *ebiten.Image, x, lineY, w, inputH, padding int) {
 	vector.DrawFilledRect(screen, float32(x+padding), float32(lineY),
 		float32(w-padding*2), float32(inputH), p.theme.InputBackground, true)
 	vector.StrokeRect(screen, float32(x+padding), float32(lineY),
 		float32(w-padding*2), float32(inputH), 1, p.theme.PanelBorder, true)
+}
 
-	if defaultFont != nil {
-		displayText := p.entryText
-		if displayText == "" {
-			displayText = "Enter your creative submission..."
-		}
-		op := &text.DrawOptions{}
-		op.GeoM.Translate(float64(x+padding+5), float64(lineY+5))
-		textColor := p.theme.TextPrimary
-		if p.entryText == "" {
-			textColor = p.theme.TextPlaceholder
-		}
-		op.ColorScale.ScaleWithColor(textColor)
-		// Show first few lines.
-		lines := wrapText(displayText, 55)
-		for i, line := range lines {
-			if i >= 8 {
-				break
-			}
-			lineOp := &text.DrawOptions{}
-			lineOp.GeoM.Translate(float64(x+padding+5), float64(lineY+5+i*18))
-			lineOp.ColorScale.ScaleWithColor(textColor)
-			text.Draw(screen, line, defaultFont, lineOp)
-		}
+// drawEntryText renders the entry text or placeholder inside the input box.
+func (p *ForgePanel) drawEntryText(screen *ebiten.Image, x, lineY, padding int) {
+	if defaultFont == nil {
+		return
 	}
 
-	// Character count.
-	if defaultFont != nil {
-		countText := fmt.Sprintf("%d/2048", len(p.entryText))
-		op := &text.DrawOptions{}
-		op.GeoM.Translate(float64(x+w-padding-80), float64(y+h-40))
-		op.ColorScale.ScaleWithColor(p.theme.TextSecondary)
-		text.Draw(screen, countText, defaultFont, op)
+	displayText := p.entryText
+	if displayText == "" {
+		displayText = "Enter your creative submission..."
 	}
 
-	// Instructions.
-	if defaultFont != nil {
-		op := &text.DrawOptions{}
-		op.GeoM.Translate(float64(x+padding), float64(y+h-40))
-		op.ColorScale.ScaleWithColor(p.theme.TextSecondary)
-		text.Draw(screen, "Enter:Submit  Esc:Cancel", defaultFont, op)
+	textColor := p.theme.TextPrimary
+	if p.entryText == "" {
+		textColor = p.theme.TextPlaceholder
 	}
+
+	lines := wrapText(displayText, 55)
+	for i, line := range lines {
+		if i >= 8 {
+			break
+		}
+		lineOp := &text.DrawOptions{}
+		lineOp.GeoM.Translate(float64(x+padding+5), float64(lineY+5+i*18))
+		lineOp.ColorScale.ScaleWithColor(textColor)
+		text.Draw(screen, line, defaultFont, lineOp)
+	}
+}
+
+// drawSubmitFooter renders character count and instructions.
+func (p *ForgePanel) drawSubmitFooter(screen *ebiten.Image, x, y, w, h, padding int) {
+	if defaultFont == nil {
+		return
+	}
+
+	countText := fmt.Sprintf("%d/2048", len(p.entryText))
+	op := &text.DrawOptions{}
+	op.GeoM.Translate(float64(x+w-padding-80), float64(y+h-40))
+	op.ColorScale.ScaleWithColor(p.theme.TextSecondary)
+	text.Draw(screen, countText, defaultFont, op)
+
+	op2 := &text.DrawOptions{}
+	op2.GeoM.Translate(float64(x+padding), float64(y+h-40))
+	op2.ColorScale.ScaleWithColor(p.theme.TextSecondary)
+	text.Draw(screen, "Enter:Submit  Esc:Cancel", defaultFont, op2)
 }
 
 func (p *ForgePanel) drawEntriesMode(screen *ebiten.Image, x, y, w, h, padding int) {
 	if p.forge == nil || len(p.forge.Entries) == 0 {
-		if defaultFont != nil {
-			op := &text.DrawOptions{}
-			op.GeoM.Translate(float64(x+padding), float64(y+padding))
-			op.ColorScale.ScaleWithColor(p.theme.TextSecondary)
-			text.Draw(screen, "No entries yet", defaultFont, op)
-		}
+		p.drawNoEntriesMessage(screen, x, y, padding)
 		return
 	}
 
@@ -710,52 +660,91 @@ func (p *ForgePanel) drawEntriesMode(screen *ebiten.Image, x, y, w, h, padding i
 		entry := &p.forge.Entries[i]
 		isSelected := i == p.selectedEntry
 
-		// Selection highlight.
 		if isSelected {
-			vector.DrawFilledRect(screen, float32(x+padding-5), float32(lineY-2),
-				float32(w-padding*2+10), float32(rowHeight-4), p.theme.Selection, true)
+			p.drawEntrySelectionHighlight(screen, x, lineY, w, rowHeight, padding)
 		}
 
-		// Entry info.
-		if defaultFont != nil {
-			// Name and amplifications.
-			nameText := entry.SpecterName
-			if entry.IsOwn {
-				nameText += " (you)"
-			}
-			if entry.IsWinner {
-				nameText += " ★"
-			}
-
-			textColor := p.theme.TextPrimary
-			if isSelected {
-				textColor = p.theme.AccentPrimary
-			}
-
-			op := &text.DrawOptions{}
-			op.GeoM.Translate(float64(x+padding), float64(lineY))
-			op.ColorScale.ScaleWithColor(textColor)
-			text.Draw(screen, nameText, defaultFont, op)
-
-			// Amplifications.
-			ampText := fmt.Sprintf("%d amps", entry.Amplifications)
-			op2 := &text.DrawOptions{}
-			op2.GeoM.Translate(float64(x+w-padding-80), float64(lineY))
-			op2.ColorScale.ScaleWithColor(p.theme.TextSecondary)
-			text.Draw(screen, ampText, defaultFont, op2)
-
-			// Preview.
-			preview := truncateString(entry.Preview, 50)
-			op3 := &text.DrawOptions{}
-			op3.GeoM.Translate(float64(x+padding+10), float64(lineY+20))
-			op3.ColorScale.ScaleWithColor(p.theme.TextSecondary)
-			text.Draw(screen, preview, defaultFont, op3)
-		}
-
-		lineY += rowHeight
+		lineY = p.drawEntryRow(screen, entry, x, lineY, w, padding, isSelected)
 	}
 
-	// Instructions.
+	p.drawEntriesInstructions(screen, x, y, h, padding)
+}
+
+// drawNoEntriesMessage shows a message when there are no entries.
+func (p *ForgePanel) drawNoEntriesMessage(screen *ebiten.Image, x, y, padding int) {
+	if defaultFont != nil {
+		op := &text.DrawOptions{}
+		op.GeoM.Translate(float64(x+padding), float64(y+padding))
+		op.ColorScale.ScaleWithColor(p.theme.TextSecondary)
+		text.Draw(screen, "No entries yet", defaultFont, op)
+	}
+}
+
+// drawEntrySelectionHighlight renders the selection rectangle.
+func (p *ForgePanel) drawEntrySelectionHighlight(screen *ebiten.Image, x, lineY, w, rowHeight, padding int) {
+	vector.DrawFilledRect(screen, float32(x+padding-5), float32(lineY-2),
+		float32(w-padding*2+10), float32(rowHeight-4), p.theme.Selection, true)
+}
+
+// drawEntryRow renders a single entry row with name, amplifications, and preview.
+func (p *ForgePanel) drawEntryRow(screen *ebiten.Image, entry *ForgeEntryInfo, x, lineY, w, padding int, isSelected bool) int {
+	if defaultFont == nil {
+		return lineY + 50
+	}
+
+	nameText := buildEntryNameText(entry)
+	textColor := p.theme.TextPrimary
+	if isSelected {
+		textColor = p.theme.AccentPrimary
+	}
+
+	p.drawEntryName(screen, x, lineY, padding, nameText, textColor)
+	p.drawEntryAmplifications(screen, x, lineY, w, padding, entry.Amplifications)
+	p.drawEntryPreview(screen, x, lineY, padding, entry.Preview)
+
+	return lineY + 50
+}
+
+// buildEntryNameText constructs the entry name with status indicators.
+func buildEntryNameText(entry *ForgeEntryInfo) string {
+	nameText := entry.SpecterName
+	if entry.IsOwn {
+		nameText += " (you)"
+	}
+	if entry.IsWinner {
+		nameText += " ★"
+	}
+	return nameText
+}
+
+// drawEntryName renders the entry author name.
+func (p *ForgePanel) drawEntryName(screen *ebiten.Image, x, lineY, padding int, nameText string, textColor color.RGBA) {
+	op := &text.DrawOptions{}
+	op.GeoM.Translate(float64(x+padding), float64(lineY))
+	op.ColorScale.ScaleWithColor(textColor)
+	text.Draw(screen, nameText, defaultFont, op)
+}
+
+// drawEntryAmplifications renders the amplification count.
+func (p *ForgePanel) drawEntryAmplifications(screen *ebiten.Image, x, lineY, w, padding, amplifications int) {
+	ampText := fmt.Sprintf("%d amps", amplifications)
+	op := &text.DrawOptions{}
+	op.GeoM.Translate(float64(x+w-padding-80), float64(lineY))
+	op.ColorScale.ScaleWithColor(p.theme.TextSecondary)
+	text.Draw(screen, ampText, defaultFont, op)
+}
+
+// drawEntryPreview renders the entry content preview.
+func (p *ForgePanel) drawEntryPreview(screen *ebiten.Image, x, lineY, padding int, preview string) {
+	previewText := truncateString(preview, 50)
+	op := &text.DrawOptions{}
+	op.GeoM.Translate(float64(x+padding+10), float64(lineY+20))
+	op.ColorScale.ScaleWithColor(p.theme.TextSecondary)
+	text.Draw(screen, previewText, defaultFont, op)
+}
+
+// drawEntriesInstructions shows navigation hints at the bottom.
+func (p *ForgePanel) drawEntriesInstructions(screen *ebiten.Image, x, y, h, padding int) {
 	if defaultFont != nil {
 		hints := "↑↓:Navigate  A:Amplify  Esc:Back"
 		op := &text.DrawOptions{}

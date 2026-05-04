@@ -145,23 +145,7 @@ func (t *UpdateThrottler) getIntervalLocked(category UpdateCategory) time.Durati
 // ShouldUpdate checks if an update is allowed for the given category.
 // If allowed, records the update time. If not allowed, increments drop count.
 func (t *UpdateThrottler) ShouldUpdate(category UpdateCategory) bool {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	now := time.Now()
-	interval := t.getIntervalLocked(category)
-	last := t.lastUpdate[category]
-
-	if now.Sub(last) >= interval {
-		t.lastUpdate[category] = now
-		t.updateCounts[category]++
-		t.pending[category] = false
-		return true
-	}
-
-	t.dropCounts[category]++
-	t.pending[category] = true
-	return false
+	return t.ShouldUpdateNow(category, time.Now())
 }
 
 // ShouldUpdateNow is like ShouldUpdate but takes the current time as parameter.

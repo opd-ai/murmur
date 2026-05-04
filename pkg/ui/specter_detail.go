@@ -12,7 +12,6 @@ package ui
 import (
 	"fmt"
 	"image/color"
-	"sync"
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -20,84 +19,7 @@ import (
 	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
 )
 
-// SpecterDetailMode represents the panel tab/mode.
-type SpecterDetailMode uint8
-
-const (
-	SpecterModeOverview SpecterDetailMode = iota // Overview with basic info.
-	SpecterModeTrophies                          // Trophy display.
-	SpecterModeActivity                          // Recent activity.
-	SpecterModeInteract                          // Interaction options.
-)
-
-// SpecterInfo contains information about a Specter for display.
-type SpecterInfo struct {
-	ID             [32]byte // Specter public key hash.
-	Pseudonym      string   // Generated name (e.g., "CrypticWanderer42").
-	Resonance      float64  // Current Resonance score.
-	Rank           string   // Resonance rank name.
-	CreatedAt      time.Time
-	LastSeenAt     time.Time
-	WaveCount      int
-	GiftsSent      int
-	GiftsReceived  int
-	PuzzlesSolved  int
-	HuntsCompleted int
-	IsOwnSpecter   bool // True if this is the user's own Specter.
-}
-
-// TrophyDisplayInfo contains trophy info for UI display.
-type TrophyDisplayInfo struct {
-	Trophy   mechanics.TrophyUnlock
-	Def      *mechanics.TrophyDefinition
-	Glyph    *mechanics.TrophyGlyph
-	Selected bool
-}
-
-// SpecterDetailCallbacks provides callbacks for panel actions.
-type SpecterDetailCallbacks struct {
-	// OnClose is called when user closes the panel.
-	OnClose func()
-
-	// OnSendGift opens gift panel for this Specter.
-	OnSendGift func(specterID [32]byte)
-
-	// OnViewWaves opens wave list for this Specter.
-	OnViewWaves func(specterID [32]byte)
-
-	// OnAddMark opens mark panel for this Specter.
-	OnAddMark func(specterID [32]byte)
-
-	// GetTrophies returns trophies for the Specter.
-	GetTrophies func(specterID [32]byte) []TrophyDisplayInfo
-
-	// GetTotalTrophyCount returns count of all available trophies.
-	GetTotalTrophyCount func() int
-}
-
-// SpecterDetailPanel displays detailed information about a Specter node.
-type SpecterDetailPanel struct {
-	mu sync.RWMutex
-
-	// State.
-	visible     bool
-	mode        SpecterDetailMode
-	theme       Theme
-	callbacks   SpecterDetailCallbacks
-	specter     *SpecterInfo
-	trophies    []TrophyDisplayInfo
-	animTime    float64
-	hoverButton int // -1 for none, 0-3 for tabs, 4+ for action buttons.
-
-	// Trophy grid state.
-	trophyScroll   int // Scroll offset.
-	selectedTrophy int // Selected trophy index, -1 for none.
-	trophyHover    int // Hovered trophy index, -1 for none.
-
-	// Dimensions (calculated in Draw).
-	panelX, panelY int
-	panelW, panelH int
-}
+// All types moved to specter_detail_types.go to eliminate duplication with specter_detail_stub.go.
 
 // NewSpecterDetailPanel creates a new Specter detail panel.
 func NewSpecterDetailPanel(theme Theme, callbacks SpecterDetailCallbacks) *SpecterDetailPanel {

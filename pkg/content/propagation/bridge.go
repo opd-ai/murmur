@@ -165,43 +165,79 @@ func (b *Bridge) injectTo(ctx context.Context, wave *pb.Wave, dir bridgeDirectio
 		return ErrBridgeDisabled
 	}
 
-	// Validate Wave type.
+	if err := b.validateWaveType(wave); err != nil {
+		return err
+	}
+
+	waveID := string(wave.WaveId)
+	if err := b.checkDuplicate(waveID); err != nil {
+		return err
+	}
+
+	if err := b.checkRateLimit(); err != nil {
+		return err
+	}
+
+	publisher, err := b.getPublisherForDirection(dir)
+	if err != nil {
+		return err
+	}
+
+	if err := b.publishWave(ctx, wave, publisher); err != nil {
+		return err
+	}
+
+	b.recordInjection(waveID, dir)
+	return nil
+}
+
+// validateWaveType checks if the wave is a valid Veiled Wave.
+func (b *Bridge) validateWaveType(wave *pb.Wave) error {
 	if !isVeiledWave(wave) {
 		b.recordInvalid()
 		return ErrNotVeiledWave
 	}
+	return nil
+}
 
-	// Check for duplicate injection.
-	waveID := string(wave.WaveId)
+// checkDuplicate verifies the wave hasn't been injected before.
+func (b *Bridge) checkDuplicate(waveID string) error {
 	if b.hasInjected(waveID) {
 		b.recordDuplicate()
 		return ErrDuplicateWave
 	}
+	return nil
+}
 
-	// Check rate limit.
+// checkRateLimit verifies rate limiting allows this injection.
+func (b *Bridge) checkRateLimit() error {
 	if b.rateLimiter != nil && !b.rateLimiter.allow() {
 		b.recordRateLimited()
 		return ErrRateLimited
 	}
+	return nil
+}
 
-	// Get publisher and nil-publisher error based on direction.
+// getPublisherForDirection retrieves the appropriate publisher for direction.
+func (b *Bridge) getPublisherForDirection(dir bridgeDirection) (Publisher, error) {
 	b.mu.RLock()
-	var publisher Publisher
-	var nilErr error
+	defer b.mu.RUnlock()
+
 	if dir == directionToSurface {
-		publisher = b.surfacePublisher
-		nilErr = ErrNoSurfacePublisher
-	} else {
-		publisher = b.anonymousPublisher
-		nilErr = ErrNoAnonymousPublisher
-	}
-	b.mu.RUnlock()
-
-	if publisher == nil {
-		return nilErr
+		if b.surfacePublisher == nil {
+			return nil, ErrNoSurfacePublisher
+		}
+		return b.surfacePublisher, nil
 	}
 
-	// Wrap and publish.
+	if b.anonymousPublisher == nil {
+		return nil, ErrNoAnonymousPublisher
+	}
+	return b.anonymousPublisher, nil
+}
+
+// publishWave wraps and publishes the wave via the given publisher.
+func (b *Bridge) publishWave(ctx context.Context, wave *pb.Wave, publisher Publisher) error {
 	envelope, err := wrapWaveInEnvelope(wave)
 	if err != nil {
 		return err
@@ -212,19 +248,17 @@ func (b *Bridge) injectTo(ctx context.Context, wave *pb.Wave, dir bridgeDirectio
 		return err
 	}
 
-	if err := publisher.Publish(ctx, data); err != nil {
-		return err
-	}
+	return publisher.Publish(ctx, data)
+}
 
-	// Mark as injected and record stats.
+// recordInjection marks the wave as injected and updates statistics.
+func (b *Bridge) recordInjection(waveID string, dir bridgeDirection) {
 	b.markInjected(waveID)
 	if dir == directionToSurface {
 		b.recordSurfaceInjection()
 	} else {
 		b.recordAnonymousInjection()
 	}
-
-	return nil
 }
 
 // InjectToSurface injects a Veiled Wave from Anonymous Layer to Surface Layer.

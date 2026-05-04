@@ -271,21 +271,37 @@ func (p *PEX) ExchangeWithPeer(ctx context.Context, peerID peer.ID) ([]PeerInfo,
 	}
 	defer s.Close()
 
-	// Send our peers.
-	sample := p.samplePeers(PEXSampleSize)
-	if err := s.SetWriteDeadline(time.Now().Add(PEXWriteTimeout)); err != nil {
-		return nil, fmt.Errorf("failed to set write deadline: %w", err)
-	}
-	if err := writePeerList(s, sample); err != nil {
-		return nil, fmt.Errorf("failed to write peer list: %w", err)
+	if err := p.sendPeerList(s); err != nil {
+		return nil, err
 	}
 
-	// Request their peers (close write side to signal request).
 	if err := s.CloseWrite(); err != nil {
 		return nil, fmt.Errorf("failed to close write: %w", err)
 	}
 
-	// Read their peers.
+	peers, err := p.receivePeerList(s)
+	if err != nil {
+		return nil, err
+	}
+
+	p.processReceivedPeers(peers)
+	return peers, nil
+}
+
+// sendPeerList sends our peer sample to the remote peer.
+func (p *PEX) sendPeerList(s network.Stream) error {
+	sample := p.samplePeers(PEXSampleSize)
+	if err := s.SetWriteDeadline(time.Now().Add(PEXWriteTimeout)); err != nil {
+		return fmt.Errorf("failed to set write deadline: %w", err)
+	}
+	if err := writePeerList(s, sample); err != nil {
+		return fmt.Errorf("failed to write peer list: %w", err)
+	}
+	return nil
+}
+
+// receivePeerList reads the peer list from the remote peer.
+func (p *PEX) receivePeerList(s network.Stream) ([]PeerInfo, error) {
 	if err := s.SetReadDeadline(time.Now().Add(PEXReadTimeout)); err != nil {
 		return nil, fmt.Errorf("failed to set read deadline: %w", err)
 	}
@@ -293,8 +309,11 @@ func (p *PEX) ExchangeWithPeer(ctx context.Context, peerID peer.ID) ([]PeerInfo,
 	if err != nil {
 		return nil, fmt.Errorf("failed to read peer list: %w", err)
 	}
+	return peers, nil
+}
 
-	// Process received peers.
+// processReceivedPeers adds received peers to the peerstore and invokes the handler.
+func (p *PEX) processReceivedPeers(peers []PeerInfo) {
 	for _, pi := range peers {
 		if pi.ID != p.h.ID() {
 			p.h.Peerstore().AddAddrs(pi.ID, pi.Addrs, time.Hour)
@@ -303,8 +322,6 @@ func (p *PEX) ExchangeWithPeer(ctx context.Context, peerID peer.ID) ([]PeerInfo,
 			}
 		}
 	}
-
-	return peers, nil
 }
 
 // Wire format for peer lists:

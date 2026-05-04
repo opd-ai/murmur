@@ -1,7 +1,7 @@
-// Package sync implements Wave synchronization protocol.
+// Package wavesync implements Wave synchronization protocol.
 // Per TECHNICAL_IMPLEMENTATION.md §5.4, the `/murmur/wave-sync/1` stream protocol
 // enables request-response fetching of Waves by hash for catch-up and missed messages.
-package sync
+package wavesync
 
 import (
 	"encoding/binary"

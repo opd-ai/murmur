@@ -126,23 +126,14 @@ func (ps *PersistentGiftStore) persistGift(gift *Gift) error {
 func (ps *PersistentGiftStore) GarbageCollect() int {
 	// Get list of expired gift IDs before cleanup.
 	ps.GiftStore.mu.RLock()
-	var expiredIDs [][32]byte
-	for id, gift := range ps.GiftStore.gifts {
-		if gift.IsExpired() {
-			expiredIDs = append(expiredIDs, id)
-		}
-	}
+	expiredIDs := mechanics.CollectExpiredFromMap(ps.GiftStore.gifts)
 	ps.GiftStore.mu.RUnlock()
 
 	// Call parent garbage collection.
 	removed := ps.GiftStore.GarbageCollect()
 
 	// Remove from database.
-	if ps.db != nil {
-		for _, id := range expiredIDs {
-			_ = ps.db.Delete(store.BucketGifts, id[:])
-		}
-	}
+	mechanics.DeleteFromDB(ps.db, store.BucketGifts, expiredIDs)
 
 	return removed
 }

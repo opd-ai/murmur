@@ -174,15 +174,7 @@ func buildSparkSignedData(event *pb.SparkEvent) []byte {
 	h.Write([]byte{byte(event.EventType)})
 	h.Write(event.SparkId)
 	h.Write(event.WinnerPubkey)
-	var ts [8]byte
-	ts[0] = byte(event.Timestamp >> 56)
-	ts[1] = byte(event.Timestamp >> 48)
-	ts[2] = byte(event.Timestamp >> 40)
-	ts[3] = byte(event.Timestamp >> 32)
-	ts[4] = byte(event.Timestamp >> 24)
-	ts[5] = byte(event.Timestamp >> 16)
-	ts[6] = byte(event.Timestamp >> 8)
-	ts[7] = byte(event.Timestamp)
+	ts := mechanics.EncodeTimestamp(event.Timestamp)
 	h.Write(ts[:])
 	return h.Sum(nil)
 }
@@ -193,15 +185,7 @@ func buildSparkResponseSignedData(response *pb.SparkResponse) []byte {
 	h.Write(response.SparkId)
 	h.Write(response.ResponderPubkey)
 	h.Write(response.WaveId)
-	var ts [8]byte
-	ts[0] = byte(response.RespondedAt >> 56)
-	ts[1] = byte(response.RespondedAt >> 48)
-	ts[2] = byte(response.RespondedAt >> 40)
-	ts[3] = byte(response.RespondedAt >> 32)
-	ts[4] = byte(response.RespondedAt >> 24)
-	ts[5] = byte(response.RespondedAt >> 16)
-	ts[6] = byte(response.RespondedAt >> 8)
-	ts[7] = byte(response.RespondedAt)
+	ts := mechanics.EncodeTimestamp(response.RespondedAt)
 	h.Write(ts[:])
 	return h.Sum(nil)
 }

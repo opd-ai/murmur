@@ -188,7 +188,12 @@ func (o *MarkOverlay) SyncFromStore(store *marks.MarkStore) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
-	// Clear expired marks.
+	o.removeExpiredMarks()
+	o.addNewMarksFromStore(store)
+}
+
+// removeExpiredMarks clears all expired marks from the overlay.
+func (o *MarkOverlay) removeExpiredMarks() {
 	for targetID, displays := range o.marks {
 		active := displays[:0]
 		for _, d := range displays {
@@ -202,34 +207,44 @@ func (o *MarkOverlay) SyncFromStore(store *marks.MarkStore) {
 			delete(o.marks, targetID)
 		}
 	}
+}
 
-	// Add new marks from store.
+// addNewMarksFromStore adds marks from the store that aren't already displayed.
+func (o *MarkOverlay) addNewMarksFromStore(store *marks.MarkStore) {
 	allMarks := store.GetAllActiveMarks()
 	for _, mark := range allMarks {
 		if mark == nil || mark.IsExpired() {
 			continue
 		}
+		o.addMarkIfNotPresent(mark)
+	}
+}
 
-		targetID := keyToHexMarks(mark.TargetKey[:])
+// addMarkIfNotPresent adds a mark to display if not already present.
+func (o *MarkOverlay) addMarkIfNotPresent(mark *marks.Mark) {
+	targetID := keyToHexMarks(mark.TargetKey[:])
 
-		found := false
-		for _, d := range o.marks[targetID] {
-			if d.Mark != nil && d.Mark.ID == mark.ID {
-				found = true
-				break
-			}
-		}
+	if o.hasMarkWithID(targetID, mark.ID) {
+		return
+	}
 
-		if !found {
-			orbitSpeed := 0.5 + float32(mark.ID[0]%64)/128.0
-			o.marks[targetID] = append(o.marks[targetID], &MarkDisplay{
-				Mark:       mark,
-				OrbitAngle: float32(mark.ID[1]) / 40.0,
-				OrbitSpeed: orbitSpeed,
-				PulsePhase: 0,
-			})
+	orbitSpeed := 0.5 + float32(mark.ID[0]%64)/128.0
+	o.marks[targetID] = append(o.marks[targetID], &MarkDisplay{
+		Mark:       mark,
+		OrbitAngle: float32(mark.ID[1]) / 40.0,
+		OrbitSpeed: orbitSpeed,
+		PulsePhase: 0,
+	})
+}
+
+// hasMarkWithID checks if a mark with given ID is already displayed for target.
+func (o *MarkOverlay) hasMarkWithID(targetID string, markID [32]byte) bool {
+	for _, d := range o.marks[targetID] {
+		if d.Mark != nil && d.Mark.ID == markID {
+			return true
 		}
 	}
+	return false
 }
 
 // keyToHexMarks converts a byte slice to hex string.

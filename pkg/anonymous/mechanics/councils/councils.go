@@ -699,24 +699,21 @@ func (c *PhantomCouncil) VoteOnExpulsion(
 	voter, target [32]byte,
 	vote VoteValue,
 ) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if err := c.validateVoter(voter); err != nil {
-		return err
-	}
-
-	ev := c.findPendingExpulsion(target)
-	if ev == nil {
-		return ErrCouncilVoteNotFound
-	}
-
-	if err := c.recordVote(ev.Votes, voter, vote); err != nil {
-		return err
-	}
-
-	c.checkExpulsionVotes(ev)
-	return nil
+	return c.processVote(voter, vote,
+		func() (map[string]VoteValue, error) {
+			ev := c.findPendingExpulsion(target)
+			if ev == nil {
+				return nil, ErrCouncilVoteNotFound
+			}
+			return ev.Votes, nil
+		},
+		func() {
+			ev := c.findPendingExpulsion(target)
+			if ev != nil {
+				c.checkExpulsionVotes(ev)
+			}
+		},
+	)
 }
 
 // validateVoter ensures the voter is a council member.
@@ -744,6 +741,34 @@ func (c *PhantomCouncil) recordVote(votes map[string]VoteValue, voter [32]byte, 
 		return ErrCouncilAlreadyVoted
 	}
 	votes[voterHex] = vote
+	return nil
+}
+
+// processVote handles the common voting logic for expulsions and proposals.
+// It validates the voter, retrieves the voteable item, records the vote, and checks the results.
+func (c *PhantomCouncil) processVote(
+	voter [32]byte,
+	vote VoteValue,
+	findItem func() (votes map[string]VoteValue, notFoundErr error),
+	checkVotes func(),
+) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if err := c.validateVoter(voter); err != nil {
+		return err
+	}
+
+	votes, notFoundErr := findItem()
+	if notFoundErr != nil {
+		return notFoundErr
+	}
+
+	if err := c.recordVote(votes, voter, vote); err != nil {
+		return err
+	}
+
+	checkVotes()
 	return nil
 }
 
@@ -902,24 +927,21 @@ func (c *PhantomCouncil) VoteOnProposal(
 	proposalID [32]byte,
 	vote VoteValue,
 ) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if err := c.validateVoter(voter); err != nil {
-		return err
-	}
-
-	proposal := c.findPendingProposal(proposalID)
-	if proposal == nil {
-		return ErrCouncilProposalNotFound
-	}
-
-	if err := c.recordVote(proposal.Votes, voter, vote); err != nil {
-		return err
-	}
-
-	c.checkProposalVotes(proposal)
-	return nil
+	return c.processVote(voter, vote,
+		func() (map[string]VoteValue, error) {
+			proposal := c.findPendingProposal(proposalID)
+			if proposal == nil {
+				return nil, ErrCouncilProposalNotFound
+			}
+			return proposal.Votes, nil
+		},
+		func() {
+			proposal := c.findPendingProposal(proposalID)
+			if proposal != nil {
+				c.checkProposalVotes(proposal)
+			}
+		},
+	)
 }
 
 // findPendingProposal locates an unresolved proposal by ID.

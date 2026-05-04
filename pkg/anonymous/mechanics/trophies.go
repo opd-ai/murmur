@@ -449,42 +449,58 @@ func (e *TrophyEvaluator) CheckRareTrophies(resonance float64) []TrophyID {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	// Cartographer: 50 territories discovered
-	if c.TerritoriesDiscovered >= 50 && !e.store.HasTrophy(TrophyCartographer) {
-		if err := e.store.UnlockTrophy(TrophyCartographer, resonance); err == nil {
-			awarded = append(awarded, TrophyCartographer)
-		}
-	}
-
-	// Oracle: 10 correct predictions in a row
-	if c.OracleCorrectStreak >= 10 && !e.store.HasTrophy(TrophyOracle) {
-		if err := e.store.UnlockTrophy(TrophyOracle, resonance); err == nil {
-			awarded = append(awarded, TrophyOracle)
-		}
-	}
-
-	// Chain Breaker: Echo chain length 10+
-	if c.MaxEchoChainLength >= 10 && !e.store.HasTrophy(TrophyChainBreaker) {
-		if err := e.store.UnlockTrophy(TrophyChainBreaker, resonance); err == nil {
-			awarded = append(awarded, TrophyChainBreaker)
-		}
-	}
-
-	// Ghost: Resonance 100+ for 90 consecutive days
-	if c.ResonanceAbove100Days >= 90 && !e.store.HasTrophy(TrophyGhost) {
-		if err := e.store.UnlockTrophy(TrophyGhost, resonance); err == nil {
-			awarded = append(awarded, TrophyGhost)
-		}
-	}
-
-	// Council Founder: Created a council
-	if c.CouncilsCreated >= 1 && !e.store.HasTrophy(TrophyCouncilFounder) {
-		if err := e.store.UnlockTrophy(TrophyCouncilFounder, resonance); err == nil {
-			awarded = append(awarded, TrophyCouncilFounder)
-		}
-	}
+	e.checkCartographerTrophy(c, resonance, &awarded)
+	e.checkOracleTrophy(c, resonance, &awarded)
+	e.checkChainBreakerTrophy(c, resonance, &awarded)
+	e.checkGhostTrophy(c, resonance, &awarded)
+	e.checkCouncilFounderTrophy(c, resonance, &awarded)
 
 	return awarded
+}
+
+// checkCartographerTrophy checks and awards Cartographer trophy.
+func (e *TrophyEvaluator) checkCartographerTrophy(c *ActivityCounters, resonance float64, awarded *[]TrophyID) {
+	if c.TerritoriesDiscovered >= 50 && !e.store.HasTrophy(TrophyCartographer) {
+		if err := e.store.UnlockTrophy(TrophyCartographer, resonance); err == nil {
+			*awarded = append(*awarded, TrophyCartographer)
+		}
+	}
+}
+
+// checkOracleTrophy checks and awards Oracle trophy.
+func (e *TrophyEvaluator) checkOracleTrophy(c *ActivityCounters, resonance float64, awarded *[]TrophyID) {
+	if c.OracleCorrectStreak >= 10 && !e.store.HasTrophy(TrophyOracle) {
+		if err := e.store.UnlockTrophy(TrophyOracle, resonance); err == nil {
+			*awarded = append(*awarded, TrophyOracle)
+		}
+	}
+}
+
+// checkChainBreakerTrophy checks and awards Chain Breaker trophy.
+func (e *TrophyEvaluator) checkChainBreakerTrophy(c *ActivityCounters, resonance float64, awarded *[]TrophyID) {
+	if c.MaxEchoChainLength >= 10 && !e.store.HasTrophy(TrophyChainBreaker) {
+		if err := e.store.UnlockTrophy(TrophyChainBreaker, resonance); err == nil {
+			*awarded = append(*awarded, TrophyChainBreaker)
+		}
+	}
+}
+
+// checkGhostTrophy checks and awards Ghost trophy.
+func (e *TrophyEvaluator) checkGhostTrophy(c *ActivityCounters, resonance float64, awarded *[]TrophyID) {
+	if c.ResonanceAbove100Days >= 90 && !e.store.HasTrophy(TrophyGhost) {
+		if err := e.store.UnlockTrophy(TrophyGhost, resonance); err == nil {
+			*awarded = append(*awarded, TrophyGhost)
+		}
+	}
+}
+
+// checkCouncilFounderTrophy checks and awards Council Founder trophy.
+func (e *TrophyEvaluator) checkCouncilFounderTrophy(c *ActivityCounters, resonance float64, awarded *[]TrophyID) {
+	if c.CouncilsCreated >= 1 && !e.store.HasTrophy(TrophyCouncilFounder) {
+		if err := e.store.UnlockTrophy(TrophyCouncilFounder, resonance); err == nil {
+			*awarded = append(*awarded, TrophyCouncilFounder)
+		}
+	}
 }
 
 // CheckAllTrophies evaluates all trophy categories.

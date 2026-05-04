@@ -1013,6 +1013,13 @@ func (m *CircuitManager) buildBackupCircuitAsync() {
 	m.buildBackupCircuitLocked()
 }
 
+// BuildInitialCircuitAsync attempts to build an initial circuit at startup
+// without blocking. Returns a channel that will receive the circuit result.
+// Per AUDIT.md, prevents app hang when bootstrap peers are slow or unavailable.
+func (m *CircuitManager) BuildInitialCircuitAsync(ctx context.Context) <-chan *CircuitResult {
+	return m.RotateCircuitAsync(ctx)
+}
+
 // StartRotation runs periodic circuit rotation.
 func (m *CircuitManager) StartRotation(ctx context.Context) {
 	ticker := time.NewTicker(CircuitRotationInterval)
@@ -1024,9 +1031,50 @@ func (m *CircuitManager) StartRotation(ctx context.Context) {
 			m.closeCircuits()
 			return
 		case <-ticker.C:
-			m.RotateCircuit()
+			// Use async rotation to avoid blocking the goroutine
+			go m.RotateCircuitAsync(ctx)
 		}
 	}
+}
+
+// RotateCircuitAsync builds new circuits asynchronously without blocking.
+// Returns a channel that will receive the new primary circuit or an error.
+// Per AUDIT.md, this prevents startup blocking when bootstrap is slow.
+func (m *CircuitManager) RotateCircuitAsync(ctx context.Context) <-chan *CircuitResult {
+	resultCh := make(chan *CircuitResult, 1)
+
+	go func() {
+		// Create timeout context (30 seconds per AUDIT.md)
+		timeoutCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+
+		// Run circuit building with timeout
+		done := make(chan *CircuitResult, 1)
+		go func() {
+			circuit, err := m.RotateCircuit()
+			done <- &CircuitResult{Circuit: circuit, Err: err}
+		}()
+
+		select {
+		case result := <-done:
+			resultCh <- result
+		case <-timeoutCtx.Done():
+			// Timeout or context cancelled
+			resultCh <- &CircuitResult{
+				Circuit: nil,
+				Err:     errors.New("circuit construction timeout (30s)"),
+			}
+		}
+		close(resultCh)
+	}()
+
+	return resultCh
+}
+
+// CircuitResult holds the result of an async circuit build operation.
+type CircuitResult struct {
+	Circuit *Circuit
+	Err     error
 }
 
 // SetOnRotation sets a callback that's invoked after each rotation.

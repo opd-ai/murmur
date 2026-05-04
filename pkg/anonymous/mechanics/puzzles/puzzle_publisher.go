@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
+
 	"github.com/zeebo/blake3"
 	"google.golang.org/protobuf/proto"
 
@@ -189,15 +191,7 @@ func buildPuzzleSignedData(event *pb.PuzzleEvent) []byte {
 	h.Write(event.PuzzleId)
 	h.Write(event.SolverPubkey)
 	h.Write(event.SolutionHash)
-	var ts [8]byte
-	ts[0] = byte(event.Timestamp >> 56)
-	ts[1] = byte(event.Timestamp >> 48)
-	ts[2] = byte(event.Timestamp >> 40)
-	ts[3] = byte(event.Timestamp >> 32)
-	ts[4] = byte(event.Timestamp >> 24)
-	ts[5] = byte(event.Timestamp >> 16)
-	ts[6] = byte(event.Timestamp >> 8)
-	ts[7] = byte(event.Timestamp)
+	ts := mechanics.EncodeTimestamp(event.Timestamp)
 	h.Write(ts[:])
 	return h.Sum(nil)
 }

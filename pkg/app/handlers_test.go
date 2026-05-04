@@ -25,8 +25,8 @@ func TestNewHandlers(t *testing.T) {
 	if h == nil {
 		t.Fatal("NewHandlers returned nil")
 	}
-	if h.maxSeenMessages != 100000 {
-		t.Errorf("expected default maxSeenMessages 100000, got %d", h.maxSeenMessages)
+	if h.dedupFilter == nil {
+		t.Error("expected dedupFilter to be initialized")
 	}
 }
 
@@ -267,23 +267,27 @@ func TestHandlers_ValidateRelayAdvertisement(t *testing.T) {
 }
 
 func TestHandlers_Deduplication(t *testing.T) {
-	h, _ := NewHandlers(HandlersConfig{MaxSeenMessages: 10})
+	h, _ := NewHandlers(HandlersConfig{})
 
-	// Add messages until capacity.
-	for i := 0; i < 15; i++ {
-		msgID := []byte{byte(i)}
-		h.markSeen(msgID)
+	// Add a message ID.
+	msgID := []byte("test-message-id-123")
+	h.markSeen(msgID)
+
+	// Should be marked as duplicate.
+	if !h.isDuplicate(msgID) {
+		t.Error("message should be marked as duplicate after markSeen")
 	}
 
-	// Should have evicted some.
-	count := h.SeenCount()
-	if count >= 15 {
-		t.Errorf("expected eviction, but have %d messages", count)
+	// Different message ID should not be duplicate.
+	otherID := []byte("other-message-id-456")
+	if h.isDuplicate(otherID) {
+		t.Error("unseen message should not be marked as duplicate")
 	}
 
-	// Most recent should still be there.
-	if !h.isDuplicate([]byte{14}) {
-		t.Error("most recent message should be in cache")
+	// Clear and check.
+	h.ClearSeen()
+	if h.isDuplicate(msgID) {
+		t.Error("message should not be duplicate after clear")
 	}
 }
 

@@ -1,7 +1,11 @@
 // Package mechanics provides shared helpers for anonymous game mechanics stores.
 package mechanics
 
-import "errors"
+import (
+	"errors"
+
+	"github.com/opd-ai/murmur/pkg/store"
+)
 
 // ResonanceGate provides an interface for checking Specter Resonance scores.
 // This is used for Resonance gating on mini-game actions per ROADMAP.md line 414.
@@ -60,4 +64,48 @@ func GarbageCollectHistory[T any](history []T, lookup map[[32]byte]T, maxHistory
 	}
 
 	return history[removed:], removed
+}
+
+// EncodeTimestamp encodes a Unix timestamp in seconds to 8 bytes (big-endian).
+// This is used for event signature data construction across mechanics.
+func EncodeTimestamp(timestamp int64) [8]byte {
+	var ts [8]byte
+	ts[0] = byte(timestamp >> 56)
+	ts[1] = byte(timestamp >> 48)
+	ts[2] = byte(timestamp >> 40)
+	ts[3] = byte(timestamp >> 32)
+	ts[4] = byte(timestamp >> 24)
+	ts[5] = byte(timestamp >> 16)
+	ts[6] = byte(timestamp >> 8)
+	ts[7] = byte(timestamp)
+	return ts
+}
+
+// Expirable represents an object that can expire based on time.
+type Expirable interface {
+	IsExpired() bool
+}
+
+// CollectExpiredFromMap scans a map for expired items and returns their IDs.
+// The caller must hold the read lock. This is used by persistent stores
+// to identify items to delete from both memory and database.
+func CollectExpiredFromMap[T Expirable](items map[[32]byte]T) [][32]byte {
+	var expiredIDs [][32]byte
+	for id, item := range items {
+		if item.IsExpired() {
+			expiredIDs = append(expiredIDs, id)
+		}
+	}
+	return expiredIDs
+}
+
+// DeleteFromDB deletes a list of IDs from a Bbolt bucket.
+// It ignores errors for robustness during garbage collection.
+func DeleteFromDB(db *store.DB, bucket []byte, ids [][32]byte) {
+	if db == nil {
+		return
+	}
+	for _, id := range ids {
+		_ = db.Delete(bucket, id[:])
+	}
 }

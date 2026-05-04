@@ -34,3 +34,33 @@ var DefaultBootstrapPeers = []string{
 	// For now, empty list results in isolated mode warning.
 	// Users must manually configure bootstrap peers or run local bootstrap node.
 }
+
+// BootstrapSources holds URLs for GitHub-based bootstrap discovery.
+// Per PLAN.md "Bootstrap Strategy: Zero-Infrastructure Peer Discovery".
+type BootstrapSources struct {
+	GistURL        string // Raw Gist URL (set at compile time via ldflags)
+	PagesURL       string // GitHub Pages URL (e.g., https://opd-ai.github.io/murmur/peers.json)
+	IPFSCidURL     string // URL to cid.txt on Pages (for IPFS gateway fallback)
+	IPFSGatewayURL string // IPFS HTTP gateway (e.g., https://dweb.link)
+	DHTNamespace   string // DHT rendezvous namespace (e.g., /murmur/bootstrap/v1)
+}
+
+// DefaultBootstrapSources provides the default GitHub-based bootstrap sources.
+// Per PLAN.md: These are layered with fallback behavior.
+var DefaultBootstrapSources = BootstrapSources{
+	GistURL:        "", // Set via ldflags: -X 'github.com/opd-ai/murmur/pkg/config.GistRawURL=...'
+	PagesURL:       "https://opd-ai.github.io/murmur/peers.json",
+	IPFSCidURL:     "https://opd-ai.github.io/murmur/cid.txt",
+	IPFSGatewayURL: "https://dweb.link",
+	DHTNamespace:   "/murmur/bootstrap/v1",
+}
+
+// GistRawURL can be set at compile time via ldflags.
+var GistRawURL string
+
+func init() {
+	// Apply ldflags-provided Gist URL if set
+	if GistRawURL != "" {
+		DefaultBootstrapSources.GistURL = GistRawURL
+	}
+}

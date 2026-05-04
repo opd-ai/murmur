@@ -14,6 +14,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
+// Draw renders the council panel to the screen.
 func (cp *CouncilPanel) Draw(screen *ebiten.Image) {
 	cp.mu.RLock()
 	defer cp.mu.RUnlock()
@@ -304,44 +305,68 @@ func (cp *CouncilPanel) drawProposalsList(screen *ebiten.Image, x, y, w, h float
 	for i, prop := range cp.currentCouncil.Proposals {
 		itemY := y + padding + float32(i-cp.scrollOffset)*itemHeight
 
-		// Skip if scrolled out of view.
-		if itemY < y || itemY > y+h-itemHeight {
+		if cp.isProposalOutOfView(itemY, y, h, itemHeight) {
 			continue
 		}
 
-		// Highlight if selected.
-		if i == cp.scrollOffset {
-			vector.DrawFilledRect(screen, x+padding, itemY, w-padding*2, itemHeight-5, cp.theme.Selection, true)
-		}
-
-		// Status indicator.
-		statusColor := cp.theme.AccentPrimary
-		if prop.Resolved {
-			if prop.Passed {
-				statusColor = cp.theme.Success
-			} else {
-				statusColor = cp.theme.TextError
-			}
-		}
-		vector.DrawFilledCircle(screen, x+padding+10, itemY+itemHeight/2, 8, statusColor, true)
-
-		// Proposal text placeholder.
-		vector.DrawFilledRect(screen, x+padding+30, itemY+10, w-padding*2-40, itemHeight-30, cp.theme.InputBackground, true)
-
-		// Vote counts.
-		forCount := 0
-		againstCount := 0
-		for _, v := range prop.Votes {
-			if v == VoteValueFor {
-				forCount++
-			} else if v == VoteValueAgainst {
-				againstCount++
-			}
-		}
-		voteY := itemY + itemHeight - 15
-		vector.DrawFilledRect(screen, x+w-padding-80, voteY, float32(forCount*10), 10, cp.theme.Success, true)
-		vector.DrawFilledRect(screen, x+w-padding-40, voteY, float32(againstCount*10), 10, cp.theme.TextError, true)
+		cp.drawProposalItem(screen, i, &prop, x, itemY, w, padding, itemHeight)
 	}
+}
+
+// isProposalOutOfView checks if a proposal is scrolled out of view.
+func (cp *CouncilPanel) isProposalOutOfView(itemY, y, h, itemHeight float32) bool {
+	return itemY < y || itemY > y+h-itemHeight
+}
+
+// drawProposalItem renders a single proposal item.
+func (cp *CouncilPanel) drawProposalItem(screen *ebiten.Image, index int, prop *CouncilProposalInfo, x, itemY, w, padding, itemHeight float32) {
+	if index == cp.scrollOffset {
+		vector.DrawFilledRect(screen, x+padding, itemY, w-padding*2, itemHeight-5, cp.theme.Selection, true)
+	}
+
+	cp.drawProposalStatusIndicator(screen, prop, x, itemY, padding, itemHeight)
+	cp.drawProposalTextPlaceholder(screen, x, itemY, w, padding, itemHeight)
+	cp.drawProposalVoteCounts(screen, prop, x, itemY, w, padding, itemHeight)
+}
+
+// drawProposalStatusIndicator draws the proposal status circle.
+func (cp *CouncilPanel) drawProposalStatusIndicator(screen *ebiten.Image, prop *CouncilProposalInfo, x, itemY, padding, itemHeight float32) {
+	statusColor := cp.theme.AccentPrimary
+	if prop.Resolved {
+		if prop.Passed {
+			statusColor = cp.theme.Success
+		} else {
+			statusColor = cp.theme.TextError
+		}
+	}
+	vector.DrawFilledCircle(screen, x+padding+10, itemY+itemHeight/2, 8, statusColor, true)
+}
+
+// drawProposalTextPlaceholder draws the proposal text area.
+func (cp *CouncilPanel) drawProposalTextPlaceholder(screen *ebiten.Image, x, itemY, w, padding, itemHeight float32) {
+	vector.DrawFilledRect(screen, x+padding+30, itemY+10, w-padding*2-40, itemHeight-30, cp.theme.InputBackground, true)
+}
+
+// drawProposalVoteCounts draws vote count bars.
+func (cp *CouncilPanel) drawProposalVoteCounts(screen *ebiten.Image, prop *CouncilProposalInfo, x, itemY, w, padding, itemHeight float32) {
+	forCount, againstCount := cp.countVotes(prop)
+	voteY := itemY + itemHeight - 15
+	vector.DrawFilledRect(screen, x+w-padding-80, voteY, float32(forCount*10), 10, cp.theme.Success, true)
+	vector.DrawFilledRect(screen, x+w-padding-40, voteY, float32(againstCount*10), 10, cp.theme.TextError, true)
+}
+
+// countVotes tallies for and against votes for a proposal.
+func (cp *CouncilPanel) countVotes(prop *CouncilProposalInfo) (int, int) {
+	forCount := 0
+	againstCount := 0
+	for _, v := range prop.Votes {
+		if v == VoteValueFor {
+			forCount++
+		} else if v == VoteValueAgainst {
+			againstCount++
+		}
+	}
+	return forCount, againstCount
 }
 
 // drawInviteForm draws the invite member form.

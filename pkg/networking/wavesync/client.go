@@ -1,6 +1,6 @@
 // Package sync implements Wave synchronization protocol.
 // This file provides the client-side sync functionality.
-package sync
+package wavesync
 
 import (
 	"context"

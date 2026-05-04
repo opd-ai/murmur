@@ -145,12 +145,22 @@ func (o *PulseBeatOverlay) AddBeat(beat *DisplayBeat) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
-	// Set display time if not set.
+	o.initializeBeat(beat)
+
+	if o.updateExistingBeat(beat) {
+		return
+	}
+
+	o.insertBeatByPriority(beat)
+	o.enforceMaxVisible()
+}
+
+// initializeBeat sets default values for beat if not already set.
+func (o *PulseBeatOverlay) initializeBeat(beat *DisplayBeat) {
 	if beat.DisplayedAt.IsZero() {
 		beat.DisplayedAt = time.Now()
 	}
 
-	// Set default color if not set.
 	if beat.Color.A == 0 {
 		if c, ok := o.typeColors[beat.Type]; ok {
 			beat.Color = c
@@ -158,34 +168,37 @@ func (o *PulseBeatOverlay) AddBeat(beat *DisplayBeat) {
 			beat.Color = color.RGBA{R: 200, G: 200, B: 200, A: 255}
 		}
 	}
+}
 
-	// Check if beat already exists.
+// updateExistingBeat updates a beat if it already exists.
+// Returns true if the beat was found and updated.
+func (o *PulseBeatOverlay) updateExistingBeat(beat *DisplayBeat) bool {
 	for i, b := range o.beats {
 		if b.ID == beat.ID {
 			o.beats[i] = beat
-			return
+			return true
 		}
 	}
+	return false
+}
 
-	// Insert by priority (higher priority first).
-	inserted := false
+// insertBeatByPriority inserts beat in priority order.
+func (o *PulseBeatOverlay) insertBeatByPriority(beat *DisplayBeat) {
 	for i, b := range o.beats {
 		if beat.Priority > b.Priority {
-			// Insert before b.
 			newBeats := make([]*DisplayBeat, 0, len(o.beats)+1)
 			newBeats = append(newBeats, o.beats[:i]...)
 			newBeats = append(newBeats, beat)
 			newBeats = append(newBeats, o.beats[i:]...)
 			o.beats = newBeats
-			inserted = true
-			break
+			return
 		}
 	}
-	if !inserted {
-		o.beats = append(o.beats, beat)
-	}
+	o.beats = append(o.beats, beat)
+}
 
-	// Enforce max visible.
+// enforceMaxVisible trims beat list to maximum visible count.
+func (o *PulseBeatOverlay) enforceMaxVisible() {
 	if len(o.beats) > o.maxVisible {
 		o.beats = o.beats[:o.maxVisible]
 	}

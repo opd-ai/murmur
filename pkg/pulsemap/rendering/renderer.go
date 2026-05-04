@@ -256,14 +256,9 @@ func (r *Renderer) drawEdges(screen *ebiten.Image, positions map[string]layout.P
 			continue
 		}
 
-		// Transform world coordinates to screen coordinates.
-		srcScreenX, srcScreenY := r.camera.WorldToScreen(srcPos.X, srcPos.Y, screenW, screenH)
-		dstScreenX, dstScreenY := r.camera.WorldToScreen(dstPos.X, dstPos.Y, screenW, screenH)
-
-		// Cull edges completely outside screen (with margin).
-		margin := 50.0
-		if !r.lineIntersectsRect(srcScreenX, srcScreenY, dstScreenX, dstScreenY,
-			-margin, -margin, screenW+margin, screenH+margin) {
+		// Transform and cull.
+		srcScreenX, srcScreenY, dstScreenX, dstScreenY, visible := r.transformAndCullLine(srcPos.X, srcPos.Y, dstPos.X, dstPos.Y, screenW, screenH)
+		if !visible {
 			continue
 		}
 
@@ -295,14 +290,9 @@ func (r *Renderer) drawAmplificationTrails(screen *ebiten.Image, positions map[s
 			continue
 		}
 
-		// Transform world coordinates to screen coordinates.
-		ampScreenX, ampScreenY := r.camera.WorldToScreen(ampPos.X, ampPos.Y, screenW, screenH)
-		origScreenX, origScreenY := r.camera.WorldToScreen(origPos.X, origPos.Y, screenW, screenH)
-
-		// Cull trails completely outside screen (with margin).
-		margin := 50.0
-		if !r.lineIntersectsRect(ampScreenX, ampScreenY, origScreenX, origScreenY,
-			-margin, -margin, screenW+margin, screenH+margin) {
+		// Transform and cull.
+		ampScreenX, ampScreenY, origScreenX, origScreenY, visible := r.transformAndCullLine(ampPos.X, ampPos.Y, origPos.X, origPos.Y, screenW, screenH)
+		if !visible {
 			continue
 		}
 
@@ -413,6 +403,24 @@ func (r *Renderer) drawNodeGlow(screen *ebiten.Image, x, y float32, style NodeSt
 	// Glow size is 3x node radius.
 	radius := computeNodeRadius(style)
 	r.shaders.DrawGlow(screen, x, y, radius*6, uniforms)
+}
+
+// transformAndCullLine transforms two world positions to screen coordinates and checks if visible.
+// Returns screen coordinates and true if the line should be drawn, or false if culled.
+func (r *Renderer) transformAndCullLine(
+	srcWorldX, srcWorldY, dstWorldX, dstWorldY float64,
+	screenW, screenH float64,
+) (srcScreenX, srcScreenY, dstScreenX, dstScreenY float64, visible bool) {
+	// Transform world coordinates to screen coordinates.
+	srcScreenX, srcScreenY = r.camera.WorldToScreen(srcWorldX, srcWorldY, screenW, screenH)
+	dstScreenX, dstScreenY = r.camera.WorldToScreen(dstWorldX, dstWorldY, screenW, screenH)
+
+	// Cull lines completely outside screen (with margin).
+	margin := 50.0
+	visible = r.lineIntersectsRect(srcScreenX, srcScreenY, dstScreenX, dstScreenY,
+		-margin, -margin, screenW+margin, screenH+margin)
+
+	return srcScreenX, srcScreenY, dstScreenX, dstScreenY, visible
 }
 
 // lineIntersectsRect checks if a line segment intersects a rectangle.

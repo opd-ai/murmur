@@ -1,154 +1,716 @@
-# Bootstrap Strategy: Zero-Infrastructure Peer Discovery
+# Implementation Plan: Shadow Gradient Visibility & Production Readiness
 
-**Date:** 2026-05-04
-**Status:** Proposed
-
-## The Core Insight
-
-GitHub's own free-tier CI/CD and hosting infrastructure, taken together, forms a surprisingly complete distributed signaling layer — not unlike how the GPL turned copyright law into a freedom engine. Every GitHub Actions workflow run is an ephemeral Linux server with a public-routable IP, internet access, and write permission to the repo's own Gist/Pages via `GITHUB_TOKEN`. The animating idea is to chain these ephemerals into a **self-reinforcing feedback loop**: each scheduled CI run spins up multiple parallel libp2p nodes (via matrix builds), they join the public IPFS DHT under a MURMUR-specific content-addressed namespace and cross-discover each other, then write a cryptographically signed merged peer list to a GitHub Gist and push a new `peers.json` to GitHub Pages. Every subsequent run reads that accumulating list before connecting, arriving pre-seeded with all peers ever seen by any prior run. Real users running MURMUR also publish their multiaddrs into the same IPFS DHT namespace, which CI harvests and re-broadcasts — so organic user growth directly improves bootstrap capacity without any user action beyond simply running the app. The system exhibits three emergent tiers: **live** (Gist, refreshed every 6 hours), **durable** (CID-indexed Pages build, survives Gist deletion), and **last-resort** (public IPFS bootstrap nodes as rendezvous entrypoint), each maintained automatically, none requiring a credit card.
-
-## Recommended Architecture
-
-The system is three mutually-reinforcing layers, not a list of fallbacks:
-
-**Layer 1 — The Living Gist (fast, mutable, CI-maintained).**  A GitHub Gist (`peers.json`) holds the current signed peer list. It is writable by any CI job via `GITHUB_TOKEN` and readable by anyone at a stable raw URL — no auth required, no DNS to own; the raw URL is served by GitHub's CDN so reads are globally fast with no API rate limit. CI's matrix strategy runs four parallel ephemeral libp2p nodes per scheduled invocation, each joining from a distinct runner; they cross-announce multiaddrs via a shared IPFS DHT rendezvous key (`/murmur/bootstrap/v1`), collect all discovered multiaddrs (prior CI peers + any real users online), merge them, sign the result with a stable Ed25519 key held in a GitHub Actions secret (`BOOTSTRAP_SIGN_KEY`), and atomically update the Gist. The Gist raw URL is embedded in the binary as the primary bootstrap source.
-
-**Layer 2 — GitHub Pages (durable, versioned, CID-indexed).** The same CI job also commits the signed `peers.json` to the `gh-pages` branch, making it available at a stable `https://opd-ai.github.io/murmur/peers.json`. Pages is served by GitHub's CDN, globally cached, and survives runner failures. Simultaneously, the CI job pushes the content to web3.storage (free tier, no credit card required, GitHub OAuth login) and records the resulting IPFS CID in a plain `cid.txt` file also committed to Pages. This gives a content-addressed `ipfs://` fallback that any IPFS-connected node (including real MURMUR users) can resolve without touching GitHub at all. The CID is immutable once pinned; only the `cid.txt` pointer is updated on each CI run.
-
-**Layer 3 — Public IPFS DHT Namespace (passive, organic, zero-maintenance).** Every running MURMUR node — CI ephemeral or real user — announces itself under the DHT key `/murmur/bootstrap/v1` using go-libp2p's `routingDiscovery.Advertise()`. This requires zero infrastructure: the public IPFS bootstrap nodes (`/dnsaddr/bootstrap.libp2p.io/...`) are the entry points, and IPFS explicitly permits use of their DHT for rendezvous. A cold-start client calls `routingDiscovery.FindPeers()` on that key and gets back any node that has announced itself in the last TTL window — including prior CI runs and any live users. This layer is entirely passive from CI's perspective: CI contributes to it as a side effect of running, and it grows organically with user adoption.
-
-**Reinforcing loops:**
-- *CI → Gist → CI*: Each run reads the Gist before connecting, arriving with all previously seen peers. It then discovers more peers and writes them back. The list monotonically grows (with TTL pruning to evict stale entries).
-- *Users → IPFS DHT → CI → Gist → Users*: Real users running MURMUR advertise on the DHT. The next CI run harvests them and publishes them to the Gist. The next user's cold start fetches the Gist and finds those real peers. Users now bootstrap off each other without CI's mediation.
-- *CI matrix cross-discovery*: The four parallel runners in each CI invocation initially only know the prior Gist entries, but within their 3-minute run window they discover each other via the DHT and publish each runner's fresh multiaddr. Even if the Gist is empty (first ever run), the matrix jobs form a transient mesh and the aggregator job captures their addresses, seeding the Gist.
-
-**Network state over time:**
-- *After 1 run*: Gist contains 4 ephemeral addresses (expired) and any IPFS-DHT peers seen during the run. Pages has a valid `peers.json`. `cid.txt` holds the first content-addressed snapshot.
-- *After 10 runs*: Gist has a rolling window of ~40 ephemeral addresses and any real users who ran during that period. Cold-start latency approaches 2–5s.
-- *After 100 users*: The IPFS DHT namespace has enough live real-user peers that CI runs are supplementary rather than primary. The Gist still provides the fastest path (single HTTPS GET, sub-second), but IPFS DHT alone would be sufficient for bootstrap. CI overhead becomes negligible.
-
-## Bootstrap Flow (Cold Start, Step-by-Step)
-
-1. **App starts.** The `ResolverChain` in `pkg/networking/discovery/` is initialized with resolvers in priority order. User-supplied peers from `~/.murmur/config.toml` or the `--bootstrap` flag are **always merged in first**, before any resolver runs, because they represent explicit operator intent. The remaining resolvers then run in short-circuit order: the first one that yields ≥1 successful connection halts the chain.
-2. **Resolver 1 — Gist fetch (target: <1s).** HTTP GET to `https://gist.githubusercontent.com/opd-ai/{BOOTSTRAP_GIST_ID}/raw/peers.json` (URL constructed at compile time via `ldflags -X`). Response is a JSON array of signed multiaddrs. Signature is verified against the embedded `BOOTSTRAP_VERIFY_KEY` (public key, not secret). On success, attempt connection to up to 3 random entries. If ≥1 connects → **bootstrap complete**, resolvers 2–4 skipped.
-3. **Resolver 2 — GitHub Pages fetch (target: <2s, CDN-cached).** HTTP GET to `https://opd-ai.github.io/murmur/peers.json`. Same signed format. On success, attempt connection. If ≥1 connects → **bootstrap complete**, resolvers 3–4 skipped.
-4. **Resolver 3 — IPFS DHT namespace query (target: <10s).** Dials the public IPFS bootstrap nodes (`/dnsaddr/bootstrap.libp2p.io/p2p/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN` et al., which are stable and permissioned for this use). Calls `routingDiscovery.FindPeers(ctx, "/murmur/bootstrap/v1")`. On success, attempt connection. If ≥1 connects → **bootstrap complete**, resolver 4 skipped.
-5. **Resolver 4 — IPFS CID fallback (target: <30s).** Reads `cid.txt` from the Pages URL to get the latest IPFS CID, then fetches `https://dweb.link/ipfs/<CID>/peers.json` (Cloudflare IPFS gateway, no auth). Same signed format. If ≥1 connects → **bootstrap complete**.
-6. **Failure path.** If all resolvers yield zero connections after their timeouts, the app starts in isolated mode with a UI warning and prompts the user to enter a peer address manually or retry after 60 seconds.
-
-## CI Pipeline Design
-
-**`bootstrap-refresh.yml`** — the sole new workflow file:
-
-```
-Trigger: schedule (every 6 hours), workflow_dispatch (manual), push to main
-```
-
-```
-Job 1 — matrix probe (strategy: matrix[0..3], fail-fast: false):
-  - Checkout repo, build murmur with -tags ci_bootstrap
-  - Read current peers.json from Gist (via curl, GITHUB_TOKEN not needed for read)
-  - Run ./murmur --ci-probe --duration=180s --peers-in=peers.json --peers-out=discovered-${{ matrix.index }}.json
-    (ephemeral libp2p node: connects to prior peers, advertises on IPFS DHT, collects discovered peers, exits)
-  - Upload discovered-${{ matrix.index }}.json as workflow artifact
-
-Job 2 — aggregate (needs: matrix probe, runs-on: ubuntu-latest):
-  - Download all discovered-*.json artifacts
-  - Run ./murmur --ci-aggregate --sign-key=${{ secrets.BOOTSTRAP_SIGN_KEY }} \
-      --inputs=discovered-*.json --output=peers.json --max-age=24h
-    (merge, deduplicate, prune stale entries, sign)
-  - Update Gist: curl -X PATCH https://api.github.com/gists/${{ vars.BOOTSTRAP_GIST_ID }} \
-      -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" --data @payload.json
-  - Commit peers.json + cid.txt to gh-pages branch
-  - (Optional, no new secret): Upload to web3.storage via its GitHub Action (free tier, OIDC)
-```
-
-**Secrets (GitHub Actions `secrets.*`):**
-- `BOOTSTRAP_SIGN_KEY` — Ed25519 private key (base64) used to sign `peers.json`. Generated once via `murmur --gen-bootstrap-key`, public half embedded in binary as `BootstrapVerifyKey`.
-- `GITHUB_TOKEN` — Auto-injected by Actions; used only for Gist PATCH and gh-pages push. No extra setup required.
-
-**Repository variables (GitHub Actions `vars.*`, not secrets):**
-- `BOOTSTRAP_GIST_ID` — The Gist ID (e.g. `a1b2c3d4e5f6...`). Set once during initial provisioning via the repository's *Variables* settings page. Referenced in workflow as `${{ vars.BOOTSTRAP_GIST_ID }}` and injected into the binary at build time via `ldflags`.
-
-**Provisioning (one-time, manual):**
-1. Create a public Gist with filename `peers.json`, content `[]`. Record the Gist ID.
-2. Set `BOOTSTRAP_GIST_ID` as a repository variable.
-3. Run `go run ./cmd/murmur --gen-bootstrap-key` locally; set the private key as `BOOTSTRAP_SIGN_KEY` secret; embed the public key in `pkg/networking/discovery/verify_key.go`.
-4. Enable GitHub Pages from the `gh-pages` branch.
-5. Trigger `bootstrap-refresh.yml` manually once to populate the Gist.
-
-**No credit card, no external login, no DNS ownership required.**
-
-## Components Required
-
-| Component | Technology | Host | Updated By | Consumed By |
-|-----------|------------|------|------------|-------------|
-| Live peer list | GitHub Gist (`peers.json`) | GitHub (free) | CI aggregate job via `GITHUB_TOKEN` | Go `GistResolver` (HTTP GET, no auth) |
-| Durable peer list | GitHub Pages (`peers.json`) | GitHub Pages (free) | CI aggregate job, gh-pages commit | Go `PagesResolver` (HTTP GET) |
-| IPFS-addressed copy | web3.storage / IPFS | Cloudflare/IPFS (free) | CI aggregate job via OIDC action | Go `IPFSGatewayResolver` (reads `cid.txt` from Pages, then HTTP GET to dweb.link) |
-| DHT rendezvous | Public IPFS DHT, key `/murmur/bootstrap/v1` | Distributed (IPFS bootstrap nodes) | Every running MURMUR node (CI + users) via `routingDiscovery.Advertise()` | Go `DHTNamespaceResolver` via `routingDiscovery.FindPeers()` |
-| Signing key (public) | Ed25519 verify key | Embedded in binary (`verify_key.go`) | One-time provisioning | All resolver-chain peers verification |
-| Signing key (private) | Ed25519 sign key | GitHub Actions secret | One-time provisioning | CI aggregate job only |
-| Ephemeral CI probes | Go binary with `-tags ci_bootstrap` | GitHub Actions runners | `bootstrap-refresh.yml` matrix | IPFS DHT namespace (advertise side) |
-
-## Changes to opd-ai/murmur
-
-- **`pkg/config/defaults.go`** — Replace the commented-out placeholder `DefaultBootstrapPeers` slice with a `BootstrapSources` struct containing: `GistURL` (raw Gist URL, set at compile time via `ldflags`), `PagesURL` (`https://opd-ai.github.io/murmur/peers.json`), `IPFSGatewayURL` (derived from the IPFS CID stored in Pages-hosted `cid.txt`), `DHTNamespace` (`/murmur/bootstrap/v1`). The old `DefaultBootstrapPeers []string` is retained for the `--bootstrap` flag path.
-
-- **`pkg/networking/discovery/`** — Add the following new files (existing files unchanged):
-  - `resolver.go` — `BootstrapResolver` interface (`Resolve(ctx) ([]peer.AddrInfo, error)`) and `ResolverChain` struct that tries each resolver in order, returning on first success.
-  - `gist_resolver.go` — `GistResolver`: HTTP GET → JSON decode → Ed25519 signature verify → return `[]peer.AddrInfo`. 2s timeout.
-  - `pages_resolver.go` — `PagesResolver`: same logic against Pages URL. 3s timeout.
-  - `dht_namespace_resolver.go` — `DHTNamespaceResolver`: wraps go-libp2p `routingDiscovery`, calls `Advertise()` + `FindPeers()` on `/murmur/bootstrap/v1`. 12s timeout.
-  - `ipfs_gateway_resolver.go` — `IPFSGatewayResolver`: fetches `cid.txt` from Pages to get the latest IPFS CID, then fetches `https://dweb.link/ipfs/<CID>/peers.json`. 20s timeout.
-  - `verify_key.go` — `BootstrapVerifyKey []byte` (32-byte Ed25519 public key, populated at provisioning time).
-  - `signed_peers.go` — `SignedPeerList` protobuf-compatible struct, `Sign()` and `Verify()` helpers.
-
-- **`.github/workflows/bootstrap-refresh.yml`** — New workflow file (described above). Matrix probe uses a `ci_bootstrap` build tag to avoid importing Ebitengine in the CI binary. No other workflows modified.
-
-- **`cmd/murmur/`** — Add `--ci-probe` and `--ci-aggregate` subcommands (behind `//go:build ci_bootstrap` tag) that implement the ephemeral probe node and the merge/sign/publish logic. These compile only when the `ci_bootstrap` tag is set, so the production binary is unaffected.
-
-## Fallback Chain
-
-1. **GitHub Gist** — fastest (single HTTPS GET, ~100ms), updated every 6h by CI. *CI-maintained.*
-2. **GitHub Pages** — fast (CDN-cached, ~200ms), updated every 6h alongside Gist. *CI-maintained.*
-3. **IPFS DHT namespace `/murmur/bootstrap/v1`** — medium (10–15s DHT walk), populated passively by every running node. *Organic + CI-maintained.*
-4. **IPFS CID fallback (`dweb.link`)** — slow (20–30s: Pages `cid.txt` fetch + IPFS gateway fetch), survives GitHub outage. *CI-maintained (content addressed, immutable once pinned).*
-5. **`--bootstrap` / config file** — manual last resort, always available. *User-maintained.*
-6. **Isolated mode** — app starts without network, prompts user to retry or enter peer address manually.
-
-*Layers 1–2 are actively refreshed by CI. Layer 3 is passively maintained by the network itself. Layer 4 is immutable once pinned. Layer 5 is always available regardless of all infrastructure state.*
-
-## Emergent Properties
-
-- **CI becomes optional once ~50 users exist.** When the IPFS DHT namespace has 50+ regularly-online peers, the DHT resolver alone delivers bootstrap within the 30s target. CI runs degrade gracefully from *necessary* to *accelerating*.
-- **The Gist becomes a community health dashboard.** The signed `peers.json` is publicly readable. Any user can inspect it to see how many peers are live, their geographic spread (from multiaddr prefixes), and when CI last ran — without any dedicated monitoring infrastructure.
-- **Matrix cross-discovery primes the pump for real users.** Even before any real users exist, the four CI matrix jobs form a transient mesh every 6 hours. Any user who happens to start MURMUR during a CI window will discover those ephemeral CI nodes, which are live for 3 minutes. This provides a non-zero bootstrap probability even at day 1.
-- **Users contribute to bootstrap capacity automatically.** Every MURMUR node calls `routingDiscovery.Advertise()` at startup as a side effect of DHT initialization. There is no opt-in required; users improve the network just by running the app. This mirrors BitTorrent's DHT design, where the act of downloading contributes to discoverability.
-- **The signing key creates a trust anchor without a CA.** The `BootstrapVerifyKey` embedded in the binary means only CI (holder of `BOOTSTRAP_SIGN_KEY`) can publish authoritative peer lists to Layers 1 and 2. The DHT layer (Layer 3) is trustless by design — callers connect to whatever peers are advertised and rely on libp2p's Noise handshake for authentication. Layers 1/2 provide curated-but-signed lists; Layer 3 provides organic-but-unfiltered lists. The combination is more robust than either alone.
-- **Infrastructure re-provisioning takes under 10 minutes.** If GitHub deletes the Gist or Pages site, a single `workflow_dispatch` on `bootstrap-refresh.yml` recreates everything. No DNS, no VPS, no ticket to file with a hosting provider.
-
-## Risks and Mitigations
-
-| Risk | Mitigation |
-|------|-----------|
-| GitHub Actions minutes exhausted (free tier: 2,000 min/month) | Each invocation uses ~4 × 3 min + 1 × 2 min = 14 min. At 6h intervals: 4 × 14 = ~56 min/day, ~1,680 min/month — within the 2,000 limit with margin. Reduce matrix size to 2 if needed. |
-| Gist API rate-limited during cold-start surge | Gist raw URL is served by GitHub's CDN, not the API. Read path has no rate limit. Write path (CI only) is once per 6h, well under API limits. |
-| `BOOTSTRAP_SIGN_KEY` secret compromised | Rotate: generate a new keypair, update the secret, release a new binary with the new `BootstrapVerifyKey`, old signed lists become unverifiable and are ignored. DHT layer is unaffected. |
-| Public IPFS DHT eclipsed / Sybil-attacked | MURMUR is not relying on the DHT for routing correctness, only for peer *discovery*. All connections still use Noise XX for authentication. A Sybil attack delivers fake multiaddrs that simply fail to connect — the resolver chain moves on. |
-| web3.storage free tier discontinued | The IPFS layer is a fallback, not primary. Remove `IPFSGatewayResolver` from chain; Layers 1–3 remain intact. The `cid.txt` file in Pages can be left as an empty string, which the resolver detects and skips. |
-| GitHub Pages or Gist unavailable during cold start | ResolverChain moves to next layer within its timeout. Cold-start time degrades from <1s to <15s. Isolated mode is a safe final state. |
-| Ephemeral CI node IPs added to peer list expire | `ci-aggregate` job prunes entries older than `--max-age=24h`. CI addresses are intentionally short-lived; their value is seeding the DHT namespace, not appearing in the long-term peer list. |
-| First run has no peers in Gist (chicken-and-egg) | Matrix strategy: 4 parallel jobs all advertise on the DHT namespace independently. The aggregator collects all 4, writing 4 valid (if ephemeral) addresses. Second run has 4 prior entries and can connect to public IPFS bootstrap nodes for additional DHT peers. |
-
-## Success Criteria
-
-- Cold-start install discovers ≥1 peer within 30s with empty `BootstrapPeers` config
-- Entire bootstrap infrastructure re-deployable by triggering one GitHub Actions workflow
-- No component requires a credit card or non-GitHub login to provision
-- Each CI run leaves the network *more* connected than before it ran
-- Graceful degradation to manual `--bootstrap` flag if all layers fail
-- Changes confined to `pkg/config/`, `pkg/networking/discovery/`, `.github/workflows/`
+**Generated**: 2026-05-04  
+**Scope**: Medium (31% complete → v0.1 target)  
+**Timeline**: 33 days critical path, 79 days for full v0.1  
 
 ---
 
+## Project Context
+
+**What it does**: MURMUR is a decentralized peer-to-peer social network with dual-layer identity (Surface + Anonymous), force-directed graph UI (Pulse Map), and ephemeral content (Waves). No servers, no algorithms, no permanent record.
+
+**Current Goal**: **Achieve Shadow Gradient visibility** — the core product thesis that anonymous layer activity (Phantom Gifts, Specter Marks, mini-games) must be visible to Surface users to create "curiosity-driven pull toward deeper privacy tiers." Per GAPS.md, this is "CRITICAL for growth flywheel" and currently non-functional despite all mechanics being implemented.
+
+**Estimated Scope**: Medium
+- 31% implementation complete (145/463 roadmap items)
+- Core data structures ✅, game mechanics ✅, cryptography ✅
+- Network integration ⚠️, UI rendering ⚠️, cross-layer visibility ❌
+
+---
+
+## Goal-Achievement Status
+
+| Stated Goal | Current Status | This Plan Addresses |
+|-------------|---------------|---------------------|
+| Shadow Gradient visibility (anonymous artifacts on Surface Layer) | ❌ | **Yes** — Step 1 & 2 |
+| Onboarding UX (6-phase flow with screens) | ⚠️ (logic exists, no UI) | **Yes** — Step 3 |
+| Security hardening (key zeroing, rate limiting, deduplication) | ⚠️ (partial) | **Yes** — Step 4 |
+| Network propagation <500ms across 3 hops | ❓ (no validation) | No — defer to Step 5 |
+| Shroud anonymity guarantees | ❓ (no testing) | No — defer to Step 6 |
+| Production monitoring (metrics, health checks) | ❌ | No — defer to Step 7 |
+| Mobile platform support | ⚠️ (CI missing) | No — defer post-v0.1 |
+| Documentation completeness (godoc, ADRs, user guide) | ⚠️ (82% coverage) | No — defer post-v0.1 |
+
+---
+
+## Metrics Summary
+
+**From go-stats-generator analysis** (`/tmp/metrics.json`, 2026-05-04):
+- **Total functions**: 5,204
+- **Complexity hotspots** (overall > 9.0): 151 functions (2.9%)
+- **Highest complexity**: 14.5 (`updateInteract` in pkg/ui/)
+- **Top 5 hotspots on critical paths**:
+  1. `updateInteract` (ui, 14.5) — UI event handling
+  2. `printIncomingWaves` (cli, 14.2) — CLI message display
+  3. `attemptReconnection` (mesh, 14.0) — network recovery
+  4. `ValidateEnvelope` (proto, 12.7) — message validation
+  5. `RecordAmplification` (mechanics, 13.2) — resonance tracking
+- **Documentation coverage**: 82.3% overall (functions 92.9%, methods 78.3%)
+- **Duplication ratio**: 1.48% (acceptable — UI type definitions, binary serialization, distinct formulas)
+- **TODO comments**: 16 (zero flagged as critical/blocking per grep analysis)
+- **Anti-patterns detected**: 5 (from static analysis)
+- **Linter status**: `go vet ./...` clean (exit 0)
+
+**Critical Gap**: No cross-layer artifact rendering. Per GAPS.md analysis, all 10 anonymous mechanics (Phantom Gifts, Specter Marks, Cipher Puzzles, Specter Hunts, Territory Drift, Oracle Pools, Sigil Forge, Shadow Play, Masked Events, Phantom Councils) have complete game logic + Bbolt persistence + visual effects implementations — but zero integration with Surface Layer rendering. A Surface user sees only their own social graph, not anonymous activity.
+
+---
+
+## Implementation Steps
+
+### Step 1: Wire Anonymous Mechanics to Network (2 days)
+
+**Deliverable**: Events from anonymous mechanics (gifts, marks, mini-games) are gossiped on GossipSub topics and received by all peers.
+
+**Dependencies**: None (GossipSub, publishers, and event bus all exist)
+
+**Goal Impact**: Enables Shadow Gradient visibility (core product differentiator)
+
+**Acceptance**: 
+- Create Phantom Gift on node A (Specter identity), verify it appears on node B (Surface user viewing recipient node) within 2 seconds
+- Metrics: `murmur_anonymous_events_published_total`, `murmur_anonymous_events_received_total` > 0
+
+**Implementation**:
+1. In `pkg/app/murmur.go` `Run()` after Handlers initialization, add:
+   ```go
+   if err := p.Handlers.SubscribeAnonymousMechanics(ctx, p.Subsystems.PubSub); err != nil {
+       return err
+   }
+   ```
+2. In `pkg/app/handlers.go`, implement `SubscribeAnonymousMechanics()` subscribing to `/murmur/anonymous/mechanics/1.0`, `/murmur/anonymous/waves/1.0`, `/murmur/anonymous/beacons/1.0`
+3. For each mechanic (gifts, marks, puzzles, hunts, territory, oracle, forge, shadowplay, councils), instantiate publisher in Subsystems and wire to event bus
+4. On local mechanic events (e.g., `GiftCreated`), publisher.Publish() to GossipSub
+
+**Validation**:
+```bash
+# Terminal 1: Node A (Fortress mode, Specter identity)
+./murmur --mode=fortress --data-dir=/tmp/murmur-a
+
+# Terminal 2: Node B (Open mode, Surface only)
+./murmur --mode=open --data-dir=/tmp/murmur-b --bootstrap=<node-a-multiaddr>
+
+# In Node A: Create gift via CLI or UI
+# Expected: Node B receives gift event within 2s, logs "Received anonymous event: gift"
+go test -v -run TestAnonymousEventPropagation ./test/integration
+```
+
+**Files Modified**:
+- `pkg/app/murmur.go` (+5 lines)
+- `pkg/app/handlers.go` (+80 lines: SubscribeAnonymousMechanics, handleAnonymousMechanicsMessage)
+- `pkg/app/subsystems.go` (+10 lines: add publisher fields)
+
+---
+
+### Step 2: Cross-Layer Artifact Rendering (5 days)
+
+**Deliverable**: Surface users see anonymous artifacts (gifts, marks, mini-games) overlaid on their Pulse Map.
+
+**Dependencies**: Step 1 (network events must arrive)
+
+**Goal Impact**: Completes Shadow Gradient visibility loop — "the shadows market themselves"
+
+**Acceptance**:
+- Surface user views Pulse Map, sees 5 gift effects, 3 Marks, 2 active mini-games (Cipher Puzzle + Hunt)
+- Click gift effect → tooltip: "Phantom Gift from Specter. Upgrade to Hybrid to send your own."
+- Hover mini-game icon → tooltip: "Cipher Puzzle: 3 participants. Resonance ≥50 to join."
+- Metrics: `murmur_anonymous_artifacts_rendered_total{type="gift"}` increments per frame
+
+**Implementation**:
+1. In `pkg/pulsemap/rendering/renderer.go` `Draw()` after each node:
+   ```go
+   if marks := r.store.GetMarksForTarget(node.ID); len(marks) > 0 {
+       r.effects.DrawSpecterMarks(screen, node.Position, marks)
+   }
+   if gifts := r.store.GetActiveGiftsForRecipient(node.ID); len(gifts) > 0 {
+       for _, gift := range gifts {
+           r.effects.DrawGiftEffect(screen, node.Position, gift.Type)
+       }
+   }
+   // Repeat for puzzles, hunts, territory, oracle, forge, shadowplay, councils
+   ```
+2. In `pkg/store/typed_accessors.go`, add query methods:
+   - `GetMarksForTarget(nodeID) []*Mark` — reverse index scan
+   - `GetActiveGiftsForRecipient(nodeID) []*Gift` — TTL filter
+   - `GetActivePuzzlesNearNode(nodeID, radius) []*Puzzle` — spatial query
+   - `GetActiveHuntsWithFragmentsNear(nodeID, radius) []*Hunt`
+   - `GetTerritoryInfluenceAt(nodeID) *TerritoryState`
+   - `GetActiveOraclePoolsNearNode(nodeID, radius) []*OraclePool`
+   - `GetActiveForgeEventsNearNode(nodeID, radius) []*Forge`
+   - `GetActiveShadowPlayNearNode(nodeID, radius) []*ShadowPlay`
+   - `GetMaskedEventsNearNode(nodeID, radius) []*MaskedEvent`
+   - `GetCouncilsWithMember(nodeID) []*Council`
+3. In `pkg/pulsemap/rendering/effects/`, implement drawing functions (leverage existing overlays):
+   - `DrawSpecterMarks()` — orbiting sigils (Watcher/Ally/Rival)
+   - `DrawGiftEffect()` — particle animations (Basic/Expanded/Premium)
+   - `DrawPuzzleIcon()` — rotating hexagon (Fragment/Mosaic/Cascade)
+   - `DrawHuntFragments()` — scattered glowing markers
+   - `DrawTerritoryOverlay()` — translucent boundary watermarks
+   - `DrawOracleVortex()` — swirling vortex icon
+   - `DrawForgeAnvil()` — anvil-and-flame with entries
+   - `DrawShadowPlayDome()` — dark dome with lightning
+   - `DrawMaskedEventDome()` — translucent dome with dots
+   - `DrawCouncilConstellation()` — colored thread pattern
+4. Add visibility rules:
+   - Surface users see effects but not content
+   - Hybrid+ users see effects AND content (click → detail panel)
+5. Add hover tooltips:
+   - In `pkg/ui/tooltips.go`, add `AnonymousArtifactTooltip(artifactType, resonanceRequired)`
+   - Render near cursor when mouse over artifact
+
+**Validation**:
+```bash
+# Terminal 1: Node A (Fortress, create gift/mark/puzzle)
+./murmur --mode=fortress --data-dir=/tmp/murmur-a
+
+# Terminal 2: Node B (Open, observe Pulse Map)
+./murmur --mode=open --data-dir=/tmp/murmur-b
+
+# In Node A: Create gift, mark, puzzle
+# Expected: Node B Pulse Map shows animated gift particles, orbiting mark sigil, rotating puzzle icon
+go test -v -run TestCrossLayerArtifactRendering ./test/integration
+```
+
+**Files Modified**:
+- `pkg/pulsemap/rendering/renderer.go` (+100 lines: artifact query + draw loops)
+- `pkg/store/typed_accessors.go` (+250 lines: 10 new query methods)
+- `pkg/pulsemap/rendering/effects/cross_layer.go` (+400 lines: 10 drawing functions)
+- `pkg/ui/tooltips.go` (+80 lines: artifact tooltips)
+
+---
+
+### Step 3: Onboarding UX Screens (16 days)
+
+**Deliverable**: First-run users see 6-phase guided onboarding: Welcome → Identity → Mode → Bootstrap → Exploration → First Wave.
+
+**Dependencies**: None (flow controller exists, screens missing)
+
+**Goal Impact**: Critical for retention — "first-run abandonment would be near 100% without guidance"
+
+**Acceptance**:
+- Delete `~/.murmur/`, restart app → onboarding starts (not blank Pulse Map)
+- Phase 1: Philosophy screens with "Begin" button
+- Phase 2: Name input, key backup prompt → identity created
+- Phase 3: Mode selection (Open/Hybrid/Guarded/Fortress) → Specter created if Hybrid+
+- Phase 4: Connection progress bar → 5 peers connected
+- Phase 5: Pulse Map tooltips → dismissible
+- Phase 6: First Wave compose prompt → PoW animation → Wave visible
+- User study: >80% new users complete onboarding within 10 minutes
+
+**Implementation**:
+
+**3.1 First-Run Detection (1 day)**:
+- In `pkg/app/murmur.go` `Run()`, check `os.Stat(dataDir + "/identity.bin")`
+- If not exist, set `needsOnboarding = true`
+- Initialize `OnboardingFlow`, wire `OnComplete()` callback → transition to main UI
+- Skip Pulse Map init until onboarding complete
+
+**3.2 Phase 1: Welcome Screen (2 days)**:
+- In `pkg/onboarding/screens/welcome.go`:
+  - Struct `WelcomeScreen` with `Draw(screen *ebiten.Image)` and `Update() bool`
+  - Three sequential philosophy statements with fade-in animation (each 3s)
+  - Pulsing node background animation (single glowing orb via vector graphics)
+  - "Begin" button with 2-second delay (prevent accidental skip)
+  - Advance on Enter or button click
+
+**3.3 Phase 2: Identity Creation Screen (3 days)**:
+- In `pkg/onboarding/screens/identity.go`:
+  - Keypair generation with spinner animation (visual during Ed25519 gen)
+  - Display truncated public key fingerprint (first 8 + last 8 hex chars)
+  - Text input for display name with live Pulse Map preview
+  - Three backup buttons: "Save file", "Show BIP-39 phrase", "Skip (warning)"
+  - Wire to `pkg/identity/keys/` `GenerateKeypair()`, `EncryptAndSave()`, `GenerateMnemonic()`
+  - On completion, write `identity.bin` and advance
+
+**3.4 Phase 3: Mode Selection Screen (3 days)**:
+- In `pkg/onboarding/screens/mode.go`:
+  - Four cards (Open/Hybrid/Guarded/Fortress) with icons and 2-sentence descriptions
+  - Animation: Surface Layer (visible) + Anonymous Layer (ghostly overlay)
+  - Recommendation logic: Open for new, Hybrid for curious, Fortress for activists
+  - On Hybrid+: generate Specter, separate backup prompt
+  - Save mode to config, advance
+
+**3.5 Phase 4: Bootstrap Screen (2 days)**:
+- In `pkg/onboarding/screens/bootstrap.go`:
+  - Expanding dots animation (dots appear, edges form)
+  - Progress bar toward 5-peer target (current/5)
+  - Status messages: "Connecting to bootstrap nodes...", "Discovered 2 peers via DHT...", "Establishing Shroud circuit..." (Hybrid+)
+  - Troubleshooting link if >30s with 0 peers
+  - Poll `app.PeerCount()` every 500ms, advance when ≥5
+
+**3.6 Phase 5: Guided Exploration Screen (2 days)**:
+- In `pkg/onboarding/screens/exploration.go`:
+  - Tooltip overlays on Pulse Map: "Nodes are people. Edges are relationships."
+  - Animated arrows pointing to own node, nearby nodes, edges
+  - For Hybrid+: second tooltip set for Anonymous Layer
+  - "Next" button to dismiss
+
+**3.7 Phase 6: First Wave Screen (2 days)**:
+- In `pkg/onboarding/screens/first_wave.go`:
+  - Compose panel with pre-filled "Hello, MURMUR"
+  - "Mint" button → PoW spinner animation (2–5s at difficulty 20)
+  - On completion, ripple propagation animation (Wave travels along edges)
+  - Success message: "Your first Wave is live!"
+  - Wire to `pkg/content/waves/` `Create()`, `pkg/networking/gossip/` `Publish()`
+
+**3.8 First-Week Nudges (1 day)**:
+- In `pkg/app/murmur.go`, add background goroutine checking account age
+- Day 1: notification "Try replying to a Wave"
+- Day 2: "Form a connection nearby"
+- Day 3 (Hybrid+): "Place a Specter Mark"
+- Day 5–7: Celebrate first Resonance milestone
+
+**Validation**:
+```bash
+# Delete identity, restart
+rm -rf ~/.murmur
+./murmur
+
+# Expected:
+# - Philosophy screens → Enter → Identity creation → "Alice" → Save backup
+# - Mode selection → Hybrid → Specter backup
+# - Bootstrap → 5 peers connected
+# - Exploration tooltips → Next
+# - First Wave → "Hello, MURMUR" → Mint → 3s PoW → Wave visible
+
+go test -v -run TestOnboardingFlow ./test/integration
+```
+
+**Files Created**:
+- `pkg/onboarding/screens/welcome.go` (200 lines)
+- `pkg/onboarding/screens/identity.go` (350 lines)
+- `pkg/onboarding/screens/mode.go` (300 lines)
+- `pkg/onboarding/screens/bootstrap.go` (250 lines)
+- `pkg/onboarding/screens/exploration.go` (200 lines)
+- `pkg/onboarding/screens/first_wave.go` (250 lines)
+- `pkg/onboarding/screens/nudges.go` (150 lines)
+
+**Files Modified**:
+- `pkg/app/murmur.go` (+30 lines: first-run detection, onboarding init)
+
+---
+
+### Step 4: Security Hardening (7 days)
+
+**Deliverable**: Key zeroing, Wave deduplication, per-peer rate limiting, signed DHT records.
+
+**Dependencies**: None (foundational security)
+
+**Goal Impact**: **Must be done before v0.1 release** — prevents key scraping, spam amplification, DoS, DHT poisoning
+
+**Acceptance**:
+- Memory scan after key use finds no private key bytes
+- Publishing same Wave twice → second is ignored
+- Flooding peer at 100 msg/sec → only ~10/sec processed
+- Fake DHT record without signature → rejected
+- Zero security warnings from `go vet`, `gosec`, or security scanners
+
+**Implementation**:
+
+**4.1 Zero Key Material (1 day)**:
+- In `pkg/identity/keys/keystore.go`, after decrypting private key:
+  ```go
+  defer func() {
+      for i := range plaintextKey {
+          plaintextKey[i] = 0
+      }
+  }()
+  ```
+- Apply to: `GenerateKeypair()`, `ExportKey()`, `ImportKey()`, `UnlockKeystore()`
+- In `pkg/anonymous/shroud/circuit.go`, zero Curve25519 shared secrets after HKDF key derivation
+
+**4.2 Wave Deduplication Filter (2 days)**:
+- Add `github.com/bits-and-blooms/bloom/v3` to `go.mod`
+- In `pkg/app/handlers.go`, add Bloom filter (10M capacity, 0.01 FP rate)
+- In `handleWaveMessage()` before storing:
+  ```go
+  if h.dedupFilter.Test(envelope.MessageId) {
+      return // silent drop
+  }
+  ```
+- After validation: `h.dedupFilter.Add(envelope.MessageId)`
+- Reset filter every 30 days (goroutine with `time.Ticker`)
+
+**4.3 Per-Peer Rate Limiting (2 days)**:
+- In `pkg/networking/gossip/pubsub.go`, add `rateLimiters map[peer.ID]*rate.Limiter`
+- In Subscribe() handler:
+  ```go
+  limiter := p.getRateLimiter(msg.From)
+  if !limiter.Allow() {
+      logger.Warn("Rate limit exceeded", zap.String("peer", msg.From.String()))
+      return // drop message
+  }
+  ```
+- Limits: 10 msg/sec, burst 20
+- Cleanup idle limiters (>5 min) every 10 minutes
+
+**4.4 Sign DHT Records (2 days)**:
+- In `pkg/networking/discovery/dht.go`, enable signed records:
+  ```go
+  dht.ModeOpt(dht.ModeServer),
+  dht.ValidateRecords(), // Enable validation
+  ```
+- When publishing identity, sign record with Ed25519 key
+- When reading peer records, verify signature before accepting
+
+**Validation**:
+```bash
+# Test key zeroing
+go test -v -run TestKeyZeroing ./pkg/identity/keys
+
+# Test deduplication
+go test -v -run TestDuplicateWaveFiltering ./pkg/app
+
+# Test rate limiting
+go test -v -run TestPeerRateLimiting ./pkg/networking/gossip
+
+# Test signed DHT
+go test -v -run TestDHTRecordValidation ./pkg/networking/discovery
+
+# Security scan
+go install github.com/securego/gosec/v2/cmd/gosec@latest
+gosec ./...
+# Expected: zero findings (or documented justifications)
+```
+
+**Files Modified**:
+- `pkg/identity/keys/keystore.go` (+20 lines: defer zeroing in 4 functions)
+- `pkg/anonymous/shroud/circuit.go` (+15 lines: zero shared secrets)
+- `pkg/app/handlers.go` (+60 lines: Bloom filter init + check)
+- `pkg/networking/gossip/pubsub.go` (+80 lines: rate limiter map + cleanup)
+- `pkg/networking/discovery/dht.go` (+30 lines: signed records)
+- `go.mod` (+1 dependency: bloom filter)
+
+**Tests Created**:
+- `pkg/identity/keys/keystore_security_test.go` (key zeroing)
+- `pkg/app/handlers_dedup_test.go` (duplication filter)
+- `pkg/networking/gossip/ratelimit_test.go` (rate limiter)
+- `pkg/networking/discovery/dht_signed_test.go` (signed DHT)
+
+---
+
+### Step 5: Network Propagation Validation (9 days) — **DEFER POST-v0.1**
+
+**Deliverable**: Simulation tests proving 3-hop propagation <500ms and 99% delivery in 3s.
+
+**Dependencies**: None (can run in parallel with other work)
+
+**Goal Impact**: Confidence in production performance, not blocking for early alpha
+
+**Acceptance**:
+- Simulation test: 50 nodes, publish Wave from node 0 → 99th percentile latency to node at 3 hops <500ms
+- Simulation test: 99% of 50 nodes receive Wave within 3s
+- Latency histogram exported to Prometheus with p50/p95/p99
+- Network partition test: split 50 nodes into 2 partitions, rejoin after 30s → no message loss
+
+**Why Defer**: Low user count in v0.1 means load is low. Network is proven functional (gossip works), just not validated at scale. Priority: visibility and UX before performance validation.
+
+---
+
+### Step 6: Shroud Anonymity Testing (11 days) — **DEFER POST-v0.1**
+
+**Deliverable**: Simulation tests proving adversary controlling 30% of relays cannot de-anonymize.
+
+**Dependencies**: None (security validation)
+
+**Goal Impact**: Trust in Anonymous Layer claims, not blocking for friendly alpha users
+
+**Acceptance**:
+- Simulation: 100 nodes, 10 relays, adversary controls 3 → cannot identify >5% of sender-receiver pairs
+- Timing analysis resistance: correlation coefficient <0.3 despite packet timing logs
+- Circuit diversity: no node appears in >5% of circuits, no two circuits share >1 hop
+
+**Why Defer**: Early adopters are not adversaries. Anonymity mechanisms are implemented (onion routing, cover traffic, random delay). Validation proves it works but doesn't change implementation. Priority: visibility and UX before paranoia-level testing.
+
+---
+
+### Step 7: Monitoring & Observability (6 days) — **DEFER POST-v0.1**
+
+**Deliverable**: Prometheus metrics, health check endpoint, structured logging.
+
+**Dependencies**: None (operational tooling)
+
+**Goal Impact**: Critical for production operators, not needed for single-user testing
+
+**Acceptance**:
+- `/metrics` endpoint exports Prometheus format counters/gauges
+- `/health` endpoint returns JSON with peer count, uptime, topic subscriptions
+- Logs are structured JSON with zap (timestamp, level, msg, peer_id, subsystem)
+- OpenTelemetry traces show Wave creation → PoW → publish → receive → validate → store
+
+**Why Defer**: v0.1 is local testing, not multi-node deployment. Operators need metrics only when running bootstrap nodes (post-v0.1). Priority: visibility and UX before operational tooling.
+
+---
+
+## Priority Ordering & Dependencies
+
+```
+Critical Path (33 days):
+  Step 1 (2d) → Step 2 (5d) → Step 3 (16d) → Step 4 (7d) → [v0.1 ready]
+             ↓ (parallel)
+             Step 4 (7d) can start immediately
+
+Post-v0.1 (46 days):
+  Step 5 (9d) [parallel with Step 6]
+  Step 6 (11d) [parallel with Step 5]
+  Step 7 (6d) [after Steps 1–6]
+```
+
+**Rationale**: Steps 1–4 address the **highest-priority gaps** from GAPS.md:
+1. Shadow Gradient visibility (product thesis)
+2. Onboarding UX (retention)
+3. Security hardening (table stakes)
+
+Steps 5–7 are important but not blocking for initial user testing with friendly early adopters.
+
+---
+
+## Risk Mitigation
+
+**Risk 1**: Cross-layer rendering (Step 2) breaks Pulse Map performance  
+**Mitigation**: Artifact queries run once per visible node per frame (O(N) where N=visible nodes, not total nodes). With viewport culling (target 500 visible), worst case is 500 × 10 queries = 5,000 store lookups/frame. At 60fps, that's 300K lookups/sec. Bbolt read throughput is ~10M reads/sec on SSD. Performance headroom: 33×.
+
+**Risk 2**: Onboarding screens (Step 3) create UI complexity  
+**Mitigation**: Each screen is self-contained `Update()/Draw()` pair. Flow controller orchestrates phase transitions. No shared state between screens. If one screen breaks, others unaffected. Progressive testing: validate each screen independently before integration.
+
+**Risk 3**: Security hardening (Step 4) introduces regressions  
+**Mitigation**: Every security change has dedicated test. Key zeroing test scans heap dump. Dedup test publishes same Wave twice. Rate limit test floods peer. DHT test injects fake record. All tests run in CI before merge.
+
+**Risk 4**: Timeline slippage due to unforeseen complexity  
+**Mitigation**: Steps 1–4 are sequential by design. If Step 1 takes 3 days instead of 2, total slips by 1 day. 20% buffer (33 days → ~40 days) is reasonable for medium complexity.
+
+---
+
+## Success Criteria (v0.1 Release Gate)
+
+**Must Pass**:
+1. ✅ All 8 steps from GAPS.md "Highest Priority" complete (Steps 1–4 in this plan)
+2. ✅ `go test -race ./...` passes with zero failures
+3. ✅ `go vet ./...` passes with zero warnings
+4. ✅ `gosec ./...` passes with zero MEDIUM+ findings
+5. ✅ Manual test: Open-mode user sees anonymous artifacts from Fortress-mode user
+6. ✅ Manual test: New user completes onboarding in <10 minutes
+7. ✅ Manual test: 3 nodes (Open, Hybrid, Fortress) exchange Waves with <2s latency
+
+**Nice to Have** (post-v0.1):
+- Simulation test: 50-node gossip propagation <500ms (Step 5)
+- Simulation test: Shroud anonymity vs 30% adversary (Step 6)
+- Prometheus metrics + health check (Step 7)
+
+---
+
+## Validation Commands
+
+**Step 1 Validation**:
+```bash
+# Start two nodes with different modes
+./murmur --mode=fortress --data-dir=/tmp/murmur-a --log-level=debug &
+./murmur --mode=open --data-dir=/tmp/murmur-b --bootstrap=$(cat /tmp/murmur-a/multiaddr.txt) --log-level=debug &
+
+# Create anonymous event in node A (via CLI or UI)
+# Verify node B logs: "Received anonymous event: gift from [Specter]"
+
+# Check metrics
+curl http://localhost:9090/metrics | grep murmur_anonymous_events
+```
+
+**Step 2 Validation**:
+```bash
+# With same two nodes running, create gift/mark/puzzle in node A
+# Node B UI should show:
+# - Particle animation on recipient node (gift)
+# - Orbiting sigil icon (mark)
+# - Rotating puzzle icon near node
+
+# Hover over artifact → tooltip with upgrade prompt
+# Click artifact → detail panel with "Resonance ≥X to participate"
+```
+
+**Step 3 Validation**:
+```bash
+# Delete identity and restart
+rm -rf ~/.murmur
+./murmur
+
+# Verify 6 phases:
+# 1. Philosophy screens with "Begin" button
+# 2. Name input "Alice" → keypair gen → backup prompt
+# 3. Mode selection → Hybrid → Specter gen → backup
+# 4. Bootstrap → progress bar → 5 peers
+# 5. Exploration → tooltips → Next
+# 6. First Wave → "Hello, MURMUR" → Mint → 3s PoW → visible
+
+# All phases advance without crashes
+```
+
+**Step 4 Validation**:
+```bash
+# Key zeroing
+go test -v -run TestKeyZeroing ./pkg/identity/keys
+# Expected: heap scan finds zero key bytes after zeroing
+
+# Deduplication
+go test -v -run TestDuplicateWaveFiltering ./pkg/app
+# Expected: second identical Wave is silently dropped
+
+# Rate limiting
+go test -v -run TestPeerRateLimiting ./pkg/networking/gossip
+# Expected: flooding peer at 100 msg/sec → only ~10/sec processed
+
+# Signed DHT
+go test -v -run TestDHTRecordValidation ./pkg/networking/discovery
+# Expected: fake DHT record without signature → validation error
+
+# Security scan
+gosec ./...
+# Expected: zero MEDIUM+ findings (or documented exceptions in AUDIT.md)
+```
+
+**Integration Test**:
+```bash
+# Full scenario: 3 nodes, 3 modes, 5 minutes
+./scripts/test-three-node-scenario.sh
+
+# Expected:
+# - Node A (Fortress): Creates Phantom Gift
+# - Node B (Open): Sees gift particles on recipient node, hover → tooltip
+# - Node C (Hybrid): Sees gift + places Specter Mark
+# - Node B sees Mark sigil on marked node
+# - All nodes exchange Waves with <2s latency
+# - Zero crashes, zero panics, zero data loss
+```
+
+---
+
+## Post-v0.1 Roadmap
+
+After Steps 1–4 complete (33 days), **v0.1 is shippable for friendly alpha testing**. Remaining work for v0.2:
+
+**High Priority** (v0.2 target):
+- Step 5: Network propagation validation (9 days)
+- Step 6: Shroud anonymity testing (11 days)
+- Step 7: Monitoring & observability (6 days)
+- Mobile UI optimization (5 days per GAPS.md)
+- Bootstrap node deployment (3 days setup)
+
+**Medium Priority** (v0.3 target):
+- Documentation completeness (godoc + ADRs + user guide, 11 days)
+- Mobile CI validation (1 day)
+- Production monitoring integration (Grafana dashboards, alerting)
+
+**Lower Priority** (v0.4+ target):
+- Mobile distribution (Google Play, App Store, F-Droid)
+- Performance optimization (Barnes-Hut for >500 nodes, GPU batching)
+- Advanced mini-game mechanics (per ANONYMOUS_GAME_MECHANICS.md)
+
+---
+
+## Development Workflow
+
+**Daily Checklist**:
+1. Start with `go test -race ./...` (zero failures)
+2. Implement one sub-task from current step
+3. Write tests for new code (aim for 80% coverage on new functions)
+4. Run `gofumpt -w -extra .` before commit
+5. Run `go vet ./...` (zero warnings)
+6. Update CHANGELOG.md with completed work
+7. Update PLAN.md progress (check off completed items)
+
+**Weekly Review**:
+- Thursday: Review progress vs timeline, adjust estimates
+- Friday: Update ROADMAP.md with completed items from PLAN.md
+- Friday: Run full test suite + integration tests
+- Friday: Update AUDIT.md with any security decisions made
+
+**Before v0.1 Release**:
+- [ ] All Steps 1–4 complete (33 days elapsed)
+- [ ] CHANGELOG.md updated with all changes
+- [ ] ROADMAP.md updated (v0.1 items checked)
+- [ ] AUDIT.md reviewed for security gaps
+- [ ] README.md updated with v0.1 status
+- [ ] Tag release: `git tag -a v0.1.0 -m "v0.1: Shadow Gradient Visibility + Onboarding + Security"`
+
+---
+
+## Estimated Timeline
+
+| Step | Description | Days | Cumulative |
+|------|-------------|------|------------|
+| 1 | Wire anonymous mechanics to network | 2 | 2d |
+| 2 | Cross-layer artifact rendering | 5 | 7d |
+| 3 | Onboarding UX screens (6 phases) | 16 | 23d |
+| 4 | Security hardening (parallel with Step 3) | 7 | 23d |
+| **Total (Critical Path)** | **Steps 1–4** | **23** | **23d** |
+| 5 | Network propagation validation (defer) | 9 | 32d |
+| 6 | Shroud anonymity testing (defer) | 11 | 43d |
+| 7 | Monitoring & observability (defer) | 6 | 49d |
+| **Total (Full v0.1)** | **Steps 1–7** | **49** | **49d** |
+
+**Reality Check**: Estimate assumes 1 developer working full-time with zero context-switching. Historical velocity from CHANGELOG.md (2026-05-04 entries) suggests ~2–3 days per feature of this complexity. Timeline is realistic with 20% buffer.
+
+**Recommendation**: Ship v0.1 after Step 4 (23 days critical path). Steps 5–7 are validations, not blockers. Early alpha testing with friendly users will surface real-world issues faster than simulation tests.
+
+---
+
+## Dependencies & Blockers
+
+**External Dependencies**:
+- ✅ Go 1.22+ (installed, verified)
+- ✅ Ebitengine v2.9.9 (in go.mod)
+- ✅ libp2p v0.48.0 (in go.mod)
+- ✅ Bbolt v1.3.11 (in go.mod)
+- ✅ All cryptographic libraries (Ed25519, Curve25519, ChaCha20-Poly1305, BLAKE3, Argon2id)
+
+**Internal Blockers**:
+- ❌ None identified. All subsystems exist; this plan is integration + UI.
+
+**Risks**:
+- ⚠️ Onboarding UX (Step 3) requires Ebitengine UI framework familiarity (learning curve: 2–3 days)
+- ⚠️ Cross-layer rendering (Step 2) may expose Pulse Map performance issues (mitigation: viewport culling already implemented)
+
+---
+
+## Metrics Tracking
+
+**Code Health** (baseline from go-stats-generator 2026-05-04):
+- Functions: 5,204 → target 5,500 (+300 new functions from Steps 1–4)
+- Complexity hotspots: 151 → target <160 (keep new functions simple)
+- Documentation: 82.3% → target 85% (document all new exported functions)
+- Duplication: 1.48% → target <2% (avoid copy-paste in onboarding screens)
+
+**Roadmap Progress** (from ROADMAP.md):
+- Implemented: 145/463 (31%) → target 200/463 (43%) after Steps 1–4
+- v0.1 items: 145 → target 200 (Step 3 alone adds ~30 items)
+
+**Test Coverage** (current: no simulation tests):
+- Unit tests: ✅ (all mechanics, crypto, data structures)
+- Integration tests: ⚠️ (network + storage, no cross-subsystem)
+- Simulation tests: ❌ (defer to Steps 5–6)
+- Target after Step 4: 80% line coverage on new code in Steps 1–4
+
+---
+
+## References
+
+**Specification Documents**:
+- GAPS.md — Critical gap analysis (Shadow Gradient visibility)
+- ROADMAP.md — Feature checklist (145/463 items complete)
+- DESIGN_DOCUMENT.md — Full system specification
+- TECHNICAL_IMPLEMENTATION.md — Architecture and concurrency model
+- PULSE_MAP.md — Rendering pipeline and visual effects
+- SHADOW_GRADIENT.md — Privacy modes and cross-layer mechanics
+- SECURITY_PRIVACY.md — Threat model and cryptographic primitives
+- RESONANCE_SYSTEM.md — Reputation formulas and milestone thresholds
+
+**Planning Documents**:
+- CHANGELOG.md — Implementation history (updated daily)
+- AUDIT.md — Security decisions and deviations
+- PLAN.md — This document (sprint-level task tracking)
+
+**Metrics Baseline**:
+- `go-stats-generator` output (2026-05-04): 5,204 functions, 151 complexity hotspots, 82.3% doc coverage, 1.48% duplication
+
+---
+
+**Generated by**: GitHub Copilot CLI  
+**Source**: GAPS.md critical path analysis + ROADMAP.md completion status + go-stats-generator metrics  
+**Next Review**: After Step 1 completion (2 days) — validate network propagation, adjust Step 2 timeline if needed

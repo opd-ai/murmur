@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	bloom "github.com/bits-and-blooms/bloom/v3"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/opd-ai/murmur/pkg/content/pow"
 	"github.com/opd-ai/murmur/pkg/content/storage"
@@ -56,15 +57,15 @@ type Handlers struct {
 	// cache stores received Waves.
 	cache *storage.Cache
 
-	// seenMessages tracks message IDs for deduplication.
-	// Maps BLAKE3 message_id -> first seen timestamp.
-	seenMessages map[string]time.Time
+	// dedupFilter is a Bloom filter for message deduplication.
+	// Per TECHNICAL_IMPLEMENTATION.md §3.2, uses 30-day window with 10M capacity.
+	dedupFilter *bloom.BloomFilter
 
-	// seenMu protects seenMessages map.
-	seenMu sync.RWMutex
+	// dedupMu protects dedupFilter.
+	dedupMu sync.RWMutex
 
-	// maxSeenMessages is the maximum deduplication cache size.
-	maxSeenMessages int
+	// dedupCreatedAt tracks when the filter was created for 30-day rotation.
+	dedupCreatedAt time.Time
 
 	// onWaveReceived is called when a valid Wave is received.
 	onWaveReceived func(*pb.Wave)
@@ -81,21 +82,33 @@ type Handlers struct {
 
 // HandlersConfig configures the message handlers.
 type HandlersConfig struct {
-	Cache           *storage.Cache
-	MaxSeenMessages int
+	Cache *storage.Cache
+	// DedupCapacity is the expected number of unique messages in 30 days.
+	// Per AUDIT.md, defaults to 10 million with 0.01 false positive rate.
+	DedupCapacity uint
+	// DedupFalsePositiveRate is the acceptable false positive rate.
+	DedupFalsePositiveRate float64
 }
 
 // NewHandlers creates a new Handlers instance.
 func NewHandlers(cfg HandlersConfig) (*Handlers, error) {
-	maxSeen := cfg.MaxSeenMessages
-	if maxSeen <= 0 {
-		maxSeen = 100000 // Default: 100k messages
+	// Set defaults per AUDIT.md: 10M capacity, 0.01 FP rate.
+	capacity := cfg.DedupCapacity
+	if capacity == 0 {
+		capacity = 10_000_000
+	}
+	fpRate := cfg.DedupFalsePositiveRate
+	if fpRate == 0 {
+		fpRate = 0.01
 	}
 
+	// Create Bloom filter for deduplication.
+	dedupFilter := bloom.NewWithEstimates(capacity, fpRate)
+
 	return &Handlers{
-		cache:           cfg.Cache,
-		seenMessages:    make(map[string]time.Time),
-		maxSeenMessages: maxSeen,
+		cache:          cfg.Cache,
+		dedupFilter:    dedupFilter,
+		dedupCreatedAt: time.Now(),
 	}, nil
 }
 
@@ -167,6 +180,26 @@ func (h *Handlers) RegisterAll(ctx context.Context, ps *gossip.PubSub) error {
 		gossip.TopicIdentity: h.handleIdentityMessage,
 		gossip.TopicShroud:   h.handleShroudMessage,
 		gossip.TopicPulse:    h.handlePulseMessage,
+	}
+
+	for topic, handler := range handlers {
+		if err := ps.Subscribe(ctx, topic, handler); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// RegisterAnonymousMechanics subscribes to anonymous layer topics for mini-game events.
+// Per AUDIT.md remediation, this enables network propagation of Phantom Gifts, Specter Marks,
+// Cipher Puzzles, and other anonymous mechanics. Should be called during initialization for
+// nodes in Hybrid/Guarded/Fortress modes.
+func (h *Handlers) RegisterAnonymousMechanics(ctx context.Context, ps *gossip.PubSub) error {
+	handlers := map[string]gossip.MessageHandler{
+		gossip.TopicAnonymousWaves:     h.handleAnonymousWavesMessage,
+		gossip.TopicAnonymousMechanics: h.handleAnonymousMechanicsMessage,
+		gossip.TopicAnonymousBeacons:   h.handleAnonymousBeaconsMessage,
 	}
 
 	for topic, handler := range handlers {
@@ -268,6 +301,62 @@ func (h *Handlers) handlePulseMessage(ctx context.Context, msg *pubsub.Message) 
 	h.invokeHeartbeatCallback(heartbeat)
 }
 
+// handleAnonymousWavesMessage processes Specter and Masked Waves from /murmur/anonymous/waves/1.0.
+// Per AUDIT.md remediation, this enables network propagation of anonymous layer Waves.
+func (h *Handlers) handleAnonymousWavesMessage(ctx context.Context, msg *pubsub.Message) {
+	// Per gossip/anonymous.go, anonymous waves use quantized timestamps.
+	// Basic validation - full implementation would parse Specter/Masked Wave payloads
+	// and route to pkg/anonymous/specters/ handlers.
+	envelope := &pb.MurmurEnvelope{}
+	if err := proto.Unmarshal(msg.Data, envelope); err != nil {
+		return // Silently drop invalid messages
+	}
+
+	// For now, just acknowledge receipt. Full implementation will:
+	// 1. Parse Wave from envelope.Payload
+	// 2. Validate Specter signature or Masked Wave encryption
+	// 3. Store in anonymous Wave cache
+	// 4. Emit event to event bus for UI rendering
+	_ = envelope
+}
+
+// handleAnonymousMechanicsMessage processes anonymous mini-game events from /murmur/anonymous/mechanics/1.0.
+// Per AUDIT.md remediation, this enables Phantom Gifts, Specter Marks, and other mechanics to propagate.
+func (h *Handlers) handleAnonymousMechanicsMessage(ctx context.Context, msg *pubsub.Message) {
+	// Per pkg/anonymous/mechanics/publisher.go, all mechanics use TopicAnonymousMechanics.
+	// Parse GossipMessage from envelope payload to determine event type.
+	envelope := &pb.MurmurEnvelope{}
+	if err := proto.Unmarshal(msg.Data, envelope); err != nil {
+		return
+	}
+
+	// For now, just acknowledge receipt. Full implementation will:
+	// 1. Parse GossipMessage from envelope.Payload
+	// 2. Route to appropriate mechanic handler (gifts, marks, puzzles, etc.)
+	// 3. Verify signatures and ZK proofs where applicable
+	// 4. Store events in respective mechanic stores
+	// 5. Emit events to event bus for cross-layer rendering
+	_ = envelope
+}
+
+// handleAnonymousBeaconsMessage processes Beacon Waves from /murmur/anonymous/beacons/1.0.
+// Per AUDIT.md remediation, this enables Shroud relay discovery via elevated-PoW Beacon Waves.
+func (h *Handlers) handleAnonymousBeaconsMessage(ctx context.Context, msg *pubsub.Message) {
+	// Beacon Waves have PoW difficulty 24 (vs 20 for standard Waves).
+	// Parse and validate, then extract relay advertisement.
+	envelope := &pb.MurmurEnvelope{}
+	if err := proto.Unmarshal(msg.Data, envelope); err != nil {
+		return
+	}
+
+	// For now, just acknowledge receipt. Full implementation will:
+	// 1. Validate elevated PoW (24 leading zero bits)
+	// 2. Parse RelayAdvertisement from Wave payload
+	// 3. Pass to Beacon.ProcessAdvertisement()
+	// 4. Emit EventShroudRelayDiscovered to event bus
+	_ = envelope
+}
+
 // validateEnvelope validates a MurmurEnvelope and checks for duplicates.
 func (h *Handlers) validateEnvelope(data []byte, expectedType pb.MessageType) (*pb.MurmurEnvelope, error) {
 	envelope := &pb.MurmurEnvelope{}
@@ -340,57 +429,48 @@ func (h *Handlers) verifyEnvelopeSignature(envelope *pb.MurmurEnvelope) error {
 	return nil
 }
 
-// isDuplicate checks if a message ID has been seen before.
+// isDuplicate checks if a message ID has been seen before using the Bloom filter.
 func (h *Handlers) isDuplicate(messageID []byte) bool {
-	h.seenMu.RLock()
-	defer h.seenMu.RUnlock()
+	h.dedupMu.RLock()
+	defer h.dedupMu.RUnlock()
 
-	_, seen := h.seenMessages[string(messageID)]
-	return seen
+	return h.dedupFilter.Test(messageID)
 }
 
-// markSeen records a message ID as seen.
+// markSeen records a message ID as seen in the Bloom filter.
 func (h *Handlers) markSeen(messageID []byte) {
-	h.seenMu.Lock()
-	defer h.seenMu.Unlock()
+	h.dedupMu.Lock()
+	defer h.dedupMu.Unlock()
 
-	// Evict old entries if at capacity.
-	if len(h.seenMessages) >= h.maxSeenMessages {
-		h.evictOldestSeen()
-	}
-
-	h.seenMessages[string(messageID)] = time.Now()
+	h.dedupFilter.Add(messageID)
 }
 
-// evictOldestSeen removes the oldest entries from the seen cache.
-// Must be called with seenMu held.
-func (h *Handlers) evictOldestSeen() {
-	// Simple strategy: remove 10% oldest entries.
-	toRemove := h.maxSeenMessages / 10
-	if toRemove < 1 {
-		toRemove = 1
-	}
+// rotateDedupFilter clears and recreates the Bloom filter.
+// Called every 30 days per TECHNICAL_IMPLEMENTATION.md §3.2.
+func (h *Handlers) rotateDedupFilter() {
+	h.dedupMu.Lock()
+	defer h.dedupMu.Unlock()
 
-	// Find oldest entries.
-	type entry struct {
-		id   string
-		time time.Time
-	}
-	entries := make([]entry, 0, len(h.seenMessages))
-	for id, t := range h.seenMessages {
-		entries = append(entries, entry{id, t})
-	}
+	// Clear the filter by creating a new one with the same parameters.
+	capacity := uint(10_000_000) // 10M per AUDIT.md
+	fpRate := 0.01               // 1% false positive rate
+	h.dedupFilter = bloom.NewWithEstimates(capacity, fpRate)
+	h.dedupCreatedAt = time.Now()
+}
 
-	// Sort by time (oldest first) using simple selection.
-	for i := 0; i < toRemove && i < len(entries); i++ {
-		minIdx := i
-		for j := i + 1; j < len(entries); j++ {
-			if entries[j].time.Before(entries[minIdx].time) {
-				minIdx = j
-			}
+// StartDedupRotation runs a background goroutine that rotates the dedup filter every 30 days.
+// Per AUDIT.md, the filter should be cleared every 30 days to prevent unbounded growth.
+func (h *Handlers) StartDedupRotation(ctx context.Context) {
+	ticker := time.NewTicker(30 * 24 * time.Hour) // 30 days
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			h.rotateDedupFilter()
 		}
-		entries[i], entries[minIdx] = entries[minIdx], entries[i]
-		delete(h.seenMessages, entries[i].id)
 	}
 }
 
@@ -529,16 +609,8 @@ func (h *Handlers) relayAdSignatureData(ad *pb.RelayAdvertisement) []byte {
 	return data
 }
 
-// SeenCount returns the number of messages in the deduplication cache.
-func (h *Handlers) SeenCount() int {
-	h.seenMu.RLock()
-	defer h.seenMu.RUnlock()
-	return len(h.seenMessages)
-}
-
-// ClearSeen clears the deduplication cache.
+// ClearSeen clears the deduplication Bloom filter.
+// Equivalent to rotateDedupFilter() but exposed for testing.
 func (h *Handlers) ClearSeen() {
-	h.seenMu.Lock()
-	defer h.seenMu.Unlock()
-	h.seenMessages = make(map[string]time.Time)
+	h.rotateDedupFilter()
 }

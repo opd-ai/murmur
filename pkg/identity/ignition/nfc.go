@@ -424,50 +424,11 @@ func splitMultiaddr(addr string) []string {
 // parseMultiaddrCompact parses a full multiaddr into compact format.
 func parseMultiaddrCompact(addr string) (NFCAddress, error) {
 	var result NFCAddress
-
 	parts := splitMultiaddr(addr)
 
 	for i := 0; i < len(parts)-1; i++ {
-		switch parts[i] {
-		case "ip4":
-			ip := net.ParseIP(parts[i+1])
-			if ip == nil {
-				return result, ErrInvalidAddress
-			}
-			ip4 := ip.To4()
-			if ip4 == nil {
-				return result, ErrInvalidAddress
-			}
-			result.Type = NFCAddressTypeIPv4
-			copy(result.IPv4[:], ip4)
-
-		case "ip6":
-			ip := net.ParseIP(parts[i+1])
-			if ip == nil {
-				return result, ErrInvalidAddress
-			}
-			ip6 := ip.To16()
-			if ip6 == nil {
-				return result, ErrInvalidAddress
-			}
-			result.Type = NFCAddressTypeIPv6
-			copy(result.IPv6[:], ip6)
-
-		case "tcp", "udp":
-			var port uint16
-			_, err := fmt.Sscanf(parts[i+1], "%d", &port)
-			if err != nil {
-				return result, ErrInvalidAddress
-			}
-			result.Port = port
-
-		case "p2p":
-			// Store truncated peer ID hash.
-			result.Type = NFCAddressTypePeerID
-			peerID := parts[i+1]
-			if len(peerID) >= 16 {
-				copy(result.PeerID[:], peerID[:8])
-			}
+		if err := parseMultiaddrPart(&result, parts[i], parts[i+1]); err != nil {
+			return result, err
 		}
 	}
 
@@ -476,6 +437,70 @@ func parseMultiaddrCompact(addr string) (NFCAddress, error) {
 	}
 
 	return result, nil
+}
+
+// parseMultiaddrPart processes a single multiaddr component.
+func parseMultiaddrPart(result *NFCAddress, protocol, value string) error {
+	switch protocol {
+	case "ip4":
+		return parseIPv4(result, value)
+	case "ip6":
+		return parseIPv6(result, value)
+	case "tcp", "udp":
+		return parsePort(result, value)
+	case "p2p":
+		parsePeerID(result, value)
+	}
+	return nil
+}
+
+// parseIPv4 parses and stores an IPv4 address.
+func parseIPv4(result *NFCAddress, value string) error {
+	ip := net.ParseIP(value)
+	if ip == nil {
+		return ErrInvalidAddress
+	}
+	ip4 := ip.To4()
+	if ip4 == nil {
+		return ErrInvalidAddress
+	}
+	result.Type = NFCAddressTypeIPv4
+	copy(result.IPv4[:], ip4)
+	return nil
+}
+
+// parseIPv6 parses and stores an IPv6 address.
+func parseIPv6(result *NFCAddress, value string) error {
+	ip := net.ParseIP(value)
+	if ip == nil {
+		return ErrInvalidAddress
+	}
+	ip6 := ip.To16()
+	if ip6 == nil {
+		return ErrInvalidAddress
+	}
+	result.Type = NFCAddressTypeIPv6
+	copy(result.IPv6[:], ip6)
+	return nil
+}
+
+// parsePort parses and stores a port number.
+func parsePort(result *NFCAddress, value string) error {
+	var port uint16
+	_, err := fmt.Sscanf(value, "%d", &port)
+	if err != nil {
+		return ErrInvalidAddress
+	}
+	result.Port = port
+	return nil
+}
+
+// parsePeerID parses and stores a truncated peer ID.
+func parsePeerID(result *NFCAddress, value string) {
+	result.Type = NFCAddressTypePeerID
+	if len(value) >= 16 {
+		copy(result.PeerID[:], value[:8])
+	}
 }
 
 // writeAddressCompact writes a compact address to a buffer.

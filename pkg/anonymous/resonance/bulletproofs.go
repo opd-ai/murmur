@@ -172,7 +172,34 @@ func NewBulletproofRangeVerifier() (*BulletproofRangeVerifier, error) {
 
 // Verify checks if a Bulletproof range proof is valid.
 func (v *BulletproofRangeVerifier) Verify(rangeProof *BulletproofRangeProof) error {
-	// Check freshness.
+	if err := v.checkProofFreshness(rangeProof); err != nil {
+		return err
+	}
+
+	if err := v.checkReplay(rangeProof); err != nil {
+		return err
+	}
+
+	capV, g, h, u, err := v.deserializeGenerators(rangeProof)
+	if err != nil {
+		return err
+	}
+
+	proof, err := v.deserializeProof(rangeProof)
+	if err != nil {
+		return err
+	}
+
+	if err := v.verifyProof(proof, capV.(curves.Point), g.(curves.Point), h.(curves.Point), u.(curves.Point), rangeProof.N); err != nil {
+		return err
+	}
+
+	v.recordNonce(rangeProof)
+	return nil
+}
+
+// checkProofFreshness verifies the proof timestamp is within acceptable range.
+func (v *BulletproofRangeVerifier) checkProofFreshness(rangeProof *BulletproofRangeProof) error {
 	proofTime := time.Unix(rangeProof.Timestamp, 0)
 	if time.Since(proofTime) > ClaimFreshness {
 		return ErrClaimExpired
@@ -180,57 +207,68 @@ func (v *BulletproofRangeVerifier) Verify(rangeProof *BulletproofRangeProof) err
 	if proofTime.After(time.Now().Add(30 * time.Second)) {
 		return ErrInvalidClaim
 	}
+	return nil
+}
 
-	// Check replay.
+// checkReplay verifies the nonce hasn't been seen before.
+func (v *BulletproofRangeVerifier) checkReplay(rangeProof *BulletproofRangeProof) error {
 	v.mu.RLock()
-	if _, seen := v.seenOnce[rangeProof.Nonce]; seen {
-		v.mu.RUnlock()
+	_, seen := v.seenOnce[rangeProof.Nonce]
+	v.mu.RUnlock()
+	if seen {
 		return ErrReplayDetected
 	}
-	v.mu.RUnlock()
+	return nil
+}
 
-	// Deserialize generator points.
+// deserializeGenerators deserializes all generator points from the proof.
+func (v *BulletproofRangeVerifier) deserializeGenerators(rangeProof *BulletproofRangeProof) (interface{}, interface{}, interface{}, interface{}, error) {
 	capV, err := v.params.Curve.Point.FromAffineCompressed(rangeProof.CapV)
 	if err != nil {
-		return ErrInvalidProof
+		return nil, nil, nil, nil, ErrInvalidProof
 	}
 	g, err := v.params.Curve.Point.FromAffineCompressed(rangeProof.G)
 	if err != nil {
-		return ErrInvalidProof
+		return nil, nil, nil, nil, ErrInvalidProof
 	}
 	h, err := v.params.Curve.Point.FromAffineCompressed(rangeProof.H)
 	if err != nil {
-		return ErrInvalidProof
+		return nil, nil, nil, nil, ErrInvalidProof
 	}
 	u, err := v.params.Curve.Point.FromAffineCompressed(rangeProof.U)
 	if err != nil {
-		return ErrInvalidProof
+		return nil, nil, nil, nil, ErrInvalidProof
 	}
+	return capV, g, h, u, nil
+}
 
-	// Deserialize the proof.
+// deserializeProof deserializes the range proof from bytes.
+func (v *BulletproofRangeVerifier) deserializeProof(rangeProof *BulletproofRangeProof) (*bulletproof.RangeProof, error) {
 	proof := bulletproof.NewRangeProof(v.params.Curve)
 	if err := proof.UnmarshalBinary(rangeProof.Proof); err != nil {
-		return ErrInvalidProof
+		return nil, ErrInvalidProof
 	}
+	return proof, nil
+}
 
-	// Create transcript for verification.
+// verifyProof performs the cryptographic verification of the range proof.
+func (v *BulletproofRangeVerifier) verifyProof(proof *bulletproof.RangeProof, capV, g, h, u curves.Point, n int) error {
 	transcript := merlin.NewTranscript("MURMUR_RANGE_PROOF")
-
-	// Verify the proof.
-	valid, err := v.verifier.Verify(proof, capV, g, h, u, rangeProof.N, transcript)
+	valid, err := v.verifier.Verify(proof, capV, g, h, u, n, transcript)
 	if err != nil {
 		return ErrInvalidProof
 	}
 	if !valid {
 		return ErrInvalidProof
 	}
+	return nil
+}
 
-	// Record nonce.
+// recordNonce records the nonce to prevent replay attacks.
+func (v *BulletproofRangeVerifier) recordNonce(rangeProof *BulletproofRangeProof) {
 	v.mu.Lock()
 	v.seenOnce[rangeProof.Nonce] = rangeProof.Timestamp
 	v.mu.Unlock()
-
-	return nil
 }
 
 // CleanExpiredNonces removes old nonces from the replay cache.
@@ -372,84 +410,129 @@ func (p *BulletproofThresholdProof) SetBytes(data []byte) error {
 		return ErrInvalidProof
 	}
 
-	pos := 0
+	deserializers := []func([]byte, int) (int, error){
+		p.deserializeProof,
+		p.deserializeCapV,
+		p.deserializeG,
+		p.deserializeH,
+		p.deserializeU,
+		p.deserializeN,
+		p.deserializeTimestamp,
+		p.deserializeNonce,
+	}
 
-	// Proof.
+	pos := 0
+	for _, deserialize := range deserializers {
+		var err error
+		pos, err = deserialize(data, pos)
+		if err != nil {
+			return err
+		}
+	}
+
+	return p.deserializeThreshold(data, pos)
+}
+
+// deserializeProof reads the proof bytes from data.
+func (p *BulletproofThresholdProof) deserializeProof(data []byte, pos int) (int, error) {
 	proofLen := int(binary.LittleEndian.Uint16(data[pos : pos+2]))
 	pos += 2
 	if pos+proofLen > len(data) {
-		return ErrInvalidProof
+		return pos, ErrInvalidProof
 	}
 	p.DeltaRangeProof.Proof = make([]byte, proofLen)
 	copy(p.DeltaRangeProof.Proof, data[pos:pos+proofLen])
 	pos += proofLen
+	return pos, nil
+}
 
-	// CapV.
+// deserializeCapV reads the CapV bytes from data.
+func (p *BulletproofThresholdProof) deserializeCapV(data []byte, pos int) (int, error) {
 	capVLen := int(binary.LittleEndian.Uint16(data[pos : pos+2]))
 	pos += 2
 	if pos+capVLen > len(data) {
-		return ErrInvalidProof
+		return pos, ErrInvalidProof
 	}
 	p.DeltaRangeProof.CapV = make([]byte, capVLen)
 	copy(p.DeltaRangeProof.CapV, data[pos:pos+capVLen])
 	pos += capVLen
+	return pos, nil
+}
 
-	// G.
+// deserializeG reads the G generator bytes from data.
+func (p *BulletproofThresholdProof) deserializeG(data []byte, pos int) (int, error) {
 	gLen := int(binary.LittleEndian.Uint16(data[pos : pos+2]))
 	pos += 2
 	if pos+gLen > len(data) {
-		return ErrInvalidProof
+		return pos, ErrInvalidProof
 	}
 	p.DeltaRangeProof.G = make([]byte, gLen)
 	copy(p.DeltaRangeProof.G, data[pos:pos+gLen])
 	pos += gLen
+	return pos, nil
+}
 
-	// H.
+// deserializeH reads the H generator bytes from data.
+func (p *BulletproofThresholdProof) deserializeH(data []byte, pos int) (int, error) {
 	hLen := int(binary.LittleEndian.Uint16(data[pos : pos+2]))
 	pos += 2
 	if pos+hLen > len(data) {
-		return ErrInvalidProof
+		return pos, ErrInvalidProof
 	}
 	p.DeltaRangeProof.H = make([]byte, hLen)
 	copy(p.DeltaRangeProof.H, data[pos:pos+hLen])
 	pos += hLen
+	return pos, nil
+}
 
-	// U.
+// deserializeU reads the U generator bytes from data.
+func (p *BulletproofThresholdProof) deserializeU(data []byte, pos int) (int, error) {
 	uLen := int(binary.LittleEndian.Uint16(data[pos : pos+2]))
 	pos += 2
 	if pos+uLen > len(data) {
-		return ErrInvalidProof
+		return pos, ErrInvalidProof
 	}
 	p.DeltaRangeProof.U = make([]byte, uLen)
 	copy(p.DeltaRangeProof.U, data[pos:pos+uLen])
 	pos += uLen
+	return pos, nil
+}
 
-	// N.
+// deserializeN reads the N bit length from data.
+func (p *BulletproofThresholdProof) deserializeN(data []byte, pos int) (int, error) {
 	if pos+4 > len(data) {
-		return ErrInvalidProof
+		return pos, ErrInvalidProof
 	}
 	p.DeltaRangeProof.N = int(binary.LittleEndian.Uint32(data[pos : pos+4]))
 	pos += 4
+	return pos, nil
+}
 
-	// Timestamp.
+// deserializeTimestamp reads the timestamp from data.
+func (p *BulletproofThresholdProof) deserializeTimestamp(data []byte, pos int) (int, error) {
 	if pos+8 > len(data) {
-		return ErrInvalidProof
+		return pos, ErrInvalidProof
 	}
 	p.DeltaRangeProof.Timestamp = int64(binary.LittleEndian.Uint64(data[pos : pos+8]))
 	pos += 8
+	return pos, nil
+}
 
-	// Nonce.
+// deserializeNonce reads the nonce from data.
+func (p *BulletproofThresholdProof) deserializeNonce(data []byte, pos int) (int, error) {
 	if pos+32 > len(data) {
-		return ErrInvalidProof
+		return pos, ErrInvalidProof
 	}
 	copy(p.DeltaRangeProof.Nonce[:], data[pos:pos+32])
 	pos += 32
+	return pos, nil
+}
 
-	// Threshold.
+// deserializeThreshold reads the threshold value from data.
+func (p *BulletproofThresholdProof) deserializeThreshold(data []byte, pos int) error {
 	if pos+8 > len(data) {
 		return ErrInvalidProof
 	}
 	p.Threshold = binary.LittleEndian.Uint64(data[pos : pos+8])
-
 	return nil
 }
