@@ -1,7 +1,5 @@
 // Package ui provides the Settings panel for configuration.
 //
-//go:build !noebiten
-// +build !noebiten
 
 package ui
 

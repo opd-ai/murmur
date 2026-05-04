@@ -4,8 +4,6 @@
 // Per ANONYMOUS_GAME_MECHANICS.md: Specter Marks are visible annotations
 // placed by Specters (Resonance ≥100) on any node in the network.
 //
-//go:build !noebiten
-// +build !noebiten
 
 package ui
 

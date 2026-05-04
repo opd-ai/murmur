@@ -4,8 +4,6 @@
 // Per ANONYMOUS_GAME_MECHANICS.md: "Shadow Play is a social deduction game
 // that leverages anonymity as its core mechanic."
 //
-//go:build !noebiten
-// +build !noebiten
 
 package ui
 

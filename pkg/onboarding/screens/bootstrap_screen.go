@@ -1,8 +1,6 @@
 // Package screens provides the Bootstrap and Exploration screens for onboarding Phase 4-5.
 // Per ONBOARDING.md, these screens handle peer discovery and Pulse Map introduction.
 //
-//go:build !noebiten
-// +build !noebiten
 
 package screens
 

@@ -2,8 +2,6 @@
 // Per ONBOARDING.md, this screen shows a summary of the created identity
 // and prompts for invitation generation.
 //
-//go:build !noebiten
-// +build !noebiten
 
 package screens
 

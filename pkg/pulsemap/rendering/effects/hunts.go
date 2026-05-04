@@ -12,8 +12,6 @@
 // - Hunt expiring: red pulse warning effect
 // - Hunt completed: all fragments show victory animation
 //
-//go:build !noebiten
-// +build !noebiten
 
 package effects
 

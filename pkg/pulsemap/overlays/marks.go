@@ -3,8 +3,6 @@
 // Per ANONYMOUS_GAME_MECHANICS.md, marks are anonymous annotations that appear
 // as orbiting sigil icons on marked Surface nodes.
 //
-//go:build !noebiten
-// +build !noebiten
 
 package overlays
 

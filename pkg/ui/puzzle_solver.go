@@ -1,8 +1,6 @@
 // Package ui provides the Puzzle Solver panel for submitting solutions to Cipher Puzzles.
 // Per ROADMAP.md line 419: "UI: puzzle solving interface — submit solution with feedback".
 //
-//go:build !noebiten
-// +build !noebiten
 
 package ui
 

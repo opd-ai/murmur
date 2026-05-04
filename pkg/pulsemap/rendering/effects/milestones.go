@@ -16,8 +16,6 @@
 // - Revenant (200) — ethereal aura
 // - Abyss (500) — void shader (Fortress only)
 //
-//go:build !noebiten
-// +build !noebiten
 
 package effects
 

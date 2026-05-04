@@ -12,8 +12,6 @@
 // - Solved: green checkmark overlay
 // - Expired: faded gray with crack effect
 //
-//go:build !noebiten
-// +build !noebiten
 
 package effects
 

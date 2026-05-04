@@ -1,5 +1,3 @@
-//go:build !noebiten
-
 // Package ui — Phantom Council panel rendering functions.
 // This file contains all Draw() methods for the CouncilPanel.
 package ui

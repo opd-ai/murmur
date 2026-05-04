@@ -1,7 +1,5 @@
 // Package overlays - Echo Chain overlay tests.
 //
-//go:build !noebiten
-// +build !noebiten
 
 package overlays
 

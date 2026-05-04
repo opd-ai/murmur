@@ -1,8 +1,6 @@
 // Package effects provides shader-based visual effects for the Pulse Map.
 // Per ANONYMOUS_GAME_MECHANICS.md, Phantom Gifts create visual effects on recipient nodes.
 //
-//go:build !noebiten
-// +build !noebiten
 
 package effects
 

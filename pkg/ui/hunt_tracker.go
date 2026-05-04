@@ -1,8 +1,6 @@
 // Package ui provides the Hunt Tracker overlay for viewing Specter Hunt progress.
 // Per ROADMAP.md line 434: "UI: Hunt tracker overlay — fragment locations, clue display, leaderboard".
 //
-//go:build !noebiten
-// +build !noebiten
 
 package ui
 

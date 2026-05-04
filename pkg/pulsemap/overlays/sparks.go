@@ -7,8 +7,6 @@
 // Wave Relay sparks show a creative constraint beacon. Echo Race sparks show a racing flag.
 // Winners display a golden crown glyph for SparkCrownDuration (1 hour).
 //
-//go:build !noebiten
-// +build !noebiten
 
 package overlays
 

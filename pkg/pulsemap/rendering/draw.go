@@ -2,8 +2,6 @@
 // Per TECHNICAL_IMPLEMENTATION.md §1.2, rendering uses Ebitengine v2.7+
 // with Kage shaders for glow and ripple effects.
 //
-//go:build !noebiten
-// +build !noebiten
 
 package rendering
 

@@ -5,8 +5,6 @@
 // Per ROADMAP.md line 476: "Pulse Map visualization — anvil-and-flame icon
 // with orbiting entries".
 //
-//go:build !noebiten
-// +build !noebiten
 
 package overlays
 

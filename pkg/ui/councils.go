@@ -4,8 +4,6 @@
 // Per ANONYMOUS_GAME_MECHANICS.md: "Phantom Councils are persistent,
 // private, anonymous coordination groups for high-Resonance Specters."
 //
-//go:build !noebiten
-// +build !noebiten
 
 package ui
 

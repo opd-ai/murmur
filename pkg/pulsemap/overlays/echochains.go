@@ -4,8 +4,6 @@
 // Long chains (5+ nodes) develop a shimmer effect. The chain fades after 1 hour."
 // Per ROADMAP.md line 565: "Pulse Map visualization — animated amplification trail between nodes"
 //
-//go:build !noebiten
-// +build !noebiten
 
 package overlays
 

@@ -1,7 +1,5 @@
 // Package overlays - Common camera transformation helpers.
 //
-//go:build !noebiten
-// +build !noebiten
 
 package overlays
 

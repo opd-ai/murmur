@@ -1,7 +1,5 @@
 // Package overlays — Phantom Council overlay tests.
 //
-//go:build !noebiten
-// +build !noebiten
 
 package overlays
 

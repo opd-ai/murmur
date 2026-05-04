@@ -1,7 +1,5 @@
 // Package ui — Phantom Council management panel tests.
 //
-//go:build !noebiten
-// +build !noebiten
 
 package ui
 

@@ -4,8 +4,6 @@
 // Per ANONYMOUS_GAME_MECHANICS.md: Masked Events are time-limited anonymous
 // gatherings where participants use single-use identities.
 //
-//go:build !noebiten
-// +build !noebiten
 
 package ui
 

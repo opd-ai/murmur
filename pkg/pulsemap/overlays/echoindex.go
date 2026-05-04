@@ -5,8 +5,6 @@
 // - Low Echo Index (<0.4) = cool colors (blue to green) indicating openness
 // - Mid-range = neutral (gray to white)
 //
-//go:build !noebiten
-// +build !noebiten
 
 package overlays
 

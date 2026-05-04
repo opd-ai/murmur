@@ -4,8 +4,6 @@
 // Per ANONYMOUS_GAME_MECHANICS.md: "Sigil Forge events are timed creative
 // challenges where Specters compete to produce the most compelling content."
 //
-//go:build !noebiten
-// +build !noebiten
 
 package ui
 

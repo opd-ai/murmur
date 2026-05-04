@@ -3,8 +3,6 @@
 // Per ANONYMOUS_GAME_MECHANICS.md, gifts produce animated cosmetic effects in 3 tiers:
 // Basic (Resonance 25+), Expanded (Resonance 50+), and Premium (Resonance 100+).
 //
-//go:build !noebiten
-// +build !noebiten
 
 package overlays
 

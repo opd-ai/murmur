@@ -5,8 +5,6 @@
 // Per ROADMAP.md line 506: "Pulse Map visualization — translucent dome with
 // identical featureless dots inside".
 //
-//go:build !noebiten
-// +build !noebiten
 
 package overlays
 

@@ -2,8 +2,6 @@
 // This file contains the main Renderer type that coordinates layout, camera,
 // and drawing of nodes/edges.
 //
-//go:build !noebiten
-// +build !noebiten
 
 package rendering
 

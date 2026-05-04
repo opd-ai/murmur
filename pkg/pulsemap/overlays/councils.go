@@ -4,8 +4,6 @@
 // Councils appear as constellations with connecting threads between members, unique council colors,
 // and glowing effects during active communication.
 //
-//go:build !noebiten
-// +build !noebiten
 
 package overlays
 

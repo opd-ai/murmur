@@ -4,8 +4,6 @@
 // Per ANONYMOUS_GAME_MECHANICS.md: Phantom Gifts are one-way gestures of
 // generosity from a Specter to any node (Surface or Anonymous).
 //
-//go:build !noebiten
-// +build !noebiten
 
 package ui
 

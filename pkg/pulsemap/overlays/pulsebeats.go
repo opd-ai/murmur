@@ -4,8 +4,6 @@
 // camera to the relevant location."
 // Per ROADMAP.md line 570: "Edge-of-viewport notification rendering"
 //
-//go:build !noebiten
-// +build !noebiten
 
 package overlays
 

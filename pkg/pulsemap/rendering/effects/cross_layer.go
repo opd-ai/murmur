@@ -4,8 +4,6 @@
 // Per ANONYMOUS_GAME_MECHANICS.md: Gifts from Specters (Anonymous Layer) appear as
 // visual effects on recipient nodes visible in the Surface Layer Pulse Map.
 //
-//go:build !noebiten
-// +build !noebiten
 
 package effects
 

@@ -1,7 +1,5 @@
 // Package overlays - Pulse Beat overlay tests.
 //
-//go:build !noebiten
-// +build !noebiten
 
 package overlays
 

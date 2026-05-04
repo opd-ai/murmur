@@ -2,8 +2,6 @@
 // Per ROADMAP.md line 461: "Pulse Map visualization — swirling vortex icon at pool location".
 // Oracle Pools display as animated vortex icons with prediction state indicators.
 //
-//go:build !noebiten
-// +build !noebiten
 
 package overlays
 

@@ -3,8 +3,6 @@
 // Per ANONYMOUS_GAME_MECHANICS.md: Specters earn trophies through milestones,
 // activity, and rare achievements.
 //
-//go:build !noebiten
-// +build !noebiten
 
 package ui
 

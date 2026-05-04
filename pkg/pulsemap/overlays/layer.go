@@ -1,8 +1,6 @@
 // Package overlays provides Anonymous Layer overlay and activity heatmap.
 // Per DESIGN_DOCUMENT.md, the Pulse Map shows anonymous activity as overlays.
 //
-//go:build !noebiten
-// +build !noebiten
 
 package overlays
 

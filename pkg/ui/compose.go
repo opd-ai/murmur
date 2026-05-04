@@ -1,7 +1,5 @@
 // Package ui provides the Compose panel for creating Waves.
 //
-//go:build !noebiten
-// +build !noebiten
 
 package ui
 

@@ -2,8 +2,6 @@
 // Per ONBOARDING.md, this implements the six-phase onboarding flow with
 // animated visualizations and interactive elements.
 //
-//go:build !noebiten
-// +build !noebiten
 
 package screens
 

@@ -2,8 +2,6 @@
 // Per ONBOARDING.md, this screen introduces the dual-layer architecture and
 // allows users to choose between Open, Hybrid, and Fortress modes.
 //
-//go:build !noebiten
-// +build !noebiten
 
 package screens
 

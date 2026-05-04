@@ -1,7 +1,5 @@
 // Package screens provides shared rendering helpers for onboarding screens.
 //
-//go:build !noebiten
-// +build !noebiten
 
 package screens
 

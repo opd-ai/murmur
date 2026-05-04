@@ -1,7 +1,5 @@
 // Package overlays - Surface Spark overlay tests.
 //
-//go:build !noebiten
-// +build !noebiten
 
 package overlays
 

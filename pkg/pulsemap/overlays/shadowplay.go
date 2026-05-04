@@ -5,8 +5,6 @@
 // Per ROADMAP.md line 491: "Pulse Map visualization — dark shimmering dome
 // with lightning effects".
 //
-//go:build !noebiten
-// +build !noebiten
 
 package overlays
 

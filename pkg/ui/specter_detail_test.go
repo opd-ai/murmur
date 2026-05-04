@@ -1,7 +1,5 @@
 // Package ui - Tests for Specter detail panel.
 //
-//go:build !noebiten
-// +build !noebiten
 
 package ui
 

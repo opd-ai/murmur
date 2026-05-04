@@ -1,8 +1,6 @@
 // Package effects provides shader-based visual effects for the Pulse Map.
 // Per PULSE_MAP.md, effects include glow, ripple, and spectra shaders.
 //
-//go:build !noebiten
-// +build !noebiten
 
 package effects
 

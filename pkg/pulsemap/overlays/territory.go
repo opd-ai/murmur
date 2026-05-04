@@ -4,8 +4,6 @@
 // Territories show controller sigils as watermarks and boundary states
 // (neutral, controlled, contested).
 //
-//go:build !noebiten
-// +build !noebiten
 
 package overlays
 

@@ -1,8 +1,6 @@
 // Package rendering provides Ebitengine-based rendering for the Pulse Map.
 // This file provides sigil-to-Ebitengine-image conversion for Pulse Map overlay.
 //
-//go:build !noebiten
-// +build !noebiten
 
 package rendering
 
