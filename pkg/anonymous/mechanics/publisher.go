@@ -3,6 +3,7 @@ package mechanics
 
 import (
 	"context"
+	"crypto/ed25519"
 	"errors"
 	"fmt"
 
@@ -53,6 +54,34 @@ func hexDigit(c byte) byte {
 	default:
 		return 0
 	}
+}
+
+// VerifyEd25519Signature is a helper for verifying Ed25519 signatures in mechanics events.
+// It checks that event signature exists, nested signature exists, pubkey is valid size,
+// and performs Ed25519 verification. Returns nil on success.
+func VerifyEd25519Signature(
+	eventSig []byte,
+	nestedSig []byte,
+	pubkey []byte,
+	sigData []byte,
+) error {
+	if len(eventSig) == 0 {
+		return ErrMissingSignature
+	}
+
+	if len(nestedSig) == 0 {
+		return ErrMissingSignature
+	}
+
+	if len(pubkey) != ed25519.PublicKeySize {
+		return ErrSignatureFailed
+	}
+
+	if ed25519.Verify(pubkey, sigData, eventSig) {
+		return nil
+	}
+
+	return ErrSignatureFailed
 }
 
 // EventExtractor extracts a specific event type from a GossipMessage.

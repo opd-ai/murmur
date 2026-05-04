@@ -48,6 +48,62 @@ type ephemeralTopicEntry struct {
 	sub       *pubsub.Subscription
 }
 
+// subscribeToTopic is a helper that handles the common subscription pattern.
+// It checks if the topic exists, verifies not already subscribed, and creates a subscription.
+// The entry.sub field is updated before releasing the lock.
+func subscribeToEphemeralTopic(
+	mu *sync.RWMutex,
+	topics map[string]*ephemeralTopicEntry,
+	topicName string,
+) (*pubsub.Subscription, error) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	entry, ok := topics[topicName]
+	if !ok {
+		return nil, ErrInvalidPayload
+	}
+
+	if entry.sub != nil {
+		return nil, nil // Already subscribed
+	}
+
+	sub, err := entry.topic.Subscribe()
+	if err != nil {
+		return nil, err
+	}
+
+	entry.sub = sub
+	return sub, nil
+}
+
+// subscribeToCouncilTopic is a helper for council topic subscription.
+func subscribeToCouncilTopic(
+	mu *sync.RWMutex,
+	topics map[string]*councilTopicEntry,
+	topicName string,
+) (*pubsub.Subscription, []byte, error) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	entry, ok := topics[topicName]
+	if !ok {
+		return nil, nil, ErrInvalidPayload
+	}
+
+	if entry.sub != nil {
+		return nil, nil, nil // Already subscribed
+	}
+
+	sub, err := entry.topic.Subscribe()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	entry.sub = sub
+	return sub, entry.EncryptKey, nil
+}
+
 // NewEphemeralTopicManager creates a new ephemeral topic manager.
 func NewEphemeralTopicManager(ps *PubSub, handlers *AnonymousTopicHandlers) *EphemeralTopicManager {
 	return &EphemeralTopicManager{
@@ -101,26 +157,13 @@ func (m *EphemeralTopicManager) CreateEventTopic(ctx context.Context, eventID st
 func (m *EphemeralTopicManager) SubscribeToEventTopic(ctx context.Context, eventID string, handler MessageHandler) error {
 	topicName := EventTopic(eventID)
 
-	m.mu.Lock()
-	entry, ok := m.topics[topicName]
-	if !ok {
-		m.mu.Unlock()
-		return ErrInvalidPayload // Topic not created
-	}
-
-	// Check if already subscribed
-	if entry.sub != nil {
-		m.mu.Unlock()
-		return nil
-	}
-
-	sub, err := entry.topic.Subscribe()
+	sub, err := subscribeToEphemeralTopic(&m.mu, m.topics, topicName)
 	if err != nil {
-		m.mu.Unlock()
 		return err
 	}
-	entry.sub = sub
-	m.mu.Unlock()
+	if sub == nil {
+		return nil // Already subscribed
+	}
 
 	// Start handler goroutine
 	go func() {
@@ -296,26 +339,13 @@ func (m *CouncilTopicManager) JoinCouncilTopic(ctx context.Context, councilID st
 func (m *CouncilTopicManager) SubscribeToCouncilTopic(ctx context.Context, councilID string, handler MessageHandler) error {
 	topicName := CouncilTopic(councilID)
 
-	m.mu.Lock()
-	entry, ok := m.topics[topicName]
-	if !ok {
-		m.mu.Unlock()
-		return ErrInvalidPayload
-	}
-
-	if entry.sub != nil {
-		m.mu.Unlock()
-		return nil
-	}
-
-	sub, err := entry.topic.Subscribe()
+	sub, encryptKey, err := subscribeToCouncilTopic(&m.mu, m.topics, topicName)
 	if err != nil {
-		m.mu.Unlock()
 		return err
 	}
-	entry.sub = sub
-	encryptKey := entry.EncryptKey
-	m.mu.Unlock()
+	if sub == nil {
+		return nil // Already subscribed
+	}
 
 	// Start decrypting handler goroutine
 	go func() {

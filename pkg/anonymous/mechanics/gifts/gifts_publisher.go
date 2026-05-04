@@ -124,34 +124,17 @@ func (r *GiftReceiver) HandleMessage(data []byte) error {
 
 // verifyEventSignature checks the event signature.
 func (r *GiftReceiver) verifyEventSignature(event *pb.GiftEvent) error {
-	if len(event.Signature) == 0 {
-		return mechanics.ErrMissingSignature
-	}
-
-	// The sender public key is the gift's sender.
 	if event.Gift == nil || len(event.Gift.SenderPubkey) != 32 {
 		return mechanics.ErrSignatureFailed
 	}
 
-	// For Phantom Gifts, the signature is verified using Ed25519.
-	// The Specter's Curve25519 key is converted or they use a separate signing key.
-	// We verify using the gift's own signature field if present.
-	if len(event.Gift.Signature) == 0 {
-		return mechanics.ErrMissingSignature
-	}
-
 	sigData := r.eventSignatureData(event)
-
-	// Try verification with sender public key (if it's an Ed25519 key).
-	// Note: Specters use Curve25519 for DH, but may have an Ed25519 signing key.
-	// For simplicity, we accept any valid 32-byte key as potential Ed25519 public key.
-	if len(event.Gift.SenderPubkey) == ed25519.PublicKeySize {
-		if ed25519.Verify(event.Gift.SenderPubkey, sigData, event.Signature) {
-			return nil
-		}
-	}
-
-	return mechanics.ErrSignatureFailed
+	return mechanics.VerifyEd25519Signature(
+		event.Signature,
+		event.Gift.Signature,
+		event.Gift.SenderPubkey,
+		sigData,
+	)
 }
 
 // eventSignatureData creates the data that was signed.

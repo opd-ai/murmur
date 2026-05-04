@@ -124,30 +124,17 @@ func (r *MarkReceiver) HandleMessage(data []byte) error {
 
 // verifyEventSignature checks the event signature.
 func (r *MarkReceiver) verifyEventSignature(event *pb.MarkEvent) error {
-	if len(event.Signature) == 0 {
-		return mechanics.ErrMissingSignature
-	}
-
-	// The sender public key is the mark's specter pubkey.
 	if event.Mark == nil || len(event.Mark.SpecterPubkey) != 32 {
 		return mechanics.ErrSignatureFailed
 	}
 
-	// Verify the mark's own signature if present.
-	if len(event.Mark.Signature) == 0 {
-		return mechanics.ErrMissingSignature
-	}
-
 	sigData := r.eventSignatureData(event)
-
-	// Try verification with specter public key.
-	if len(event.Mark.SpecterPubkey) == ed25519.PublicKeySize {
-		if ed25519.Verify(event.Mark.SpecterPubkey, sigData, event.Signature) {
-			return nil
-		}
-	}
-
-	return mechanics.ErrSignatureFailed
+	return mechanics.VerifyEd25519Signature(
+		event.Signature,
+		event.Mark.Signature,
+		event.Mark.SpecterPubkey,
+		sigData,
+	)
 }
 
 // eventSignatureData creates the data that was signed.

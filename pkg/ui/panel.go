@@ -201,5 +201,6 @@ type SearchResult struct {
 	DisplayName string
 	Pseudonym   string
 	IsSpecter   bool
+	Relevance   float32
 	Resonance   float64
 }
