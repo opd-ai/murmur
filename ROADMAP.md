@@ -634,15 +634,15 @@
 - [x] Mini-game visualization tracking
 - [x] **Minimap** — full network overview in corner with viewport indicator
 - [x] **Activity Heat Map overlay** — blue-to-red gradient, 60-minute trailing window, blurred background layer
-- [ ] **Mini-game visualization icons**:
-  - [ ] Cipher Puzzles — rotating cryptographic symbol
-  - [ ] Specter Hunts — scattered glowing fragments
-  - [ ] Territory Drift — translucent watermarks with boundaries
-  - [ ] Oracle Pools — swirling vortex icon
-  - [ ] Sigil Forge — anvil-and-flame with orbiting entries
-  - [ ] Shadow Play — dark shimmering dome with lightning
-  - [ ] Masked Events — translucent dome with identical dots
-- [ ] **Council visualization** — constellation pattern, unique color threads, glow during active communication
+- [x] **Mini-game visualization icons**:
+  - [x] Cipher Puzzles — rotating cryptographic symbol
+  - [x] Specter Hunts — scattered glowing fragments
+  - [x] Territory Drift — translucent watermarks with boundaries
+  - [x] Oracle Pools — swirling vortex icon
+  - [x] Sigil Forge — anvil-and-flame with orbiting entries
+  - [x] Shadow Play — dark shimmering dome with lightning
+  - [x] Masked Events — translucent dome with identical dots
+- [x] **Council visualization** — constellation pattern, unique color threads, glow during active communication
 - [ ] **Whisper Chain indicator** — subtle pulse (recipient only, per privacy spec)
 
 ### Interaction (`pkg/pulsemap/interaction/`)
