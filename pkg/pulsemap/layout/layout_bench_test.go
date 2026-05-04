@@ -233,3 +233,35 @@ func BenchmarkStepDenseGraph(b *testing.B) {
 		engine.Tick()
 	}
 }
+
+// BenchmarkStep500Nodes2000Edges validates ROADMAP.md line 593 requirement:
+// 60fps (16.67ms/frame) with 500 nodes and 2000 edges.
+func BenchmarkStep500Nodes2000Edges(b *testing.B) {
+	engine := NewEngine()
+
+	// Add 500 nodes
+	for i := 0; i < 500; i++ {
+		engine.AddNode(&Node{
+			ID:          fmt.Sprintf("node-%d", i),
+			Connections: 4,
+			Activity:    0.5,
+		})
+	}
+
+	// Add 2000 edges (4 edges per node)
+	for i := 0; i < 500; i++ {
+		for j := 0; j < 4; j++ {
+			target := (i + j + 1) % 500
+			engine.AddEdge(Edge{
+				SourceID: fmt.Sprintf("node-%d", i),
+				TargetID: fmt.Sprintf("node-%d", target),
+				Age:      1.0,
+			})
+		}
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		engine.Tick()
+	}
+}

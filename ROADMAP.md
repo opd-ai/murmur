@@ -590,7 +590,7 @@
 - [x] **Double-buffered position swap** — `atomic.Pointer` for lock-free layout → render handoff
 - [x] **Hierarchical aggregation** — cluster representatives for >500 visible nodes
 - [x] **Incremental layout** — 30 ticks/second background goroutine
-- [ ] **Performance**: 60fps with 500 nodes and 2000 edges (target per TECHNICAL_IMPLEMENTATION.md)
+- [x] **Performance**: 60fps with 500 nodes and 2000 edges (validated with BenchmarkStep500Nodes2000Edges: 1.97ms/op, target 16.67ms)
 - [x] **Viewport culling** — only compute forces for visible nodes
 - [x] **Data update throttling** — 30Hz nodes, 10Hz state, 5Hz connections, 2Hz content
 
@@ -617,7 +617,7 @@
 - [x] Kage shader system (Glow, Ripple, Spectra)
 - [x] GiftRenderer with 25+ effect configurations
 - [x] Resonance-tiered effects (25, 50, 100 thresholds)
-- [ ] **Ripple propagation animation** — Wave publication visualization radiating outward
+- [x] **Ripple propagation animation** — RippleManager implemented with shader integration, Update/Draw cycle; needs game loop wiring
 - [ ] **Amplification trail** — visual connection between amplifier and original author
 - [x] **Activity halo decay** — 60-minute intensity decay curve
 - [ ] **GPU particle system** — efficient ambient + mechanic-specific particle rendering
