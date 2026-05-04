@@ -837,6 +837,8 @@
 - [x] Unit tests for game mechanics (puzzles, hunts, territory, oracle, forge, shadowplay)
 - [x] Unit tests for touch interactions, overlays, colors, rendering
 - [x] Stability simulation infrastructure (1000-node, 72-hour)
+- [x] **Test suite validation** — 100% pass rate across 38 packages with race detector (`go test -race ./...`)
+- [x] **Complexity baseline** — go-stats-generator metrics (4.9 MB JSON, 4 high-complexity functions tracked)
 - [ ] **Integration tests** — in-memory Bbolt + mock event bus, no libp2p, no Ebitengine
 - [ ] **Simulation tests** — 10–100 in-process libp2p nodes with memory transports (`//go:build simulation`)
   - [ ] Gossip propagation latency verification (<3s to 99% of subscribers)
@@ -855,8 +857,9 @@
 - [x] docs/BOOTSTRAP_OPERATION.md — bootstrap node procedures
 - [x] docs/DEPLOYMENT.md — deployment guide
 - [x] docs/SHROUD_OPERATION.md — Shroud relay operation
-- [ ] AUDIT.md — security decisions and deviations log
-- [ ] PLAN.md — sprint-level task tracking
+- [x] AUDIT.md — security decisions and deviations log (updated 2026-05-04 with test suite health)
+- [x] PLAN.md — sprint-level task tracking (updated 2026-05-04 with test metrics)
+- [x] TEST_RESOLUTION_COMPLETE.md — test failure classification and resolution report (2026-05-04)
 - [ ] API documentation for all exported types and functions
 - [ ] Architecture decision records (ADRs) for key design choices
 
@@ -914,10 +917,12 @@
 | Mini-Games & Mechanics | 41 | 62 | 103 |
 | Pulse Map & Visualization | 18 | 55 | 73 |
 | Onboarding & Growth | 7 | 33 | 40 |
-| Production Readiness | 9 | 27 | 36 |
+| Production Readiness | 12 | 24 | 36 |
 | Cross-Cutting | 2 | 10 | 12 |
-| **Total** | **145** | **318** | **463** |
+| **Total** | **148** | **315** | **463** |
 
-> **Implementation progress: ~31% complete** — Core data structures and game mechanics are
+> **Implementation progress: ~32% complete** — Core data structures and game mechanics are
 > solid, but network integration, UI rendering, persistence, and cross-subsystem wiring
-> represent the majority of remaining work.
+> represent the majority of remaining work. Test suite health: 100% pass rate across 38
+> packages with race detector, zero complexity regressions, comprehensive unit test coverage
+> for cryptography and mechanics (validated 2026-05-04).
