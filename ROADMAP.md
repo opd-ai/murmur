@@ -668,7 +668,7 @@
   - [x] Specter Resonance (for anonymous nodes)
   - [x] Interaction options
 - [x] **Search bar** — find by display name, fingerprint, or pseudonym
-- [ ] **Bookmarks** — save and navigate to specific nodes
+- [x] **Bookmarks** — save and navigate to specific nodes
 - [x] **"Find Self" button** — center view on own node
 
 ### Zoom & Navigation

@@ -125,7 +125,7 @@ func (a *App) runPulseMapUI() error {
 	}
 
 	// Create the Pulse Map game instance with Wave publishing capability and store access.
-	game, err := pulsemap.NewGame(a.ctx, keypair, pubsub, storage)
+	game, err := pulsemap.NewGame(a.ctx, keypair, pubsub, storage, a.config.DataDir)
 	if err != nil {
 		return fmt.Errorf("creating Pulse Map game: %w", err)
 	}

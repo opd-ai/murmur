@@ -52,6 +52,9 @@ type Game struct {
 	// searchBar is the node search interface.
 	searchBar *ui.SearchBar
 
+	// bookmarkManager handles node bookmarks.
+	bookmarkManager *BookmarkManager
+
 	// keypair is the Surface Layer identity for signing Waves.
 	keypair *keys.KeyPair
 
@@ -84,7 +87,7 @@ type Game struct {
 
 // NewGame creates a new Pulse Map game instance.
 // Per AUDIT.md remediation, this wires the Ebitengine game loop.
-func NewGame(ctx context.Context, keypair *keys.KeyPair, pubsub *gossip.PubSub, db *store.DB) (*Game, error) {
+func NewGame(ctx context.Context, keypair *keys.KeyPair, pubsub *gossip.PubSub, db *store.DB, dataDir string) (*Game, error) {
 	// Create layout engine with initial self node.
 	engine := layout.NewEngine()
 
@@ -156,6 +159,14 @@ func NewGame(ctx context.Context, keypair *keys.KeyPair, pubsub *gossip.PubSub, 
 		OnClose:  game.handleSearchClose,
 	})
 
+	// Initialize bookmark manager.
+	bookmarkMgr, err := NewBookmarkManager(dataDir)
+	if err != nil {
+		log.Printf("Warning: failed to initialize bookmark manager: %v", err)
+		// Non-fatal: bookmarks will be disabled but app continues
+	}
+	game.bookmarkManager = bookmarkMgr
+
 	return game, nil
 }
 
@@ -176,6 +187,7 @@ func (g *Game) Update() error {
 	g.handleComposePanelToggle()
 	g.handleSearchBarToggle()
 	g.handleFindSelf()
+	g.handleBookmarkKeys()
 	g.handleNodeSelection()
 
 	// Update search bar first (highest priority if visible).
@@ -236,6 +248,103 @@ func (g *Game) handleFindSelf() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyHome) || inpututil.IsKeyJustPressed(ebiten.KeyH) {
 		g.centerOnSelfNode()
 	}
+}
+
+// handleBookmarkKeys handles keyboard shortcuts for bookmark management.
+// Ctrl+B: Add/update bookmark for currently selected node
+// Ctrl+Shift+B: Remove bookmark for currently selected node
+// Ctrl+1-9: Navigate to bookmark by index
+func (g *Game) handleBookmarkKeys() {
+	if g.bookmarkManager == nil {
+		return // Bookmarks disabled
+	}
+
+	ctrlPressed := ebiten.IsKeyPressed(ebiten.KeyControl) || ebiten.IsKeyPressed(ebiten.KeyMeta)
+	shiftPressed := ebiten.IsKeyPressed(ebiten.KeyShift)
+
+	// Ctrl+B: Add bookmark for selected node
+	if ctrlPressed && !shiftPressed && inpututil.IsKeyJustPressed(ebiten.KeyB) {
+		if g.input.SelectedNodeID != "" {
+			g.addBookmarkForSelectedNode()
+		}
+		return
+	}
+
+	// Ctrl+Shift+B: Remove bookmark for selected node
+	if ctrlPressed && shiftPressed && inpututil.IsKeyJustPressed(ebiten.KeyB) {
+		if g.input.SelectedNodeID != "" {
+			g.removeBookmarkForSelectedNode()
+		}
+		return
+	}
+
+	// Ctrl+1-9: Navigate to bookmark by index
+	if ctrlPressed {
+		for i := ebiten.Key1; i <= ebiten.Key9; i++ {
+			if inpututil.IsKeyJustPressed(i) {
+				index := int(i - ebiten.Key1)
+				g.navigateToBookmark(index)
+				return
+			}
+		}
+	}
+}
+
+// addBookmarkForSelectedNode adds a bookmark for the currently selected node.
+func (g *Game) addBookmarkForSelectedNode() {
+	nodeID := g.input.SelectedNodeID
+	if nodeID == "" {
+		return
+	}
+
+	// Get node position from layout engine
+	positions := g.engine.Positions().Get()
+	pos, ok := positions[nodeID]
+	if !ok {
+		log.Printf("Warning: cannot bookmark node %s: position not found", nodeID)
+		return
+	}
+
+	// Get node display name (fallback to ID if not found)
+	label := nodeID
+	// TODO: Get display name from node data when available
+	// For now, use node ID truncated to 16 chars
+	if len(label) > 16 {
+		label = label[:16] + "..."
+	}
+
+	if err := g.bookmarkManager.Add(nodeID, label, pos.X, pos.Y); err != nil {
+		log.Printf("Error adding bookmark: %v", err)
+	} else {
+		log.Printf("Bookmarked node: %s", label)
+	}
+}
+
+// removeBookmarkForSelectedNode removes the bookmark for the currently selected node.
+func (g *Game) removeBookmarkForSelectedNode() {
+	nodeID := g.input.SelectedNodeID
+	if nodeID == "" {
+		return
+	}
+
+	if err := g.bookmarkManager.Remove(nodeID); err != nil {
+		log.Printf("Error removing bookmark: %v", err)
+	} else {
+		log.Printf("Removed bookmark for node: %s", nodeID)
+	}
+}
+
+// navigateToBookmark animates the camera to the bookmark at the given index.
+func (g *Game) navigateToBookmark(index int) {
+	bookmarks := g.bookmarkManager.List()
+	if index >= len(bookmarks) {
+		return // Index out of range
+	}
+
+	bookmark := bookmarks[index]
+	// Animate to bookmark position with comfortable zoom level
+	g.camera.AnimateToWithZoom(bookmark.X, bookmark.Y, 1.5)
+	log.Printf("Navigating to bookmark: %s", bookmark.Label)
 }
 
 // centerOnSelfNode animates the camera to the self node's position.
