@@ -127,10 +127,7 @@ func (p *PuzzlePanel) Show() {
 func (p *PuzzlePanel) Hide() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.visible = false
-	p.seed = ""
-	p.seedCursorPos = 0
-	p.errorMessage = ""
+	ResetPanelInputState(&p.visible, &p.seed, &p.errorMessage, &p.seedCursorPos)
 }
 
 // Toggle toggles panel visibility.

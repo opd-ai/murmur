@@ -81,6 +81,12 @@ func NewMarkPanel(theme Theme, callbacks MarkPanelCallbacks) *MarkPanel {
 
 // Show makes the panel visible and initializes state.
 func (p *MarkPanel) Show() {
+	p.initShowState()
+}
+
+// initShowState initializes the panel state for Show().
+// This logic is shared between mark.go and mark_stub.go implementations.
+func (p *MarkPanel) initShowState() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 

@@ -27,6 +27,7 @@ type Discovery struct {
 	h             host.Host
 	dht           *dht.IpfsDHT
 	bootstrapOnce sync.Once
+	fallbackChain *ResolverChain
 }
 
 // New creates a new Discovery instance with the given DHT.
@@ -35,6 +36,12 @@ func New(h host.Host, d *dht.IpfsDHT) *Discovery {
 		h:   h,
 		dht: d,
 	}
+}
+
+// SetFallbackResolvers configures fallback resolvers for bootstrap.
+// These are tried if hardcoded bootstrap peers all fail.
+func (d *Discovery) SetFallbackResolvers(chain *ResolverChain) {
+	d.fallbackChain = chain
 }
 
 // Bootstrap connects to the given bootstrap peers and starts DHT discovery.
@@ -57,6 +64,15 @@ func (d *Discovery) doBootstrap(ctx context.Context, peers []peer.AddrInfo) erro
 	defer cancel()
 
 	connected, lastErr := d.connectToPeers(ctx, peers)
+
+	// If no connections succeeded, try fallback resolvers
+	if connected == 0 && d.fallbackChain != nil {
+		fallbackPeers, err := d.fallbackChain.Resolve(ctx)
+		if err == nil && len(fallbackPeers) > 0 {
+			// Try connecting to fallback peers
+			connected, lastErr = d.connectToPeers(ctx, fallbackPeers)
+		}
+	}
 
 	if connected == 0 && lastErr != nil {
 		return lastErr

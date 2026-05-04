@@ -44,6 +44,12 @@ func NewCrossLayerGiftBridge(giftStore *gifts.GiftStore, renderer *GiftRenderer)
 
 // SyncGifts synchronizes gift effects from the Anonymous Layer to the Surface Layer.
 func (b *CrossLayerGiftBridge) SyncGifts() {
+	b.syncGiftsImpl()
+}
+
+// syncGiftsImpl implements the gift synchronization logic.
+// Shared between cross_layer.go and cross_layer_stub.go.
+func (b *CrossLayerGiftBridge) syncGiftsImpl() {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 

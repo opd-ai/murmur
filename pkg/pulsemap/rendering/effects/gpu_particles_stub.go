@@ -42,6 +42,12 @@ func NewGPUParticleSystem(maxParticles int, emitRate float32) (*GPUParticleSyste
 
 // Update advances particle physics (CPU-based in test build).
 func (s *GPUParticleSystem) Update(dt, emitX, emitY, emitRadius, resonance float32) {
+	s.updateImpl(dt, emitX, emitY, emitRadius, resonance)
+}
+
+// updateImpl implements the particle update logic.
+// Shared between gpu_particles.go and gpu_particles_stub.go.
+func (s *GPUParticleSystem) updateImpl(dt, emitX, emitY, emitRadius, resonance float32) {
 	// Update existing particles
 	alive := s.Particles[:0]
 	for i := range s.Particles {

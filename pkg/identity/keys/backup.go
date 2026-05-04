@@ -101,6 +101,7 @@ func ExportKeyPair(kp *KeyPair) ([]byte, error) {
 }
 
 // ImportKeyPair deserializes a keypair from exported data.
+// Per SECURITY_PRIVACY.md §2.1, zeros the input data after copying.
 func ImportKeyPair(data []byte) (*KeyPair, error) {
 	if len(data) != ed25519.PrivateKeySize {
 		return nil, fmt.Errorf("invalid key data size: expected %d, got %d",
@@ -110,6 +111,10 @@ func ImportKeyPair(data []byte) (*KeyPair, error) {
 	privateKey := make(ed25519.PrivateKey, ed25519.PrivateKeySize)
 	copy(privateKey, data)
 	publicKey := privateKey.Public().(ed25519.PublicKey)
+
+	// Zero the input data per SECURITY_PRIVACY.md §2.1.
+	// Caller's responsibility if data is a slice of a larger buffer.
+	defer ZeroBytes(data)
 
 	return &KeyPair{
 		PublicKey:  publicKey,

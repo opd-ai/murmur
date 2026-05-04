@@ -69,10 +69,16 @@ func GenerateAnonymousKeyPair() (*AnonymousKeyPair, error) {
 	var publicKey [32]byte
 	curve25519.ScalarBaseMult(&publicKey, &privateKey)
 
-	return &AnonymousKeyPair{
+	kp := &AnonymousKeyPair{
 		PublicKey:  publicKey,
 		PrivateKey: privateKey,
-	}, nil
+	}
+
+	// Zero the local private key copy per SECURITY_PRIVACY.md §2.1.
+	// The returned keypair contains its own copy.
+	defer ZeroBytes(privateKey[:])
+
+	return kp, nil
 }
 
 // Sign signs a message with the Ed25519 private key.
@@ -97,7 +103,13 @@ func (kp *AnonymousKeyPair) DeriveSharedSecret(peerPublic [32]byte) ([]byte, err
 		return nil, errors.New("invalid peer public key: low-order point")
 	}
 
-	return shared[:], nil
+	result := make([]byte, 32)
+	copy(result, shared[:])
+
+	// Zero the local shared secret per SECURITY_PRIVACY.md §2.1.
+	defer ZeroBytes(shared[:])
+
+	return result, nil
 }
 
 // EncryptKeystore encrypts key material using Argon2id + XChaCha20-Poly1305.
@@ -149,6 +161,8 @@ func EncryptKeystore(plaintext []byte, passphrase string) ([]byte, error) {
 }
 
 // DecryptKeystore decrypts key material encrypted by EncryptKeystore.
+// IMPORTANT: Caller MUST zero the returned plaintext bytes after use via ZeroBytes()
+// per SECURITY_PRIVACY.md §2.1 to prevent key material leakage.
 func DecryptKeystore(data []byte, passphrase string) ([]byte, error) {
 	salt, nonce, ciphertext, err := extractKeystoreComponents(data)
 	if err != nil {

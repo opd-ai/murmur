@@ -88,6 +88,12 @@ func NewGiftPanel(theme Theme, callbacks GiftPanelCallbacks) *GiftPanel {
 
 // Show makes the panel visible and initializes state.
 func (p *GiftPanel) Show() {
+	p.initShowState()
+}
+
+// initShowState initializes the panel state for Show().
+// Shared between gift.go and gift_stub.go.
+func (p *GiftPanel) initShowState() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 

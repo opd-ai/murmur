@@ -245,39 +245,64 @@ func (r *ShadowPlayReceiver) verifyEventSignature(event *pb.ShadowPlayEvent) err
 		return mechanics.ErrMissingSignature
 	}
 
-	// For created/started/ended events, verify using director's key from play.
-	if event.Play != nil && len(event.Play.DirectorPubkey) == ed25519.PublicKeySize {
-		sigData := r.eventSignatureData(event)
-		if !ed25519.Verify(event.Play.DirectorPubkey, sigData, event.Signature) {
-			return mechanics.ErrSignatureFailed
-		}
+	sigData := r.eventSignatureData(event)
+
+	if err := r.verifyDirectorSignature(event, sigData); err == nil {
 		return nil
 	}
 
-	// For cast_join events, verify using actor's key.
-	if event.Actor != nil && len(event.Actor.SpecterPubkey) == ed25519.PublicKeySize {
-		sigData := r.eventSignatureData(event)
-		if !ed25519.Verify(event.Actor.SpecterPubkey, sigData, event.Signature) {
-			return mechanics.ErrSignatureFailed
-		}
+	if err := r.verifyActorSignature(event, sigData); err == nil {
 		return nil
 	}
 
-	// For cancelled events without play data, we need game from store.
-	if event.EventType == pb.ShadowPlayEventType_SHADOW_PLAY_EVENT_CANCELLED {
-		var gameID [32]byte
-		copy(gameID[:], event.PlayId)
-		game := r.shadowPlayStore.GetGame(gameID)
-		if game != nil {
-			sigData := r.eventSignatureData(event)
-			if !ed25519.Verify(game.InitiatorKey[:], sigData, event.Signature) {
-				return mechanics.ErrSignatureFailed
-			}
-			return nil
-		}
+	if err := r.verifyCancelledEventSignature(event, sigData); err == nil {
+		return nil
 	}
 
 	return mechanics.ErrMissingSignature
+}
+
+// verifyDirectorSignature verifies signature using director's public key.
+func (r *ShadowPlayReceiver) verifyDirectorSignature(event *pb.ShadowPlayEvent, sigData []byte) error {
+	if event.Play == nil || len(event.Play.DirectorPubkey) != ed25519.PublicKeySize {
+		return mechanics.ErrMissingSignature
+	}
+
+	if !ed25519.Verify(event.Play.DirectorPubkey, sigData, event.Signature) {
+		return mechanics.ErrSignatureFailed
+	}
+	return nil
+}
+
+// verifyActorSignature verifies signature using actor's public key.
+func (r *ShadowPlayReceiver) verifyActorSignature(event *pb.ShadowPlayEvent, sigData []byte) error {
+	if event.Actor == nil || len(event.Actor.SpecterPubkey) != ed25519.PublicKeySize {
+		return mechanics.ErrMissingSignature
+	}
+
+	if !ed25519.Verify(event.Actor.SpecterPubkey, sigData, event.Signature) {
+		return mechanics.ErrSignatureFailed
+	}
+	return nil
+}
+
+// verifyCancelledEventSignature verifies signature for cancelled events using game store.
+func (r *ShadowPlayReceiver) verifyCancelledEventSignature(event *pb.ShadowPlayEvent, sigData []byte) error {
+	if event.EventType != pb.ShadowPlayEventType_SHADOW_PLAY_EVENT_CANCELLED {
+		return mechanics.ErrMissingSignature
+	}
+
+	var gameID [32]byte
+	copy(gameID[:], event.PlayId)
+	game := r.shadowPlayStore.GetGame(gameID)
+	if game == nil {
+		return mechanics.ErrMissingSignature
+	}
+
+	if !ed25519.Verify(game.InitiatorKey[:], sigData, event.Signature) {
+		return mechanics.ErrSignatureFailed
+	}
+	return nil
 }
 
 // eventSignatureData creates the data that was signed.

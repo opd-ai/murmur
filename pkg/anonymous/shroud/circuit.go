@@ -551,6 +551,14 @@ func (b *Beacon) BuildCircuit(relays [CircuitLength]*RelayInfo) (*Circuit, error
 		key := h.Sum(nil)
 
 		copy(circuit.sharedKeys[i][:], key[:32])
+
+		// Zero shared secret and derived key per SECURITY_PRIVACY.md §2.1.
+		for j := range shared {
+			shared[j] = 0
+		}
+		for j := range key {
+			key[j] = 0
+		}
 	}
 
 	return circuit, nil

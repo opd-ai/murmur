@@ -12,6 +12,7 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"golang.org/x/time/rate"
 )
 
 // Topic names per TECHNICAL_IMPLEMENTATION.md §3.1.
@@ -28,11 +29,14 @@ const HeartbeatInterval = 30 * time.Second
 
 // PubSub wraps libp2p pubsub with MURMUR-specific topic management.
 type PubSub struct {
-	ps     *pubsub.PubSub
-	h      host.Host
-	topics map[string]*pubsub.Topic
-	subs   map[string]*pubsub.Subscription
-	mu     sync.RWMutex
+	ps           *pubsub.PubSub
+	h            host.Host
+	topics       map[string]*pubsub.Topic
+	subs         map[string]*pubsub.Subscription
+	mu           sync.RWMutex
+	rateLimiters map[peer.ID]*rate.Limiter
+	rateMu       sync.RWMutex
+	lastCleanup  time.Time
 }
 
 // MessageHandler is called for each received message on a topic.
@@ -54,10 +58,12 @@ func New(ctx context.Context, h host.Host) (*PubSub, error) {
 	}
 
 	return &PubSub{
-		ps:     ps,
-		h:      h,
-		topics: make(map[string]*pubsub.Topic),
-		subs:   make(map[string]*pubsub.Subscription),
+		ps:           ps,
+		h:            h,
+		topics:       make(map[string]*pubsub.Topic),
+		subs:         make(map[string]*pubsub.Subscription),
+		rateLimiters: make(map[peer.ID]*rate.Limiter),
+		lastCleanup:  time.Now(),
 	}, nil
 }
 
@@ -168,6 +174,13 @@ func (p *PubSub) startMessageHandler(ctx context.Context, sub *pubsub.Subscripti
 			if err != nil {
 				return // Context cancelled or subscription closed
 			}
+
+			// Rate limit per peer
+			if !p.allowMessage(msg.GetFrom()) {
+				// Silently drop rate-limited messages
+				continue
+			}
+
 			handler(ctx, msg)
 		}
 	}()
@@ -228,4 +241,65 @@ func (p *PubSub) Close() error {
 	p.topics = make(map[string]*pubsub.Topic)
 
 	return nil
+}
+
+// allowMessage checks if a message from the given peer should be processed.
+// Implements per-peer rate limiting with 10 msg/sec limit and burst of 20.
+// Returns false if the peer is rate-limited.
+func (p *PubSub) allowMessage(peerID peer.ID) bool {
+	limiter := p.getRateLimiter(peerID)
+	return limiter.Allow()
+}
+
+// getRateLimiter returns the rate limiter for a peer, creating one if needed.
+func (p *PubSub) getRateLimiter(peerID peer.ID) *rate.Limiter {
+	p.rateMu.RLock()
+	limiter, ok := p.rateLimiters[peerID]
+	p.rateMu.RUnlock()
+
+	if ok {
+		return limiter
+	}
+
+	// Create new limiter: 10 messages per second, burst of 20
+	limiter = rate.NewLimiter(10, 20)
+
+	p.rateMu.Lock()
+	p.rateLimiters[peerID] = limiter
+	p.rateMu.Unlock()
+
+	// Cleanup stale limiters if needed
+	p.maybeCleanupLimiters()
+
+	return limiter
+}
+
+// maybeCleanupLimiters removes rate limiters for peers that haven't been seen recently.
+// Runs at most once per 10 minutes to avoid overhead.
+func (p *PubSub) maybeCleanupLimiters() {
+	now := time.Now()
+	p.rateMu.RLock()
+	timeSinceCleanup := now.Sub(p.lastCleanup)
+	p.rateMu.RUnlock()
+
+	if timeSinceCleanup < 10*time.Minute {
+		return
+	}
+
+	p.rateMu.Lock()
+	defer p.rateMu.Unlock()
+
+	// Check again after acquiring lock
+	if now.Sub(p.lastCleanup) < 10*time.Minute {
+		return
+	}
+
+	// Remove limiters for disconnected peers
+	for peerID := range p.rateLimiters {
+		if p.h.Network().Connectedness(peerID) == 0 {
+			delete(p.rateLimiters, peerID)
+		}
+	}
+
+	p.lastCleanup = now
 }

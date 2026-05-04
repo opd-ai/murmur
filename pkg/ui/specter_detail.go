@@ -209,7 +209,6 @@ func (p *SpecterDetailPanel) handleModeInput(mx, my int) bool {
 
 // updateTrophies handles input in trophy mode.
 func (p *SpecterDetailPanel) updateTrophies(mx, my int) bool {
-	// Trophy grid area.
 	gridX := p.panelX + 20
 	gridY := p.panelY + 110
 	gridW := p.panelW - 40
@@ -219,46 +218,58 @@ func (p *SpecterDetailPanel) updateTrophies(mx, my int) bool {
 		cols = 1
 	}
 
-	// Calculate which trophy is hovered.
+	p.handleTrophyHover(mx, my, gridX, gridY, gridW, trophySize, cols)
+
+	if p.handleTrophyScroll(cols, trophySize) {
+		return true
+	}
+
+	return true
+}
+
+// handleTrophyHover updates hover state and handles trophy selection.
+func (p *SpecterDetailPanel) handleTrophyHover(mx, my, gridX, gridY, gridW, trophySize, cols int) {
 	relX := mx - gridX
 	relY := my - gridY + p.trophyScroll
 
-	if relX >= 0 && relX < gridW && my >= gridY {
-		col := relX / (trophySize + 10)
-		row := relY / (trophySize + 10)
-		idx := row*cols + col
+	if relX < 0 || relX >= gridW || my < gridY {
+		p.trophyHover = -1
+		return
+	}
 
-		if col < cols && idx >= 0 && idx < len(p.trophies) {
-			p.trophyHover = idx
+	col := relX / (trophySize + 10)
+	row := relY / (trophySize + 10)
+	idx := row*cols + col
 
-			if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
-				p.selectedTrophy = idx
-				return true
-			}
-		} else {
-			p.trophyHover = -1
+	if col < cols && idx >= 0 && idx < len(p.trophies) {
+		p.trophyHover = idx
+		if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
+			p.selectedTrophy = idx
 		}
 	} else {
 		p.trophyHover = -1
 	}
+}
 
-	// Handle scroll.
+// handleTrophyScroll processes mouse wheel scrolling.
+func (p *SpecterDetailPanel) handleTrophyScroll(cols, trophySize int) bool {
 	_, wy := ebiten.Wheel()
-	if wy != 0 {
-		p.trophyScroll -= int(wy * 20)
-		if p.trophyScroll < 0 {
-			p.trophyScroll = 0
-		}
-		maxScroll := (len(p.trophies)/cols+1)*(trophySize+10) - (p.panelH - 150)
-		if maxScroll < 0 {
-			maxScroll = 0
-		}
-		if p.trophyScroll > maxScroll {
-			p.trophyScroll = maxScroll
-		}
-		return true
+	if wy == 0 {
+		return false
 	}
 
+	p.trophyScroll -= int(wy * 20)
+	if p.trophyScroll < 0 {
+		p.trophyScroll = 0
+	}
+
+	maxScroll := (len(p.trophies)/cols+1)*(trophySize+10) - (p.panelH - 150)
+	if maxScroll < 0 {
+		maxScroll = 0
+	}
+	if p.trophyScroll > maxScroll {
+		p.trophyScroll = maxScroll
+	}
 	return true
 }
 
@@ -268,39 +279,34 @@ func (p *SpecterDetailPanel) updateInteract(mx, my int) bool {
 	buttonH := 40
 	buttonSpacing := 50
 
-	// Gift button.
-	if my >= buttonY && my < buttonY+buttonH {
-		if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
-			if p.callbacks.OnSendGift != nil && p.specter != nil {
-				p.callbacks.OnSendGift(p.specter.ID)
-			}
-			return true
-		}
+	if p.checkInteractButton(my, buttonY, buttonH, p.callbacks.OnSendGift) {
+		return true
 	}
 
-	// Waves button.
 	buttonY += buttonSpacing
-	if my >= buttonY && my < buttonY+buttonH {
-		if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
-			if p.callbacks.OnViewWaves != nil && p.specter != nil {
-				p.callbacks.OnViewWaves(p.specter.ID)
-			}
-			return true
-		}
+	if p.checkInteractButton(my, buttonY, buttonH, p.callbacks.OnViewWaves) {
+		return true
 	}
 
-	// Mark button.
 	buttonY += buttonSpacing
-	if my >= buttonY && my < buttonY+buttonH {
-		if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
-			if p.callbacks.OnAddMark != nil && p.specter != nil {
-				p.callbacks.OnAddMark(p.specter.ID)
-			}
-			return true
-		}
+	if p.checkInteractButton(my, buttonY, buttonH, p.callbacks.OnAddMark) {
+		return true
 	}
 
 	return true
+}
+
+// checkInteractButton checks if a button is clicked and invokes the callback.
+func (p *SpecterDetailPanel) checkInteractButton(my, buttonY, buttonH int, callback func([32]byte)) bool {
+	if my >= buttonY && my < buttonY+buttonH {
+		if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
+			if callback != nil && p.specter != nil {
+				callback(p.specter.ID)
+			}
+			return true
+		}
+	}
+	return false
 }
 
 // Draw renders the panel.

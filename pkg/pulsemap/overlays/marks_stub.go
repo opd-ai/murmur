@@ -35,6 +35,12 @@ func NewMarkOverlay() *MarkOverlay {
 
 // AddMark registers a mark for display on a target node.
 func (o *MarkOverlay) AddMark(targetID string, mark *marks.Mark) {
+	o.addMarkImpl(targetID, mark)
+}
+
+// addMarkImpl implements the add mark logic.
+// Shared between marks.go and marks_stub.go.
+func (o *MarkOverlay) addMarkImpl(targetID string, mark *marks.Mark) {
 	if mark == nil || mark.IsExpired() {
 		return
 	}
@@ -153,6 +159,12 @@ func (o *MarkOverlay) HasMarks(targetID string) bool {
 
 // GetDominantCategory returns the most common mark category for a target.
 func (o *MarkOverlay) GetDominantCategory(targetID string) marks.MarkCategory {
+	return o.getDominantCategoryImpl(targetID)
+}
+
+// getDominantCategoryImpl computes the dominant mark category.
+// Shared between marks.go and marks_stub.go.
+func (o *MarkOverlay) getDominantCategoryImpl(targetID string) marks.MarkCategory {
 	o.mu.RLock()
 	displays := o.marks[targetID]
 	o.mu.RUnlock()

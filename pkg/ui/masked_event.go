@@ -644,10 +644,14 @@ func (mp *MaskedEventPanel) drawLobbyMode(screen *ebiten.Image, x, y, w float32)
 		return
 	}
 
-	// Header.
+	y = mp.drawLobbyHeader(screen, x, y, w)
+	mp.drawWavesList(screen, x, y, w)
+}
+
+// drawLobbyHeader renders the lobby header with event info.
+func (mp *MaskedEventPanel) drawLobbyHeader(screen *ebiten.Image, x, y, w float32) float32 {
 	mp.drawText(screen, mp.activeEvent.Topic, x, y, mp.theme.TextPrimary)
 
-	// Time remaining.
 	remaining := time.Until(mp.activeEvent.EndTime)
 	if remaining < 0 {
 		remaining = 0
@@ -661,45 +665,45 @@ func (mp *MaskedEventPanel) drawLobbyMode(screen *ebiten.Image, x, y, w float32)
 	y += 20
 	mp.drawText(screen, "[C] Compose  [A] Amplify  [L] Leave  [Esc] Back", x, y, mp.theme.TextSecondary)
 
-	y += 30
+	return y + 30
+}
 
-	// Waves list.
+// drawWavesList renders the list of Waves in the lobby.
+func (mp *MaskedEventPanel) drawWavesList(screen *ebiten.Image, x, y, w float32) {
 	if len(mp.waves) == 0 {
 		mp.drawText(screen, "No Waves yet. Be the first to post!", x, y, mp.theme.TextSecondary)
 		return
 	}
 
 	for i, wave := range mp.waves {
-		if i >= 5 { // Limit display.
+		if i >= 5 {
 			break
 		}
-		entryY := y + float32(i*50)
-
-		// Highlight selected.
-		if i == mp.selectedIdx {
-			vector.DrawFilledRect(screen, x-5, entryY-5, w+10, 45,
-				mp.theme.Selection, false)
-		}
-
-		// Wave header.
-		header := wave.Pseudonym
-		if wave.IsOwnWave {
-			header += " (you)"
-		}
-		mp.drawText(screen, header, x, entryY, mp.theme.TextPrimary)
-
-		// Amplification count.
-		if wave.Amplified > 0 {
-			mp.drawText(screen, fmt.Sprintf("↑%d", wave.Amplified), x+w-50, entryY, mp.theme.Success)
-		}
-
-		// Content preview.
-		content := wave.Content
-		if len(content) > 60 {
-			content = content[:57] + "..."
-		}
-		mp.drawText(screen, content, x, entryY+18, mp.theme.TextSecondary)
+		mp.drawWaveEntry(screen, x, y+float32(i*50), w, i, wave)
 	}
+}
+
+// drawWaveEntry renders a single Wave entry in the lobby list.
+func (mp *MaskedEventPanel) drawWaveEntry(screen *ebiten.Image, x, y, w float32, idx int, wave *MaskedWaveInfo) {
+	if idx == mp.selectedIdx {
+		vector.DrawFilledRect(screen, x-5, y-5, w+10, 45, mp.theme.Selection, false)
+	}
+
+	header := wave.Pseudonym
+	if wave.IsOwnWave {
+		header += " (you)"
+	}
+	mp.drawText(screen, header, x, y, mp.theme.TextPrimary)
+
+	if wave.Amplified > 0 {
+		mp.drawText(screen, fmt.Sprintf("↑%d", wave.Amplified), x+w-50, y, mp.theme.Success)
+	}
+
+	content := wave.Content
+	if len(content) > 60 {
+		content = content[:57] + "..."
+	}
+	mp.drawText(screen, content, x, y+18, mp.theme.TextSecondary)
 }
 
 // drawComposeMode renders the Wave composition screen.

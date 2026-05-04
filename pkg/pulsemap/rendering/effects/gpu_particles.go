@@ -71,6 +71,12 @@ func NewGPUParticleSystem(maxParticles int, emitRate float32) (*GPUParticleSyste
 // emitRadius: radius of emission circle
 // resonance: Resonance score (affects emission rate and particle lifetime per PULSE_MAP.md)
 func (s *GPUParticleSystem) Update(dt, emitX, emitY, emitRadius, resonance float32) {
+	s.updateImpl(dt, emitX, emitY, emitRadius, resonance)
+}
+
+// updateImpl implements the particle update logic.
+// Shared between gpu_particles.go and gpu_particles_stub.go.
+func (s *GPUParticleSystem) updateImpl(dt, emitX, emitY, emitRadius, resonance float32) {
 	// Update existing particles
 	alive := s.Particles[:0]
 	for i := range s.Particles {

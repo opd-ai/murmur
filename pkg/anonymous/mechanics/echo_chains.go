@@ -125,16 +125,26 @@ func (s *EchoChainStore) RecordAmplification(
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Check if chain already exists or is pending.
+	chain := s.getOrCreateChainLocked(originalWaveID, layer)
+
+	if err := s.addAmplifierToChainLocked(chain, amplifierID, amplificationWaveID); err != nil {
+		return nil, err
+	}
+
+	s.checkChainCompletionLocked(chain, amplifierID)
+	return chain, nil
+}
+
+// getOrCreateChainLocked retrieves an existing chain or creates a new one.
+func (s *EchoChainStore) getOrCreateChainLocked(originalWaveID [32]byte, layer EchoChainLayer) *EchoChain {
 	chain, exists := s.pendingChains[originalWaveID]
 	if !exists {
 		chain, exists = s.chains[originalWaveID]
 	}
 
 	if !exists {
-		// Create new pending chain.
 		chain = &EchoChain{
-			ID:         originalWaveID, // Chain ID = original Wave ID.
+			ID:         originalWaveID,
 			OriginalID: originalWaveID,
 			Nodes:      make([]*EchoChainNode, 0),
 			Layer:      layer,
@@ -142,50 +152,51 @@ func (s *EchoChainStore) RecordAmplification(
 		s.pendingChains[originalWaveID] = chain
 	}
 
-	// Check for duplicate amplifier.
+	return chain
+}
+
+// addAmplifierToChainLocked adds a new amplifier to the chain.
+func (s *EchoChainStore) addAmplifierToChainLocked(chain *EchoChain, amplifierID []byte, amplificationWaveID [32]byte) error {
 	amplifierHex := KeyToHex(amplifierID)
 	for _, node := range chain.Nodes {
 		if KeyToHex(node.NodeID) == amplifierHex {
-			return nil, ErrChainDuplicate
+			return ErrChainDuplicate
 		}
 	}
 
-	// Add new node to chain.
-	now := time.Now()
 	node := &EchoChainNode{
 		NodeID:      amplifierID,
 		WaveID:      amplificationWaveID,
-		AmplifiedAt: now,
+		AmplifiedAt: time.Now(),
 		Position:    len(chain.Nodes),
 	}
 	chain.Nodes = append(chain.Nodes, node)
+	return nil
+}
 
-	// Check if chain just reached minimum length.
+// checkChainCompletionLocked checks if chain reached minimum length or extends existing chain.
+func (s *EchoChainStore) checkChainCompletionLocked(chain *EchoChain, amplifierID []byte) {
+	now := time.Now()
 	if len(chain.Nodes) == EchoChainMinLength {
 		chain.FormedAt = now
 		chain.ExpiresAt = now.Add(EchoChainDuration)
 		chain.HasShimmer = false
 
-		// Move from pending to active.
-		delete(s.pendingChains, originalWaveID)
-		s.chains[originalWaveID] = chain
-		s.byOriginal[originalWaveID] = chain
+		delete(s.pendingChains, chain.OriginalID)
+		s.chains[chain.OriginalID] = chain
+		s.byOriginal[chain.OriginalID] = chain
 		s.activeChains[chain.ID] = true
 
-		// Award bonuses to all participants.
 		s.awardBonusesLocked(chain)
 	} else if len(chain.Nodes) > EchoChainMinLength {
-		// Chain extended - update shimmer and award incremental bonus.
 		if len(chain.Nodes) >= EchoChainShimmerThreshold {
 			chain.HasShimmer = true
 		}
-		// Award bonus to new participant.
 		bonus := CalculateEchoChainBonus(len(chain.Nodes))
+		amplifierHex := KeyToHex(amplifierID)
 		s.nodeBonus[amplifierHex] += bonus
 		chain.TotalBonus += bonus
 	}
-
-	return chain, nil
 }
 
 // awardBonusesLocked awards Resonance bonuses to all chain participants.

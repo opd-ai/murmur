@@ -217,3 +217,12 @@ type SearchResult struct {
 	Relevance   float32
 	Resonance   float64
 }
+
+// ResetPanelInputState resets common input state fields for panels.
+// This consolidates the pattern of clearing visible, input fields, cursor, and error.
+func ResetPanelInputState(visible *bool, inputField, errorMessage *string, cursorPos *int) {
+	*visible = false
+	*inputField = ""
+	*cursorPos = 0
+	*errorMessage = ""
+}

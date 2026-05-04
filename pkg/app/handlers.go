@@ -364,44 +364,54 @@ func (h *Handlers) validateEnvelope(data []byte, expectedType pb.MessageType) (*
 		return nil, ErrInvalidEnvelope
 	}
 
-	// Check protocol version.
+	if err := h.validateEnvelopeStructure(envelope, expectedType); err != nil {
+		return nil, err
+	}
+
+	if err := h.validateEnvelopeSignatureAndDedupe(envelope); err != nil {
+		return nil, err
+	}
+
+	h.markSeen(envelope.MessageId)
+	return envelope, nil
+}
+
+// validateEnvelopeStructure checks version, type, message ID, and timestamp.
+func (h *Handlers) validateEnvelopeStructure(envelope *pb.MurmurEnvelope, expectedType pb.MessageType) error {
 	if envelope.Version != ProtocolVersion {
-		return nil, ErrInvalidVersion
+		return ErrInvalidVersion
 	}
 
-	// Check message type.
 	if envelope.Type != expectedType {
-		return nil, ErrInvalidPayload
+		return ErrInvalidPayload
 	}
 
-	// Verify message ID (BLAKE3 hash of payload).
 	expectedID := blake3.Sum256(envelope.Payload)
 	if !bytes.Equal(envelope.MessageId, expectedID[:]) {
-		return nil, ErrInvalidMessageID
+		return ErrInvalidMessageID
 	}
 
-	// Check timestamp is not too far in the future.
 	msgTime := time.Unix(envelope.TimestampUnix, 0)
 	if msgTime.After(time.Now().Add(MaxTimestampDrift)) {
-		return nil, ErrInvalidTimestamp
+		return ErrInvalidTimestamp
 	}
 
-	// Check for duplicates.
+	return nil
+}
+
+// validateEnvelopeSignatureAndDedupe checks for duplicates and verifies signature.
+func (h *Handlers) validateEnvelopeSignatureAndDedupe(envelope *pb.MurmurEnvelope) error {
 	if h.isDuplicate(envelope.MessageId) {
-		return nil, ErrDuplicateMessage
+		return ErrDuplicateMessage
 	}
 
-	// Verify signature (if sender_pubkey is present).
 	if len(envelope.SenderPubkey) == ed25519.PublicKeySize {
 		if err := h.verifyEnvelopeSignature(envelope); err != nil {
-			return nil, err
+			return err
 		}
 	}
 
-	// Mark as seen.
-	h.markSeen(envelope.MessageId)
-
-	return envelope, nil
+	return nil
 }
 
 // verifyEnvelopeSignature verifies the Ed25519 signature on an envelope.

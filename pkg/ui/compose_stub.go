@@ -61,10 +61,7 @@ func (p *ComposePanel) Show() {
 func (p *ComposePanel) Hide() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.visible = false
-	p.content = ""
-	p.cursorPos = 0
-	p.errorMessage = ""
+	ResetPanelInputState(&p.visible, &p.content, &p.errorMessage, &p.cursorPos)
 }
 
 // Toggle toggles panel visibility.

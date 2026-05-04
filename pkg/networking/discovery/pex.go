@@ -338,37 +338,52 @@ func (p *PEX) processReceivedPeers(peers []PeerInfo) {
 func writePeerList(w io.Writer, peers []PeerInfo) error {
 	bw := bufio.NewWriter(w)
 
-	// Write number of peers.
 	if err := binary.Write(bw, binary.LittleEndian, uint32(len(peers))); err != nil {
 		return err
 	}
 
 	for _, pi := range peers {
-		// Write peer ID.
-		idBytes := []byte(pi.ID)
-		if err := binary.Write(bw, binary.LittleEndian, uint16(len(idBytes))); err != nil {
+		if err := writePeerInfo(bw, pi); err != nil {
 			return err
-		}
-		if _, err := bw.Write(idBytes); err != nil {
-			return err
-		}
-
-		// Write addresses.
-		if err := binary.Write(bw, binary.LittleEndian, uint16(len(pi.Addrs))); err != nil {
-			return err
-		}
-		for _, addr := range pi.Addrs {
-			addrBytes := addr.Bytes()
-			if err := binary.Write(bw, binary.LittleEndian, uint16(len(addrBytes))); err != nil {
-				return err
-			}
-			if _, err := bw.Write(addrBytes); err != nil {
-				return err
-			}
 		}
 	}
 
 	return bw.Flush()
+}
+
+// writePeerInfo writes a single PeerInfo to the buffer.
+func writePeerInfo(bw *bufio.Writer, pi PeerInfo) error {
+	idBytes := []byte(pi.ID)
+	if err := binary.Write(bw, binary.LittleEndian, uint16(len(idBytes))); err != nil {
+		return err
+	}
+	if _, err := bw.Write(idBytes); err != nil {
+		return err
+	}
+
+	if err := binary.Write(bw, binary.LittleEndian, uint16(len(pi.Addrs))); err != nil {
+		return err
+	}
+
+	for _, addr := range pi.Addrs {
+		if err := writeMultiaddr(bw, addr); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// writeMultiaddr writes a multiaddr to the buffer.
+func writeMultiaddr(bw *bufio.Writer, addr multiaddr.Multiaddr) error {
+	addrBytes := addr.Bytes()
+	if err := binary.Write(bw, binary.LittleEndian, uint16(len(addrBytes))); err != nil {
+		return err
+	}
+	if _, err := bw.Write(addrBytes); err != nil {
+		return err
+	}
+	return nil
 }
 
 // readPeerList reads a list of peers from a stream.

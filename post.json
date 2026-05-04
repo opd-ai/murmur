@@ -1,17 +1,17 @@
 {
   "metadata": {
     "repository": "/home/user/go/src/github.com/opd-ai/murmur",
-    "generated_at": "2026-05-04T07:18:21.051877158-04:00",
-    "analysis_time": 3628014473,
+    "generated_at": "2026-05-04T09:35:28.814321141-04:00",
+    "analysis_time": 3364436081,
     "files_processed": 280,
     "tool_version": "1.0.0",
     "go_version": ""
   },
   "overview": {
-    "total_lines_of_code": 44753,
-    "total_functions": 1169,
-    "total_methods": 4033,
-    "total_structs": 731,
+    "total_lines_of_code": 44906,
+    "total_functions": 1173,
+    "total_methods": 4073,
+    "total_structs": 732,
     "total_interfaces": 36,
     "total_packages": 54,
     "total_files": 280
@@ -112,9 +112,9 @@
     "complexity_score": 0
   },
   "duplication": {
-    "clone_pairs": 84,
-    "duplicated_lines": 1205,
-    "duplication_ratio": 0.012880123991235103,
+    "clone_pairs": 81,
+    "duplicated_lines": 1159,
+    "duplication_ratio": 0.012333461030945387,
     "largest_clone_size": 44,
     "clones": [
       {
@@ -187,39 +187,6 @@
         "suggestion": "Extract 6-line duplicate code block into a shared function. Found in 3 locations. Consider using generics or interface-based abstraction"
       },
       {
-        "hash": "aa240c009b60c01d",
-        "type": "renamed",
-        "instances": [
-          {
-            "file": "pkg/ui/compose_stub.go",
-            "start_line": 62,
-            "end_line": 67,
-            "node_count": 34
-          },
-          {
-            "file": "pkg/ui/puzzle.go",
-            "start_line": 128,
-            "end_line": 133,
-            "node_count": 34
-          },
-          {
-            "file": "pkg/ui/puzzle_solver.go",
-            "start_line": 92,
-            "end_line": 97,
-            "node_count": 34
-          },
-          {
-            "file": "pkg/ui/puzzle_solver_stub.go",
-            "start_line": 59,
-            "end_line": 64,
-            "node_count": 34
-          }
-        ],
-        "line_count": 6,
-        "severity": "violation",
-        "suggestion": "Extract 6-line duplicate code block into a shared function. Found in 4 locations. Consider using generics or interface-based abstraction"
-      },
-      {
         "hash": "cb86dbafaf142854",
         "type": "exact",
         "instances": [
@@ -239,27 +206,6 @@
         "line_count": 6,
         "severity": "warning",
         "suggestion": "Extract 6-line duplicate code block into a shared function. Found in 2 locations"
-      },
-      {
-        "hash": "1cfe627664715942",
-        "type": "exact",
-        "instances": [
-          {
-            "file": "pkg/ui/puzzle_solver.go",
-            "start_line": 92,
-            "end_line": 98,
-            "node_count": 39
-          },
-          {
-            "file": "pkg/ui/puzzle_solver_stub.go",
-            "start_line": 59,
-            "end_line": 65,
-            "node_count": 39
-          }
-        ],
-        "line_count": 7,
-        "severity": "warning",
-        "suggestion": "Extract 7-line duplicate code block into a shared function. Found in 2 locations"
       },
       {
         "hash": "28bb0d6434f673be",
@@ -333,8 +279,8 @@
           },
           {
             "file": "pkg/app/handlers.go",
-            "start_line": 521,
-            "end_line": 527,
+            "start_line": 611,
+            "end_line": 617,
             "node_count": 52
           },
           {
@@ -435,8 +381,8 @@
           },
           {
             "file": "pkg/ui/puzzle_solver.go",
-            "start_line": 195,
-            "end_line": 201,
+            "start_line": 192,
+            "end_line": 198,
             "node_count": 57
           }
         ],
@@ -456,8 +402,8 @@
           },
           {
             "file": "pkg/app/handlers.go",
-            "start_line": 466,
-            "end_line": 473,
+            "start_line": 556,
+            "end_line": 563,
             "node_count": 45
           }
         ],
@@ -540,14 +486,14 @@
         "instances": [
           {
             "file": "pkg/ui/mark.go",
-            "start_line": 416,
-            "end_line": 423,
+            "start_line": 422,
+            "end_line": 429,
             "node_count": 57
           },
           {
             "file": "pkg/ui/specter_detail.go",
-            "start_line": 315,
-            "end_line": 324,
+            "start_line": 321,
+            "end_line": 330,
             "node_count": 57
           }
         ],
@@ -567,14 +513,14 @@
           },
           {
             "file": "pkg/app/handlers.go",
-            "start_line": 324,
-            "end_line": 331,
+            "start_line": 423,
+            "end_line": 430,
             "node_count": 50
           },
           {
             "file": "pkg/app/handlers.go",
-            "start_line": 517,
-            "end_line": 523,
+            "start_line": 607,
+            "end_line": 613,
             "node_count": 50
           }
         ],
@@ -741,8 +687,8 @@
           },
           {
             "file": "pkg/app/handlers.go",
-            "start_line": 521,
-            "end_line": 529,
+            "start_line": 611,
+            "end_line": 619,
             "node_count": 54
           }
         ],
@@ -936,14 +882,14 @@
         "instances": [
           {
             "file": "pkg/ui/mark.go",
-            "start_line": 464,
-            "end_line": 473,
+            "start_line": 470,
+            "end_line": 479,
             "node_count": 52
           },
           {
             "file": "pkg/ui/mark.go",
-            "start_line": 661,
-            "end_line": 668,
+            "start_line": 667,
+            "end_line": 674,
             "node_count": 52
           }
         ],
@@ -1005,8 +951,8 @@
           },
           {
             "file": "pkg/anonymous/mechanics/shadowplay/shadowplay_publisher.go",
-            "start_line": 429,
-            "end_line": 438,
+            "start_line": 454,
+            "end_line": 463,
             "node_count": 42
           }
         ],
@@ -1107,8 +1053,8 @@
           },
           {
             "file": "pkg/ui/puzzle.go",
-            "start_line": 354,
-            "end_line": 368,
+            "start_line": 351,
+            "end_line": 365,
             "node_count": 63
           }
         ],
@@ -1122,14 +1068,14 @@
         "instances": [
           {
             "file": "pkg/ui/mark.go",
-            "start_line": 681,
-            "end_line": 690,
+            "start_line": 687,
+            "end_line": 696,
             "node_count": 68
           },
           {
             "file": "pkg/ui/mark.go",
-            "start_line": 695,
-            "end_line": 704,
+            "start_line": 701,
+            "end_line": 710,
             "node_count": 68
           }
         ],
@@ -1170,8 +1116,8 @@
           },
           {
             "file": "pkg/ui/puzzle_solver.go",
-            "start_line": 353,
-            "end_line": 362,
+            "start_line": 350,
+            "end_line": 359,
             "node_count": 59
           }
         ],
@@ -1222,19 +1168,40 @@
         "suggestion": "Extract 11-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
       },
       {
+        "hash": "33b5c3affe6d4482",
+        "type": "renamed",
+        "instances": [
+          {
+            "file": "pkg/networking/gossip/ephemeral.go",
+            "start_line": 216,
+            "end_line": 226,
+            "node_count": 37
+          },
+          {
+            "file": "pkg/networking/gossip/ephemeral.go",
+            "start_line": 396,
+            "end_line": 406,
+            "node_count": 37
+          }
+        ],
+        "line_count": 11,
+        "severity": "warning",
+        "suggestion": "Extract 11-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
+      },
+      {
         "hash": "4d3297d36ccd14d2",
         "type": "exact",
         "instances": [
           {
             "file": "pkg/ui/puzzle_solver.go",
-            "start_line": 116,
-            "end_line": 126,
+            "start_line": 113,
+            "end_line": 123,
             "node_count": 59
           },
           {
             "file": "pkg/ui/puzzle_solver_stub.go",
-            "start_line": 83,
-            "end_line": 93,
+            "start_line": 80,
+            "end_line": 90,
             "node_count": 59
           }
         ],
@@ -1254,8 +1221,8 @@
           },
           {
             "file": "pkg/app/handlers.go",
-            "start_line": 324,
-            "end_line": 334,
+            "start_line": 423,
+            "end_line": 433,
             "node_count": 58
           }
         ],
@@ -1533,14 +1500,14 @@
           },
           {
             "file": "pkg/ui/puzzle.go",
-            "start_line": 522,
-            "end_line": 534,
+            "start_line": 519,
+            "end_line": 531,
             "node_count": 106
           },
           {
             "file": "pkg/ui/puzzle_solver.go",
-            "start_line": 459,
-            "end_line": 471,
+            "start_line": 456,
+            "end_line": 468,
             "node_count": 106
           }
         ],
@@ -1608,14 +1575,14 @@
           },
           {
             "file": "pkg/ui/puzzle.go",
-            "start_line": 334,
-            "end_line": 347,
+            "start_line": 331,
+            "end_line": 344,
             "node_count": 57
           },
           {
             "file": "pkg/ui/puzzle_solver.go",
-            "start_line": 281,
-            "end_line": 292,
+            "start_line": 278,
+            "end_line": 289,
             "node_count": 57
           }
         ],
@@ -1629,8 +1596,8 @@
         "instances": [
           {
             "file": "pkg/pulsemap/rendering/renderer.go",
-            "start_line": 529,
-            "end_line": 542,
+            "start_line": 537,
+            "end_line": 550,
             "node_count": 64
           },
           {
@@ -1671,14 +1638,14 @@
         "instances": [
           {
             "file": "pkg/pulsemap/rendering/effects/cross_layer.go",
-            "start_line": 153,
-            "end_line": 167,
+            "start_line": 159,
+            "end_line": 173,
             "node_count": 64
           },
           {
             "file": "pkg/pulsemap/rendering/effects/cross_layer_stub.go",
-            "start_line": 140,
-            "end_line": 153,
+            "start_line": 146,
+            "end_line": 159,
             "node_count": 64
           }
         ],
@@ -1692,8 +1659,8 @@
         "instances": [
           {
             "file": "pkg/pulsemap/rendering/renderer.go",
-            "start_line": 470,
-            "end_line": 485,
+            "start_line": 478,
+            "end_line": 493,
             "node_count": 61
           },
           {
@@ -1706,48 +1673,6 @@
         "line_count": 16,
         "severity": "warning",
         "suggestion": "Extract 16-line duplicate code block into a shared function. Found in 2 locations"
-      },
-      {
-        "hash": "2395e3c55f9a600e",
-        "type": "renamed",
-        "instances": [
-          {
-            "file": "pkg/pulsemap/rendering/renderer.go",
-            "start_line": 253,
-            "end_line": 268,
-            "node_count": 83
-          },
-          {
-            "file": "pkg/pulsemap/rendering/renderer.go",
-            "start_line": 292,
-            "end_line": 307,
-            "node_count": 83
-          }
-        ],
-        "line_count": 16,
-        "severity": "warning",
-        "suggestion": "Extract 16-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
-      },
-      {
-        "hash": "6cd89ad9785ada1f",
-        "type": "renamed",
-        "instances": [
-          {
-            "file": "pkg/networking/gossip/ephemeral.go",
-            "start_line": 184,
-            "end_line": 199,
-            "node_count": 62
-          },
-          {
-            "file": "pkg/networking/gossip/ephemeral.go",
-            "start_line": 370,
-            "end_line": 385,
-            "node_count": 62
-          }
-        ],
-        "line_count": 16,
-        "severity": "warning",
-        "suggestion": "Extract 16-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
       },
       {
         "hash": "442674399faba303",
@@ -1803,8 +1728,8 @@
           },
           {
             "file": "pkg/ui/puzzle_solver.go",
-            "start_line": 459,
-            "end_line": 477,
+            "start_line": 456,
+            "end_line": 474,
             "node_count": 153
           }
         ],
@@ -1824,14 +1749,14 @@
           },
           {
             "file": "pkg/ui/puzzle.go",
-            "start_line": 334,
-            "end_line": 360,
+            "start_line": 331,
+            "end_line": 357,
             "node_count": 112
           },
           {
             "file": "pkg/ui/puzzle_solver.go",
-            "start_line": 281,
-            "end_line": 300,
+            "start_line": 278,
+            "end_line": 297,
             "node_count": 112
           }
         ],
@@ -1866,14 +1791,14 @@
         "instances": [
           {
             "file": "pkg/ui/gift.go",
-            "start_line": 102,
-            "end_line": 123,
+            "start_line": 108,
+            "end_line": 129,
             "node_count": 100
           },
           {
             "file": "pkg/ui/gift_stub.go",
-            "start_line": 91,
-            "end_line": 112,
+            "start_line": 97,
+            "end_line": 118,
             "node_count": 100
           }
         ],
@@ -1929,14 +1854,14 @@
         "instances": [
           {
             "file": "pkg/pulsemap/overlays/marks.go",
-            "start_line": 317,
-            "end_line": 340,
+            "start_line": 323,
+            "end_line": 346,
             "node_count": 87
           },
           {
             "file": "pkg/pulsemap/overlays/marks_stub.go",
-            "start_line": 156,
-            "end_line": 179,
+            "start_line": 162,
+            "end_line": 185,
             "node_count": 87
           }
         ],
@@ -1950,14 +1875,14 @@
         "instances": [
           {
             "file": "pkg/ui/puzzle.go",
-            "start_line": 334,
-            "end_line": 363,
+            "start_line": 331,
+            "end_line": 360,
             "node_count": 120
           },
           {
             "file": "pkg/ui/puzzle_solver.go",
-            "start_line": 281,
-            "end_line": 301,
+            "start_line": 278,
+            "end_line": 298,
             "node_count": 120
           }
         ],
@@ -1971,14 +1896,14 @@
         "instances": [
           {
             "file": "pkg/pulsemap/rendering/effects/cross_layer.go",
-            "start_line": 54,
-            "end_line": 85,
+            "start_line": 60,
+            "end_line": 91,
             "node_count": 122
           },
           {
             "file": "pkg/pulsemap/rendering/effects/cross_layer_stub.go",
-            "start_line": 47,
-            "end_line": 73,
+            "start_line": 53,
+            "end_line": 79,
             "node_count": 122
           }
         ],
@@ -1992,14 +1917,14 @@
         "instances": [
           {
             "file": "pkg/ui/mark.go",
-            "start_line": 111,
-            "end_line": 154,
+            "start_line": 117,
+            "end_line": 160,
             "node_count": 170
           },
           {
             "file": "pkg/ui/mark_stub.go",
-            "start_line": 84,
-            "end_line": 123,
+            "start_line": 90,
+            "end_line": 129,
             "node_count": 170
           }
         ],

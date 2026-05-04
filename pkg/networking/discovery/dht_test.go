@@ -188,3 +188,91 @@ func createTestDHTHost(t *testing.T, ctx context.Context) (*transport.Host, *dht
 
 	return h, h.DHT()
 }
+
+func TestDiscoveryBootstrapFallback(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	// Create bootstrap node
+	_, priv1, _ := ed25519.GenerateKey(rand.Reader)
+	cfg1 := transport.DefaultConfig()
+	cfg1.PrivateKey = priv1
+	cfg1.EnableDHT = true
+
+	h1, err := transport.NewHost(ctx, cfg1)
+	if err != nil {
+		t.Fatalf("NewHost h1 failed: %v", err)
+	}
+	defer h1.Close()
+
+	// Create client node
+	_, priv2, _ := ed25519.GenerateKey(rand.Reader)
+	cfg2 := transport.DefaultConfig()
+	cfg2.PrivateKey = priv2
+	cfg2.EnableDHT = true
+
+	h2, err := transport.NewHost(ctx, cfg2)
+	if err != nil {
+		t.Fatalf("NewHost h2 failed: %v", err)
+	}
+	defer h2.Close()
+
+	// Create discovery for client node
+	d2 := New(h2.Host, h2.DHT())
+
+	// Configure fallback resolver with h1's address
+	fallbackResolver := NewStaticResolver([]peer.AddrInfo{h1.AddrInfo()})
+	resolverChain := NewResolverChain(nil, fallbackResolver)
+	d2.SetFallbackResolvers(resolverChain)
+
+	// Bootstrap with invalid peers - should fall back to resolver
+	invalidPeer := peer.AddrInfo{
+		ID: "12D3KooWInvalidPeerID",
+	}
+	if err := d2.Bootstrap(ctx, []peer.AddrInfo{invalidPeer}); err != nil {
+		// Error expected since invalid peer will fail, but fallback should work
+		t.Logf("Bootstrap returned error (expected): %v", err)
+	}
+
+	// Wait for fallback resolution to complete
+	time.Sleep(2 * time.Second)
+
+	// Verify connection was established via fallback
+	conns := h2.Network().ConnsToPeer(h1.PeerID())
+	if len(conns) == 0 {
+		t.Error("h2 has no connections to h1 after bootstrap with fallback")
+	} else {
+		t.Logf("Success: h2 connected to h1 via fallback resolver")
+	}
+}
+
+func TestDiscoveryBootstrapNoFallback(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// Create node
+	_, priv, _ := ed25519.GenerateKey(rand.Reader)
+	cfg := transport.DefaultConfig()
+	cfg.PrivateKey = priv
+	cfg.EnableDHT = true
+
+	h, err := transport.NewHost(ctx, cfg)
+	if err != nil {
+		t.Fatalf("NewHost failed: %v", err)
+	}
+	defer h.Close()
+
+	// Create discovery without fallback
+	d := New(h.Host, h.DHT())
+
+	// Bootstrap with invalid peers - should fail
+	invalidPeer := peer.AddrInfo{
+		ID: "12D3KooWInvalidPeerID",
+	}
+	err = d.Bootstrap(ctx, []peer.AddrInfo{invalidPeer})
+	if err == nil {
+		t.Error("Bootstrap should have failed with invalid peer and no fallback")
+	} else {
+		t.Logf("Bootstrap correctly failed: %v", err)
+	}
+}

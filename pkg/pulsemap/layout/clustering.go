@@ -344,62 +344,74 @@ func (cm *ClusterManager) mergeClusters(
 	positions map[string]Position,
 	targetCount int,
 ) []*Cluster {
-	// Convert to map for easier manipulation.
 	clusterMap := make(map[string]*Cluster)
 	for _, c := range clusters {
 		clusterMap[c.ID] = c
 	}
 
 	for len(clusterMap) > targetCount {
-		// Find closest pair.
-		minDist := math.MaxFloat64
-		var merge1, merge2 string
-
-		clusterIDs := make([]string, 0, len(clusterMap))
-		for id := range clusterMap {
-			clusterIDs = append(clusterIDs, id)
-		}
-
-		for i := 0; i < len(clusterIDs); i++ {
-			c1 := clusterMap[clusterIDs[i]]
-			for j := i + 1; j < len(clusterIDs); j++ {
-				c2 := clusterMap[clusterIDs[j]]
-				dist := distance(c1.CenterX, c1.CenterY, c2.CenterX, c2.CenterY)
-				if dist < minDist {
-					minDist = dist
-					merge1 = c1.ID
-					merge2 = c2.ID
-				}
-			}
-		}
-
+		merge1, merge2 := cm.findClosestClusterPair(clusterMap)
 		if merge1 == "" || merge2 == "" {
 			break
 		}
-
-		// Merge.
-		c1 := clusterMap[merge1]
-		c2 := clusterMap[merge2]
-
-		totalNodes := c1.NodeCount + c2.NodeCount
-		newX := (c1.CenterX*float64(c1.NodeCount) + c2.CenterX*float64(c2.NodeCount)) / float64(totalNodes)
-		newY := (c1.CenterY*float64(c1.NodeCount) + c2.CenterY*float64(c2.NodeCount)) / float64(totalNodes)
-
-		merged := &Cluster{
-			ID:         c1.ID,
-			CenterX:    newX,
-			CenterY:    newY,
-			NodeCount:  totalNodes,
-			TotalEdges: c1.TotalEdges + c2.TotalEdges,
-			NodeIDs:    append(c1.NodeIDs, c2.NodeIDs...),
-			Activity:   (c1.Activity*float64(c1.NodeCount) + c2.Activity*float64(c2.NodeCount)) / float64(totalNodes),
-			Radius:     calculateClusterRadius(totalNodes),
-		}
-
-		clusterMap[c1.ID] = merged
-		delete(clusterMap, c2.ID)
+		cm.mergeClusterPair(clusterMap, merge1, merge2)
 	}
 
+	return cm.clusterMapToSlice(clusterMap)
+}
+
+// findClosestClusterPair identifies the two closest clusters.
+func (cm *ClusterManager) findClosestClusterPair(clusterMap map[string]*Cluster) (string, string) {
+	minDist := math.MaxFloat64
+	var merge1, merge2 string
+
+	clusterIDs := make([]string, 0, len(clusterMap))
+	for id := range clusterMap {
+		clusterIDs = append(clusterIDs, id)
+	}
+
+	for i := 0; i < len(clusterIDs); i++ {
+		c1 := clusterMap[clusterIDs[i]]
+		for j := i + 1; j < len(clusterIDs); j++ {
+			c2 := clusterMap[clusterIDs[j]]
+			dist := distance(c1.CenterX, c1.CenterY, c2.CenterX, c2.CenterY)
+			if dist < minDist {
+				minDist = dist
+				merge1 = c1.ID
+				merge2 = c2.ID
+			}
+		}
+	}
+
+	return merge1, merge2
+}
+
+// mergeClusterPair combines two clusters into one.
+func (cm *ClusterManager) mergeClusterPair(clusterMap map[string]*Cluster, id1, id2 string) {
+	c1 := clusterMap[id1]
+	c2 := clusterMap[id2]
+
+	totalNodes := c1.NodeCount + c2.NodeCount
+	newX := (c1.CenterX*float64(c1.NodeCount) + c2.CenterX*float64(c2.NodeCount)) / float64(totalNodes)
+	newY := (c1.CenterY*float64(c1.NodeCount) + c2.CenterY*float64(c2.NodeCount)) / float64(totalNodes)
+
+	merged := &Cluster{
+		ID:         c1.ID,
+		CenterX:    newX,
+		CenterY:    newY,
+		NodeCount:  totalNodes,
+		TotalEdges: c1.TotalEdges + c2.TotalEdges,
+		NodeIDs:    append(c1.NodeIDs, c2.NodeIDs...),
+		Activity:   (c1.Activity*float64(c1.NodeCount) + c2.Activity*float64(c2.NodeCount)) / float64(totalNodes),
+		Radius:     calculateClusterRadius(totalNodes),
+	}
+
+	clusterMap[c1.ID] = merged
+	delete(clusterMap, c2.ID)
+}
+
+// clusterMapToSlice converts cluster map to slice.
+func (cm *ClusterManager) clusterMapToSlice(clusterMap map[string]*Cluster) []*Cluster {
 	result := make([]*Cluster, 0, len(clusterMap))
 	for _, c := range clusterMap {
 		result = append(result, c)

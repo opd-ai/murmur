@@ -341,11 +341,6 @@ Examples:
 func (r *REPL) printIncomingWaves() {
 	defer r.wg.Done()
 
-	// Subscribe to Wave events from the cache.
-	// Note: This is a simplified implementation. In a real scenario,
-	// we'd subscribe to the event bus for wave-received events.
-	// For now, we just poll the cache periodically.
-
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 
@@ -356,27 +351,36 @@ func (r *REPL) printIncomingWaves() {
 		case <-r.ctx.Done():
 			return
 		case <-ticker.C:
-			// List recent Waves since last check.
-			waves, err := r.waveCache.List(100)
-			if err != nil {
-				continue
-			}
-
-			for _, wave := range waves {
-				waveTime := time.Unix(wave.CreatedAt, 0)
-				if waveTime.After(lastCheck) {
-					content := string(wave.Content)
-					if len(content) > 80 {
-						content = content[:77] + "..."
-					}
-					fmt.Fprintf(r.out, "\n[%s] Received: %s\nmurmur> ",
-						waveTime.Format("15:04:05"), content)
-				}
-			}
-
-			lastCheck = time.Now()
+			lastCheck = r.processWaveUpdates(lastCheck)
 		}
 	}
+}
+
+// processWaveUpdates fetches and prints new Waves since lastCheck.
+func (r *REPL) processWaveUpdates(lastCheck time.Time) time.Time {
+	waves, err := r.waveCache.List(100)
+	if err != nil {
+		return lastCheck
+	}
+
+	for _, wave := range waves {
+		waveTime := time.Unix(wave.CreatedAt, 0)
+		if waveTime.After(lastCheck) {
+			r.printWave(wave, waveTime)
+		}
+	}
+
+	return time.Now()
+}
+
+// printWave formats and prints a single Wave to the output.
+func (r *REPL) printWave(wave *pb.Wave, waveTime time.Time) {
+	content := string(wave.Content)
+	if len(content) > 80 {
+		content = content[:77] + "..."
+	}
+	fmt.Fprintf(r.out, "\n[%s] Received: %s\nmurmur> ",
+		waveTime.Format("15:04:05"), content)
 }
 
 // mustMarshal marshals a protobuf message, panicking on error.

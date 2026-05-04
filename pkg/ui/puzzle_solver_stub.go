@@ -58,10 +58,7 @@ func (p *PuzzleSolverPanel) Show() {
 func (p *PuzzleSolverPanel) Hide() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.visible = false
-	p.solution = ""
-	p.cursorPos = 0
-	p.errorMessage = ""
+	ResetPanelInputState(&p.visible, &p.solution, &p.errorMessage, &p.cursorPos)
 	p.successMsg = ""
 }
 

@@ -247,12 +247,9 @@ func (ch *ChurnHandler) attemptReconnection(p peer.ID) {
 	callback := ch.callbacks.OnReconnect
 	ch.mu.RUnlock()
 
-	// Get peer's addresses from peerstore
 	addrs := ch.h.Peerstore().Addrs(p)
 	if len(addrs) == 0 {
-		if callback != nil {
-			callback(p, false)
-		}
+		ch.notifyReconnectResult(callback, p, false)
 		return
 	}
 
@@ -261,15 +258,19 @@ func (ch *ChurnHandler) attemptReconnection(p peer.ID) {
 		Addrs: addrs,
 	}
 
-	var success bool
+	success := ch.retryConnection(addrInfo)
+	ch.notifyReconnectResult(callback, p, success)
+}
+
+// retryConnection attempts connection with exponential backoff.
+func (ch *ChurnHandler) retryConnection(addrInfo peer.AddrInfo) bool {
 	for attempt := 0; attempt < ReconnectAttemptLimit; attempt++ {
 		select {
 		case <-ch.ctx.Done():
-			return
+			return false
 		default:
 		}
 
-		// Exponential backoff
 		if attempt > 0 {
 			delay := time.Duration(1<<uint(attempt)) * time.Second
 			time.Sleep(delay)
@@ -280,11 +281,14 @@ func (ch *ChurnHandler) attemptReconnection(p peer.ID) {
 		cancel()
 
 		if err == nil {
-			success = true
-			break
+			return true
 		}
 	}
+	return false
+}
 
+// notifyReconnectResult invokes the callback if set.
+func (ch *ChurnHandler) notifyReconnectResult(callback func(peer.ID, bool), p peer.ID, success bool) {
 	if callback != nil {
 		callback(p, success)
 	}
