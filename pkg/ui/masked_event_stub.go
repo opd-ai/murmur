@@ -2,8 +2,8 @@
 // Per ROADMAP.md line 507: "UI: Event lobby — create event, join event,
 // compose Masked Waves".
 //
-//go:build noebiten
-// +build noebiten
+//go:build test
+// +build test
 
 package ui
 

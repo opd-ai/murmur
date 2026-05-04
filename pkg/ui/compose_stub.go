@@ -1,7 +1,7 @@
 // Package ui provides stub types for the Compose panel.
 //
-//go:build noebiten
-// +build noebiten
+//go:build test
+// +build test
 
 package ui
 

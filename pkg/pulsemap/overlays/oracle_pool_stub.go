@@ -1,8 +1,8 @@
 // Package overlays — Oracle Pool Pulse Map visualization stub.
 // Per ROADMAP.md line 461: "Pulse Map visualization — swirling vortex icon at pool location".
 //
-//go:build noebiten
-// +build noebiten
+//go:build test
+// +build test
 
 package overlays
 

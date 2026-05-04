@@ -1,8 +1,8 @@
 // Package effects provides shader-based visual effects for the Pulse Map.
 // This is the noebiten stub for GiftRenderer.
 //
-//go:build noebiten
-// +build noebiten
+//go:build test
+// +build test
 
 package effects
 

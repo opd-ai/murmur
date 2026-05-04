@@ -1,8 +1,6 @@
 // Package pulsemap provides the force-directed graph visualization (Pulse Map).
 // This file implements the ebiten.Game interface for the main rendering loop.
 //
-//go:build !noebiten
-// +build !noebiten
 
 package pulsemap
 

@@ -1,7 +1,7 @@
 // Package overlays — Phantom Council visualization stub for non-Ebiten builds.
 //
-//go:build noebiten
-// +build noebiten
+//go:build test
+// +build test
 
 package overlays
 

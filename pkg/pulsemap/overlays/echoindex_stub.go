@@ -1,8 +1,8 @@
 // Package overlays provides Anonymous Layer overlay and activity heatmap.
 // This file is a stub for builds without Ebitengine.
 //
-//go:build noebiten
-// +build noebiten
+//go:build test
+// +build test
 
 package overlays
 

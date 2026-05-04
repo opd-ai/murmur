@@ -2,8 +2,8 @@
 // Per ROADMAP.md line 446: "Pulse Map visualization — translucent watermarks
 // with territory boundaries".
 //
-//go:build noebiten
-// +build noebiten
+//go:build test
+// +build test
 
 package overlays
 

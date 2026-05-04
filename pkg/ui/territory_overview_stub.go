@@ -2,8 +2,8 @@
 // Per ROADMAP.md line 447: "UI: Territory overview panel — controlled regions,
 // influence scores, weekly cycle status".
 //
-//go:build noebiten
-// +build noebiten
+//go:build test
+// +build test
 
 package ui
 

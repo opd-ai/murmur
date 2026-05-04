@@ -1,7 +1,7 @@
 // Package ui — Phantom Council management panel stub for non-Ebiten builds.
 //
-//go:build noebiten
-// +build noebiten
+//go:build test
+// +build test
 
 package ui
 

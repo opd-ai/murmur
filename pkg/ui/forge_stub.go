@@ -2,8 +2,8 @@
 // Per ROADMAP.md line 477: "UI: Forge submission panel — create/submit entries,
 // view competitors".
 //
-//go:build noebiten
-// +build noebiten
+//go:build test
+// +build test
 
 package ui
 

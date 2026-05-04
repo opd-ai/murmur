@@ -1,8 +1,8 @@
 // Package ui - Oracle Pool panel stub implementation.
 // Per ROADMAP.md line 462: "UI: Oracle Pool panel — create pool, submit prediction, view outcomes".
 //
-//go:build noebiten
-// +build noebiten
+//go:build test
+// +build test
 
 package ui
 

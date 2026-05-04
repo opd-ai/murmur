@@ -2,8 +2,8 @@
 // Per ROADMAP.md line 534: "UI: Mark placement panel — choose mark type,
 // select target node".
 //
-//go:build noebiten
-// +build noebiten
+//go:build test
+// +build test
 
 package ui
 

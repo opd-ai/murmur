@@ -2,8 +2,8 @@
 // Per ROADMAP.md line 418: "UI: puzzle composition panel — create puzzle with
 // difficulty and content inputs".
 //
-//go:build noebiten
-// +build noebiten
+//go:build test
+// +build test
 
 package ui
 

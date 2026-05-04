@@ -21,6 +21,7 @@ type Backup struct {
 
 // GenerateBackup creates a new keypair with its BIP-39 mnemonic backup.
 // Returns the keypair and a 24-word mnemonic phrase.
+// Per DESIGN_DOCUMENT.md, mnemonic backups enable keypair recovery without file exports.
 func GenerateBackup() (*KeyPair, *Backup, error) {
 	// Generate 256 bits of entropy for 24-word mnemonic.
 	entropy, err := bip39.NewEntropy(MnemonicBitSize)
@@ -55,6 +56,7 @@ func GenerateBackup() (*KeyPair, *Backup, error) {
 }
 
 // RestoreFromMnemonic recovers a keypair from a BIP-39 mnemonic phrase.
+// Per DESIGN_DOCUMENT.md, this enables identity recovery on new devices.
 func RestoreFromMnemonic(mnemonic string) (*KeyPair, error) {
 	// Validate mnemonic.
 	if !bip39.IsMnemonicValid(mnemonic) {

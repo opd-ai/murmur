@@ -1,7 +1,7 @@
 // Package ui - Specter node detail panel stub for builds without Ebitengine.
 //
-//go:build noebiten
-// +build noebiten
+//go:build test
+// +build test
 
 package ui
 

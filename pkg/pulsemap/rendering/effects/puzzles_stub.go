@@ -1,7 +1,7 @@
 // Package effects provides puzzle visual effects stubs for non-Ebitengine builds.
 //
-//go:build noebiten
-// +build noebiten
+//go:build test
+// +build test
 
 package effects
 

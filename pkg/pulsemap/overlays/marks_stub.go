@@ -1,8 +1,8 @@
 // Package overlays provides Anonymous Layer overlay and activity heatmap.
 // This is the noebiten stub for Specter Mark visualization.
 //
-//go:build noebiten
-// +build noebiten
+//go:build test
+// +build test
 
 package overlays
 

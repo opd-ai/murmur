@@ -225,6 +225,7 @@ func TestComputeUniqueness(t *testing.T) {
 }
 
 // BenchmarkCompute measures PoW computation time.
+// Per TECHNICAL_IMPLEMENTATION.md, default difficulty 20 targets 2-5 seconds.
 func BenchmarkCompute(b *testing.B) {
 	data := []byte("benchmark test data")
 
@@ -239,4 +240,27 @@ func BenchmarkCompute(b *testing.B) {
 			Compute(data, 12)
 		}
 	})
+
+	b.Run("difficulty_15", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			Compute(data, 15)
+		}
+	})
+
+	b.Run("difficulty_20_default", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			Compute(data, DefaultDifficulty)
+		}
+	})
+}
+
+// BenchmarkVerify measures PoW verification performance.
+func BenchmarkVerify(b *testing.B) {
+	data := []byte("benchmark test data")
+	work, _ := Compute(data, DefaultDifficulty)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		Verify(data, work.Nonce, DefaultDifficulty)
+	}
 }

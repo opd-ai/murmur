@@ -1,8 +1,8 @@
 // Package rendering provides Ebitengine-based rendering for the Pulse Map.
 // This stub file provides no-op implementations when Ebitengine is not available.
 //
-//go:build noebiten
-// +build noebiten
+//go:build test
+// +build test
 
 package rendering
 

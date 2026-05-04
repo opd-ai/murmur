@@ -1,7 +1,5 @@
 // UI initialization for Ebitengine builds.
 //
-//go:build !noebiten
-// +build !noebiten
 
 package app
 

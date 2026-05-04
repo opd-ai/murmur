@@ -1,7 +1,7 @@
 // Package screens provides Ebitengine-based UI screens for onboarding.
 //
-//go:build noebiten
-// +build noebiten
+//go:build test
+// +build test
 
 package screens
 

@@ -1,8 +1,8 @@
 // Package overlays provides Anonymous Layer overlay and activity heatmap.
 // This file provides a stub implementation of GiftOverlay for noebiten builds.
 //
-//go:build noebiten
-// +build noebiten
+//go:build test
+// +build test
 
 package overlays
 

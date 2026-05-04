@@ -1,8 +1,8 @@
 // Package pulsemap provides the force-directed graph visualization (Pulse Map).
 // This file provides a stub Game implementation for test builds.
 //
-//go:build noebiten
-// +build noebiten
+//go:build test
+// +build test
 
 package pulsemap
 

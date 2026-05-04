@@ -1,8 +1,8 @@
 // Package effects provides hunt fragment visualization for the Pulse Map.
 // This stub file provides type definitions without Ebitengine dependencies.
 //
-//go:build noebiten
-// +build noebiten
+//go:build test
+// +build test
 
 package effects
 

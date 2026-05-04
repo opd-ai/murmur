@@ -1,8 +1,8 @@
 // Package effects provides cross-layer visibility for Phantom Gifts.
-// This is the noebiten stub for testing without graphics.
+// This is the test stub for testing without graphics.
 //
-//go:build noebiten
-// +build noebiten
+//go:build test
+// +build test
 
 package effects
 

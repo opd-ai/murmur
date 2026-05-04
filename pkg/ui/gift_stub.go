@@ -3,8 +3,8 @@
 // choose recipient, confirm send".
 // This is the noebiten stub for testing without graphics.
 //
-//go:build noebiten
-// +build noebiten
+//go:build test
+// +build test
 
 package ui
 

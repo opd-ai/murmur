@@ -1,8 +1,8 @@
 // Package ui provides stub types for the Hunt Tracker panel.
 // Per ROADMAP.md line 434: "UI: Hunt tracker overlay — fragment locations, clue display, leaderboard".
 //
-//go:build noebiten
-// +build noebiten
+//go:build test
+// +build test
 
 package ui
 

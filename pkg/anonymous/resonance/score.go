@@ -52,6 +52,7 @@ func (r Rank) String() string {
 }
 
 // RankFromScore converts a Resonance score to a Rank.
+// Per RESONANCE_SYSTEM.md, milestones unlock at 25/50/75/100/200/500.
 func RankFromScore(score int) Rank {
 	switch {
 	case score >= MilestoneAbyss:
@@ -90,6 +91,7 @@ func DefaultWeights() SignalWeights {
 }
 
 // Score represents a Specter's Resonance state.
+// Per RESONANCE_SYSTEM.md, scoring uses four signal categories with configurable weights.
 type Score struct {
 	mu sync.RWMutex
 
@@ -135,6 +137,7 @@ func NewScoreWithWeights(w SignalWeights) *Score {
 }
 
 // AddPublication records a new Specter publication.
+// Per RESONANCE_SYSTEM.md, publication consistency is weighted at 30%.
 func (s *Score) AddPublication() {
 	s.mu.Lock()
 	defer s.mu.Unlock()

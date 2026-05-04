@@ -1,7 +1,7 @@
 // Package screens provides test stubs for Mode Selection screen.
 //
-//go:build noebiten
-// +build noebiten
+//go:build test
+// +build test
 
 package screens
 

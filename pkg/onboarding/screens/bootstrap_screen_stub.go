@@ -1,7 +1,7 @@
 // Package screens provides test stubs for Bootstrap screen.
 //
-//go:build noebiten
-// +build noebiten
+//go:build test
+// +build test
 
 package screens
 

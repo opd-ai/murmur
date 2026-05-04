@@ -2,8 +2,8 @@
 // Per ROADMAP.md line 492: "UI: Shadow Play game interface — role reveal,
 // vote casting, round status, results".
 //
-//go:build noebiten
-// +build noebiten
+//go:build test
+// +build test
 
 package ui
 

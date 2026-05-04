@@ -1,5 +1,6 @@
 // Package resonance provides local reputation computation and rank thresholds.
 // This file implements the decay manager for periodic background computation.
+// Per RESONANCE_SYSTEM.md, Resonance scores decay over time to discourage stagnation.
 package resonance
 
 import (
@@ -45,6 +46,7 @@ func DefaultDecayManagerConfig() DecayManagerConfig {
 }
 
 // NewDecayManager creates a new decay manager.
+// Per RESONANCE_SYSTEM.md, decay runs every 60 seconds by default.
 func NewDecayManager() *DecayManager {
 	return &DecayManager{
 		interval: 60 * time.Second,

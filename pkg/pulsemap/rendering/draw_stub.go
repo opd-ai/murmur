@@ -1,8 +1,8 @@
 // Package rendering provides stub types for testing without Ebitengine.
 // This file is used when building with the noebiten tag.
 //
-//go:build noebiten
-// +build noebiten
+//go:build test
+// +build test
 
 package rendering
 
