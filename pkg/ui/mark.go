@@ -697,7 +697,7 @@ func (p *MarkPanel) drawPlacing(screen *ebiten.Image) {
 }
 
 // drawResultMessage renders success or error messages with a consistent layout.
-func (p *MarkPanel) drawResultMessage(screen *ebiten.Image, icon, title, message string, titleColor color.Color) {
+func (p *MarkPanel) drawResultMessage(screen *ebiten.Image, icon, title, message string, titleColor color.RGBA) {
 	x := float32(p.panelX + 20)
 	y := float32(p.panelY + 20)
 

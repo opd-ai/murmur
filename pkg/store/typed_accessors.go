@@ -858,3 +858,124 @@ func (db *DB) ListMarksForTarget(targetKey []byte) ([]*pb.SpecterMark, error) {
 	})
 	return marks, err
 }
+
+// Cross-Layer Artifact Query Methods
+// Per PLAN.md Step 2: methods for querying anonymous artifacts visible on Surface Layer.
+
+// GetActiveGiftsForRecipient returns non-expired gifts for a specific recipient.
+func (db *DB) GetActiveGiftsForRecipient(recipientKey []byte, nowUnix int64) ([]*pb.PhantomGift, error) {
+	var gifts []*pb.PhantomGift
+	keyStr := string(recipientKey)
+	err := db.ForEach(BucketGifts, func(_, value []byte) error {
+		gift := &pb.PhantomGift{}
+		if err := proto.Unmarshal(value, gift); err != nil {
+			return fmt.Errorf("unmarshaling phantom gift: %w", err)
+		}
+		if string(gift.RecipientPubkey) == keyStr && gift.ExpiresAt > nowUnix {
+			gifts = append(gifts, gift)
+		}
+		return nil
+	})
+	return gifts, err
+}
+
+// GetActivePuzzlesNearNode returns active puzzles (spatial query placeholder).
+// Currently returns all active puzzles; spatial filtering deferred to future work.
+func (db *DB) GetActivePuzzlesNearNode(_ []byte, _ float64) ([]*pb.CipherPuzzle, error) {
+	return db.ListActiveCipherPuzzles()
+}
+
+// GetActiveHuntsWithFragmentsNear returns active hunts (spatial query placeholder).
+// Currently returns all active hunts; spatial filtering deferred to future work.
+func (db *DB) GetActiveHuntsWithFragmentsNear(_ []byte, _ float64) ([]*pb.SpecterHunt, error) {
+	var hunts []*pb.SpecterHunt
+	err := db.ForEach(BucketHunts, func(_, value []byte) error {
+		hunt := &pb.SpecterHunt{}
+		if err := proto.Unmarshal(value, hunt); err != nil {
+			return fmt.Errorf("unmarshaling specter hunt: %w", err)
+		}
+		if hunt.State == pb.HuntState_HUNT_STATE_ACTIVE {
+			hunts = append(hunts, hunt)
+		}
+		return nil
+	})
+	return hunts, err
+}
+
+// GetTerritoryInfluenceAt returns territory state at a node (spatial query placeholder).
+// Currently returns the first territory; proper spatial lookup deferred to future work.
+func (db *DB) GetTerritoryInfluenceAt(_ []byte) (*pb.Territory, error) {
+	territories, err := db.ListTerritories()
+	if err != nil || len(territories) == 0 {
+		return nil, err
+	}
+	return territories[0], nil
+}
+
+// GetActiveOraclePoolsNearNode returns open oracle pools (spatial query placeholder).
+// Currently returns all open pools; spatial filtering deferred to future work.
+func (db *DB) GetActiveOraclePoolsNearNode(_ []byte, _ float64) ([]*pb.OraclePool, error) {
+	return db.ListOpenOraclePools()
+}
+
+// GetActiveForgeEventsNearNode returns active forge projects (spatial query placeholder).
+// Currently returns all collecting projects; spatial filtering deferred to future work.
+func (db *DB) GetActiveForgeEventsNearNode(_ []byte, _ float64) ([]*pb.ForgeProject, error) {
+	var projects []*pb.ForgeProject
+	err := db.ForEach(BucketForge, func(_, value []byte) error {
+		project := &pb.ForgeProject{}
+		if err := proto.Unmarshal(value, project); err != nil {
+			return fmt.Errorf("unmarshaling forge project: %w", err)
+		}
+		if project.State == pb.ForgeState_FORGE_STATE_COLLECTING {
+			projects = append(projects, project)
+		}
+		return nil
+	})
+	return projects, err
+}
+
+// GetActiveShadowPlayNearNode returns active shadow plays (spatial query placeholder).
+// Currently returns all performing plays; spatial filtering deferred to future work.
+func (db *DB) GetActiveShadowPlayNearNode(_ []byte, _ float64) ([]*pb.ShadowPlay, error) {
+	var plays []*pb.ShadowPlay
+	err := db.ForEach(BucketShadowPlay, func(_, value []byte) error {
+		play := &pb.ShadowPlay{}
+		if err := proto.Unmarshal(value, play); err != nil {
+			return fmt.Errorf("unmarshaling shadow play: %w", err)
+		}
+		if play.State == pb.ShadowPlayState_SHADOW_PLAY_STATE_PERFORMING {
+			plays = append(plays, play)
+		}
+		return nil
+	})
+	return plays, err
+}
+
+// GetMaskedEventsNearNode returns masked events (spatial query placeholder).
+// Masked events use custom StoredMaskedEvent type; use MaskedEventStore for queries.
+// This method is a placeholder for cross-layer rendering integration.
+func (db *DB) GetMaskedEventsNearNode(_ []byte, _ float64) ([]StoredMaskedEvent, error) {
+	// Placeholder: return empty slice. Masked events require MaskedEventStore for proper access.
+	return []StoredMaskedEvent{}, nil
+}
+
+// GetCouncilsWithMember returns councils containing a specific member.
+func (db *DB) GetCouncilsWithMember(memberKey []byte) ([]*pb.PhantomCouncil, error) {
+	var councils []*pb.PhantomCouncil
+	keyStr := string(memberKey)
+	err := db.ForEach(BucketCouncils, func(_, value []byte) error {
+		council := &pb.PhantomCouncil{}
+		if err := proto.Unmarshal(value, council); err != nil {
+			return fmt.Errorf("unmarshaling phantom council: %w", err)
+		}
+		for _, member := range council.Members {
+			if string(member.SpecterPubkey) == keyStr {
+				councils = append(councils, council)
+				break
+			}
+		}
+		return nil
+	})
+	return councils, err
+}

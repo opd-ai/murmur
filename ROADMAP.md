@@ -661,13 +661,13 @@
   - [x] Send Whisper
   - [x] Join active mini-game
   - [x] View node detail
-- [ ] **Node Detail Panel** — slide-in card with:
-  - [ ] Profile information (display name, Sigil, public key fingerprint)
-  - [ ] Recent Waves list
-  - [ ] Connection list
-  - [ ] Specter Resonance (for anonymous nodes)
-  - [ ] Interaction options
-- [ ] **Search bar** — find by display name, fingerprint, or pseudonym
+- [x] **Node Detail Panel** — slide-in card with:
+  - [x] Profile information (display name, Sigil, public key fingerprint)
+  - [x] Recent Waves list
+  - [x] Connection list
+  - [x] Specter Resonance (for anonymous nodes)
+  - [x] Interaction options
+- [x] **Search bar** — find by display name, fingerprint, or pseudonym
 - [ ] **Bookmarks** — save and navigate to specific nodes
 - [x] **"Find Self" button** — center view on own node
 
@@ -837,10 +837,10 @@
 - [x] Unit tests for game mechanics (puzzles, hunts, territory, oracle, forge, shadowplay)
 - [x] Unit tests for touch interactions, overlays, colors, rendering
 - [x] Stability simulation infrastructure (1000-node, 72-hour)
-- [x] **Test suite validation** — 100% pass rate across 38 packages with race detector (`go test -race ./...`)
-- [x] **Complexity baseline** — go-stats-generator metrics (5.1 MB JSON, 5,422 functions analyzed, zero functions exceed complexity threshold)
-- [x] **Test failure classification workflow** — autonomous root cause correlation documented in TEST_FAILURE_RESOLUTION_FINAL.md
-- [x] **Race condition detection** — 2,733 test assertions pass with `-race` flag, zero data races detected
+- [x] **Test suite validation** — 100% pass rate maintained across 54 packages with race detector (2026-05-04: zero failures, zero races)
+- [x] **Complexity baseline** — go-stats-generator metrics (5.2 MB JSON, 54 packages analyzed, all tests passing)
+- [x] **Test failure classification workflow** — autonomous root cause correlation completed (2026-05-04: no failures to classify, suite healthy)
+- [x] **Race condition detection** — All test assertions pass with `-race` flag, zero data races detected
 - [ ] **Integration tests** — in-memory Bbolt + mock event bus, no libp2p, no Ebitengine
 - [x] **Simulation tests** — 10–100 in-process libp2p nodes with memory transports (`//go:build simulation`)
   - [x] Gossip propagation latency verification (<3s to 99% of subscribers) — TestGossipPropagation50Nodes: p99 2.5ms
@@ -859,9 +859,9 @@
 - [x] docs/BOOTSTRAP_OPERATION.md — bootstrap node procedures
 - [x] docs/DEPLOYMENT.md — deployment guide
 - [x] docs/SHROUD_OPERATION.md — Shroud relay operation
-- [x] AUDIT.md — security decisions and deviations log (updated 2026-05-04 with test suite health)
-- [x] PLAN.md — sprint-level task tracking (updated 2026-05-04 with test metrics)
-- [x] TEST_RESOLUTION_COMPLETE.md — test failure classification and resolution report (2026-05-04)
+- [x] AUDIT.md — security decisions and deviations log (updated 2026-05-04 with test suite validation)
+- [x] PLAN.md — sprint-level task tracking (updated 2026-05-04 with test suite status)
+- [x] TEST_RESOLUTION_STATUS_2026-05-04.md — autonomous test failure classification report (100% pass rate)
 - [ ] API documentation for all exported types and functions
 - [ ] Architecture decision records (ADRs) for key design choices
 

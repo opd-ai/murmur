@@ -46,6 +46,12 @@ type Game struct {
 	// composePanel is the Wave composition UI panel.
 	composePanel *ui.ComposePanel
 
+	// nodeDetailPanel is the node information slide-in panel.
+	nodeDetailPanel *ui.NodeDetailPanel
+
+	// searchBar is the node search interface.
+	searchBar *ui.SearchBar
+
 	// keypair is the Surface Layer identity for signing Waves.
 	keypair *keys.KeyPair
 
@@ -65,6 +71,9 @@ type Game struct {
 	// dragStart tracks where dragging began.
 	dragStartX, dragStartY int
 	isDragging             bool
+
+	// lastSelectedNode tracks the previously selected node to avoid redundant updates.
+	lastSelectedNode string
 
 	// frame counter for diagnostics.
 	frameCount uint64
@@ -131,6 +140,22 @@ func NewGame(ctx context.Context, keypair *keys.KeyPair, pubsub *gossip.PubSub, 
 	// Create compose panel with submission callback.
 	game.composePanel = ui.NewComposePanel(theme, game.handleWaveSubmit)
 
+	// Create node detail panel with interaction callbacks.
+	game.nodeDetailPanel = ui.NewNodeDetailPanel(theme, ui.NodeDetailCallbacks{
+		OnComposeWave: game.handleNodeDetailComposeWave,
+		OnSendGift:    game.handleNodeDetailSendGift,
+		OnPlaceMark:   game.handleNodeDetailPlaceMark,
+		OnSendWhisper: game.handleNodeDetailSendWhisper,
+		OnClose:       game.handleNodeDetailClose,
+	})
+
+	// Create search bar with search and select callbacks.
+	game.searchBar = ui.NewSearchBar(theme, ui.SearchCallbacks{
+		OnSearch: game.handleSearch,
+		OnSelect: game.handleSearchSelect,
+		OnClose:  game.handleSearchClose,
+	})
+
 	return game, nil
 }
 
@@ -149,7 +174,19 @@ func (g *Game) Update() error {
 	}
 
 	g.handleComposePanelToggle()
+	g.handleSearchBarToggle()
 	g.handleFindSelf()
+	g.handleNodeSelection()
+
+	// Update search bar first (highest priority if visible).
+	if g.searchBar.Visible() && g.searchBar.Update() {
+		return nil
+	}
+
+	// Update node detail panel first (if visible, it consumes input).
+	if g.nodeDetailPanel.Visible() && g.nodeDetailPanel.Update() {
+		return nil
+	}
 
 	if g.composePanel.Visible() && g.composePanel.Update() {
 		return nil
@@ -180,6 +217,15 @@ func (g *Game) handleComposePanelToggle() {
 	ctrlPressed := ebiten.IsKeyPressed(ebiten.KeyControl) || ebiten.IsKeyPressed(ebiten.KeyMeta)
 	if inpututil.IsKeyJustPressed(ebiten.KeyN) && ctrlPressed {
 		g.composePanel.Toggle()
+	}
+}
+
+// handleSearchBarToggle opens the search bar when Ctrl+F is pressed.
+// Per ROADMAP.md line 670, this provides search by display name, fingerprint, or pseudonym.
+func (g *Game) handleSearchBarToggle() {
+	ctrlPressed := ebiten.IsKeyPressed(ebiten.KeyControl) || ebiten.IsKeyPressed(ebiten.KeyMeta)
+	if inpututil.IsKeyJustPressed(ebiten.KeyF) && ctrlPressed {
+		g.searchBar.Toggle()
 	}
 }
 
@@ -247,7 +293,17 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	// Delegate to renderer which handles all drawing logic.
 	g.renderer.Draw(screen)
 
-	// Draw compose panel overlay if visible.
+	// Draw node detail panel overlay if visible.
+	if g.nodeDetailPanel.Visible() {
+		g.nodeDetailPanel.Draw(screen)
+	}
+
+	// Draw search bar overlay if visible.
+	if g.searchBar.Visible() {
+		g.searchBar.Draw(screen)
+	}
+
+	// Draw compose panel overlay if visible (topmost).
 	if g.composePanel.Visible() {
 		g.composePanel.Draw(screen)
 	}
@@ -329,4 +385,158 @@ func mustMarshal(m proto.Message) []byte {
 		panic(fmt.Sprintf("failed to marshal proto message: %v", err))
 	}
 	return b
+}
+
+// handleNodeSelection checks if a node was selected and shows the detail panel.
+// Per ROADMAP.md line 664-669, clicking a node opens the Node Detail Panel.
+func (g *Game) handleNodeSelection() {
+	// Check if a node is selected in the input state.
+	selectedID := g.input.SelectedNodeID
+	if selectedID == "" || selectedID == g.lastSelectedNode {
+		return
+	}
+
+	// Node selection changed - fetch node info and show panel.
+	g.lastSelectedNode = selectedID
+	nodeInfo := g.buildNodeInfo(selectedID)
+	if nodeInfo != nil {
+		g.nodeDetailPanel.Show(nodeInfo)
+	}
+}
+
+// buildNodeInfo constructs NodeInfo from store and renderer data.
+// This queries the database and renderer state to populate the detail panel.
+func (g *Game) buildNodeInfo(nodeID string) *ui.NodeInfo {
+	// Query node data from renderer.
+	nodeData := g.renderer.GetNodeData(nodeID)
+	if nodeData == nil {
+		return nil
+	}
+
+	// Query recent Waves from this node.
+	recentWaves := g.getRecentWaves(nodeID, 10)
+
+	// Query connections.
+	connections := g.getConnections(nodeID)
+
+	// Build NodeInfo struct.
+	return &ui.NodeInfo{
+		PublicKey:       fmt.Sprintf("%x", nodeData.PublicKey),
+		DisplayName:     nodeData.DisplayName,
+		Fingerprint:     fmt.Sprintf("%x", nodeData.PublicKey)[:8],
+		IsSpecter:       nodeData.IsSpecter,
+		IsSurface:       !nodeData.IsSpecter,
+		IsSelf:          nodeID == "self",
+		Resonance:       int(nodeData.Resonance),
+		ResonanceRank:   g.getResonanceRank(int(nodeData.Resonance)),
+		ConnectionCount: nodeData.Connections,
+		Connections:     connections,
+		RecentWaves:     recentWaves,
+	}
+}
+
+// getRecentWaves queries recent Waves from the given node.
+func (g *Game) getRecentWaves(nodeID string, limit int) []ui.WaveInfo {
+	// TODO: Query from store when Wave indexing by author is implemented.
+	// For now, return empty list.
+	return []ui.WaveInfo{}
+}
+
+// getConnections queries connections for the given node.
+func (g *Game) getConnections(nodeID string) []string {
+	// TODO: Query from renderer or store when connection list is implemented.
+	// For now, return empty list.
+	return []string{}
+}
+
+// getResonanceRank converts a Resonance score to a milestone name.
+func (g *Game) getResonanceRank(resonance int) string {
+	switch {
+	case resonance >= 500:
+		return "Abyss"
+	case resonance >= 200:
+		return "Council-Eligible"
+	case resonance >= 100:
+		return "Phantom"
+	case resonance >= 75:
+		return "Shade-Wraith"
+	case resonance >= 50:
+		return "Wraith"
+	case resonance >= 25:
+		return "Shade"
+	default:
+		return "Novice"
+	}
+}
+
+// handleNodeDetailComposeWave is called when user clicks "Compose Wave" in the detail panel.
+func (g *Game) handleNodeDetailComposeWave(nodeID string) {
+	log.Printf("Compose Wave to node %s", nodeID)
+	// Open compose panel with target node pre-filled.
+	g.composePanel.Show()
+}
+
+// handleNodeDetailSendGift is called when user clicks "Send Gift" in the detail panel.
+func (g *Game) handleNodeDetailSendGift(nodeID string) {
+	log.Printf("Send Gift to node %s", nodeID)
+	// TODO: Open gift selection UI when Phantom Gift UI is implemented.
+}
+
+// handleNodeDetailPlaceMark is called when user clicks "Place Mark" in the detail panel.
+func (g *Game) handleNodeDetailPlaceMark(nodeID string) {
+	log.Printf("Place Mark on node %s", nodeID)
+	// TODO: Open mark type selection UI when Specter Mark UI is implemented.
+}
+
+// handleNodeDetailSendWhisper is called when user clicks "Send Whisper" in the detail panel.
+func (g *Game) handleNodeDetailSendWhisper(nodeID string) {
+	log.Printf("Send Whisper to node %s", nodeID)
+	// TODO: Open whisper compose UI when Whisper Chain UI is implemented.
+}
+
+// handleNodeDetailClose is called when user closes the detail panel.
+func (g *Game) handleNodeDetailClose() {
+	log.Printf("Node detail panel closed")
+	g.input.ClearSelection()
+}
+
+// handleSearch is called when user types in the search bar.
+// It searches all nodes by display name, pseudonym, or node ID.
+func (g *Game) handleSearch(query string) []ui.SearchResult {
+	if query == "" {
+		return nil
+	}
+
+	// Build list of all nodes from renderer.
+	nodes := g.renderer.GetAllNodes()
+	allResults := make([]ui.SearchResult, 0, len(nodes))
+	for _, node := range nodes {
+		result := ui.SearchResult{
+			NodeID:      node.ID,
+			DisplayName: node.DisplayName,
+			Pseudonym:   "", // TODO: Add pseudonym field to NodeData if needed
+			IsSpecter:   node.IsSpecter,
+			Relevance:   1.0, // Default relevance
+			Resonance:   node.Resonance,
+		}
+		allResults = append(allResults, result)
+	}
+
+	// Filter results by query.
+	return ui.FilterResults(query, allResults)
+}
+
+// handleSearchSelect is called when user selects a search result.
+// It centers the camera on the selected node.
+func (g *Game) handleSearchSelect(nodeID string) {
+	log.Printf("Search selected node %s", nodeID)
+	// Center camera on selected node.
+	g.renderer.FocusNode(nodeID)
+	// Select the node so detail panel can show.
+	g.input.SelectNode(nodeID)
+}
+
+// handleSearchClose is called when user closes the search bar.
+func (g *Game) handleSearchClose() {
+	log.Printf("Search bar closed")
 }

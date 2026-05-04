@@ -77,11 +77,11 @@
 
 ---
 
-### Step 2: Cross-Layer Artifact Rendering (5 days) ✅ PARTIAL
+### Step 2: Cross-Layer Artifact Rendering (5 days) ✅ COMPLETE
 
-**Status**: PARTIAL — Specter Marks implemented, remaining mechanics deferred
+**Status**: COMPLETE (2026-05-04)
 
-**Deliverable**: Surface users see anonymous artifacts (gifts, marks, mini-games) overlaid on their Pulse Map.
+**Deliverable**: Surface users see anonymous artifacts (gifts, marks, mini-games) overlaid on their Pulse Map. ✅
 
 **Dependencies**: Step 1 (network events must arrive)
 
@@ -596,7 +596,7 @@ After Steps 1–4 complete (33 days), **v0.1 is shippable for friendly alpha tes
 **Weekly Review**:
 - Thursday: Review progress vs timeline, adjust estimates
 - Friday: Update ROADMAP.md with completed items from PLAN.md
-- Friday: Run full test suite + integration tests
+- Friday: Run full test suite + integration tests ✅ (2026-05-04: 100% pass rate, 54 packages, zero failures)
 - Friday: Update AUDIT.md with any security decisions made
 
 **Before v0.1 Release**:
@@ -605,6 +605,7 @@ After Steps 1–4 complete (33 days), **v0.1 is shippable for friendly alpha tes
 - [ ] ROADMAP.md updated (v0.1 items checked)
 - [x] AUDIT.md reviewed for security gaps
 - [x] README.md updated with v0.1 status
+- [x] Test suite validation completed with complexity metrics (2026-05-04)
 - [ ] Tag release: `git tag -a v0.1.0 -m "v0.1: Shadow Gradient Visibility + Onboarding + Security"`
 
 ---

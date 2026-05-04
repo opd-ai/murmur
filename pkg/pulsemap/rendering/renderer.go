@@ -549,6 +549,29 @@ func (r *Renderer) SelectedNode() string {
 	return r.input.SelectedNodeID
 }
 
+// GetNodeData returns the NodeData for the given node ID, or nil if not found.
+// This is used by the Node Detail Panel to query node information.
+func (r *Renderer) GetNodeData(nodeID string) *NodeData {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.nodeData[nodeID]
+}
+
+// GetAllNodes returns a copy of all node data for searching.
+// This is used by the search bar to build search results.
+func (r *Renderer) GetAllNodes() []*NodeData {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	result := make([]*NodeData, 0, len(r.nodeData))
+	for _, node := range r.nodeData {
+		// Return a copy to avoid concurrent access issues
+		nodeCopy := *node
+		result = append(result, &nodeCopy)
+	}
+	return result
+}
+
 // FocusNode animates the camera to center on a node.
 func (r *Renderer) FocusNode(nodeID string) {
 	r.mu.Lock()
@@ -644,5 +667,215 @@ func (r *Renderer) drawCrossLayerArtifacts(screen *ebiten.Image, nodeData *NodeD
 
 		// Draw core icon.
 		vector.DrawFilledCircle(screen, x, y, 3.0, markColor, false)
+	}
+
+	// Render Phantom Gifts.
+	gifts, err := r.store.GetActiveGiftsForRecipient(nodeData.PublicKey, time.Now().Unix())
+	if err == nil && len(gifts) > 0 {
+		for i, gift := range gifts {
+			if gift == nil {
+				continue
+			}
+
+			// Calculate visibility decay.
+			createdAt := time.Unix(gift.CreatedAt, 0)
+			expiresAt := time.Unix(gift.ExpiresAt, 0)
+			age := time.Since(createdAt)
+			lifetime := expiresAt.Sub(createdAt)
+			visibility := float32(1.0 - (float64(age) / float64(lifetime)))
+			if visibility < 0 {
+				visibility = 0
+			}
+
+			// Draw particle animation for gifts.
+			// Gifts appear as floating particles around the recipient node.
+			particleCount := 3 + i
+			for p := 0; p < particleCount; p++ {
+				angle := float32(p)*2.0*math.Pi/float32(particleCount) + float32(r.time)*0.5
+				radius := 18.0 + float32(math.Sin(float64(r.time)*1.5+float64(p)))*4.0
+				px := nodeX + float32(math.Cos(float64(angle)))*radius
+				py := nodeY + float32(math.Sin(float64(angle)))*radius
+
+				alpha := uint8(visibility * 180)
+				giftColor := color.RGBA{
+					R: 255,
+					G: 200 - uint8(gift.EffectType*20),
+					B: 150,
+					A: alpha,
+				}
+				vector.DrawFilledCircle(screen, px, py, 2.5, giftColor, false)
+			}
+		}
+	}
+
+	// Render active Cipher Puzzles near node.
+	puzzles, err := r.store.GetActivePuzzlesNearNode(nodeData.PublicKey, 100.0)
+	if err == nil && len(puzzles) > 0 {
+		for i, puzzle := range puzzles {
+			if puzzle == nil || i >= 3 { // Limit to 3 visible puzzles
+				continue
+			}
+
+			// Draw rotating hexagon icon for puzzles.
+			hexRadius := float32(8.0)
+			hexX := nodeX + float32(i-1)*20.0
+			hexY := nodeY - 30.0
+			rotationAngle := float32(r.time) * 0.8
+
+			// Draw hexagon (6 sides).
+			for side := 0; side < 6; side++ {
+				angle1 := rotationAngle + float32(side)*float32(math.Pi)/3.0
+				angle2 := rotationAngle + float32(side+1)*float32(math.Pi)/3.0
+				x1 := hexX + float32(math.Cos(float64(angle1)))*hexRadius
+				y1 := hexY + float32(math.Sin(float64(angle1)))*hexRadius
+				x2 := hexX + float32(math.Cos(float64(angle2)))*hexRadius
+				y2 := hexY + float32(math.Sin(float64(angle2)))*hexRadius
+
+				puzzleColor := color.RGBA{R: 150, G: 100, B: 200, A: 200}
+				vector.StrokeLine(screen, x1, y1, x2, y2, 2.0, puzzleColor, false)
+			}
+		}
+	}
+
+	// Render active Specter Hunts.
+	hunts, err := r.store.GetActiveHuntsWithFragmentsNear(nodeData.PublicKey, 100.0)
+	if err == nil && len(hunts) > 0 && len(hunts) <= 2 { // Max 2 visible hunts
+		for i, hunt := range hunts {
+			if hunt == nil {
+				continue
+			}
+
+			// Draw scattered glowing markers for hunt fragments.
+			fragmentCount := 4
+			for f := 0; f < fragmentCount; f++ {
+				angle := float32(f)*2.0*math.Pi/float32(fragmentCount) + float32(r.time)*0.3
+				radius := 25.0 + float32(i)*5.0
+				fx := nodeX + float32(math.Cos(float64(angle)))*radius
+				fy := nodeY + float32(math.Sin(float64(angle)))*radius
+
+				// Pulsing fragment markers.
+				pulse := float32(math.Sin(float64(r.time)*3.0 + float64(f)))
+				fragSize := 2.0 + pulse*1.0
+				huntColor := color.RGBA{R: 200, G: 50, B: 50, A: 180}
+				vector.DrawFilledCircle(screen, fx, fy, fragSize, huntColor, false)
+			}
+		}
+	}
+
+	// Render Territory influence.
+	territory, err := r.store.GetTerritoryInfluenceAt(nodeData.PublicKey)
+	if err == nil && territory != nil && territory.Influence > 0 {
+		// Draw translucent boundary watermark around node.
+		boundaryRadius := 35.0 * (float32(territory.Influence) / 100.0)
+		boundaryAlpha := uint8(50 + territory.Influence/2)
+		territoryColor := color.RGBA{
+			R: 80,
+			G: 120 + uint8(territory.Influence),
+			B: 80,
+			A: boundaryAlpha,
+		}
+		vector.StrokeCircle(screen, nodeX, nodeY, boundaryRadius, 1.5, territoryColor, false)
+	}
+
+	// Render Oracle Pools.
+	oracles, err := r.store.GetActiveOraclePoolsNearNode(nodeData.PublicKey, 100.0)
+	if err == nil && len(oracles) > 0 && len(oracles) <= 1 { // Max 1 visible oracle
+		oracle := oracles[0]
+		if oracle != nil {
+			// Draw swirling vortex icon.
+			spiralTurns := float32(2.0)
+			spiralPoints := 20
+			for p := 0; p < spiralPoints; p++ {
+				t := float32(p) / float32(spiralPoints)
+				angle := t*spiralTurns*2.0*float32(math.Pi) + float32(r.time)*0.5
+				radius := float32(12.0) * t
+				vx := nodeX + float32(math.Cos(float64(angle)))*radius
+				vy := nodeY + float32(math.Sin(float64(angle)))*radius
+				oracleColor := color.RGBA{R: 200, G: 150, B: 250, A: 160}
+				vector.DrawFilledCircle(screen, vx, vy, 1.5, oracleColor, false)
+			}
+		}
+	}
+
+	// Render Forge Projects.
+	forges, err := r.store.GetActiveForgeEventsNearNode(nodeData.PublicKey, 100.0)
+	if err == nil && len(forges) > 0 && len(forges) <= 1 { // Max 1 visible forge
+		forge := forges[0]
+		if forge != nil {
+			// Draw anvil-and-flame icon.
+			anvilX := nodeX + 15.0
+			anvilY := nodeY - 25.0
+
+			// Anvil (triangle).
+			forgeColor := color.RGBA{R: 180, G: 100, B: 50, A: 200}
+			vector.DrawFilledRect(screen, anvilX-4, anvilY+2, 8, 4, forgeColor, false)
+
+			// Flame (animated dots).
+			for i := 0; i < 3; i++ {
+				flameX := anvilX + float32(i-1)*3.0
+				flameY := anvilY - float32(math.Sin(float64(r.time)*5.0+float64(i)))*5.0
+				flameColor := color.RGBA{R: 255, G: 150 - uint8(i*30), B: 0, A: 180}
+				vector.DrawFilledCircle(screen, flameX, flameY, 1.5, flameColor, false)
+			}
+		}
+	}
+
+	// Render Shadow Plays.
+	plays, err := r.store.GetActiveShadowPlayNearNode(nodeData.PublicKey, 100.0)
+	if err == nil && len(plays) > 0 && len(plays) <= 1 { // Max 1 visible play
+		play := plays[0]
+		if play != nil {
+			// Draw dark dome with lightning.
+			domeRadius := float32(28.0)
+			domeColor := color.RGBA{R: 40, G: 40, B: 80, A: 100}
+			vector.StrokeCircle(screen, nodeX, nodeY, domeRadius, 2.0, domeColor, false)
+
+			// Lightning (animated lines).
+			if int(r.time*10)%3 == 0 {
+				lightningColor := color.RGBA{R: 200, G: 200, B: 255, A: 200}
+				lx1 := nodeX - 10.0
+				ly1 := nodeY - domeRadius
+				lx2 := nodeX + 5.0
+				ly2 := nodeY - domeRadius/2
+				vector.StrokeLine(screen, lx1, ly1, lx2, ly2, 1.5, lightningColor, false)
+			}
+		}
+	}
+
+	// Render Masked Events (placeholder: full rendering deferred).
+	// Masked events use custom StoredMaskedEvent type; simplified rendering here.
+	// Full implementation deferred to future work per PLAN.md.
+
+	// Render Phantom Councils.
+	councils, err := r.store.GetCouncilsWithMember(nodeData.PublicKey)
+	if err == nil && len(councils) > 0 {
+		// Draw colored thread pattern for council membership.
+		for i, council := range councils {
+			if council == nil || i >= 2 { // Max 2 visible councils
+				continue
+			}
+
+			// Draw constellation pattern (3 connected dots).
+			constellationRadius := 20.0 + float32(i)*8.0
+			for c := 0; c < 3; c++ {
+				angle := float32(c)*2.0*math.Pi/3.0 + float32(r.time)*0.2
+				cx := nodeX + float32(math.Cos(float64(angle)))*constellationRadius
+				cy := nodeY + float32(math.Sin(float64(angle)))*constellationRadius
+
+				councilColor := color.RGBA{
+					R: 100 + uint8(council.Id[0]%100),
+					G: 100 + uint8(council.Id[1]%100),
+					B: 150,
+					A: 150,
+				}
+				vector.DrawFilledCircle(screen, cx, cy, 2.0, councilColor, false)
+
+				// Connect to next dot.
+				nextAngle := float32((c+1)%3)*2.0*math.Pi/3.0 + float32(r.time)*0.2
+				nextCx := nodeX + float32(math.Cos(float64(nextAngle)))*constellationRadius
+				nextCy := nodeY + float32(math.Sin(float64(nextAngle)))*constellationRadius
+				vector.StrokeLine(screen, cx, cy, nextCx, nextCy, 1.0, councilColor, false)
+			}
+		}
 	}
 }
