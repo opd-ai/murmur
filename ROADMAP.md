@@ -632,8 +632,8 @@
 - [x] Fortress mode toggle
 - [x] Particle emitter for Specter effects
 - [x] Mini-game visualization tracking
-- [ ] **Minimap** — full network overview in corner with viewport indicator
-- [ ] **Activity Heat Map overlay** — blue-to-red gradient, 60-minute trailing window, blurred background layer
+- [x] **Minimap** — full network overview in corner with viewport indicator
+- [x] **Activity Heat Map overlay** — blue-to-red gradient, 60-minute trailing window, blurred background layer
 - [ ] **Mini-game visualization icons**:
   - [ ] Cipher Puzzles — rotating cryptographic symbol
   - [ ] Specter Hunts — scattered glowing fragments

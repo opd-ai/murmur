@@ -1,0 +1,35 @@
+//kage:unit pixels
+
+// composite.kage - Layer compositing shader for translucency blending
+// Per PULSE_MAP.md, layers are rendered to separate framebuffers and composited with blend modes.
+// This shader handles Surface/Anonymous layer blending with adjustable opacity.
+
+package main
+
+var Layer1Opacity float // Surface Layer opacity (0-1)
+var Layer2Opacity float // Anonymous Layer opacity (0-1)
+
+// Fragment blends two layers with independent opacity control.
+// Layer 0 (imageSrc0) is the base layer (typically Surface).
+// Layer 1 (imageSrc1) is the overlay layer (typically Anonymous).
+func Fragment(dst vec4, src vec2, color vec4) vec4 {
+	// Sample both layers
+	layer1 := imageSrc0At(src)
+	layer2 := imageSrc1At(src)
+	
+	// Apply opacity
+	layer1.a *= Layer1Opacity
+	layer2.a *= Layer2Opacity
+	
+	// Alpha blend: result = layer2 over layer1
+	// Standard Porter-Duff "over" operator
+	alpha := layer2.a + layer1.a*(1.0-layer2.a)
+	
+	if alpha == 0.0 {
+		return vec4(0, 0, 0, 0)
+	}
+	
+	rgb := (layer2.rgb*layer2.a + layer1.rgb*layer1.a*(1.0-layer2.a)) / alpha
+	
+	return vec4(rgb, alpha)
+}

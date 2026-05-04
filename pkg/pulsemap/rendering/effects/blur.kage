@@ -1,0 +1,38 @@
+//kage:unit pixels
+
+// blur.kage - Gaussian blur shader for depth effects
+// Per PULSE_MAP.md, blur effects provide background animation depth.
+// Used for activity heat map overlay and atmospheric depth layers.
+
+package main
+
+var BlurRadius float
+var ImageSize vec2
+
+// Fragment implements a 9-tap Gaussian blur.
+// For efficiency, this is a single-pass approximation.
+// For higher quality blur, apply this shader twice (horizontal then vertical).
+func Fragment(dst vec4, src vec2, color vec4) vec4 {
+	// Gaussian kernel weights (normalized)
+	// Center: 0.25, Adjacent: 0.125, Diagonal: 0.0625
+	
+	pixelSize := vec2(1.0/ImageSize.x, 1.0/ImageSize.y)
+	radius := BlurRadius * pixelSize.x
+	
+	// Sample center
+	result := imageSrc0At(src) * 0.25
+	
+	// Sample adjacent pixels (4-connectivity)
+	result += imageSrc0At(src + vec2(radius, 0)) * 0.125
+	result += imageSrc0At(src + vec2(-radius, 0)) * 0.125
+	result += imageSrc0At(src + vec2(0, radius)) * 0.125
+	result += imageSrc0At(src + vec2(0, -radius)) * 0.125
+	
+	// Sample diagonal pixels (8-connectivity)
+	result += imageSrc0At(src + vec2(radius, radius)) * 0.0625
+	result += imageSrc0At(src + vec2(-radius, radius)) * 0.0625
+	result += imageSrc0At(src + vec2(radius, -radius)) * 0.0625
+	result += imageSrc0At(src + vec2(-radius, -radius)) * 0.0625
+	
+	return result
+}

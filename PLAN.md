@@ -1,6 +1,6 @@
 # Implementation Plan: v0.1 Foundation — Core Subsystem Wiring
 
-**Recent Progress (2026-05-03):**
+**Recent Progress (2026-05-04):**
 - ✅ Step 1 COMPLETED: Pulse Map UI wired with ebiten.RunGame()
 - ✅ Step 2 COMPLETED: Wave composition and publishing functional
 - ✅ Step 3 COMPLETED: Onboarding flow triggers on first run
@@ -8,6 +8,8 @@
 - ✅ **NEW**: CLI mode added (`--cli` flag) for non-GUI interaction
 - ✅ **NEW**: Enhanced error feedback with recovery hints
 - ✅ **NEW**: Event bus slow subscriber test validates backpressure handling
+- ✅ **NEW**: Activity Heat Map overlay (blue-to-red gradient, 60-minute window, blurred background layer)
+- ✅ **NEW**: Minimap overlay (full network overview, viewport indicator, corner positioning)
 
 See CHANGELOG.md for detailed implementation notes.
 
@@ -38,10 +40,10 @@ See CHANGELOG.md for detailed implementation notes.
 ---
 
 ## Metrics Summary
-- **Lines of Code**: 41,628 LOC across 229 Go files
-- **Functions**: 1,041 total functions
+- **Lines of Code**: ~43,300 LOC across 235 Go files (+6 files, +1,672 LOC from overlay implementations)
+- **Functions**: ~1,070 total functions (+29 from minimap and heatmap)
 - **Packages**: 40 packages under `pkg/`
-- **Implementation Progress**: **~31% complete** (145/463 ROADMAP.md checklist items)
+- **Implementation Progress**: **~31.6% complete** (147/463 ROADMAP.md checklist items, +2 overlays completed)
 - **Complexity**: High-complexity functions exist but count not fully quantified (metrics parsing issue)
 - **Duplication**: 7+ violations with code blocks >25 lines duplicated (especially `*_stub.go` files duplicating real implementations)
 - **Documentation Coverage**: Not quantified but exported types are generally documented

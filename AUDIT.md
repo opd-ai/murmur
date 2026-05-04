@@ -8,6 +8,18 @@
 
 ## Security Decisions
 
+### 2026-05-04: Activity Heat Map and Minimap Overlay Implementation
+
+**Decision**: Implemented two new overlay visualization components for Pulse Map: Activity Heat Map (`pkg/pulsemap/overlays/heatmap.go`) and Minimap (`pkg/pulsemap/overlays/minimap.go`).
+
+**Coverage**: Heat Map (360 lines) provides 60-minute trailing activity visualization with blue-to-red gradient, grid-based aggregation, time-decay weighting, and automatic sample expiry. Minimap (350 lines) provides full network overview with viewport indicator, corner positioning, and world-to-minimap coordinate transformation. Both include comprehensive test suites with 100% pass rate.
+
+**Security Impact**: None — visualization components do not handle cryptographic material, network messages, or user data persistence. Coordinate transformations and activity sampling use deterministic math (math.Floor, time-based decay) with no random or security-critical operations.
+
+**Validation**: All tests pass with zero race conditions (`go test -race ./pkg/pulsemap/overlays`). Heat map properly handles coordinate system edge cases (negative world coordinates). Minimap viewport calculations validated for all four corner positions.
+
+---
+
 ### 2026-05-04: Amplification Trail Test Coverage
 
 **Decision**: Added comprehensive test suite for amplification trail visualization (`pkg/pulsemap/rendering/amplification_test.go`).
