@@ -14,6 +14,10 @@ type Camera struct {
 	TargetY     float64 // Animation target Y
 	TargetScale float64 // Animation target scale
 	Animating   bool
+
+	// Momentum scrolling state
+	velocityX float64 // Current pan velocity in world units per tick
+	velocityY float64 // Current pan velocity in world units per tick
 }
 
 // NewCamera creates a camera centered at the origin with default zoom.
@@ -42,6 +46,9 @@ func (c *Camera) Pan(dx, dy float64) {
 	c.TargetX = c.X
 	c.TargetY = c.Y
 	c.Animating = false
+	// Reset momentum when user is actively panning
+	c.velocityX = 0
+	c.velocityY = 0
 }
 
 // Zoom adjusts the zoom level, keeping the given screen point fixed.
@@ -87,6 +94,31 @@ func (c *Camera) AnimateToWithZoom(worldX, worldY, scale float64) {
 
 // Update performs animation interpolation per tick.
 func (c *Camera) Update() {
+	// Apply momentum scrolling (inertial pan with deceleration)
+	const momentumDeceleration = 0.95 // Velocity multiplier per tick for smooth deceleration
+	const momentumThreshold = 0.1     // Stop momentum when velocity is negligible
+
+	if !c.Animating && (math.Abs(c.velocityX) > momentumThreshold || math.Abs(c.velocityY) > momentumThreshold) {
+		// Apply velocity to camera position
+		c.X += c.velocityX
+		c.Y += c.velocityY
+		c.TargetX = c.X
+		c.TargetY = c.Y
+
+		// Apply deceleration
+		c.velocityX *= momentumDeceleration
+		c.velocityY *= momentumDeceleration
+
+		// Stop momentum when velocity is negligible
+		if math.Abs(c.velocityX) <= momentumThreshold {
+			c.velocityX = 0
+		}
+		if math.Abs(c.velocityY) <= momentumThreshold {
+			c.velocityY = 0
+		}
+	}
+
+	// Handle animation interpolation (overrides momentum)
 	if !c.Animating {
 		return
 	}
@@ -109,6 +141,10 @@ func (c *Camera) Update() {
 	c.X += dx * lerp
 	c.Y += dy * lerp
 	c.Scale += ds * lerp
+
+	// Clear momentum when animating
+	c.velocityX = 0
+	c.velocityY = 0
 }
 
 // ScreenToWorld converts screen coordinates to world coordinates.
@@ -142,6 +178,31 @@ func (c *Camera) ViewBounds(screenWidth, screenHeight float64) (minX, minY, maxX
 	return c.X - halfW, c.Y - halfH, c.X + halfW, c.Y + halfH
 }
 
+// ApplyMomentum starts momentum scrolling based on the last pan velocity.
+// screenDx and screenDy are the last screen-space deltas from the pan gesture.
+// This should be called when the user releases a pan gesture.
+func (c *Camera) ApplyMomentum(screenDx, screenDy float64) {
+	// Convert screen delta to world velocity
+	c.velocityX = -screenDx / c.Scale
+	c.velocityY = -screenDy / c.Scale
+
+	// Scale momentum based on drag speed (cap at reasonable values)
+	const maxMomentumVelocity = 50.0 // Maximum velocity in world units per tick
+	if math.Abs(c.velocityX) > maxMomentumVelocity {
+		c.velocityX = math.Copysign(maxMomentumVelocity, c.velocityX)
+	}
+	if math.Abs(c.velocityY) > maxMomentumVelocity {
+		c.velocityY = math.Copysign(maxMomentumVelocity, c.velocityY)
+	}
+
+	// Don't start momentum if velocity is negligible
+	const minMomentumVelocity = 0.5
+	if math.Abs(c.velocityX) < minMomentumVelocity && math.Abs(c.velocityY) < minMomentumVelocity {
+		c.velocityX = 0
+		c.velocityY = 0
+	}
+}
+
 // InputState tracks input for interaction handling.
 type InputState struct {
 	Dragging       bool
@@ -149,6 +210,8 @@ type InputState struct {
 	DragStartY     float64
 	LastX          float64
 	LastY          float64
+	LastDx         float64 // Last drag delta for momentum calculation
+	LastDy         float64 // Last drag delta for momentum calculation
 	SelectedNodeID string
 }
 
@@ -164,6 +227,8 @@ func (s *InputState) StartDrag(x, y float64) {
 	s.DragStartY = y
 	s.LastX = x
 	s.LastY = y
+	s.LastDx = 0
+	s.LastDy = 0
 }
 
 // UpdateDrag updates the drag position and returns delta.
@@ -175,12 +240,19 @@ func (s *InputState) UpdateDrag(x, y float64) (dx, dy float64) {
 	dy = y - s.LastY
 	s.LastX = x
 	s.LastY = y
+	s.LastDx = dx
+	s.LastDy = dy
 	return dx, dy
 }
 
-// EndDrag ends the drag operation.
-func (s *InputState) EndDrag() {
+// EndDrag ends the drag operation and returns the last delta for momentum.
+func (s *InputState) EndDrag() (lastDx, lastDy float64) {
+	lastDx = s.LastDx
+	lastDy = s.LastDy
 	s.Dragging = false
+	s.LastDx = 0
+	s.LastDy = 0
+	return lastDx, lastDy
 }
 
 // SelectNode sets the selected node ID.

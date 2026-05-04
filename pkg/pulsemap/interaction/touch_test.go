@@ -39,9 +39,12 @@ func TestSingleTouchPan(t *testing.T) {
 	}
 
 	// End touch - not a tap because moved too far
-	isTap, _, _ := ts.HandleTouchEnd(1, 10)
+	isTap, isDoubleTap, _, _ := ts.HandleTouchEnd(1, 10)
 	if isTap {
 		t.Error("expected not a tap after moving 50px")
+	}
+	if isDoubleTap {
+		t.Error("unexpected double tap")
 	}
 	if ts.TouchCount() != 0 {
 		t.Errorf("expected 0 touches after end, got %d", ts.TouchCount())
@@ -58,9 +61,12 @@ func TestTapGesture(t *testing.T) {
 	ts.HandleTouchMove(1, 105, 103)
 
 	// End quickly
-	isTap, x, y := ts.HandleTouchEnd(1, 10) // Within TapMaxDuration
+	isTap, isDoubleTap, x, y := ts.HandleTouchEnd(1, 10) // Within TapMaxDuration
 	if !isTap {
 		t.Error("expected tap gesture")
+	}
+	if isDoubleTap {
+		t.Error("single tap should not be double tap")
 	}
 	if x != 105 || y != 103 {
 		t.Errorf("expected tap at (105, 103), got (%v, %v)", x, y)
@@ -73,7 +79,7 @@ func TestTapCancelledByDistance(t *testing.T) {
 	ts.HandleTouchStart(1, 100, 100, 0)
 	// Move beyond tap threshold
 	ts.HandleTouchMove(1, 130, 130) // > TapMaxDistance
-	isTap, _, _ := ts.HandleTouchEnd(1, 10)
+	isTap, _, _, _ := ts.HandleTouchEnd(1, 10)
 	if isTap {
 		t.Error("tap should be cancelled by movement")
 	}
@@ -83,8 +89,8 @@ func TestTapCancelledByDuration(t *testing.T) {
 	ts := NewTouchState()
 
 	ts.HandleTouchStart(1, 100, 100, 0)
-	ts.HandleTouchMove(1, 102, 102)                        // Small movement
-	isTap, _, _ := ts.HandleTouchEnd(1, TapMaxDuration+10) // Too long
+	ts.HandleTouchMove(1, 102, 102)                           // Small movement
+	isTap, _, _, _ := ts.HandleTouchEnd(1, TapMaxDuration+10) // Too long
 	if isTap {
 		t.Error("tap should be cancelled by duration")
 	}
@@ -196,5 +202,132 @@ func TestThreeTouchCancelsGesture(t *testing.T) {
 
 	if ts.GestureType() != GestureNone {
 		t.Errorf("expected GestureNone with 3 touches, got %v", ts.GestureType())
+	}
+}
+
+func TestDoubleTapGesture(t *testing.T) {
+	ts := NewTouchState()
+
+	// First tap
+	ts.HandleTouchStart(1, 100, 100, 0)
+	ts.HandleTouchMove(1, 102, 102) // Small movement
+	isTap, isDoubleTap, _, _ := ts.HandleTouchEnd(1, 10)
+	if !isTap {
+		t.Error("expected first tap")
+	}
+	if isDoubleTap {
+		t.Error("first tap should not be double tap")
+	}
+
+	// Second tap quickly and nearby
+	ts.HandleTouchStart(2, 105, 103, 12) // Within interval and distance
+	ts.HandleTouchMove(2, 106, 104)
+	isTap2, isDoubleTap2, x, y := ts.HandleTouchEnd(2, 20)
+	if !isTap2 {
+		t.Error("expected second tap")
+	}
+	if !isDoubleTap2 {
+		t.Error("expected double tap on second tap")
+	}
+	if x != 106 || y != 104 {
+		t.Errorf("expected double tap at (106, 104), got (%v, %v)", x, y)
+	}
+}
+
+func TestDoubleTapCancelledByDistance(t *testing.T) {
+	ts := NewTouchState()
+
+	// First tap
+	ts.HandleTouchStart(1, 100, 100, 0)
+	ts.HandleTouchEnd(1, 10)
+
+	// Second tap too far away
+	ts.HandleTouchStart(2, 200, 200, 12) // > DoubleTapMaxDistance
+	_, isDoubleTap, _, _ := ts.HandleTouchEnd(2, 20)
+	if isDoubleTap {
+		t.Error("double tap should be cancelled by distance")
+	}
+}
+
+func TestDoubleTapCancelledByInterval(t *testing.T) {
+	ts := NewTouchState()
+
+	// First tap
+	ts.HandleTouchStart(1, 100, 100, 0)
+	ts.HandleTouchEnd(1, 10)
+
+	// Second tap too late
+	ts.HandleTouchStart(2, 105, 103, DoubleTapMaxInterval+20) // Too late
+	_, isDoubleTap, _, _ := ts.HandleTouchEnd(2, DoubleTapMaxInterval+25)
+	if isDoubleTap {
+		t.Error("double tap should be cancelled by interval")
+	}
+}
+
+func TestDoubleTapResets(t *testing.T) {
+	ts := NewTouchState()
+
+	// First double-tap sequence
+	ts.HandleTouchStart(1, 100, 100, 0)
+	ts.HandleTouchEnd(1, 10)
+	ts.HandleTouchStart(2, 105, 103, 12)
+	_, isDoubleTap, _, _ := ts.HandleTouchEnd(2, 20)
+	if !isDoubleTap {
+		t.Error("expected double tap")
+	}
+
+	// Third tap should not be a triple tap
+	ts.HandleTouchStart(3, 108, 105, 25)
+	_, isDoubleTap2, _, _ := ts.HandleTouchEnd(3, 30)
+	if isDoubleTap2 {
+		t.Error("third tap should not trigger double tap")
+	}
+}
+
+func TestResetClearsDoubleTapState(t *testing.T) {
+	ts := NewTouchState()
+
+	// First tap
+	ts.HandleTouchStart(1, 100, 100, 0)
+	ts.HandleTouchEnd(1, 10)
+
+	// Reset
+	ts.Reset()
+
+	// Second tap after reset should not trigger double tap
+	ts.HandleTouchStart(2, 105, 103, 12)
+	_, isDoubleTap, _, _ := ts.HandleTouchEnd(2, 20)
+	if isDoubleTap {
+		t.Error("double tap should be cleared by Reset")
+	}
+}
+
+func TestCameraAnimateToWithZoom(t *testing.T) {
+	c := NewCamera()
+
+	// Animate to a position with zoom
+	c.AnimateToWithZoom(200, 300, 3.0)
+
+	if !c.Animating {
+		t.Error("expected Animating to be true")
+	}
+	if c.TargetX != 200 || c.TargetY != 300 {
+		t.Errorf("expected target (200, 300), got (%f, %f)", c.TargetX, c.TargetY)
+	}
+	if c.TargetScale != 3.0 {
+		t.Errorf("expected target scale 3.0, got %f", c.TargetScale)
+	}
+
+	// Run animation
+	for c.Animating {
+		c.Update()
+	}
+
+	// Should be at target
+	if c.X != 200 || c.Y != 300 {
+		t.Errorf("expected position (200, 300), got (%f, %f)", c.X, c.Y)
+	}
+	if c.Scale != 3.0 {
+		t.Errorf("expected scale 3.0, got %f", c.Scale)
 	}
 }

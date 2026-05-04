@@ -22,6 +22,10 @@ type TouchState struct {
 	tapStartX, tapStartY float64
 	tapStartTime         int64
 	tapMoved             bool
+
+	// Double-tap detection
+	lastTapX, lastTapY float64
+	lastTapTime        int64
 }
 
 // Touch represents a single touch point.
@@ -48,6 +52,10 @@ const (
 	TapMaxDistance = 20.0
 	// TapMaxDuration is the maximum duration (in ticks at 60fps) for a tap.
 	TapMaxDuration = 30 // ~500ms at 60fps
+	// DoubleTapMaxInterval is the maximum interval between taps for a double-tap (in ticks at 60fps).
+	DoubleTapMaxInterval = 30 // ~500ms at 60fps
+	// DoubleTapMaxDistance is the maximum distance between tap positions for a double-tap.
+	DoubleTapMaxDistance = 50.0
 )
 
 // NewTouchState creates a new touch state tracker.
@@ -132,8 +140,8 @@ func (t *TouchState) HandleTouchMove(id int, x, y float64) (dx, dy, zoomFactor f
 }
 
 // HandleTouchEnd processes a touch end event.
-// Returns true and (x, y) if the touch was a tap.
-func (t *TouchState) HandleTouchEnd(id int, tickCount int64) (isTap bool, x, y float64) {
+// Returns isTap (true for single tap), isDoubleTap (true for double tap), and (x, y) position.
+func (t *TouchState) HandleTouchEnd(id int, tickCount int64) (isTap, isDoubleTap bool, x, y float64) {
 	touch, ok := t.touches[id]
 	if ok {
 		x = touch.X
@@ -143,6 +151,25 @@ func (t *TouchState) HandleTouchEnd(id int, tickCount int64) (isTap bool, x, y f
 
 	// Check for tap gesture
 	isTap = !t.tapMoved && (tickCount-t.tapStartTime) < TapMaxDuration && len(t.touches) == 0
+
+	// Check for double-tap gesture
+	if isTap {
+		dx := x - t.lastTapX
+		dy := y - t.lastTapY
+		dist := math.Sqrt(dx*dx + dy*dy)
+		interval := tickCount - t.lastTapTime
+
+		if interval < DoubleTapMaxInterval && dist < DoubleTapMaxDistance && t.lastTapTime > 0 {
+			isDoubleTap = true
+			// Reset double-tap state after detecting one
+			t.lastTapTime = 0
+		} else {
+			// Record this tap for potential double-tap
+			t.lastTapX = x
+			t.lastTapY = y
+			t.lastTapTime = tickCount
+		}
+	}
 
 	// Update gesture state
 	switch len(t.touches) {
@@ -155,7 +182,7 @@ func (t *TouchState) HandleTouchEnd(id int, tickCount int64) (isTap bool, x, y f
 		t.pinchStartDist = t.twoTouchDistance()
 	}
 
-	return isTap, x, y
+	return isTap, isDoubleTap, x, y
 }
 
 // twoTouchDistance calculates the distance between two touch points.
@@ -195,4 +222,5 @@ func (t *TouchState) Reset() {
 	t.gestureType = GestureNone
 	t.pinchStartDist = 0
 	t.tapMoved = false
+	t.lastTapTime = 0
 }

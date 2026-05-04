@@ -174,3 +174,140 @@ func TestNodeSelection(t *testing.T) {
 		t.Errorf("expected empty selection, got %s", s.SelectedNodeID)
 	}
 }
+
+func TestMomentumScrolling(t *testing.T) {
+	c := NewCamera()
+
+	// Apply momentum from a fast pan (screen-space delta)
+	c.ApplyMomentum(50.0, 30.0)
+
+	// Velocity should be set (inverted and scaled)
+	if c.velocityX == 0 && c.velocityY == 0 {
+		t.Error("expected non-zero velocity after ApplyMomentum")
+	}
+
+	initialX := c.X
+	initialY := c.Y
+
+	// Update multiple times - camera should continue moving
+	for i := 0; i < 10; i++ {
+		c.Update()
+	}
+
+	// Camera should have moved due to momentum
+	if c.X == initialX && c.Y == initialY {
+		t.Error("expected camera to move with momentum")
+	}
+
+	// Velocity should be decaying
+	if math.Abs(c.velocityX) >= 50.0 || math.Abs(c.velocityY) >= 30.0 {
+		t.Error("expected velocity to decay over time")
+	}
+}
+
+func TestMomentumDeceleration(t *testing.T) {
+	c := NewCamera()
+
+	// Start with some momentum
+	c.ApplyMomentum(20.0, 20.0)
+
+	// Run update many times until momentum stops
+	for i := 0; i < 200; i++ {
+		c.Update()
+	}
+
+	// Momentum should have fully decayed
+	if c.velocityX != 0 || c.velocityY != 0 {
+		t.Errorf("expected zero velocity after deceleration, got (%f, %f)", c.velocityX, c.velocityY)
+	}
+}
+
+func TestPanResetsMomentum(t *testing.T) {
+	c := NewCamera()
+
+	// Start with momentum
+	c.ApplyMomentum(50.0, 30.0)
+
+	// User pans - should reset momentum
+	c.Pan(10, 10)
+
+	if c.velocityX != 0 || c.velocityY != 0 {
+		t.Errorf("expected momentum to be reset by Pan, got (%f, %f)", c.velocityX, c.velocityY)
+	}
+}
+
+func TestAnimationClearsMomentum(t *testing.T) {
+	c := NewCamera()
+
+	// Start with momentum
+	c.ApplyMomentum(50.0, 30.0)
+
+	// Start animation - should clear momentum
+	c.AnimateTo(100, 100)
+	c.Update()
+
+	if c.velocityX != 0 || c.velocityY != 0 {
+		t.Errorf("expected momentum to be cleared by animation, got (%f, %f)", c.velocityX, c.velocityY)
+	}
+}
+
+func TestMinimumMomentumThreshold(t *testing.T) {
+	c := NewCamera()
+
+	// Apply very small momentum (below threshold)
+	c.ApplyMomentum(0.1, 0.1)
+
+	// Should not start momentum
+	if c.velocityX != 0 || c.velocityY != 0 {
+		t.Error("expected no momentum for negligible velocity")
+	}
+}
+
+func TestMaximumMomentumCap(t *testing.T) {
+	c := NewCamera()
+
+	// Apply extremely large momentum
+	c.ApplyMomentum(10000.0, 10000.0)
+
+	// Velocity should be capped
+	maxVel := 50.0 // maxMomentumVelocity constant
+	if math.Abs(c.velocityX) > maxVel || math.Abs(c.velocityY) > maxVel {
+		t.Errorf("expected velocity capped at %f, got (%f, %f)", maxVel, c.velocityX, c.velocityY)
+	}
+}
+
+func TestInputStateEndDragReturnsLastDelta(t *testing.T) {
+	s := NewInputState()
+
+	s.StartDrag(100, 100)
+	s.UpdateDrag(150, 120) // dx=50, dy=20
+
+	lastDx, lastDy := s.EndDrag()
+
+	if lastDx != 50 || lastDy != 20 {
+		t.Errorf("expected last delta (50, 20), got (%f, %f)", lastDx, lastDy)
+	}
+
+	if s.Dragging {
+		t.Error("expected dragging to be false after EndDrag")
+	}
+}
+
+func TestInputStateDeltaResets(t *testing.T) {
+	s := NewInputState()
+
+	s.StartDrag(100, 100)
+	if s.LastDx != 0 || s.LastDy != 0 {
+		t.Error("expected zero delta after StartDrag")
+	}
+
+	s.UpdateDrag(150, 120)
+	if s.LastDx != 50 || s.LastDy != 20 {
+		t.Errorf("expected delta (50, 20), got (%f, %f)", s.LastDx, s.LastDy)
+	}
+
+	s.EndDrag()
+	if s.LastDx != 0 || s.LastDy != 0 {
+		t.Error("expected zero delta after EndDrag")
+	}
+}

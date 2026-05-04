@@ -643,7 +643,7 @@
   - [x] Shadow Play — dark shimmering dome with lightning
   - [x] Masked Events — translucent dome with identical dots
 - [x] **Council visualization** — constellation pattern, unique color threads, glow during active communication
-- [ ] **Whisper Chain indicator** — subtle pulse (recipient only, per privacy spec)
+- [x] **Whisper Chain indicator** — subtle pulse (recipient only, per privacy spec)
 
 ### Interaction (`pkg/pulsemap/interaction/`)
 
@@ -652,8 +652,8 @@
 - [x] Pinch-to-zoom (two-finger)
 - [x] Tap detection
 - [x] Long-press detection
-- [ ] **Momentum scrolling** — inertial pan with deceleration
-- [ ] **Double-tap/click** — node centering zoom
+- [x] **Momentum scrolling** — inertial pan with deceleration
+- [x] **Double-tap/click** — node centering zoom
 - [ ] **Quick-Action Radial Menu** — right-click/long-press context menu with options:
   - [ ] Compose Wave to node
   - [ ] Send Phantom Gift
