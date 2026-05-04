@@ -8,12 +8,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ipfs/go-cid"
+	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p-kad-dht/dual"
+	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/libp2p/go-libp2p/core/routing"
 	"github.com/opd-ai/murmur/pkg/identity/keys"
 	"github.com/opd-ai/murmur/pkg/networking/transport"
 	"github.com/stretchr/testify/require"
+	"github.com/zeebo/blake3"
 )
 
 // TestBootstrapPeerConnection verifies that a node can connect to a bootstrap peer
@@ -37,7 +40,7 @@ func TestBootstrapPeerConnection(t *testing.T) {
 	defer bootstrapHost.Close()
 
 	// Initialize DHT on bootstrap node in server mode
-	bootstrapDHT, err := dual.New(ctx, bootstrapHost, dual.DHTOption(dual.Mode(dual.ModeServer)))
+	bootstrapDHT, err := dual.New(ctx, bootstrapHost, dual.DHTOption(dht.Mode(dht.ModeServer)))
 	require.NoError(t, err)
 	defer bootstrapDHT.Close()
 
@@ -132,7 +135,7 @@ func TestPeerDiscoveryViaDHT(t *testing.T) {
 	require.NoError(t, err)
 	defer bootstrapHost.Close()
 
-	bootstrapDHT, err := dual.New(ctx, bootstrapHost, dual.DHTOption(dual.Mode(dual.ModeServer)))
+	bootstrapDHT, err := dual.New(ctx, bootstrapHost, dual.DHTOption(dht.Mode(dht.ModeServer)))
 	require.NoError(t, err)
 	defer bootstrapDHT.Close()
 
@@ -198,18 +201,14 @@ func TestPeerDiscoveryViaDHT(t *testing.T) {
 	// Node A performs DHT lookup for node B
 	t.Logf("Node A (%s) looking up node B (%s)", hostA.PeerID(), hostB.PeerID())
 
-	peerChan := dhtA.WAN.FindPeer(ctx, hostB.PeerID())
-
-	select {
-	case peerInfo, ok := <-peerChan:
-		require.True(t, ok, "peer channel should not be closed without result")
-		require.Equal(t, hostB.PeerID(), peerInfo.ID, "found peer ID should match node B")
-		require.NotEmpty(t, peerInfo.Addrs, "found peer should have addresses")
-		t.Logf("Successfully discovered node B via DHT: %v", peerInfo.Addrs)
-
-	case <-time.After(30 * time.Second):
-		require.FailNow(t, "DHT peer discovery timeout", "node A could not find node B via DHT within 30s")
+	peerInfo, err := dhtA.WAN.FindPeer(ctx, hostB.PeerID())
+	if err != nil {
+		require.FailNowf(t, "DHT peer discovery failed", "node A could not find node B via DHT: %v", err)
 	}
+
+	require.Equal(t, hostB.PeerID(), peerInfo.ID, "found peer ID should match node B")
+	require.NotEmpty(t, peerInfo.Addrs, "found peer should have addresses")
+	t.Logf("Successfully discovered node B via DHT: %v", peerInfo.Addrs)
 }
 
 // TestDHTProviderRecords verifies that content provider records can be advertised and found via DHT.
@@ -230,7 +229,7 @@ func TestDHTProviderRecords(t *testing.T) {
 	require.NoError(t, err)
 	defer bootstrapHost.Close()
 
-	bootstrapDHT, err := dual.New(ctx, bootstrapHost, dual.DHTOption(dual.Mode(dual.ModeServer)))
+	bootstrapDHT, err := dual.New(ctx, bootstrapHost, dual.DHTOption(dht.Mode(dht.ModeServer)))
 	require.NoError(t, err)
 	defer bootstrapDHT.Close()
 
@@ -294,19 +293,22 @@ func TestDHTProviderRecords(t *testing.T) {
 	time.Sleep(5 * time.Second)
 
 	// Provider advertises a content key (simulating a Wave ID)
+	// Convert byte slice to CID using BLAKE3 hash
 	contentKey := []byte("test-wave-id-abc123")
-	t.Logf("Provider advertising content key: %x", contentKey)
+	hash := blake3.Sum256(contentKey)
+	contentCID := cid.NewCidV1(cid.Raw, hash[:])
+	t.Logf("Provider advertising content CID: %s", contentCID)
 
-	err = providerDHT.WAN.Provide(ctx, contentKey, true)
+	err = providerDHT.WAN.Provide(ctx, contentCID, true)
 	require.NoError(t, err)
 
 	// Wait for provider record to propagate
 	time.Sleep(2 * time.Second)
 
 	// Consumer searches for providers of the content key
-	t.Logf("Consumer searching for providers of content key")
+	t.Logf("Consumer searching for providers of content CID")
 
-	providersChan := consumerDHT.WAN.FindProvidersAsync(ctx, contentKey, 5)
+	providersChan := consumerDHT.WAN.FindProvidersAsync(ctx, contentCID, 5)
 
 	foundProvider := false
 	timeout := time.After(20 * time.Second)
@@ -357,25 +359,22 @@ func TestDHTPeerNotFound(t *testing.T) {
 	nonExistentKp, err := keys.GenerateKeyPair()
 	require.NoError(t, err)
 
-	nonExistentID, err := peer.IDFromPublicKey(nonExistentKp)
+	// Convert MURMUR KeyPair to libp2p PubKey
+	libp2pPubKey, err := crypto.UnmarshalEd25519PublicKey(nonExistentKp.PublicKey)
+	require.NoError(t, err)
+
+	nonExistentID, err := peer.IDFromPublicKey(libp2pPubKey)
 	require.NoError(t, err)
 
 	// Try to find non-existent peer
 	t.Logf("Looking up non-existent peer: %s", nonExistentID)
 
-	peerChan := dht.WAN.FindPeer(ctx, nonExistentID)
+	_, err = dht.WAN.FindPeer(ctx, nonExistentID)
 
-	select {
-	case _, ok := <-peerChan:
-		if ok {
-			// If we got a result, it should be an error
-			t.Log("Received response for non-existent peer (expected)")
-		} else {
-			t.Log("Peer channel closed (expected for non-existent peer)")
-		}
-
-	case <-time.After(15 * time.Second):
-		// Timeout is expected for non-existent peers
-		t.Log("Lookup timeout for non-existent peer (expected)")
+	// Expect either an error or timeout - both are valid for non-existent peers
+	if err != nil {
+		t.Logf("Lookup returned error for non-existent peer (expected): %v", err)
+	} else {
+		t.Log("Lookup succeeded for non-existent peer (unexpected but not a test failure)")
 	}
 }

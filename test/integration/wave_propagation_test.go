@@ -25,7 +25,7 @@ func TestWavePropagation(t *testing.T) {
 	ConnectMesh(t, []*TestNode{nodeA, nodeB, nodeC})
 
 	// Subscribe all nodes to /murmur/waves/1 topic
-	chanA := nodeA.SubscribeWaves(t)
+	_ = nodeA.SubscribeWaves(t) // Node A subscribes but doesn't need to receive (it's the sender)
 	chanB := nodeB.SubscribeWaves(t)
 	chanC := nodeC.SubscribeWaves(t)
 
