@@ -137,6 +137,7 @@ func (g *Game) Update() error {
 	}
 
 	g.handleComposePanelToggle()
+	g.handleFindSelf()
 
 	if g.composePanel.Visible() && g.composePanel.Update() {
 		return nil
@@ -167,6 +168,29 @@ func (g *Game) handleComposePanelToggle() {
 	ctrlPressed := ebiten.IsKeyPressed(ebiten.KeyControl) || ebiten.IsKeyPressed(ebiten.KeyMeta)
 	if inpututil.IsKeyJustPressed(ebiten.KeyN) && ctrlPressed {
 		g.composePanel.Toggle()
+	}
+}
+
+// handleFindSelf centers the camera on the user's own node when the Home key or 'H' key is pressed.
+// Per ROADMAP.md line 672, this provides a "Find Self" button to center view on own node.
+func (g *Game) handleFindSelf() {
+	// Home key or 'H' key to center on self node.
+	if inpututil.IsKeyJustPressed(ebiten.KeyHome) || inpututil.IsKeyJustPressed(ebiten.KeyH) {
+		g.centerOnSelfNode()
+	}
+}
+
+// centerOnSelfNode animates the camera to the self node's position.
+// The self node is always at the center of the layout (0, 0) per game initialization.
+func (g *Game) centerOnSelfNode() {
+	// Get the position of the self node from the layout engine.
+	positions := g.engine.Positions().Get()
+	if selfPos, ok := positions["self"]; ok {
+		// Animate camera to self node position with default zoom.
+		g.camera.AnimateToWithZoom(selfPos.X, selfPos.Y, 1.0)
+	} else {
+		// Fallback: center at origin (where self node should be).
+		g.camera.AnimateToWithZoom(0, 0, 1.0)
 	}
 }
 

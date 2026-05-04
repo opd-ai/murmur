@@ -618,7 +618,7 @@
 - [x] GiftRenderer with 25+ effect configurations
 - [x] Resonance-tiered effects (25, 50, 100 thresholds)
 - [x] **Ripple propagation animation** — RippleManager implemented with shader integration, Update/Draw cycle; needs game loop wiring
-- [ ] **Amplification trail** — visual connection between amplifier and original author
+- [x] **Amplification trail** — visual connection between amplifier and original author
 - [x] **Activity halo decay** — 60-minute intensity decay curve
 - [ ] **GPU particle system** — efficient ambient + mechanic-specific particle rendering
 - [ ] **Milestone visual effects** — Ember glow, Spark pulse, Flame trail, Blaze palette, Inferno aura, Corona layers

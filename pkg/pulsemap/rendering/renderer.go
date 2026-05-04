@@ -42,6 +42,9 @@ type Renderer struct {
 	// edges holds all edges to render.
 	edges []EdgeData
 
+	// amplificationTrails holds amplification relationships to visualize.
+	amplificationTrails []AmplificationTrailData
+
 	// backgroundColor is the Pulse Map background color.
 	backgroundColor color.RGBA
 
@@ -74,6 +77,18 @@ type EdgeData struct {
 	InteractionFrequency float64 // Message exchange rate (messages per day)
 }
 
+// AmplificationTrailData holds visual properties for an amplification relationship.
+// Per ROADMAP.md line 621, amplification trails show visual connection between
+// amplifier and original author.
+type AmplificationTrailData struct {
+	AmplifierID   string  // Node ID of the amplifier
+	OriginalID    string  // Node ID of the original author
+	AmplifiedAt   int64   // Unix timestamp when amplified
+	WaveID        []byte  // ID of the amplified Wave
+	HasComment    bool    // True if amplification includes a comment
+	RecentSeconds float64 // How many seconds ago this amplification occurred (for fade animation)
+}
+
 // NewRenderer creates a new Pulse Map renderer.
 func NewRenderer(engine *layout.Engine) (*Renderer, error) {
 	shaders, err := effects.LoadShaders()
@@ -83,15 +98,16 @@ func NewRenderer(engine *layout.Engine) (*Renderer, error) {
 	}
 
 	return &Renderer{
-		engine:          engine,
-		camera:          interaction.NewCamera(),
-		input:           interaction.NewInputState(),
-		shaders:         shaders,
-		nodeData:        make(map[string]*NodeData),
-		edges:           make([]EdgeData, 0),
-		backgroundColor: color.RGBA{10, 12, 18, 255}, // Dark background per PULSE_MAP.md
-		screenWidth:     800,
-		screenHeight:    600,
+		engine:              engine,
+		camera:              interaction.NewCamera(),
+		input:               interaction.NewInputState(),
+		shaders:             shaders,
+		nodeData:            make(map[string]*NodeData),
+		edges:               make([]EdgeData, 0),
+		amplificationTrails: make([]AmplificationTrailData, 0),
+		backgroundColor:     color.RGBA{10, 12, 18, 255}, // Dark background per PULSE_MAP.md
+		screenWidth:         800,
+		screenHeight:        600,
 	}, nil
 }
 
@@ -151,6 +167,27 @@ func (r *Renderer) SetEdges(edges []EdgeData) {
 	r.edges = edges
 }
 
+// AddAmplificationTrail adds an amplification relationship to visualize.
+func (r *Renderer) AddAmplificationTrail(trail AmplificationTrailData) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.amplificationTrails = append(r.amplificationTrails, trail)
+}
+
+// ClearAmplificationTrails removes all amplification trails.
+func (r *Renderer) ClearAmplificationTrails() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.amplificationTrails = r.amplificationTrails[:0]
+}
+
+// SetAmplificationTrails replaces all amplification trails.
+func (r *Renderer) SetAmplificationTrails(trails []AmplificationTrailData) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.amplificationTrails = trails
+}
+
 // Update performs per-frame updates.
 func (r *Renderer) Update() error {
 	r.mu.Lock()
@@ -200,6 +237,9 @@ func (r *Renderer) Draw(screen *ebiten.Image) {
 	// Draw edges first (below nodes).
 	r.drawEdges(screen, positions, zoom)
 
+	// Draw amplification trails (above edges, below nodes).
+	r.drawAmplificationTrails(screen, positions, zoom)
+
 	// Draw nodes on top.
 	r.drawNodes(screen, positions, minX, minY, maxX, maxY, zoom)
 }
@@ -238,6 +278,39 @@ func (r *Renderer) drawEdges(screen *ebiten.Image, positions map[string]layout.P
 		// Use time-based rendering for pulse animations on active edges.
 		RenderEdgeWithTime(screen, float32(srcScreenX), float32(srcScreenY),
 			float32(dstScreenX), float32(dstScreenY), style, zoom, float64(r.time))
+	}
+}
+
+// drawAmplificationTrails renders amplification relationships between nodes.
+// Per ROADMAP.md line 621, amplification trails are visual connections between
+// amplifier and original author, distinct from regular edges.
+func (r *Renderer) drawAmplificationTrails(screen *ebiten.Image, positions map[string]layout.Position, zoom ZoomLevel) {
+	screenW := float64(r.screenWidth)
+	screenH := float64(r.screenHeight)
+
+	for _, trail := range r.amplificationTrails {
+		ampPos, ampOK := positions[trail.AmplifierID]
+		origPos, origOK := positions[trail.OriginalID]
+		if !ampOK || !origOK {
+			continue
+		}
+
+		// Transform world coordinates to screen coordinates.
+		ampScreenX, ampScreenY := r.camera.WorldToScreen(ampPos.X, ampPos.Y, screenW, screenH)
+		origScreenX, origScreenY := r.camera.WorldToScreen(origPos.X, origPos.Y, screenW, screenH)
+
+		// Cull trails completely outside screen (with margin).
+		margin := 50.0
+		if !r.lineIntersectsRect(ampScreenX, ampScreenY, origScreenX, origScreenY,
+			-margin, -margin, screenW+margin, screenH+margin) {
+			continue
+		}
+
+		// Render amplification trail with distinctive style.
+		RenderAmplificationTrail(screen,
+			float32(ampScreenX), float32(ampScreenY),
+			float32(origScreenX), float32(origScreenY),
+			trail, zoom, float64(r.time))
 	}
 }
 

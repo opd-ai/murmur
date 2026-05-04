@@ -449,6 +449,97 @@ func RenderEdgeWithTime(dst *ebiten.Image, x1, y1, x2, y2 float32, style EdgeSty
 	}
 }
 
+// RenderAmplificationTrail draws an amplification relationship between amplifier and original author.
+// Per ROADMAP.md line 621, amplification trails are visual connections distinct from regular edges.
+// Trails are rendered as animated dashed lines with particles flowing from amplifier to original author.
+func RenderAmplificationTrail(dst *ebiten.Image, ampX, ampY, origX, origY float32, trail AmplificationTrailData, zoom ZoomLevel, time float64) {
+	// Calculate fade based on how recent the amplification is.
+	// Trails fade over 60 seconds after amplification.
+	fadeDuration := 60.0 // seconds
+	fadeProgress := math.Min(trail.RecentSeconds/fadeDuration, 1.0)
+	baseAlpha := 180.0 * (1.0 - fadeProgress) // Start at 180, fade to 0
+
+	if baseAlpha < 10 {
+		return // Skip rendering nearly invisible trails
+	}
+
+	// Amplification trail color: bright cyan/teal to distinguish from edges.
+	// Per PULSE_MAP.md visual language: warm colors for Surface, cool for Anonymous.
+	trailColor := color.RGBA{
+		R: 100,
+		G: 255,
+		B: 220,
+		A: uint8(baseAlpha),
+	}
+
+	// Draw dashed line from amplifier to original author.
+	// Dash pattern: 8px on, 4px off.
+	dashLength := 8.0
+	gapLength := 4.0
+	segmentLength := dashLength + gapLength
+
+	dx := float64(origX - ampX)
+	dy := float64(origY - ampY)
+	distance := math.Sqrt(dx*dx + dy*dy)
+
+	if distance < 1.0 {
+		return // Nodes too close to render trail
+	}
+
+	// Normalize direction.
+	dirX := dx / distance
+	dirY := dy / distance
+
+	// Draw dashed segments.
+	currentPos := 0.0
+	for currentPos < distance {
+		dashEnd := math.Min(currentPos+dashLength, distance)
+
+		x1 := ampX + float32(currentPos*dirX)
+		y1 := ampY + float32(currentPos*dirY)
+		x2 := ampX + float32(dashEnd*dirX)
+		y2 := ampY + float32(dashEnd*dirY)
+
+		vector.StrokeLine(dst, x1, y1, x2, y2, 2.0, trailColor, true)
+
+		currentPos += segmentLength
+	}
+
+	// Draw animated particles flowing along the trail.
+	// Particles move from amplifier to original author.
+	particleSpeed := 0.5 // units per second
+	particleCount := 3
+
+	for i := 0; i < particleCount; i++ {
+		// Stagger particles along the trail.
+		offset := float64(i) / float64(particleCount)
+		particlePos := math.Mod((time*particleSpeed)+offset, 1.0)
+
+		px := ampX + float32(particlePos*dx)
+		py := ampY + float32(particlePos*dy)
+
+		// Particle fades with trail.
+		particleAlpha := uint8(baseAlpha * 0.9)
+		particleColor := color.RGBA{150, 255, 230, particleAlpha}
+
+		vector.DrawFilledCircle(dst, px, py, 2.5, particleColor, true)
+	}
+
+	// If the amplification has a comment, draw a small indicator at midpoint.
+	if trail.HasComment {
+		mx := (ampX + origX) / 2
+		my := (ampY + origY) / 2
+
+		// Comment indicator: small pulsing ring.
+		ringPulse := 1.0 + 0.2*math.Sin(time*3.0)
+		ringRadius := 5.0 * ringPulse
+		ringAlpha := uint8(baseAlpha * 0.7)
+		ringColor := color.RGBA{255, 255, 150, ringAlpha}
+
+		vector.StrokeCircle(dst, mx, my, float32(ringRadius), 1.5, ringColor, true)
+	}
+}
+
 // ZoomLevelFromScale determines the zoom level from a scale factor.
 func ZoomLevelFromScale(scale float64) ZoomLevel {
 	if scale < 0.3 {

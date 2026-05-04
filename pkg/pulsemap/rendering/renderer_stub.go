@@ -18,11 +18,12 @@ import (
 type Renderer struct {
 	mu sync.RWMutex
 
-	engine   *layout.Engine
-	camera   *interaction.Camera
-	input    *interaction.InputState
-	nodeData map[string]*NodeData
-	edges    []EdgeData
+	engine              *layout.Engine
+	camera              *interaction.Camera
+	input               *interaction.InputState
+	nodeData            map[string]*NodeData
+	edges               []EdgeData
+	amplificationTrails []AmplificationTrailData
 
 	backgroundColor color.RGBA
 	screenWidth     int
@@ -52,17 +53,28 @@ type EdgeData struct {
 	InteractionFrequency float64
 }
 
+// AmplificationTrailData holds visual properties for an amplification relationship (stub).
+type AmplificationTrailData struct {
+	AmplifierID   string
+	OriginalID    string
+	AmplifiedAt   int64
+	WaveID        []byte
+	HasComment    bool
+	RecentSeconds float64
+}
+
 // NewRenderer creates a new Pulse Map renderer (stub).
 func NewRenderer(engine *layout.Engine) (*Renderer, error) {
 	return &Renderer{
-		engine:          engine,
-		camera:          interaction.NewCamera(),
-		input:           interaction.NewInputState(),
-		nodeData:        make(map[string]*NodeData),
-		edges:           make([]EdgeData, 0),
-		backgroundColor: color.RGBA{10, 12, 18, 255},
-		screenWidth:     800,
-		screenHeight:    600,
+		engine:              engine,
+		camera:              interaction.NewCamera(),
+		input:               interaction.NewInputState(),
+		nodeData:            make(map[string]*NodeData),
+		edges:               make([]EdgeData, 0),
+		amplificationTrails: make([]AmplificationTrailData, 0),
+		backgroundColor:     color.RGBA{10, 12, 18, 255},
+		screenWidth:         800,
+		screenHeight:        600,
 	}, nil
 }
 
@@ -120,6 +132,27 @@ func (r *Renderer) SetEdges(edges []EdgeData) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.edges = edges
+}
+
+// AddAmplificationTrail adds an amplification relationship to visualize (stub).
+func (r *Renderer) AddAmplificationTrail(trail AmplificationTrailData) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.amplificationTrails = append(r.amplificationTrails, trail)
+}
+
+// ClearAmplificationTrails removes all amplification trails (stub).
+func (r *Renderer) ClearAmplificationTrails() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.amplificationTrails = r.amplificationTrails[:0]
+}
+
+// SetAmplificationTrails replaces all amplification trails (stub).
+func (r *Renderer) SetAmplificationTrails(trails []AmplificationTrailData) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.amplificationTrails = trails
 }
 
 // Update performs per-frame updates (stub).
