@@ -231,23 +231,12 @@ func NewShadowPlayReceiver(store *ShadowPlayStore) *ShadowPlayReceiver {
 
 // HandleMessage processes an incoming shadow play event message.
 func (r *ShadowPlayReceiver) HandleMessage(data []byte) error {
-	var gossipMsg pb.GossipMessage
-	if err := proto.Unmarshal(data, &gossipMsg); err != nil {
-		return fmt.Errorf("failed to unmarshal gossip message: %w", err)
-	}
-
-	event := gossipMsg.GetShadowPlayEvent()
-	if event == nil {
-		return nil // Not a shadow play event.
-	}
-
-	// Verify signature.
-	if err := r.verifyEventSignature(event); err != nil {
-		return err
-	}
-
-	// Process the event.
-	return r.processEvent(event)
+	return mechanics.ProcessGossipEvent(
+		data,
+		func(msg *pb.GossipMessage) *pb.ShadowPlayEvent { return msg.GetShadowPlayEvent() },
+		r.verifyEventSignature,
+		r.processEvent,
+	)
 }
 
 // verifyEventSignature verifies the event signature.

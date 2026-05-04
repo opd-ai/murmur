@@ -170,22 +170,12 @@ func NewTerritoryReceiver(store *TerritoryStore) *TerritoryReceiver {
 
 // HandleMessage processes an incoming territory event.
 func (r *TerritoryReceiver) HandleMessage(data []byte) error {
-	var gossipMsg pb.GossipMessage
-	if err := proto.Unmarshal(data, &gossipMsg); err != nil {
-		return fmt.Errorf("failed to unmarshal gossip message: %w", err)
-	}
-
-	territoryEvent := gossipMsg.GetTerritoryEvent()
-	if territoryEvent == nil {
-		return nil // Not a territory event.
-	}
-
-	// Verify signature.
-	if err := r.verifyEventSignature(territoryEvent); err != nil {
-		return err
-	}
-
-	return r.processEvent(territoryEvent)
+	return mechanics.ProcessGossipEvent(
+		data,
+		func(msg *pb.GossipMessage) *pb.TerritoryEvent { return msg.GetTerritoryEvent() },
+		r.verifyEventSignature,
+		r.processEvent,
+	)
 }
 
 // verifyEventSignature checks the event signature.

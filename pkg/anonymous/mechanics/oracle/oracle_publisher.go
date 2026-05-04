@@ -214,22 +214,12 @@ func NewOracleReceiver(store *OraclePoolStore) *OracleReceiver {
 
 // HandleMessage processes an incoming oracle pool event.
 func (r *OracleReceiver) HandleMessage(data []byte) error {
-	var gossipMsg pb.GossipMessage
-	if err := proto.Unmarshal(data, &gossipMsg); err != nil {
-		return fmt.Errorf("failed to unmarshal gossip message: %w", err)
-	}
-
-	oracleEvent := gossipMsg.GetOracleEvent()
-	if oracleEvent == nil {
-		return nil // Not an oracle event.
-	}
-
-	// Verify signature.
-	if err := r.verifyEventSignature(oracleEvent); err != nil {
-		return err
-	}
-
-	return r.processEvent(oracleEvent)
+	return mechanics.ProcessGossipEvent(
+		data,
+		func(msg *pb.GossipMessage) *pb.OracleEvent { return msg.GetOracleEvent() },
+		r.verifyEventSignature,
+		r.processEvent,
+	)
 }
 
 // verifyEventSignature checks the event signature.

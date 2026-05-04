@@ -127,6 +127,39 @@ func (h *Handlers) SetRelayAdCallback(fn func(*pb.RelayAdvertisement)) {
 	h.onRelayAdReceived = fn
 }
 
+// invokeIdentityCallback safely invokes the identity callback if set.
+func (h *Handlers) invokeIdentityCallback(decl *pb.IdentityDeclaration) {
+	h.mu.RLock()
+	callback := h.onIdentityReceived
+	h.mu.RUnlock()
+
+	if callback != nil {
+		callback(decl)
+	}
+}
+
+// invokeRelayAdCallback safely invokes the relay advertisement callback if set.
+func (h *Handlers) invokeRelayAdCallback(relayAd *pb.RelayAdvertisement) {
+	h.mu.RLock()
+	callback := h.onRelayAdReceived
+	h.mu.RUnlock()
+
+	if callback != nil {
+		callback(relayAd)
+	}
+}
+
+// invokeHeartbeatCallback safely invokes the heartbeat callback if set.
+func (h *Handlers) invokeHeartbeatCallback(heartbeat *pb.Heartbeat) {
+	h.mu.RLock()
+	callback := h.onHeartbeatReceived
+	h.mu.RUnlock()
+
+	if callback != nil {
+		callback(heartbeat)
+	}
+}
+
 // RegisterAll registers handlers for all core GossipSub topics.
 func (h *Handlers) RegisterAll(ctx context.Context, ps *gossip.PubSub) error {
 	handlers := map[string]gossip.MessageHandler{
@@ -194,13 +227,7 @@ func (h *Handlers) handleIdentityMessage(ctx context.Context, msg *pubsub.Messag
 		return
 	}
 
-	h.mu.RLock()
-	callback := h.onIdentityReceived
-	h.mu.RUnlock()
-
-	if callback != nil {
-		callback(decl)
-	}
+	h.invokeIdentityCallback(decl)
 }
 
 // handleShroudMessage processes relay advertisements from /murmur/shroud/1.
@@ -219,13 +246,7 @@ func (h *Handlers) handleShroudMessage(ctx context.Context, msg *pubsub.Message)
 		return
 	}
 
-	h.mu.RLock()
-	callback := h.onRelayAdReceived
-	h.mu.RUnlock()
-
-	if callback != nil {
-		callback(relayAd)
-	}
+	h.invokeRelayAdCallback(relayAd)
 }
 
 // handlePulseMessage processes heartbeat pings from /murmur/pulse/1.
@@ -244,13 +265,7 @@ func (h *Handlers) handlePulseMessage(ctx context.Context, msg *pubsub.Message) 
 		return
 	}
 
-	h.mu.RLock()
-	callback := h.onHeartbeatReceived
-	h.mu.RUnlock()
-
-	if callback != nil {
-		callback(heartbeat)
-	}
+	h.invokeHeartbeatCallback(heartbeat)
 }
 
 // validateEnvelope validates a MurmurEnvelope and checks for duplicates.
