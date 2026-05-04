@@ -8,6 +8,18 @@
 
 ## Security Decisions
 
+### 2026-05-04: Amplification Trail Test Coverage
+
+**Decision**: Added comprehensive test suite for amplification trail visualization (`pkg/pulsemap/rendering/amplification_test.go`).
+
+**Coverage**: 4 test functions validating: (1) AmplificationTrailData struct field assignment, (2) Renderer trail management methods (Add/Set/Clear), (3) RenderAmplificationTrail function behavior with various edge cases (zero distance, faded trails, normal rendering), (4) Fade calculation at different time intervals (5s, 30s, 55s, 65s, 120s).
+
+**Security Impact**: None — tests validate visual rendering logic only, no cryptographic or network components.
+
+**Validation**: All tests pass with zero race conditions (`go test -tags=test -race ./pkg/pulsemap/rendering`).
+
+---
+
 ### 2026-05-04: Integration Test API Compatibility Fixes
 
 **Decision**: Updated integration tests to use correct libp2p v0.36+ API signatures:

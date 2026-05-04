@@ -669,7 +669,7 @@
   - [ ] Interaction options
 - [ ] **Search bar** — find by display name, fingerprint, or pseudonym
 - [ ] **Bookmarks** — save and navigate to specific nodes
-- [ ] **"Find Self" button** — center view on own node
+- [x] **"Find Self" button** — center view on own node
 
 ### Zoom & Navigation
 
