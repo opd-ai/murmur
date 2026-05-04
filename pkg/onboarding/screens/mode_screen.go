@@ -182,7 +182,7 @@ func (s *ModeScreen) drawIntroExplanationText(screen *ebiten.Image, centerX, tex
 	s.drawCenteredText(screen, "an anonymous identity that cannot be linked to you.", centerX, textY+70, 14, textColor)
 }
 
-// drawModeCards renders the three mode selection cards.
+// drawModeCards renders the four mode selection cards.
 func (s *ModeScreen) drawModeCards(screen *ebiten.Image) {
 	centerX := float32(s.width) / 2
 
@@ -194,12 +194,12 @@ func (s *ModeScreen) drawModeCards(screen *ebiten.Image) {
 	cardWidth := float32(180)
 	cardHeight := float32(240)
 	cardSpacing := float32(20)
-	totalWidth := 3*cardWidth + 2*cardSpacing
+	totalWidth := 4*cardWidth + 3*cardSpacing
 	startX := centerX - totalWidth/2
 	cardY := float32(100)
 
 	// Draw each mode card
-	modesList := []modes.Mode{modes.Open, modes.Hybrid, modes.Fortress}
+	modesList := []modes.Mode{modes.Open, modes.Hybrid, modes.Guarded, modes.Fortress}
 	for i, mode := range modesList {
 		cardX := startX + float32(i)*(cardWidth+cardSpacing)
 		s.drawModeCard(screen, mode, cardX, cardY, cardWidth, cardHeight, i)
@@ -253,6 +253,13 @@ func (s *ModeScreen) drawModeIcon(screen *ebiten.Image, mode modes.Mode, iconCen
 		coolColor := color.RGBA{100, 150, 230, 200}
 		vector.DrawFilledCircle(screen, iconCenterX-12, iconY, 18, warmColor, true)
 		vector.DrawFilledCircle(screen, iconCenterX+12, iconY+5, 16, coolColor, true)
+	case modes.Guarded:
+		warmColor := color.RGBA{200, 160, 100, 150}
+		coolColor := color.RGBA{120, 140, 200, 255}
+		vector.DrawFilledCircle(screen, iconCenterX, iconY, 18, coolColor, true)
+		guardColor := color.RGBA{160, 140, 180, 200}
+		vector.StrokeCircle(screen, iconCenterX, iconY, 22, 2, guardColor, true)
+		vector.DrawFilledCircle(screen, iconCenterX-8, iconY-3, 6, warmColor, true)
 	case modes.Fortress:
 		coolColor := color.RGBA{100, 150, 230, 255}
 		vector.DrawFilledCircle(screen, iconCenterX, iconY, 18, coolColor, true)
@@ -419,6 +426,8 @@ func getModeDescription(mode modes.Mode) string {
 		return "Participate publicly"
 	case modes.Hybrid:
 		return "Both layers, separate identities"
+	case modes.Guarded:
+		return "Enhanced privacy, limited exposure"
 	case modes.Fortress:
 		return "Anonymous Layer only"
 	default:
@@ -432,6 +441,8 @@ func getModeProperties(mode modes.Mode) []string {
 		return []string{"Identity visible", "Surface Layer only", "Simplest experience"}
 	case modes.Hybrid:
 		return []string{"Public + Anonymous", "Unlinked identities", "Recommended"}
+	case modes.Guarded:
+		return []string{"Selective visibility", "Both layers active", "Balanced privacy"}
 	case modes.Fortress:
 		return []string{"Maximum privacy", "No public identity", "Advanced mode"}
 	default:
@@ -445,6 +456,8 @@ func getModeGuidance(mode modes.Mode) string {
 		return "Open mode is ideal for a straightforward social experience. You can upgrade to Hybrid later."
 	case modes.Hybrid:
 		return "Hybrid mode gives you the full experience with separate identities on both layers. Recommended."
+	case modes.Guarded:
+		return "Guarded mode provides enhanced privacy controls while maintaining access to both Surface and Anonymous layers."
 	case modes.Fortress:
 		return "Fortress mode provides maximum anonymity but limits you to the Anonymous Layer only."
 	default:
@@ -486,11 +499,11 @@ func (s *ModeScreen) handleCardsClick(x, y int) {
 // checkModeCardClick checks if a mode card was clicked and updates selection.
 func (s *ModeScreen) checkModeCardClick(x, y int) {
 	cardWidth, cardHeight, cardSpacing := 180, 240, 20
-	totalWidth := 3*cardWidth + 2*cardSpacing
+	totalWidth := 4*cardWidth + 3*cardSpacing
 	startX := s.width/2 - totalWidth/2
 	cardY := 100
 
-	for i, mode := range []modes.Mode{modes.Open, modes.Hybrid, modes.Fortress} {
+	for i, mode := range []modes.Mode{modes.Open, modes.Hybrid, modes.Guarded, modes.Fortress} {
 		cardX := startX + i*(cardWidth+cardSpacing)
 		if s.isClickInRect(x, y, cardX, cardY, cardWidth, cardHeight) {
 			s.selectedMode = mode
@@ -556,13 +569,13 @@ func (s *ModeScreen) HandleMouseMove(x, y int) {
 	cardWidth := 180
 	cardHeight := 240
 	cardSpacing := 20
-	totalWidth := 3*cardWidth + 2*cardSpacing
+	totalWidth := 4*cardWidth + 3*cardSpacing
 	startX := centerX - totalWidth/2
 	cardY := 100
 
 	s.hoverMode = s.selectedMode // Reset to selected if not hovering
 
-	for i, mode := range []modes.Mode{modes.Open, modes.Hybrid, modes.Fortress} {
+	for i, mode := range []modes.Mode{modes.Open, modes.Hybrid, modes.Guarded, modes.Fortress} {
 		cardX := startX + i*(cardWidth+cardSpacing)
 		if x >= cardX && x <= cardX+cardWidth && y >= cardY && y <= cardY+cardHeight {
 			s.hoverMode = mode

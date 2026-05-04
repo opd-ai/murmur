@@ -728,7 +728,7 @@
 - [x] Mode selection screen (Surface vs Fortress)
 - [ ] **Mode introduction animation** — Surface + Anonymous Layer visual explanation
 - [ ] **Three mode cards** — Open, Hybrid, Fortress with descriptions
-- [ ] **Guarded mode card** — missing from current implementation
+- [x] **Guarded mode card** — added to mode selection screen with icon, description, properties, and guidance
 - [ ] **Context-sensitive guidance** — recommendations based on user profile
 - [ ] **Specter identity generation** — triggered for Hybrid/Guarded/Fortress selection
 - [ ] **Specter key backup** — separate backup flow for Anonymous Layer key
