@@ -679,12 +679,12 @@
 - [x] **Micro View** — 5–20 nodes at full detail
 - [x] **Ego-centric view** (default, own node centered)
 - [x] **Network-centric view** (alternative, global perspective)
-- [ ] **Viewport controls** — buttons for Macro/Meso/Micro preset zoom levels
+- [x] **Viewport controls** — buttons for Macro/Meso/Micro preset zoom levels
 
 ### Background & Atmosphere
 
-- [ ] **Map background** — dark blue-gray gradient with procedural noise
-- [ ] **Ambient particle field** — sparse drifting particles
+- [x] **Map background** — dark blue-gray gradient with procedural noise
+- [x] **Ambient particle field** — sparse drifting particles
 - [ ] **Framebuffer layering** — separate layers composited for background/nodes/overlays/UI
 
 ### Rendering Pipeline Performance

@@ -22,6 +22,15 @@ First alpha release of MURMUR decentralized social network. Core infrastructure 
 - Camera centering methods: `CenterOn()`, `CenterOnWithZoom()`, `IsCentered()`
 - Edge rendering optimization: faint lines at Macro zoom to prevent visual overload
 - Text label visibility: labels shown at Meso and Micro zoom levels only
+- Viewport control buttons: Macro/Meso/Micro preset zoom level buttons in top-right corner
+- Camera preset zoom methods: `SetZoomPresetMacro()`, `SetZoomPresetMeso()`, `SetZoomPresetMicro()`
+- Smooth animated transitions between zoom presets with momentum clearing
+- Procedural gradient background: dark blue-gray gradient (8,10,16 → 14,18,26) with Perlin-like noise
+- Background noise parameters: 3-octave noise, 0.015 frequency scale, 0.12 amplitude for organic texture
+- Cached background regeneration: regenerates on window resize, improves rendering performance
+- Ambient particle field: sparse drifting particles (max 80, spawn rate 2/sec) for atmospheric depth
+- Particle parallax effect: particles drift at varying depths (0.5-1.0) with camera-relative positioning
+- Particle visual properties: subtle blue-gray (120,140,160) with 15-35 alpha, 1.0-2.5px size, slow drift 5-15 units/sec
 
 **Networking & Infrastructure**
 - Decentralized P2P networking via libp2p v0.48+ with Noise XX encryption

@@ -410,3 +410,91 @@ func TestSmoothZoomAnimation(t *testing.T) {
 		t.Errorf("expected scale to reach 2.0 after animation, got %f", c.Scale)
 	}
 }
+
+func TestCameraSetZoomPresetMacro(t *testing.T) {
+	c := NewCamera()
+	c.Scale = 1.5
+	c.velocityX = 10.0
+	c.velocityY = 5.0
+
+	c.SetZoomPresetMacro()
+
+	// Verify target scale is set to 0.3
+	if c.TargetScale != 0.3 {
+		t.Errorf("expected target scale 0.3, got %f", c.TargetScale)
+	}
+
+	// Verify animation is enabled
+	if !c.Animating {
+		t.Error("expected SetZoomPresetMacro to enable animation")
+	}
+
+	// Verify momentum is cleared
+	if c.velocityX != 0 || c.velocityY != 0 {
+		t.Error("expected SetZoomPresetMacro to clear momentum")
+	}
+
+	// Animate to completion
+	for c.Animating {
+		c.Update()
+	}
+
+	// Verify we reached Macro scale
+	if math.Abs(c.Scale-0.3) > 0.01 {
+		t.Errorf("expected scale to reach 0.3 after animation, got %f", c.Scale)
+	}
+}
+
+func TestCameraSetZoomPresetMeso(t *testing.T) {
+	c := NewCamera()
+	c.Scale = 3.0
+
+	c.SetZoomPresetMeso()
+
+	// Verify target scale is set to 1.0
+	if c.TargetScale != 1.0 {
+		t.Errorf("expected target scale 1.0, got %f", c.TargetScale)
+	}
+
+	// Verify animation is enabled
+	if !c.Animating {
+		t.Error("expected SetZoomPresetMeso to enable animation")
+	}
+
+	// Animate to completion
+	for c.Animating {
+		c.Update()
+	}
+
+	// Verify we reached Meso scale
+	if math.Abs(c.Scale-1.0) > 0.01 {
+		t.Errorf("expected scale to reach 1.0 after animation, got %f", c.Scale)
+	}
+}
+
+func TestCameraSetZoomPresetMicro(t *testing.T) {
+	c := NewCamera()
+	c.Scale = 0.5
+
+	c.SetZoomPresetMicro()
+
+	// Verify target scale is set to 3.0
+	if c.TargetScale != 3.0 {
+		t.Errorf("expected target scale 3.0, got %f", c.TargetScale)
+	}
+
+	// Verify animation is enabled
+	if !c.Animating {
+		t.Error("expected SetZoomPresetMicro to enable animation")
+	}
+
+	// Animate to completion
+	for c.Animating {
+		c.Update()
+	}
+
+	// Verify we reached Micro scale
+	if math.Abs(c.Scale-3.0) > 0.01 {
+		t.Errorf("expected scale to reach 3.0 after animation, got %f", c.Scale)
+	}
+}

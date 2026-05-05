@@ -113,6 +113,31 @@ func (c *Camera) AnimateToWithZoom(worldX, worldY, scale float64) {
 	c.Animating = true
 }
 
+// SetZoomPresetMacro animates to Macro view (full network, scale 0.3).
+// Per ROADMAP.md line 682, viewport controls provide preset zoom levels.
+func (c *Camera) SetZoomPresetMacro() {
+	c.TargetScale = 0.3
+	c.Animating = true
+	c.velocityX = 0
+	c.velocityY = 0
+}
+
+// SetZoomPresetMeso animates to Meso view (50-200 node neighborhood, scale 1.0).
+func (c *Camera) SetZoomPresetMeso() {
+	c.TargetScale = 1.0
+	c.Animating = true
+	c.velocityX = 0
+	c.velocityY = 0
+}
+
+// SetZoomPresetMicro animates to Micro view (5-20 nodes at full detail, scale 3.0).
+func (c *Camera) SetZoomPresetMicro() {
+	c.TargetScale = 3.0
+	c.Animating = true
+	c.velocityX = 0
+	c.velocityY = 0
+}
+
 // Update performs animation interpolation per tick.
 func (c *Camera) Update() {
 	// Apply momentum scrolling (inertial pan with deceleration)

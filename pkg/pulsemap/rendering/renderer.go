@@ -54,8 +54,16 @@ type Renderer struct {
 	// Surface users to see anonymous artifacts (Marks, Gifts, mini-games) on their Pulse Map.
 	store *store.DB
 
-	// backgroundColor is the Pulse Map background color.
+	// backgroundColor is the Pulse Map background color (deprecated - use background renderer).
 	backgroundColor color.RGBA
+
+	// background renders the procedural gradient background with noise.
+	// Per ROADMAP.md line 686, this creates a dark blue-gray gradient with procedural noise.
+	background *BackgroundRenderer
+
+	// particles renders ambient drifting particles for atmospheric depth.
+	// Per ROADMAP.md line 687, this creates a sparse particle field.
+	particles *AmbientParticleField
 
 	// screenWidth and screenHeight are the current screen dimensions.
 	screenWidth, screenHeight int
@@ -115,7 +123,9 @@ func NewRenderer(engine *layout.Engine, db *store.DB) (*Renderer, error) {
 		edges:               make([]EdgeData, 0),
 		amplificationTrails: make([]AmplificationTrailData, 0),
 		store:               db,
-		backgroundColor:     color.RGBA{10, 12, 18, 255}, // Dark background per PULSE_MAP.md
+		backgroundColor:     color.RGBA{10, 12, 18, 255}, // Fallback solid color
+		background:          NewBackgroundRenderer(),     // Procedural gradient with noise per ROADMAP.md line 686
+		particles:           NewAmbientParticleField(),   // Sparse drifting particles per ROADMAP.md line 687
 		screenWidth:         800,
 		screenHeight:        600,
 	}, nil
@@ -209,6 +219,12 @@ func (r *Renderer) Update() error {
 	// Update camera animations.
 	if r.camera != nil {
 		r.camera.Update()
+
+		// Update ambient particles with camera position for parallax.
+		if r.particles != nil {
+			dt := 1.0 / float64(TargetFPS)
+			r.particles.Update(dt, r.camera.X, r.camera.Y, r.screenWidth, r.screenHeight)
+		}
 	}
 
 	return nil
@@ -225,8 +241,20 @@ func (r *Renderer) Draw(screen *ebiten.Image) {
 	r.screenWidth = w
 	r.screenHeight = h
 
-	// Clear to background color.
-	screen.Fill(r.backgroundColor)
+	// Draw procedural gradient background with noise.
+	// Per ROADMAP.md line 686, this creates a dark blue-gray gradient with procedural noise.
+	if r.background != nil {
+		r.background.Draw(screen)
+	} else {
+		// Fallback to solid color if background renderer failed.
+		screen.Fill(r.backgroundColor)
+	}
+
+	// Draw ambient particles for atmospheric depth (above background, below graph).
+	// Per ROADMAP.md line 687, this creates a sparse drifting particle field.
+	if r.particles != nil && r.camera != nil {
+		r.particles.Draw(screen, r.camera.X, r.camera.Y)
+	}
 
 	if r.engine == nil || r.camera == nil {
 		return

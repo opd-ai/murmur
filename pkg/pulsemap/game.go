@@ -55,6 +55,9 @@ type Game struct {
 	// bookmarkManager handles node bookmarks.
 	bookmarkManager *BookmarkManager
 
+	// viewportControls provides zoom preset buttons.
+	viewportControls *ui.ViewportControls
+
 	// keypair is the Surface Layer identity for signing Waves.
 	keypair *keys.KeyPair
 
@@ -167,6 +170,14 @@ func NewGame(ctx context.Context, keypair *keys.KeyPair, pubsub *gossip.PubSub, 
 	}
 	game.bookmarkManager = bookmarkMgr
 
+	// Create viewport controls with zoom preset callbacks.
+	// Per ROADMAP.md line 682, this provides Macro/Meso/Micro preset zoom buttons.
+	game.viewportControls = ui.NewViewportControls(theme, ui.ViewportCallbacks{
+		OnMacro: func() { camera.SetZoomPresetMacro() },
+		OnMeso:  func() { camera.SetZoomPresetMeso() },
+		OnMicro: func() { camera.SetZoomPresetMicro() },
+	})
+
 	return game, nil
 }
 
@@ -202,6 +213,11 @@ func (g *Game) Update() error {
 	}
 
 	if g.composePanel.Visible() && g.composePanel.Update() {
+		return nil
+	}
+
+	// Update viewport controls (buttons are always visible).
+	if g.viewportControls.Update() {
 		return nil
 	}
 
@@ -483,6 +499,9 @@ func (g *Game) updatePanPosition() {
 func (g *Game) Draw(screen *ebiten.Image) {
 	// Delegate to renderer which handles all drawing logic.
 	g.renderer.Draw(screen)
+
+	// Draw viewport controls (always visible, bottom layer of UI).
+	g.viewportControls.Draw(screen)
 
 	// Draw node detail panel overlay if visible.
 	if g.nodeDetailPanel.Visible() {
