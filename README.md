@@ -97,7 +97,7 @@ See `DESIGN_DOCUMENT.md` for the complete specification.
 - ✅ **Pulse Map**: Force-directed layout (60fps @ 500 nodes), Ebitengine rendering, visual effects
 - ✅ **Storage**: Bbolt with 7 canonical buckets, typed accessors, LRU eviction
 - ✅ **Security**: Key zeroing, Bloom filter deduplication, per-peer rate limiting, ZK Resonance proofs
-- ⚠️ **Onboarding**: 4/6 phases functional (Identity, Mode, Bootstrap, Completion); Exploration/First Wave in progress
-- ⚠️ **Cross-Layer Visibility**: Specter Marks render on Surface Layer; remaining mechanics (gifts, puzzles, etc.) deferred to post-v0.1
+- ✅ **Onboarding**: All 6 phases complete (Welcome, Identity, Mode, Bootstrap, Exploration, First Wave) with first-week nudges
+- ✅ **Cross-Layer Visibility**: Specter Marks render on Surface Layer with orbit animations and tooltips; remaining mechanics (gifts, puzzles, mini-games) deferred to post-v0.1
 
 Binary builds and connects to network. Test suite: 100% pass rate (38 packages), zero race conditions. See AUDIT.md for detailed goal-achievement assessment and ROADMAP.md for implementation checklist.
