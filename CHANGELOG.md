@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.1] - 2026-05-05
 
+### Added
+
+**Performance Tests (2026-05-05)**
+- Created `pkg/pulsemap/layout/performance_test.go` — validates ROADMAP.md performance targets: 60 FPS target with 500 nodes (16.67ms budget), 30 FPS minimum threshold (33.33ms), 10K nodes at Meso zoom with viewport culling, and <256 MiB memory budget during normal operation.
+
 ### Fixed
 
 **Font Rendering (2026-05-05)**
