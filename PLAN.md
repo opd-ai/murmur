@@ -602,9 +602,9 @@ After Steps 1–4 complete (33 days), **v0.1 is shippable for friendly alpha tes
 - Friday: Update AUDIT.md with any security decisions made
 
 **Before v0.1 Release**:
-- [ ] All Steps 1–4 complete (Steps 1, 2, 4 complete; Step 3 core 6 phases complete, nudges deferred)
+- [x] All Steps 1–4 complete (Steps 1, 2, 4 complete; Step 3 fully complete including 3.8 nudges — 2026-05-05)
 - [x] CHANGELOG.md updated with all changes
-- [x] ROADMAP.md updated (v0.1 items checked — 34 onboarding items marked complete 2026-05-04)
+- [x] ROADMAP.md updated (v0.1 items checked — 34 onboarding items + first-week nudges marked complete 2026-05-05)
 - [x] AUDIT.md reviewed for security gaps
 - [x] README.md updated with v0.1 status
 - [x] Test suite validation completed with complexity metrics (2026-05-04)

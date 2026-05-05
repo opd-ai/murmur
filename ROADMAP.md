@@ -766,11 +766,13 @@
 
 ### Post-Onboarding
 
-- [ ] **First-Week Nudges**:
-  - [ ] Wave publication encouragement (Day 1)
-  - [ ] Connection formation suggestion (Day 2)
-  - [ ] Layer exploration prompt for Hybrid/Fortress (Day 3)
-  - [ ] Milestone celebration at first Resonance threshold (Day 5–7)
+- [x] **First-Week Nudges** (2026-05-05):
+  - [x] Wave publication encouragement (Day 1) — nudges.go
+  - [x] Connection formation suggestion (Day 2) — nudges.go
+  - [x] Layer exploration prompt for Hybrid/Guarded/Fortress (Day 3) — mode-specific nudges.go
+  - [x] Milestone celebration at first Resonance threshold (Day 5–7) — nudges.go
+  - [x] Background goroutine checking account age every 4 hours — runNudgeLoop in murmur.go
+  - [x] Persistent nudge state in config bucket — wasNudgeShown/markNudgeShown
 - [ ] **Returning User Experience** — existing identity detection, fast bootstrap
 - [ ] **Identity Recovery**:
   - [ ] Key file import

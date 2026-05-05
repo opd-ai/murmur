@@ -487,6 +487,16 @@ func (a *App) initContent() error {
 		a.runMemoryMonitor(cache)
 	}()
 
+	// Start first-week nudges goroutine.
+	// Per PLAN.md Step 3.8, this encourages new users to explore features during
+	// their first week: Wave publishing (Day 1), connections (Day 2), Anonymous
+	// Layer exploration (Day 3), Resonance milestones (Days 5-7).
+	a.wg.Add(1)
+	go func() {
+		defer a.wg.Done()
+		a.runNudgeLoop()
+	}()
+
 	return nil
 }
 
