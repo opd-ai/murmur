@@ -36,9 +36,17 @@ murmur
 
 # Analysis and development artifacts
 *.log
+*-baseline.json
+*-post.json
+*-new.json
+diff-report*.json
 pre-cleanup.json
 post-cleanup.json
 baseline.json
 final.json
-test-output.txt
+dedup_summary.json
+top_clones.json
+.loop-analysis.json
+test-output*.txt
+refactoring_summary.md
 tmp

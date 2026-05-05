@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 First alpha release of MURMUR decentralized social network. Core infrastructure 85-90% complete with operational networking, identity, content propagation, anonymous layer mechanics, and visualization. Security hardened with key zeroing, deduplication, and rate limiting. Complete 6-phase onboarding flow implemented. Cross-layer visibility operational for Specter Marks. Pulse Map zoom level rendering (Macro/Meso/Micro) and navigation views (ego-centric/network-centric) implemented.
 
+### Removed
+
+**Build Artifacts (2026-05-05)**
+- Removed temporary code analysis artifact `top_clones.json` from version control
+
 ### Added
 
 **Pulse Map Visualization (2026-05-05)**
