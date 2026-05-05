@@ -685,7 +685,7 @@
 
 - [x] **Map background** — dark blue-gray gradient with procedural noise
 - [x] **Ambient particle field** — sparse drifting particles
-- [ ] **Framebuffer layering** — separate layers composited for background/nodes/overlays/UI
+- [x] **Framebuffer layering** — separate layers composited for background/nodes/overlays/UI
 
 ### Rendering Pipeline Performance
 

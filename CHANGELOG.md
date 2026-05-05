@@ -28,6 +28,17 @@ First alpha release of MURMUR decentralized social network. Core infrastructure 
 - Procedural gradient background: dark blue-gray gradient (8,10,16 → 14,18,26) with Perlin-like noise
 - Background noise parameters: 3-octave noise, 0.015 frequency scale, 0.12 amplitude for organic texture
 - Cached background regeneration: regenerates on window resize, improves rendering performance
+- Ambient particle field: sparse drifting particles with parallax depth (0.5-1.0) for atmospheric effect
+- Particle visual parameters: light blue-gray (#3A4B5C), 1.5-3.5px size range, 5-15px/s drift speed
+- Framebuffer layer compositing: separate layers for background/graph/overlays/UI with optimized rendering
+- Layer composition order: background (gradient + particles) → graph (edges + nodes) → overlays → UI
+- Dynamic layer resizing: automatic layer image recreation on window resize
+- Background renderer stub (`background_stub.go`) for test builds to avoid Ebitengine dependency
+- Particle renderer stub (`particles_stub.go`) for test builds to avoid Ebitengine dependency
+- Viewport controls stub (`viewport_controls_stub.go`) for test builds to avoid Ebitengine dependency
+- Unit tests for background renderer: gradient computation, noise generation, caching behavior
+- Unit tests for particle field: spawn mechanics, lifetime management, parallax movement, screen culling
+- Unit tests for viewport controls: button hit detection, hover state, callback invocation
 - Ambient particle field: sparse drifting particles (max 80, spawn rate 2/sec) for atmospheric depth
 - Particle parallax effect: particles drift at varying depths (0.5-1.0) with camera-relative positioning
 - Particle visual properties: subtle blue-gray (120,140,160) with 15-35 alpha, 1.0-2.5px size, slow drift 5-15 units/sec

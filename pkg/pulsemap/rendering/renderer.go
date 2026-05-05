@@ -70,6 +70,14 @@ type Renderer struct {
 
 	// time tracks elapsed time for animations.
 	time float32
+
+	// Layer images for framebuffer compositing.
+	// Per ROADMAP.md line 688, separate layers are composited for
+	// background/nodes/overlays/UI to improve rendering performance.
+	backgroundLayer *ebiten.Image
+	graphLayer      *ebiten.Image
+	overlayLayer    *ebiten.Image
+	uiLayer         *ebiten.Image
 }
 
 // NodeData holds visual properties for a renderable node.
@@ -230,39 +238,77 @@ func (r *Renderer) Update() error {
 	return nil
 }
 
+// ensureLayers creates or resizes layer images to match screen dimensions.
+// Per ROADMAP.md line 688, separate layers are composited for
+// background/nodes/overlays/UI to improve rendering performance.
+func (r *Renderer) ensureLayers(w, h int) {
+	if r.backgroundLayer == nil || r.backgroundLayer.Bounds().Dx() != w || r.backgroundLayer.Bounds().Dy() != h {
+		r.backgroundLayer = ebiten.NewImage(w, h)
+	}
+	if r.graphLayer == nil || r.graphLayer.Bounds().Dx() != w || r.graphLayer.Bounds().Dy() != h {
+		r.graphLayer = ebiten.NewImage(w, h)
+	}
+	if r.overlayLayer == nil || r.overlayLayer.Bounds().Dx() != w || r.overlayLayer.Bounds().Dy() != h {
+		r.overlayLayer = ebiten.NewImage(w, h)
+	}
+	if r.uiLayer == nil || r.uiLayer.Bounds().Dx() != w || r.uiLayer.Bounds().Dy() != h {
+		r.uiLayer = ebiten.NewImage(w, h)
+	}
+}
+
 // Draw renders the Pulse Map to the given screen.
 // This is the main draw loop called by Ebitengine.
+// Per ROADMAP.md line 688, rendering uses separate framebuffer layers
+// (background/graph/overlays/UI) composited for improved performance.
 func (r *Renderer) Draw(screen *ebiten.Image) {
 	r.mu.RLock()
-	defer r.mu.RUnlock()
 
 	// Get screen dimensions.
 	w, h := screen.Bounds().Dx(), screen.Bounds().Dy()
+
+	// Ensure layers are properly sized (requires upgrading to write lock).
+	r.mu.RUnlock()
+	r.mu.Lock()
 	r.screenWidth = w
 	r.screenHeight = h
+	r.ensureLayers(w, h)
+	r.mu.Unlock()
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 
-	// Draw procedural gradient background with noise.
+	// Clear all layers for fresh frame.
+	r.backgroundLayer.Clear()
+	r.graphLayer.Clear()
+	r.overlayLayer.Clear()
+	r.uiLayer.Clear()
+
+	// Layer 1: Draw background (gradient + noise).
 	// Per ROADMAP.md line 686, this creates a dark blue-gray gradient with procedural noise.
 	if r.background != nil {
-		r.background.Draw(screen)
+		r.background.Draw(r.backgroundLayer)
 	} else {
 		// Fallback to solid color if background renderer failed.
-		screen.Fill(r.backgroundColor)
+		r.backgroundLayer.Fill(r.backgroundColor)
 	}
 
-	// Draw ambient particles for atmospheric depth (above background, below graph).
+	// Layer 2: Draw ambient particles for atmospheric depth.
 	// Per ROADMAP.md line 687, this creates a sparse drifting particle field.
+	// Note: Particles drawn on background layer for performance (avoid extra composite).
 	if r.particles != nil && r.camera != nil {
-		r.particles.Draw(screen, r.camera.X, r.camera.Y)
+		r.particles.Draw(r.backgroundLayer, r.camera.X, r.camera.Y)
 	}
 
 	if r.engine == nil || r.camera == nil {
+		// Composite background layer to screen.
+		screen.DrawImage(r.backgroundLayer, nil)
 		return
 	}
 
 	// Get current node positions from the double-buffered layout.
 	positions := r.engine.Positions().Get()
 	if len(positions) == 0 {
+		// Composite background layer to screen.
+		screen.DrawImage(r.backgroundLayer, nil)
 		return
 	}
 
@@ -272,14 +318,29 @@ func (r *Renderer) Draw(screen *ebiten.Image) {
 	// Calculate zoom level for detail decisions.
 	zoom := ZoomLevelFromScale(r.camera.Scale)
 
+	// Layer 3: Draw graph (edges + nodes).
 	// Draw edges first (below nodes).
-	r.drawEdges(screen, positions, zoom)
+	r.drawEdges(r.graphLayer, positions, zoom)
 
 	// Draw amplification trails (above edges, below nodes).
-	r.drawAmplificationTrails(screen, positions, zoom)
+	r.drawAmplificationTrails(r.graphLayer, positions, zoom)
 
 	// Draw nodes on top.
-	r.drawNodes(screen, positions, minX, minY, maxX, maxY, zoom)
+	r.drawNodes(r.graphLayer, positions, minX, minY, maxX, maxY, zoom)
+
+	// Layer 4: Overlays (Specter Marks, annotations, etc.).
+	// Currently empty - future implementation for cross-layer artifacts.
+	// This layer will hold Specter Marks, Phantom Gift indicators, etc.
+
+	// Layer 5: UI elements (controls, notifications, etc.).
+	// Currently empty - future implementation for UI widgets.
+	// This layer will hold viewport controls, zoom buttons, notifications, etc.
+
+	// Composite all layers to screen in order.
+	screen.DrawImage(r.backgroundLayer, nil)
+	screen.DrawImage(r.graphLayer, nil)
+	screen.DrawImage(r.overlayLayer, nil)
+	screen.DrawImage(r.uiLayer, nil)
 }
 
 // drawEdges renders all edges between nodes with pulse animations.
