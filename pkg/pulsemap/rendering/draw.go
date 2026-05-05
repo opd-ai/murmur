@@ -70,8 +70,16 @@ type NodeStyle struct {
 // RenderNode draws a node at the given screen position.
 // Per PULSE_MAP.md, radius = r_base + r_scale * ln(1 + metric).
 // Specter nodes are rendered with translucency and particle emissions.
+// At Macro zoom, nodes are rendered as simple colored dots without detail.
 func RenderNode(dst *ebiten.Image, x, y float32, style NodeStyle, zoom ZoomLevel) {
 	radius := computeNodeRadius(style)
+
+	// Per PULSE_MAP.md §Macro View: "Nodes are rendered as small colored dots
+	// without sigils, labels, or halos" for widest zoom level.
+	if zoom == ZoomMacro {
+		renderNodeMacro(dst, x, y, style)
+		return
+	}
 
 	if style.IsSpecter {
 		// Render Specter node with special effects.
@@ -88,8 +96,16 @@ func RenderNode(dst *ebiten.Image, x, y float32, style NodeStyle, zoom ZoomLevel
 
 // RenderNodeWithTime draws a node with time-based animations.
 // Use this version when you need animated particle effects.
+// At Macro zoom, nodes are rendered as simple colored dots without detail.
 func RenderNodeWithTime(dst *ebiten.Image, x, y float32, style NodeStyle, zoom ZoomLevel, time float64) {
 	radius := computeNodeRadius(style)
+
+	// Per PULSE_MAP.md §Macro View: "Nodes are rendered as small colored dots
+	// without sigils, labels, or halos" for widest zoom level.
+	if zoom == ZoomMacro {
+		renderNodeMacro(dst, x, y, style)
+		return
+	}
 
 	if style.IsSpecter {
 		renderSpecterNodeAnimated(dst, x, y, radius, style, time)
@@ -115,6 +131,29 @@ func computeNodeRadius(style NodeStyle) float32 {
 		metric = float64(style.Connections) + style.Activity
 	}
 	return float32(rBase + rScale*math.Log(1+metric))
+}
+
+// renderNodeMacro renders a node at Macro zoom level as a simple colored dot.
+// Per PULSE_MAP.md §Macro View: "Nodes are rendered as small colored dots without
+// sigils, labels, or halos. Connections are rendered as faint lines."
+func renderNodeMacro(dst *ebiten.Image, x, y float32, style NodeStyle) {
+	const macroRadius = 2.5 // Fixed small radius for macro view dots
+
+	// Use core color with full opacity for visibility at distance.
+	dotColor := style.CoreColor
+	if style.IsSpecter {
+		// Specters retain slight translucency even at macro level.
+		dotColor.A = uint8(float64(style.CoreColor.A) * 0.8)
+	}
+
+	// Draw a simple filled circle.
+	vector.DrawFilledCircle(dst, x, y, macroRadius, dotColor, true)
+
+	// If selected, add a subtle highlight ring.
+	if style.Selected {
+		highlightColor := color.RGBA{255, 255, 255, 200}
+		vector.StrokeCircle(dst, x, y, macroRadius+1.5, 1.0, highlightColor, true)
+	}
 }
 
 // renderSpecterNode renders a Specter node with translucency and ghostly effects.
@@ -359,7 +398,15 @@ type EdgeStyle struct {
 // RenderEdge draws a connection edge between two nodes.
 // Per PULSE_MAP.md, edges are quadratic Bézier curves with age-based styling.
 // Edge thickness is proportional to interaction frequency (message exchange rate).
+// At Macro zoom, edges are rendered as faint lines with sparse sampling.
 func RenderEdge(dst *ebiten.Image, x1, y1, x2, y2 float32, style EdgeStyle, zoom ZoomLevel) {
+	// Per PULSE_MAP.md §Macro View: "Connections are rendered as faint lines,
+	// with only a sparse sample visible to prevent visual overload."
+	if zoom == ZoomMacro {
+		renderEdgeMacro(dst, x1, y1, x2, y2, style)
+		return
+	}
+
 	// Calculate edge opacity based on age.
 	var alpha uint8 = 50 // Base alpha (20-40% as per spec)
 	if style.Age > 90 {
@@ -406,7 +453,15 @@ func RenderEdge(dst *ebiten.Image, x1, y1, x2, y2 float32, style EdgeStyle, zoom
 
 // RenderEdgeWithTime draws an edge with time-based animations.
 // Edge thickness is proportional to interaction frequency (message exchange rate).
+// At Macro zoom, edges are rendered as faint lines with sparse sampling.
 func RenderEdgeWithTime(dst *ebiten.Image, x1, y1, x2, y2 float32, style EdgeStyle, zoom ZoomLevel, time float64) {
+	// Per PULSE_MAP.md §Macro View: "Connections are rendered as faint lines,
+	// with only a sparse sample visible to prevent visual overload."
+	if zoom == ZoomMacro {
+		renderEdgeMacro(dst, x1, y1, x2, y2, style)
+		return
+	}
+
 	var alpha uint8 = 50
 	if style.Age > 90 {
 		alpha = 80
@@ -447,6 +502,28 @@ func RenderEdgeWithTime(dst *ebiten.Image, x1, y1, x2, y2 float32, style EdgeSty
 		}
 		vector.DrawFilledCircle(dst, px, py, 3, pulseColor, true)
 	}
+}
+
+// renderEdgeMacro renders an edge at Macro zoom level as a faint line.
+// Per PULSE_MAP.md §Macro View: "Connections are rendered as faint lines,
+// with only a sparse sample visible to prevent visual overload."
+func renderEdgeMacro(dst *ebiten.Image, x1, y1, x2, y2 float32, style EdgeStyle) {
+	// Very low opacity at macro level to avoid visual overload.
+	alpha := uint8(20)
+	if style.IsSpecter {
+		alpha = uint8(15) // Even fainter for anonymous layer
+	}
+
+	edgeColor := color.RGBA{
+		R: style.Color.R,
+		G: style.Color.G,
+		B: style.Color.B,
+		A: alpha,
+	}
+
+	// Thin fixed-width line at macro level.
+	const macroThickness = 0.8
+	vector.StrokeLine(dst, x1, y1, x2, y2, macroThickness, edgeColor, true)
 }
 
 // RenderAmplificationTrail draws an amplification relationship between amplifier and original author.
@@ -560,8 +637,9 @@ var defaultLabelFace = text.NewGoXFace(basicfont.Face7x13)
 // Per PULSE_MAP.md and ROADMAP.md, text labels show display name or pseudonym
 // only at Micro zoom (close view, full detail).
 func RenderTextLabel(dst *ebiten.Image, x, y float32, label string, isSpecter bool, zoom ZoomLevel) {
-	// Only render text at Micro zoom level.
-	if zoom != ZoomMicro || label == "" {
+	// Per PULSE_MAP.md: labels visible at Meso and Micro zoom levels.
+	// Macro view has no labels.
+	if zoom == ZoomMacro || label == "" {
 		return
 	}
 

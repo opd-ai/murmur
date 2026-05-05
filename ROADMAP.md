@@ -674,11 +674,11 @@
 ### Zoom & Navigation
 
 - [x] **Continuous smooth zooming** with level-of-detail transitions
-- [ ] **Macro View** — full network, colored dots, cluster visibility
-- [ ] **Meso View** — 50–200 node neighborhood
-- [ ] **Micro View** — 5–20 nodes at full detail
-- [ ] **Ego-centric view** (default, own node centered)
-- [ ] **Network-centric view** (alternative, global perspective)
+- [x] **Macro View** — full network, colored dots, cluster visibility
+- [x] **Meso View** — 50–200 node neighborhood
+- [x] **Micro View** — 5–20 nodes at full detail
+- [x] **Ego-centric view** (default, own node centered)
+- [x] **Network-centric view** (alternative, global perspective)
 - [ ] **Viewport controls** — buttons for Macro/Meso/Micro preset zoom levels
 
 ### Background & Atmosphere

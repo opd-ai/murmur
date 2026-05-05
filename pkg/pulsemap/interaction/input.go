@@ -199,6 +199,35 @@ func (c *Camera) ViewBounds(screenWidth, screenHeight float64) (minX, minY, maxX
 	return c.X - halfW, c.Y - halfH, c.X + halfW, c.Y + halfH
 }
 
+// CenterOn smoothly animates the camera to center on the given world position.
+// Per ROADMAP.md line 680: ego-centric view with own node centered.
+func (c *Camera) CenterOn(worldX, worldY float64) {
+	c.TargetX = worldX
+	c.TargetY = worldY
+	c.Animating = true
+	// Reset momentum when starting animation
+	c.velocityX = 0
+	c.velocityY = 0
+}
+
+// CenterOnWithZoom smoothly animates the camera to center on a position with a target zoom.
+// Per ROADMAP.md line 672: double-tap/click for node centering zoom.
+func (c *Camera) CenterOnWithZoom(worldX, worldY, targetScale float64) {
+	c.TargetX = worldX
+	c.TargetY = worldY
+	c.TargetScale = clampScale(targetScale)
+	c.Animating = true
+	c.velocityX = 0
+	c.velocityY = 0
+}
+
+// IsCentered returns true if the camera is approximately centered on the given position.
+func (c *Camera) IsCentered(worldX, worldY, tolerance float64) bool {
+	dx := math.Abs(c.X - worldX)
+	dy := math.Abs(c.Y - worldY)
+	return dx < tolerance && dy < tolerance
+}
+
 // ApplyMomentum starts momentum scrolling based on the last pan velocity.
 // screenDx and screenDy are the last screen-space deltas from the pan gesture.
 // This should be called when the user releases a pan gesture.
@@ -291,4 +320,15 @@ func HitTest(nodeX, nodeY, pointX, pointY, radius float64) bool {
 	dx := nodeX - pointX
 	dy := nodeY - pointY
 	return dx*dx+dy*dy <= radius*radius
+}
+
+// clampScale constrains the scale to valid zoom range [MinScale, MaxScale].
+func clampScale(scale float64) float64 {
+	if scale < MinScale {
+		return MinScale
+	}
+	if scale > MaxScale {
+		return MaxScale
+	}
+	return scale
 }

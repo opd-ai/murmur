@@ -9,9 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Summary
 
-First alpha release of MURMUR decentralized social network. Core infrastructure 85-90% complete with operational networking, identity, content propagation, anonymous layer mechanics, and visualization. Security hardened with key zeroing, deduplication, and rate limiting. Complete 6-phase onboarding flow implemented. Cross-layer visibility operational for Specter Marks.
+First alpha release of MURMUR decentralized social network. Core infrastructure 85-90% complete with operational networking, identity, content propagation, anonymous layer mechanics, and visualization. Security hardened with key zeroing, deduplication, and rate limiting. Complete 6-phase onboarding flow implemented. Cross-layer visibility operational for Specter Marks. Pulse Map zoom level rendering (Macro/Meso/Micro) and navigation views (ego-centric/network-centric) implemented.
 
 ### Added
+
+**Pulse Map Visualization (2026-05-05)**
+- Macro View rendering: simple colored dots for full network overview at scale <0.5
+- Meso View rendering: full node detail with labels for 50-200 node neighborhoods at scale 0.5-2.0
+- Micro View rendering: maximum detail with all visual effects at scale ≥2.0
+- Ego-centric view: camera centering on own node via Home or 'H' key
+- Network-centric view: camera centering on network centroid via 'N' key with adaptive zoom
+- Camera centering methods: `CenterOn()`, `CenterOnWithZoom()`, `IsCentered()`
+- Edge rendering optimization: faint lines at Macro zoom to prevent visual overload
+- Text label visibility: labels shown at Meso and Micro zoom levels only
 
 **Networking & Infrastructure**
 - Decentralized P2P networking via libp2p v0.48+ with Noise XX encryption

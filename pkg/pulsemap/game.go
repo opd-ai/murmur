@@ -187,6 +187,7 @@ func (g *Game) Update() error {
 	g.handleComposePanelToggle()
 	g.handleSearchBarToggle()
 	g.handleFindSelf()
+	g.handleNetworkView()
 	g.handleBookmarkKeys()
 	g.handleNodeSelection()
 
@@ -358,6 +359,87 @@ func (g *Game) centerOnSelfNode() {
 	} else {
 		// Fallback: center at origin (where self node should be).
 		g.camera.AnimateToWithZoom(0, 0, 1.0)
+	}
+}
+
+// centerOnNetwork animates the camera to show the entire network from a global perspective.
+// Per ROADMAP.md line 681: network-centric view as alternative to ego-centric view.
+func (g *Game) centerOnNetwork() {
+	positions := g.engine.Positions().Get()
+	if len(positions) == 0 {
+		return
+	}
+
+	// Calculate network centroid and bounds.
+	var sumX, sumY float64
+	var minX, maxX, minY, maxY float64
+	first := true
+
+	for _, pos := range positions {
+		sumX += pos.X
+		sumY += pos.Y
+		if first {
+			minX, maxX = pos.X, pos.X
+			minY, maxY = pos.Y, pos.Y
+			first = false
+		} else {
+			if pos.X < minX {
+				minX = pos.X
+			}
+			if pos.X > maxX {
+				maxX = pos.X
+			}
+			if pos.Y < minY {
+				minY = pos.Y
+			}
+			if pos.Y > maxY {
+				maxY = pos.Y
+			}
+		}
+	}
+
+	// Centroid is the average position.
+	centroidX := sumX / float64(len(positions))
+	centroidY := sumY / float64(len(positions))
+
+	// Calculate zoom level to fit the entire network in view.
+	// Use 80% of screen dimensions to leave margin.
+	networkWidth := maxX - minX
+	networkHeight := maxY - minY
+	if networkWidth < 1 {
+		networkWidth = 1
+	}
+	if networkHeight < 1 {
+		networkHeight = 1
+	}
+
+	// Calculate scale to fit network into screen with margin.
+	scaleX := float64(g.screenWidth) * 0.8 / networkWidth
+	scaleY := float64(g.screenHeight) * 0.8 / networkHeight
+	targetScale := scaleX
+	if scaleY < targetScale {
+		targetScale = scaleY
+	}
+
+	// Constrain to valid zoom range.
+	const minZoom = 0.1
+	const maxZoom = 2.0
+	if targetScale < minZoom {
+		targetScale = minZoom
+	}
+	if targetScale > maxZoom {
+		targetScale = maxZoom
+	}
+
+	// Animate to network centroid with calculated zoom.
+	g.camera.AnimateToWithZoom(centroidX, centroidY, targetScale)
+}
+
+// handleNetworkView centers the camera on the network centroid when 'N' key is pressed.
+// Per ROADMAP.md line 681: network-centric view for global perspective.
+func (g *Game) handleNetworkView() {
+	if inpututil.IsKeyJustPressed(ebiten.KeyN) {
+		g.centerOnNetwork()
 	}
 }
 
