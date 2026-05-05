@@ -29,16 +29,32 @@ func TestCameraPan(t *testing.T) {
 func TestCameraZoom(t *testing.T) {
 	c := NewCamera()
 
-	// Zoom in (factor > 1)
+	// Zoom in (factor > 1) - now animated, so TargetScale changes immediately
 	c.Zoom(2.0, 400, 300, 800, 600)
-	if c.Scale != 2.0 {
-		t.Errorf("expected scale 2.0, got %f", c.Scale)
+	if c.TargetScale != 2.0 {
+		t.Errorf("expected target scale 2.0, got %f", c.TargetScale)
+	}
+	if !c.Animating {
+		t.Error("expected zooming to trigger animation")
+	}
+
+	// Run animation until complete
+	for c.Animating {
+		c.Update()
+	}
+
+	// Should reach target scale
+	if math.Abs(c.Scale-2.0) > 0.01 {
+		t.Errorf("expected scale 2.0 after animation, got %f", c.Scale)
 	}
 
 	// Zoom out
 	c.Zoom(0.5, 400, 300, 800, 600)
-	if c.Scale != 1.0 {
-		t.Errorf("expected scale 1.0, got %f", c.Scale)
+	for c.Animating {
+		c.Update()
+	}
+	if math.Abs(c.Scale-1.0) > 0.01 {
+		t.Errorf("expected scale 1.0 after animation, got %f", c.Scale)
 	}
 }
 
@@ -48,6 +64,10 @@ func TestCameraZoomLimits(t *testing.T) {
 	// Try to zoom beyond max
 	for i := 0; i < 10; i++ {
 		c.Zoom(2.0, 400, 300, 800, 600)
+		// Animate to completion
+		for c.Animating {
+			c.Update()
+		}
 	}
 	if c.Scale > MaxScale {
 		t.Errorf("scale %f exceeds max %f", c.Scale, MaxScale)
@@ -56,6 +76,10 @@ func TestCameraZoomLimits(t *testing.T) {
 	// Try to zoom beyond min
 	for i := 0; i < 10; i++ {
 		c.Zoom(0.1, 400, 300, 800, 600)
+		// Animate to completion
+		for c.Animating {
+			c.Update()
+		}
 	}
 	if c.Scale < MinScale {
 		t.Errorf("scale %f below min %f", c.Scale, MinScale)
@@ -309,5 +333,80 @@ func TestInputStateDeltaResets(t *testing.T) {
 	s.EndDrag()
 	if s.LastDx != 0 || s.LastDy != 0 {
 		t.Error("expected zero delta after EndDrag")
+	}
+}
+
+func TestGetZoomLevel(t *testing.T) {
+	c := NewCamera()
+
+	// Test Macro level (scale < 0.5)
+	c.Scale = 0.3
+	if c.GetZoomLevel() != ZoomLevelMacro {
+		t.Errorf("expected ZoomLevelMacro for scale 0.3, got %v", c.GetZoomLevel())
+	}
+
+	// Test Meso level (0.5 <= scale < 2.0)
+	c.Scale = 1.0
+	if c.GetZoomLevel() != ZoomLevelMeso {
+		t.Errorf("expected ZoomLevelMeso for scale 1.0, got %v", c.GetZoomLevel())
+	}
+
+	// Test Micro level (scale >= 2.0)
+	c.Scale = 3.0
+	if c.GetZoomLevel() != ZoomLevelMicro {
+		t.Errorf("expected ZoomLevelMicro for scale 3.0, got %v", c.GetZoomLevel())
+	}
+
+	// Test boundary conditions
+	c.Scale = 0.5
+	if c.GetZoomLevel() != ZoomLevelMeso {
+		t.Errorf("expected ZoomLevelMeso at boundary 0.5, got %v", c.GetZoomLevel())
+	}
+
+	c.Scale = 2.0
+	if c.GetZoomLevel() != ZoomLevelMicro {
+		t.Errorf("expected ZoomLevelMicro at boundary 2.0, got %v", c.GetZoomLevel())
+	}
+}
+
+func TestSmoothZoomAnimation(t *testing.T) {
+	c := NewCamera()
+	c.Scale = 1.0
+	c.TargetScale = 1.0
+
+	// Trigger zoom to 2.0x
+	c.Zoom(2.0, 400, 300, 800, 600)
+
+	// Verify animation is enabled
+	if !c.Animating {
+		t.Error("expected zoom to trigger animation")
+	}
+
+	// Verify target scale is set
+	if c.TargetScale != 2.0 {
+		t.Errorf("expected target scale 2.0, got %f", c.TargetScale)
+	}
+
+	// Verify scale changes gradually over multiple updates
+	initialScale := c.Scale
+	c.Update()
+	intermediateScale := c.Scale
+
+	// Scale should have changed but not reached target yet
+	if intermediateScale == initialScale {
+		t.Error("expected scale to change on first update")
+	}
+	if math.Abs(intermediateScale-2.0) < 0.01 {
+		t.Error("expected scale to not reach target immediately (should animate)")
+	}
+
+	// Animate to completion
+	for c.Animating && c.Scale < 1.99 {
+		c.Update()
+	}
+
+	// Verify we reached the target
+	if math.Abs(c.Scale-2.0) > 0.01 {
+		t.Errorf("expected scale to reach 2.0 after animation, got %f", c.Scale)
 	}
 }

@@ -38,6 +38,29 @@ const MinScale = 0.1
 // MaxScale is the maximum zoom level (close view).
 const MaxScale = 5.0
 
+// ZoomLevel represents the level of detail based on zoom scale.
+type ZoomLevel int
+
+const (
+	// ZoomLevelMacro shows full network with colored dots (scale < 0.5).
+	ZoomLevelMacro ZoomLevel = iota
+	// ZoomLevelMeso shows 50-200 node neighborhood with moderate detail (0.5 <= scale < 2.0).
+	ZoomLevelMeso
+	// ZoomLevelMicro shows 5-20 nodes at full detail with labels (scale >= 2.0).
+	ZoomLevelMicro
+)
+
+// GetZoomLevel returns the current level of detail based on scale.
+func (c *Camera) GetZoomLevel() ZoomLevel {
+	if c.Scale < 0.5 {
+		return ZoomLevelMacro
+	}
+	if c.Scale < 2.0 {
+		return ZoomLevelMeso
+	}
+	return ZoomLevelMicro
+}
+
 // Pan moves the camera by the given screen-space delta.
 func (c *Camera) Pan(dx, dy float64) {
 	// Convert screen delta to world delta based on current scale
@@ -51,12 +74,12 @@ func (c *Camera) Pan(dx, dy float64) {
 	c.velocityY = 0
 }
 
-// Zoom adjusts the zoom level, keeping the given screen point fixed.
+// Zoom adjusts the zoom level smoothly, keeping the given screen point fixed.
 func (c *Camera) Zoom(factor, screenX, screenY, screenWidth, screenHeight float64) {
-	// Calculate world position under cursor before zoom
+	// Calculate world position under cursor
 	worldX, worldY := c.ScreenToWorld(screenX, screenY, screenWidth, screenHeight)
 
-	// Apply zoom
+	// Calculate new target scale
 	newScale := c.Scale * factor
 	if newScale < MinScale {
 		newScale = MinScale
@@ -64,17 +87,15 @@ func (c *Camera) Zoom(factor, screenX, screenY, screenWidth, screenHeight float6
 	if newScale > MaxScale {
 		newScale = MaxScale
 	}
-	c.Scale = newScale
+
+	// Set target scale for smooth animation
 	c.TargetScale = newScale
+	c.Animating = true
 
-	// Calculate where that world point is now on screen
-	newScreenX, newScreenY := c.WorldToScreen(worldX, worldY, screenWidth, screenHeight)
-
-	// Adjust camera to keep the point under cursor
-	c.X += (screenX - newScreenX) / c.Scale
-	c.Y += (screenY - newScreenY) / c.Scale
-	c.TargetX = c.X
-	c.TargetY = c.Y
+	// Adjust target position to keep the world point under the cursor
+	// as we animate toward the target scale
+	c.TargetX = worldX - (screenX-screenWidth/2)/newScale
+	c.TargetY = worldY - (screenY-screenHeight/2)/newScale
 }
 
 // AnimateTo starts an animation to the given world position.

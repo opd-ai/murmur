@@ -150,9 +150,14 @@ func TestValidateInvalidPoW(t *testing.T) {
 	}
 
 	// Corrupt the nonce to ensure PoW verification fails deterministically.
-	// Adding 1 to the nonce makes the hash invalid (unless it happens to
-	// also satisfy the difficulty, which is astronomically unlikely).
-	wave.PowNonce = wave.PowNonce + 1
+	// Set to MaxUint64 which is astronomically unlikely to be the valid nonce.
+	// Save the original valid nonce to ensure we're actually changing it.
+	validNonce := wave.PowNonce
+	wave.PowNonce = ^uint64(0) // MaxUint64
+	if wave.PowNonce == validNonce {
+		// Extremely unlikely, but use 0 if MaxUint64 happened to be valid
+		wave.PowNonce = 0
+	}
 
 	// Validation should fail with invalid PoW.
 	err = Validate(wave, 8)

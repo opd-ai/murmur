@@ -673,7 +673,7 @@
 
 ### Zoom & Navigation
 
-- [ ] **Continuous smooth zooming** with level-of-detail transitions
+- [x] **Continuous smooth zooming** with level-of-detail transitions
 - [ ] **Macro View** — full network, colored dots, cluster visibility
 - [ ] **Meso View** — 50–200 node neighborhood
 - [ ] **Micro View** — 5–20 nodes at full detail
