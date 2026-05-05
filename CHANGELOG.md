@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2026-05-05
+
+### Added
+
+**Monitoring & Shutdown (2026-05-05)**
+- **Graceful shutdown with timeout** — `pkg/app/murmur.go::Close()` now waits up to 10 seconds for goroutines to terminate, logging a warning if timeout is reached (ROADMAP.md line 814).
+- **Database size monitoring** — `pkg/app/murmur.go::checkDatabaseSize()` monitors Bbolt file size every 60 seconds, logging warnings when approaching 50 MiB budget (ROADMAP.md line 835).
+- **GC sweep duration monitoring** — `pkg/content/storage/cache.go::StartGC()` tracks garbage collection duration and logs warnings if sweeps exceed 100ms target (ROADMAP.md line 836).
+
+### Fixed
+
+**Test Compilation (2026-05-05)**
+- Added `raceEnabled` constant to `pkg/pulsemap/layout/performance_test.go` — fixes undefined variable error preventing test compilation.
+
 ## [0.1.1] - 2026-05-05
 
 ### Added

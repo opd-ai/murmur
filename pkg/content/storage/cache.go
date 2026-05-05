@@ -390,6 +390,7 @@ func (c *Cache) EvictOldest(count int) int {
 
 // StartGC runs periodic garbage collection.
 // Returns a cancel function to stop the GC goroutine.
+// Per ROADMAP.md line 836, monitors GC sweep duration (<100ms target).
 func (c *Cache) StartGC(ctx context.Context, interval time.Duration) context.CancelFunc {
 	ctx, cancel := context.WithCancel(ctx)
 
@@ -402,7 +403,19 @@ func (c *Cache) StartGC(ctx context.Context, interval time.Duration) context.Can
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				c.GarbageCollect()
+				start := time.Now()
+				count, err := c.GarbageCollect()
+				duration := time.Since(start)
+
+				if duration > GCTargetTime {
+					// Log warning if GC exceeds target duration (100ms per TECHNICAL_IMPLEMENTATION.md).
+					durationMs := duration.Milliseconds()
+					println("WARNING: GC sweep took", durationMs, "ms (target <100ms), collected", count, "waves")
+				}
+
+				if err != nil {
+					println("GC sweep error:", err.Error())
+				}
 			}
 		}
 	}()

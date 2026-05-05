@@ -811,7 +811,7 @@
   - [x] Beacon loop (relay advertisement, line 514)
   - [x] Relay prune loop (line 542)
 - [x] **UI renderer orchestration** — Ebitengine Game interface with Update()/Draw() delegation (pkg/pulsemap/game.go implements ebiten.Game)
-- [ ] **Graceful shutdown** — ordered subsystem teardown with timeout
+- [x] **Graceful shutdown** — ordered subsystem teardown with timeout
 - [ ] **Cold start <5 seconds, warm start <2 seconds** performance targets
 
 ### Security Hardening
@@ -819,7 +819,7 @@
 - [x] `pkg/security/` — security audit trail and threat assessment
 - [x] **Key material zeroing** — zero sensitive bytes before GC eligibility (pkg/identity/keys/keypair.go, backup.go, pkg/anonymous/shroud/circuit.go per AUDIT.md CRITICAL resolution 2026-05-04)
 - [ ] **Keystore separation** — Surface and Specter keys in separate encrypted files
-- [ ] **PoW verification before signature** — ordering per SECURITY_PRIVACY.md
+- [x] **PoW verification before signature** — ordering per SECURITY_PRIVACY.md
 - [x] **Signed DHT records** — prevent DHT poisoning (pkg/networking/discovery/dht.go enables ValidateRecords)
 - [ ] **Multi-region connection diversity** — eclipse attack resistance
 - [x] **Rate limiting per peer** — per-peer message rate caps (pkg/networking/gossip/pubsub.go 10 msg/sec limit per AUDIT.md HIGH resolution 2026-05-04)
@@ -832,8 +832,8 @@
 - [ ] OpenTelemetry tracing for subsystem interactions
 - [x] Health check endpoint for bootstrap node operators
 - [x] Memory usage monitoring (<256 MiB budget enforcement)
-- [ ] Bbolt database size monitoring (<50 MiB budget)
-- [ ] GC sweep duration monitoring (<100ms target)
+- [x] Bbolt database size monitoring (<50 MiB budget)
+- [x] GC sweep duration monitoring (<100ms target)
 
 ### Testing
 

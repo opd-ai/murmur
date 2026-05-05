@@ -615,56 +615,90 @@ func (a *App) runRelayPruneLoop() {
 	}
 }
 
-// runMemoryMonitor periodically checks memory usage and triggers eviction.
+// runMemoryMonitor periodically checks memory usage and database size, triggering eviction when needed.
 // Per AUDIT.md HIGH "No memory budget enforcement", this enforces the
 // 256 MiB memory budget stated in TECHNICAL_IMPLEMENTATION.md §6.
+// Per ROADMAP.md line 835, monitors Bbolt database size (<50 MiB budget).
 func (a *App) runMemoryMonitor(cache *storage.Cache) {
 	ticker := time.NewTicker(60 * time.Second)
 	defer ticker.Stop()
-
-	const (
-		targetMemory  = 200 * 1024 * 1024 // 200 MiB - trigger eviction
-		warningMemory = 240 * 1024 * 1024 // 240 MiB - log warning
-		maxMemory     = 256 * 1024 * 1024 // 256 MiB - stated target
-	)
 
 	for {
 		select {
 		case <-a.ctx.Done():
 			return
 		case <-ticker.C:
-			var m runtime.MemStats
-			runtime.ReadMemStats(&m)
-			allocMB := m.Alloc / (1024 * 1024)
-
-			// Memory within budget - no action needed.
-			if m.Alloc < targetMemory {
-				continue
-			}
-
-			// Memory pressure detected - evict oldest Waves.
-			fmt.Printf("Memory pressure: %d MiB allocated (target 200 MiB), evicting Waves...\n", allocMB)
-			evicted := cache.EvictOldest(1000)
-			fmt.Printf("  -> Evicted %d oldest Waves\n", evicted)
-
-			// Check if eviction was sufficient.
-			runtime.ReadMemStats(&m)
-			allocMB = m.Alloc / (1024 * 1024)
-
-			if m.Alloc >= warningMemory {
-				fmt.Printf("WARNING: Memory still high after eviction: %d MiB (target 256 MiB)\n", allocMB)
-				fmt.Println("  -> Consider stopping to accept new Waves or increasing eviction threshold")
-			}
-
-			// Force GC to reclaim freed memory.
-			runtime.GC()
+			a.checkMemory(cache)
+			a.checkDatabaseSize()
 		}
 	}
 }
 
-// Close shuts down the application gracefully.
+// checkMemory monitors memory usage and triggers eviction if needed.
+func (a *App) checkMemory(cache *storage.Cache) {
+	const (
+		targetMemory  = 200 * 1024 * 1024 // 200 MiB - trigger eviction
+		warningMemory = 240 * 1024 * 1024 // 240 MiB - log warning
+	)
+
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	allocMB := m.Alloc / (1024 * 1024)
+
+	if m.Alloc < targetMemory {
+		return
+	}
+
+	// Memory pressure detected - evict oldest Waves.
+	fmt.Printf("Memory pressure: %d MiB allocated (target 200 MiB), evicting Waves...\n", allocMB)
+	evicted := cache.EvictOldest(1000)
+	fmt.Printf("  -> Evicted %d oldest Waves\n", evicted)
+
+	// Check if eviction was sufficient.
+	runtime.ReadMemStats(&m)
+	allocMB = m.Alloc / (1024 * 1024)
+
+	if m.Alloc >= warningMemory {
+		fmt.Printf("WARNING: Memory still high after eviction: %d MiB (target 256 MiB)\n", allocMB)
+		fmt.Println("  -> Consider stopping to accept new Waves or increasing eviction threshold")
+	}
+
+	// Force GC to reclaim freed memory.
+	runtime.GC()
+}
+
+// checkDatabaseSize monitors database file size and logs warnings if needed.
+func (a *App) checkDatabaseSize() {
+	const (
+		targetDBSize  = 40 * 1024 * 1024 // 40 MiB - trigger cleanup
+		warningDBSize = 45 * 1024 * 1024 // 45 MiB - log warning
+	)
+
+	if a.subsystems.Storage == nil {
+		return
+	}
+
+	dbSize, err := a.subsystems.Storage.DatabaseSize()
+	if err != nil {
+		return
+	}
+
+	if dbSize < targetDBSize {
+		return
+	}
+
+	dbSizeMB := dbSize / (1024 * 1024)
+	fmt.Printf("Database size: %d MiB (target 40 MiB), cleanup recommended\n", dbSizeMB)
+
+	if dbSize >= warningDBSize {
+		fmt.Printf("WARNING: Database size %d MiB approaching limit (budget 50 MiB)\n", dbSizeMB)
+	}
+}
+
+// Close shuts down the application gracefully with a 10-second timeout.
 // It cancels the context and waits for all goroutines to complete.
 // Subsystems are closed in reverse initialization order.
+// Per ROADMAP.md line 814: ordered subsystem teardown with timeout.
 func (a *App) Close() error {
 	a.mu.Lock()
 	wasRunning := a.running
@@ -690,7 +724,21 @@ func (a *App) Close() error {
 
 	// Only close subsystems if the app was running.
 	if wasRunning {
-		a.wg.Wait()
+		// Wait for goroutines with timeout.
+		done := make(chan struct{})
+		go func() {
+			a.wg.Wait()
+			close(done)
+		}()
+
+		select {
+		case <-done:
+			// Goroutines completed successfully.
+		case <-time.After(10 * time.Second):
+			// Timeout reached - force shutdown.
+			fmt.Fprintln(os.Stderr, "WARNING: Graceful shutdown timeout reached after 10 seconds")
+		}
+
 		return a.closeSubsystems()
 	}
 

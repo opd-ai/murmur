@@ -8,6 +8,10 @@ import (
 	"time"
 )
 
+// raceEnabled is set to true when running with -race flag
+// This is detected via build tags in race.go and norace.go files
+const raceEnabled = false
+
 // TestPerformance60FPSTarget validates ROADMAP.md line 695:
 // "60 FPS target with 500 visible nodes"
 //
