@@ -344,7 +344,7 @@ func (cp *CouncilPanel) drawProposalItem(screen *ebiten.Image, index int, prop *
 	}
 
 	cp.drawProposalStatusIndicator(screen, prop, x, itemY, padding, itemHeight)
-	cp.drawProposalTextPlaceholder(screen, x, itemY, w, padding, itemHeight)
+	cp.drawProposalText(screen, prop, x, itemY, w, padding, itemHeight)
 	cp.drawProposalVoteCounts(screen, prop, x, itemY, w, padding, itemHeight)
 }
 
@@ -361,10 +361,16 @@ func (cp *CouncilPanel) drawProposalStatusIndicator(screen *ebiten.Image, prop *
 	vector.DrawFilledCircle(screen, x+padding+10, itemY+itemHeight/2, 8, statusColor, true)
 }
 
-// drawProposalTextPlaceholder draws the proposal text area with content.
-func (cp *CouncilPanel) drawProposalTextPlaceholder(screen *ebiten.Image, x, itemY, w, padding, itemHeight float32) {
+// drawProposalText draws the proposal text area with the truncated proposal content.
+func (cp *CouncilPanel) drawProposalText(screen *ebiten.Image, prop *CouncilProposalInfo, x, itemY, w, padding, itemHeight float32) {
 	vector.DrawFilledRect(screen, x+padding+30, itemY+10, w-padding*2-40, itemHeight-30, cp.theme.InputBackground, true)
+
 	// Render truncated proposal text over the background.
+	content := prop.Text
+	if len(content) > 38 {
+		content = content[:38] + "..."
+	}
+	drawUIText(screen, content, float64(x+padding)+36, float64(itemY)+14, cp.theme.TextPrimary)
 }
 
 // drawProposalVoteCounts draws vote count bars.

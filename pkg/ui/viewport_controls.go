@@ -9,8 +9,6 @@ package ui
 import (
 	"image/color"
 
-	"image/color"
-
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )

@@ -372,18 +372,6 @@ func (p *ComposePanel) drawCharCount(screen *ebiten.Image, px, py int) {
 	countX := px + p.width - p.theme.Padding - 80
 	countY := py + 195
 
-	// Character count.
-	charCount := len(p.content)
-	var countColor color.RGBA
-	if charCount > MaxWaveLength-100 {
-		countColor = p.theme.TextError
-	} else if charCount > MaxWaveLength-500 {
-		countColor = color.RGBA{255, 200, 100, 255}
-	} else {
-		countColor = p.theme.TextSecondary
-	}
-
-	// Render character count (e.g. "42/2048").
 	charCount := len(p.content)
 	var countColor color.RGBA
 	if charCount > MaxWaveLength-100 {
