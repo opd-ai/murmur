@@ -54,3 +54,14 @@ func drawUICenteredText(dst *ebiten.Image, str string, cx, y float64, clr color.
 func measureUIText(str string) (float64, float64) {
 	return text.Measure(str, defaultFont, 0)
 }
+
+// truncateRunes truncates s to at most max runes, appending "…" if truncated.
+// Unlike a byte-slice truncation (s[:n]), this never splits a multi-byte UTF-8
+// rune and is safe for any Unicode input.
+func truncateRunes(s string, max int) string {
+	runes := []rune(s)
+	if len(runes) <= max {
+		return s
+	}
+	return string(runes[:max]) + "…"
+}

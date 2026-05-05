@@ -347,9 +347,15 @@ func (s *SearchBar) Draw(screen *ebiten.Image) {
 	}
 
 	// Draw cursor (blinking).
+	// Measure the rendered text prefix up to cursorPos so the cursor is
+	// positioned accurately regardless of character width or encoding.
 	if s.visible && (ebiten.TPS()/searchCursorBlinkRate)%2 == 0 {
-		// Cursor X uses 7px-per-character to match basicfont.Face7x13 metrics.
-		cursorX := float32(s.barX+searchBarPadding) + float32(s.cursorPos*7)
+		prefixEnd := s.cursorPos
+		if prefixEnd > len(s.query) {
+			prefixEnd = len(s.query)
+		}
+		prefixW, _ := measureUIText(s.query[:prefixEnd])
+		cursorX := float32(s.barX+searchBarPadding) + float32(prefixW)
 		cursorColor := s.theme.TextPrimary
 		cursorColor.A = alpha
 		vector.DrawFilledRect(screen, cursorX, float32(s.barY+searchBarPadding), 2, 14, cursorColor, true)

@@ -409,11 +409,8 @@ func (p *NodeDetailPanel) drawRecentWaves(screen *ebiten.Image, y float32) {
 		// Item background.
 		vector.DrawFilledRect(screen, listX, itemY, listW, float32(nodeDetailListItemHeight-5), p.theme.InputBackground, true)
 
-		// Wave content (truncated to ~40 chars).
-		content := wave.Content
-		if len(content) > 40 {
-			content = content[:40] + "..."
-		}
+		// Wave content (truncated to ~40 runes; rune-safe for any Unicode content).
+		content := truncateRunes(wave.Content, 40)
 		drawUIText(screen, content, float64(listX)+8, float64(itemY)+6, p.theme.TextPrimary)
 
 		// Timestamp on second line.

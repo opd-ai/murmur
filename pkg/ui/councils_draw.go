@@ -300,14 +300,12 @@ func (cp *CouncilPanel) drawMembersList(screen *ebiten.Image, x, y, w, h float32
 		statusColor := cp.theme.Success
 		vector.DrawFilledCircle(screen, x+padding+10, itemY+itemHeight/2, 6, statusColor, true)
 
-		// Member name (truncated to avoid overflow).
+		// Member name (rune-safe truncation to avoid splitting multi-byte characters).
 		name := member.Name
 		if name == "" {
 			name = "(anonymous)"
 		}
-		if len(name) > 20 {
-			name = name[:20] + "..."
-		}
+		name = truncateRunes(name, 20)
 		drawUIText(screen, name, float64(x+padding)+25, float64(itemY)+float64(itemHeight)/2-4, cp.theme.TextPrimary)
 	}
 }
@@ -366,10 +364,8 @@ func (cp *CouncilPanel) drawProposalText(screen *ebiten.Image, prop *CouncilProp
 	vector.DrawFilledRect(screen, x+padding+30, itemY+10, w-padding*2-40, itemHeight-30, cp.theme.InputBackground, true)
 
 	// Render truncated proposal text over the background.
-	content := prop.Text
-	if len(content) > 38 {
-		content = content[:38] + "..."
-	}
+	// Use rune-safe truncation so multi-byte Unicode characters are never split.
+	content := truncateRunes(prop.Text, 38)
 	drawUIText(screen, content, float64(x+padding)+36, float64(itemY)+14, cp.theme.TextPrimary)
 }
 
@@ -484,8 +480,11 @@ func (cp *CouncilPanel) drawTextField(screen *ebiten.Image, x, y, w float32, lab
 	}
 
 	// Cursor if focused.
+	// Measure the rendered prefix width so cursor placement is accurate for
+	// any Unicode input rather than relying on a fixed bytes-per-character estimate.
 	if focused {
-		cursorX := x + 8 + float32(len(value)*7)
+		prefixW, _ := measureUIText(value)
+		cursorX := x + 8 + float32(prefixW)
 		cursorAlpha := uint8(128 + 127*sin32(cp.animPhase*4))
 		cursorColor := cp.theme.TextPrimary
 		cursorColor.A = cursorAlpha
