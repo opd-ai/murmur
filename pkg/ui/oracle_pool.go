@@ -19,11 +19,6 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
-// defaultFont holds the default font face for text rendering.
-// It must be initialized before drawing text. If nil, text drawing is skipped.
-// TODO: Initialize from embedded font via text/v2.NewGoTextFaceSource.
-var defaultFont text.Face
-
 // OraclePoolState represents the pool state for display.
 type OraclePoolState uint8
 

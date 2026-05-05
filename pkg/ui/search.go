@@ -331,27 +331,34 @@ func (s *SearchBar) Draw(screen *ebiten.Image) {
 	borderColor.A = alpha
 	vector.StrokeRect(screen, float32(s.barX), float32(s.barY), float32(s.barW), float32(s.barH), 2.0, borderColor, true)
 
-	// Draw search query text (simplified - actual implementation uses text rendering).
-	textColor := s.theme.TextPrimary
-	textColor.A = alpha
-	textX := float32(s.barX + searchBarPadding)
-	textY := float32(s.barY + searchBarPadding)
+	// Draw search query text or placeholder.
+	textX := float64(s.barX + searchBarPadding)
+	textY := float64(s.barY + searchBarPadding + 2)
+
 	if s.query == "" {
-		// Draw placeholder.
+		// Dimmed placeholder text.
 		placeholderColor := s.theme.TextSecondary
 		placeholderColor.A = uint8(float64(alpha) * 0.5)
-		vector.DrawFilledRect(screen, textX, textY, 200, 20, placeholderColor, true)
-		// TODO: Draw "Search by name, fingerprint..." text.
+		drawUIText(screen, "Search by name, fingerprint...", textX, textY, placeholderColor)
 	} else {
-		vector.DrawFilledRect(screen, textX, textY, float32(len(s.query)*8), 20, textColor, true)
-		// TODO: Draw s.query text.
+		textColor := s.theme.TextPrimary
+		textColor.A = alpha
+		drawUIText(screen, s.query, textX, textY, textColor)
 	}
 
 	// Draw cursor (blinking).
+	// Measure the rendered text prefix up to cursorPos so the cursor is
+	// positioned accurately regardless of character width or encoding.
 	if s.visible && (ebiten.TPS()/searchCursorBlinkRate)%2 == 0 {
-		cursorX := textX + float32(s.cursorPos*8)
-		cursorY := textY
-		vector.DrawFilledRect(screen, cursorX, cursorY, 2, 20, textColor, true)
+		prefixEnd := s.cursorPos
+		if prefixEnd > len(s.query) {
+			prefixEnd = len(s.query)
+		}
+		prefixW, _ := measureUIText(s.query[:prefixEnd])
+		cursorX := float32(s.barX+searchBarPadding) + float32(prefixW)
+		cursorColor := s.theme.TextPrimary
+		cursorColor.A = alpha
+		vector.DrawFilledRect(screen, cursorX, float32(s.barY+searchBarPadding), 2, 14, cursorColor, true)
 	}
 
 	// Draw results dropdown.
@@ -394,28 +401,23 @@ func (s *SearchBar) drawResults(screen *ebiten.Image, alpha uint8) {
 		// Draw display name.
 		nameColor := s.theme.TextPrimary
 		nameColor.A = alpha
-		nameX := float32(s.barX + searchBarPadding)
-		nameY := float32(itemY + 10)
-		vector.DrawFilledRect(screen, nameX, nameY, float32(len(result.DisplayName)*8), 15, nameColor, true)
-		// TODO: Draw result.DisplayName text.
+		nameX := float64(s.barX + searchBarPadding)
+		nameY := float64(itemY + 10)
+		drawUIText(screen, result.DisplayName, nameX, nameY, nameColor)
 
 		// Draw pseudonym below name (if Specter).
 		if result.IsSpecter && result.Pseudonym != "" {
 			pseudonymColor := s.theme.TextSecondary
 			pseudonymColor.A = alpha
-			pseudonymY := nameY + 20
-			vector.DrawFilledRect(screen, nameX, pseudonymY, 80, 12, pseudonymColor, true)
-			// TODO: Draw result.Pseudonym text.
+			drawUIText(screen, result.Pseudonym, nameX, nameY+16, pseudonymColor)
 		}
 
 		// Draw Specter badge if applicable.
 		if result.IsSpecter {
 			badgeColor := s.theme.AccentSecondary
 			badgeColor.A = alpha
-			badgeX := float32(s.barX + s.barW - 60)
-			badgeY := nameY
-			vector.DrawFilledRect(screen, badgeX, badgeY, 50, 15, badgeColor, true)
-			// TODO: Draw "Specter" badge text.
+			badgeX := float64(s.barX+s.barW) - 60
+			drawUIText(screen, "Specter", badgeX, nameY, badgeColor)
 		}
 	}
 }

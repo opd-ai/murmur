@@ -342,28 +342,25 @@ func (p *NodeDetailPanel) Draw(screen *ebiten.Image) {
 
 // drawHeader draws the node name and fingerprint.
 func (p *NodeDetailPanel) drawHeader(screen *ebiten.Image, y float32) {
-	// Draw display name (simplified - actual implementation uses text rendering).
-	nameColor := p.theme.TextPrimary
-	nameX := float32(p.panelX + nodeDetailPadding)
-	vector.DrawFilledRect(screen, nameX, y, 200, 20, nameColor, true)
+	nameX := float64(p.panelX + nodeDetailPadding)
 
-	// Draw fingerprint below name.
-	fingerprintY := y + 30
-	fingerprintColor := p.theme.TextSecondary
-	vector.DrawFilledRect(screen, nameX, fingerprintY, 150, 15, fingerprintColor, true)
+	// Display name (or fingerprint when name is empty).
+	displayName := p.nodeInfo.DisplayName
+	if displayName == "" {
+		displayName = p.nodeInfo.Fingerprint
+	}
+	drawUIText(screen, displayName, nameX, float64(y), p.theme.TextPrimary)
 
-	// TODO: Replace rectangles with actual text rendering using ebiten/v2/text/v2.
-	// Display p.nodeInfo.DisplayName and p.nodeInfo.Fingerprint.
+	// Fingerprint on the line below.
+	fingerprintY := float64(y) + 18
+	drawUIText(screen, p.nodeInfo.Fingerprint, nameX, fingerprintY, p.theme.TextSecondary)
 }
 
 // drawResonance draws the Resonance score and rank (for Specters).
 func (p *NodeDetailPanel) drawResonance(screen *ebiten.Image, y float32) {
-	resonanceX := float32(p.panelX + nodeDetailPadding)
-	resonanceColor := p.theme.AccentSecondary
-	vector.DrawFilledRect(screen, resonanceX, y, 100, 20, resonanceColor, true)
-
-	// TODO: Replace with actual text rendering.
-	// Display fmt.Sprintf("Resonance: %d (%s)", p.nodeInfo.Resonance, p.nodeInfo.ResonanceRank)
+	resonanceX := float64(p.panelX + nodeDetailPadding)
+	resonanceText := fmt.Sprintf("Resonance: %d (%s)", p.nodeInfo.Resonance, p.nodeInfo.ResonanceRank)
+	drawUIText(screen, resonanceText, resonanceX, float64(y), p.theme.AccentSecondary)
 }
 
 // drawActionButtons draws the action buttons.
@@ -374,37 +371,30 @@ func (p *NodeDetailPanel) drawActionButtons(screen *ebiten.Image, y float32) {
 
 	for i, label := range buttonLabels {
 		btnY := y + float32(i*(nodeDetailButtonHeight+nodeDetailButtonSpacing))
-		btnColor := p.theme.ButtonBackground
 
 		// Draw button background.
-		vector.DrawFilledRect(screen, buttonX, btnY, buttonW, float32(nodeDetailButtonHeight), btnColor, true)
+		vector.DrawFilledRect(screen, buttonX, btnY, buttonW, float32(nodeDetailButtonHeight), p.theme.ButtonBackground, true)
 
 		// Draw button border.
 		vector.StrokeRect(screen, buttonX, btnY, buttonW, float32(nodeDetailButtonHeight), 1.0, p.theme.PanelBorder, true)
 
-		// Draw button label (simplified).
-		labelColor := p.theme.TextPrimary
-		labelX := buttonX + 10
-		labelY := btnY + 10
-		vector.DrawFilledRect(screen, labelX, labelY, float32(len(label)*8), 15, labelColor, true)
-
-		// TODO: Replace with actual text rendering.
-		// Display label centered in button.
+		// Draw centered button label.
+		cx := float64(buttonX) + float64(buttonW)/2
+		ty := float64(btnY) + float64(nodeDetailButtonHeight)/2 - 4
+		drawUICenteredText(screen, label, cx, ty, p.theme.TextPrimary)
 	}
 }
 
 // drawRecentWaves draws the Recent Waves list.
 func (p *NodeDetailPanel) drawRecentWaves(screen *ebiten.Image, y float32) {
-	// Draw section title.
-	titleColor := p.theme.TextPrimary
-	titleX := float32(p.panelX + nodeDetailPadding)
-	vector.DrawFilledRect(screen, titleX, y, 100, 20, titleColor, true)
-
-	// Draw list items.
-	listY := y + 30
 	listX := float32(p.panelX + nodeDetailPadding)
 	listW := float32(p.panelW - 2*nodeDetailPadding)
 
+	// Section title.
+	drawUIText(screen, "Recent Waves", float64(listX), float64(y), p.theme.TextPrimary)
+
+	// Draw list items.
+	listY := y + 22
 	visibleWaves := p.nodeInfo.RecentWaves
 	if len(visibleWaves) > p.waveScroll {
 		visibleWaves = visibleWaves[p.waveScroll:]
@@ -413,44 +403,30 @@ func (p *NodeDetailPanel) drawRecentWaves(screen *ebiten.Image, y float32) {
 		visibleWaves = visibleWaves[:nodeDetailMaxVisibleItems]
 	}
 
-	for i := range visibleWaves {
+	for i, wave := range visibleWaves {
 		itemY := listY + float32(i*nodeDetailListItemHeight)
 
-		// Draw item background.
-		itemBg := p.theme.InputBackground
-		vector.DrawFilledRect(screen, listX, itemY, listW, float32(nodeDetailListItemHeight-5), itemBg, true)
+		// Item background.
+		vector.DrawFilledRect(screen, listX, itemY, listW, float32(nodeDetailListItemHeight-5), p.theme.InputBackground, true)
 
-		// Draw Wave content (truncated).
-		contentColor := p.theme.TextPrimary
-		contentX := listX + 10
-		contentY := itemY + 10
-		vector.DrawFilledRect(screen, contentX, contentY, listW-20, 15, contentColor, true)
+		// Wave content (truncated to ~40 runes; rune-safe for any Unicode content).
+		content := truncateRunes(wave.Content, 40)
+		drawUIText(screen, content, float64(listX)+8, float64(itemY)+6, p.theme.TextPrimary)
 
-		// Draw timestamp.
-		timestampColor := p.theme.TextSecondary
-		timestampY := contentY + 25
-		vector.DrawFilledRect(screen, contentX, timestampY, 100, 12, timestampColor, true)
-
-		// TODO: Replace with actual text rendering.
-		// Display visibleWaves[i].Content (truncated) and visibleWaves[i].Timestamp.Format("15:04").
+		// Timestamp on second line.
+		timestamp := wave.Timestamp.Format("15:04")
+		drawUIText(screen, timestamp, float64(listX)+8, float64(itemY)+20, p.theme.TextSecondary)
 	}
-
-	// TODO: Draw scroll indicator if more items available.
 }
 
 // drawConnections draws the Connections list.
 func (p *NodeDetailPanel) drawConnections(screen *ebiten.Image, y float32) {
-	// Draw section title.
-	titleColor := p.theme.TextPrimary
-	titleX := float32(p.panelX + nodeDetailPadding)
-	vector.DrawFilledRect(screen, titleX, y, 150, 20, titleColor, true)
+	titleX := float64(p.panelX + nodeDetailPadding)
 
-	// Draw connection count.
-	countY := y + 25
-	countColor := p.theme.TextSecondary
+	// Section title.
+	drawUIText(screen, "Connections", titleX, float64(y), p.theme.TextPrimary)
+
+	// Connection count on the line below.
 	countText := fmt.Sprintf("Connections: %d", p.nodeInfo.ConnectionCount)
-	vector.DrawFilledRect(screen, titleX, countY, float32(len(countText)*7), 15, countColor, true)
-
-	// TODO: Draw connection list (similar to Waves list).
-	// For now, just show count.
+	drawUIText(screen, countText, titleX, float64(y)+18, p.theme.TextSecondary)
 }

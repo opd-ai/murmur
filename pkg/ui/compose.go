@@ -6,6 +6,7 @@
 package ui
 
 import (
+	"fmt"
 	"image/color"
 	"sync"
 	"unicode/utf8"
@@ -330,8 +331,7 @@ func (p *ComposePanel) drawTitle(screen *ebiten.Image, px, py int) {
 		title = "Reply to " + p.targetNodeID[:8] + "..."
 	}
 
-	// Draw title text (simplified - would use text/v2 with proper font).
-	_ = title // Title rendering requires font setup.
+	drawUICenteredText(screen, title, float64(px)+float64(p.width)/2, float64(py)+float64(titleHeight)/2-4, p.theme.TextPrimary)
 }
 
 // drawTextArea draws the text input area.
@@ -351,16 +351,20 @@ func (p *ComposePanel) drawTextArea(screen *ebiten.Image, px, py int) {
 	vector.StrokeRect(screen, float32(textX), float32(textY),
 		float32(textW), float32(textH), 1.0, borderColor, true)
 
-	// Draw cursor (blinking).
+	// Draw cursor (blinking at 7-px-per-char offset matching basicfont).
 	if int(p.anim.AnimTime()*2)%2 == 0 {
-		cursorX := textX + 8 + p.cursorPos*8 // Simplified cursor positioning.
-		cursorY := textY + 8
+		cursorX := textX + 8 + p.cursorPos*7
+		cursorY := textY + 4
 		vector.DrawFilledRect(screen, float32(cursorX), float32(cursorY),
-			2, 16, p.theme.TextPrimary, true)
+			2, 14, p.theme.TextPrimary, true)
 	}
 
-	// Content rendering would use text/v2 with proper font.
-	// Text rendering is deferred until font loading is implemented.
+	// Render wave content (placeholder text shown when empty).
+	if p.content == "" {
+		drawUIText(screen, "Type your Wave here...", float64(textX)+8, float64(textY)+6, p.theme.TextPlaceholder)
+	} else {
+		drawUIText(screen, p.content, float64(textX)+8, float64(textY)+6, p.theme.TextPrimary)
+	}
 }
 
 // drawCharCount draws the character count indicator.
@@ -368,7 +372,6 @@ func (p *ComposePanel) drawCharCount(screen *ebiten.Image, px, py int) {
 	countX := px + p.width - p.theme.Padding - 80
 	countY := py + 195
 
-	// Character count.
 	charCount := len(p.content)
 	var countColor color.RGBA
 	if charCount > MaxWaveLength-100 {
@@ -378,11 +381,8 @@ func (p *ComposePanel) drawCharCount(screen *ebiten.Image, px, py int) {
 	} else {
 		countColor = p.theme.TextSecondary
 	}
-
-	// Draw count indicator (simplified).
-	_ = countColor
-	_ = countX
-	_ = countY
+	countText := fmt.Sprintf("%d/%d", charCount, MaxWaveLength)
+	drawUIText(screen, countText, float64(countX), float64(countY), countColor)
 }
 
 // drawButtons draws the submit and cancel buttons.
@@ -400,7 +400,10 @@ func (p *ComposePanel) drawError(screen *ebiten.Image, px, py int) {
 	vector.DrawFilledRect(screen, float32(px+p.theme.Padding), float32(errorY),
 		float32(p.width-p.theme.Padding*2), 20, errorBg, true)
 
-	// Error text would be rendered with text/v2.
+	// Error message text.
+	if msg := p.anim.ErrorMessage(); msg != "" {
+		drawUIText(screen, msg, float64(px+p.theme.Padding)+6, float64(errorY)+4, p.theme.TextError)
+	}
 }
 
 // Content returns the current input content (for testing).

@@ -10,7 +10,6 @@ import (
 	"fmt"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
@@ -93,8 +92,8 @@ func (cp *CouncilPanel) drawTitle(screen *ebiten.Image, x, y, w float32) {
 	// Draw title background.
 	vector.DrawFilledRect(screen, x, y, w, 40, cp.theme.ButtonBackground, true)
 
-	// Draw title text (simplified - would use text/v2 with proper font).
-	_ = title // Title rendering would use text/v2.Face.
+	// Draw centered title text.
+	drawUICenteredText(screen, title, float64(x)+float64(w)/2, float64(y)+14, cp.theme.TextPrimary)
 }
 
 // drawCouncilList draws the list of councils.
@@ -301,8 +300,13 @@ func (cp *CouncilPanel) drawMembersList(screen *ebiten.Image, x, y, w, h float32
 		statusColor := cp.theme.Success
 		vector.DrawFilledCircle(screen, x+padding+10, itemY+itemHeight/2, 6, statusColor, true)
 
-		// Member name placeholder.
-		vector.DrawFilledRect(screen, x+padding+25, itemY+10, 150, itemHeight-20, cp.theme.InputBackground, true)
+		// Member name (rune-safe truncation to avoid splitting multi-byte characters).
+		name := member.Name
+		if name == "" {
+			name = "(anonymous)"
+		}
+		name = truncateRunes(name, 20)
+		drawUIText(screen, name, float64(x+padding)+25, float64(itemY)+float64(itemHeight)/2-4, cp.theme.TextPrimary)
 	}
 }
 
@@ -338,7 +342,7 @@ func (cp *CouncilPanel) drawProposalItem(screen *ebiten.Image, index int, prop *
 	}
 
 	cp.drawProposalStatusIndicator(screen, prop, x, itemY, padding, itemHeight)
-	cp.drawProposalTextPlaceholder(screen, x, itemY, w, padding, itemHeight)
+	cp.drawProposalText(screen, prop, x, itemY, w, padding, itemHeight)
 	cp.drawProposalVoteCounts(screen, prop, x, itemY, w, padding, itemHeight)
 }
 
@@ -355,9 +359,14 @@ func (cp *CouncilPanel) drawProposalStatusIndicator(screen *ebiten.Image, prop *
 	vector.DrawFilledCircle(screen, x+padding+10, itemY+itemHeight/2, 8, statusColor, true)
 }
 
-// drawProposalTextPlaceholder draws the proposal text area.
-func (cp *CouncilPanel) drawProposalTextPlaceholder(screen *ebiten.Image, x, itemY, w, padding, itemHeight float32) {
+// drawProposalText draws the proposal text area with the truncated proposal content.
+func (cp *CouncilPanel) drawProposalText(screen *ebiten.Image, prop *CouncilProposalInfo, x, itemY, w, padding, itemHeight float32) {
 	vector.DrawFilledRect(screen, x+padding+30, itemY+10, w-padding*2-40, itemHeight-30, cp.theme.InputBackground, true)
+
+	// Render truncated proposal text over the background.
+	// Use rune-safe truncation so multi-byte Unicode characters are never split.
+	content := truncateRunes(prop.Text, 38)
+	drawUIText(screen, content, float64(x+padding)+36, float64(itemY)+14, cp.theme.TextPrimary)
 }
 
 // drawProposalVoteCounts draws vote count bars.
@@ -403,7 +412,7 @@ func (cp *CouncilPanel) drawProposeForm(screen *ebiten.Image, x, y, w, h float32
 
 	// Character count.
 	countText := fmt.Sprintf("%d/256", len(cp.proposeText))
-	_ = countText // Would render with text/v2.
+	drawUIText(screen, countText, float64(x+padding), float64(y)+175, cp.theme.TextSecondary)
 
 	// Submit button.
 	cp.drawButton(screen, x+w/2-60, y+190, 120, 36, "Ctrl+Enter", cp.proposeText != "")
@@ -450,8 +459,11 @@ func (cp *CouncilPanel) drawVoteForm(screen *ebiten.Image, x, y, w, h float32) {
 	cp.drawButton(screen, x+w/2-60, y+170, 120, 36, "Submit", true)
 }
 
-// drawTextField draws a text input field.
+// drawTextField draws a text input field with label and value.
 func (cp *CouncilPanel) drawTextField(screen *ebiten.Image, x, y, w float32, label, value string, focused bool) {
+	// Label above the field.
+	drawUIText(screen, label, float64(x), float64(y)+2, cp.theme.TextSecondary)
+
 	// Background.
 	vector.DrawFilledRect(screen, x, y+15, w, float32(cp.theme.InputHeight), cp.theme.InputBackground, true)
 
@@ -462,9 +474,17 @@ func (cp *CouncilPanel) drawTextField(screen *ebiten.Image, x, y, w float32, lab
 	}
 	vector.StrokeRect(screen, x, y+15, w, float32(cp.theme.InputHeight), 1, borderColor, true)
 
+	// Value text.
+	if value != "" {
+		drawUIText(screen, value, float64(x)+8, float64(y)+15+4, cp.theme.TextPrimary)
+	}
+
 	// Cursor if focused.
+	// Measure the rendered prefix width so cursor placement is accurate for
+	// any Unicode input rather than relying on a fixed bytes-per-character estimate.
 	if focused {
-		cursorX := x + 8 + float32(len(value)*7)
+		prefixW, _ := measureUIText(value)
+		cursorX := x + 8 + float32(prefixW)
 		cursorAlpha := uint8(128 + 127*sin32(cp.animPhase*4))
 		cursorColor := cp.theme.TextPrimary
 		cursorColor.A = cursorAlpha
@@ -472,21 +492,27 @@ func (cp *CouncilPanel) drawTextField(screen *ebiten.Image, x, y, w float32, lab
 	}
 }
 
-// drawNumberField draws a number input field.
+// drawNumberField draws a number input field with label and value.
 func (cp *CouncilPanel) drawNumberField(screen *ebiten.Image, x, y, w float32, label string, value float64) {
+	// Label above the field.
+	drawUIText(screen, label, float64(x), float64(y)+2, cp.theme.TextSecondary)
+
 	// Background.
 	vector.DrawFilledRect(screen, x, y+15, w, float32(cp.theme.InputHeight), cp.theme.InputBackground, true)
 	vector.StrokeRect(screen, x, y+15, w, float32(cp.theme.InputHeight), 1, cp.theme.PanelBorder, true)
 
-	// Value indicator.
+	// Value indicator bar.
 	indicatorW := float32(value / 500 * float64(w-20))
 	if indicatorW > w-20 {
 		indicatorW = w - 20
 	}
 	vector.DrawFilledRect(screen, x+10, y+20+float32(cp.theme.InputHeight-20)/2, indicatorW, 4, cp.theme.AccentPrimary, true)
+
+	// Numeric value text.
+	drawUIText(screen, fmt.Sprintf("%.0f", value), float64(x)+8, float64(y)+15+4, cp.theme.TextPrimary)
 }
 
-// drawButton draws a button.
+// drawButton draws a button with a text label.
 func (cp *CouncilPanel) drawButton(screen *ebiten.Image, x, y, w, h float32, label string, enabled bool) {
 	bgColor := cp.theme.ButtonBackground
 	if !enabled {
@@ -495,6 +521,13 @@ func (cp *CouncilPanel) drawButton(screen *ebiten.Image, x, y, w, h float32, lab
 
 	vector.DrawFilledRect(screen, x, y, w, h, bgColor, true)
 	vector.StrokeRect(screen, x, y, w, h, 1, cp.theme.PanelBorder, true)
+
+	// Render centered label; dim when disabled.
+	labelColor := cp.theme.TextPrimary
+	if !enabled {
+		labelColor = cp.theme.TextSecondary
+	}
+	drawUICenteredText(screen, label, float64(x)+float64(w)/2, float64(y)+float64(h)/2-4, labelColor)
 }
 
 // drawMessages draws error/success messages.
@@ -526,6 +559,3 @@ func sinApprox(x float64) float64 {
 	x2 := x * x
 	return x * (1 - x2/6*(1-x2/20*(1-x2/42)))
 }
-
-// Ensure CouncilPanel satisfies the basic rendering needs.
-var _ text.Face = (*text.GoTextFace)(nil) // Ensure text/v2 is available.
