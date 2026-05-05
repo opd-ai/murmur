@@ -1,5 +1,4 @@
 // Package screens provides shared rendering helpers for onboarding screens.
-//
 
 package screens
 
@@ -8,30 +7,30 @@ import (
 	"math"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
+	"golang.org/x/image/font/basicfont"
 )
 
-// DrawCenteredText draws text centered at the given position.
-// Note: This is a simplified placeholder. Production code should use text/v2 with a proper font.
+// helperFace is the shared font face for onboarding screen helpers.
+// Allocated once at init so DrawCenteredText never allocates on the hot path.
+// The size parameter passed to DrawCenteredText is advisory; basicfont.Face7x13
+// is a fixed-size bitmap font.  A scalable font can replace this in one place.
+var helperFace = text.NewGoXFace(basicfont.Face7x13)
+
+// DrawCenteredText draws str centered horizontally around (x, y) using the
+// shared bitmap font.  The size parameter is currently ignored because
+// basicfont.Face7x13 is a fixed 7×13 px font; it is kept in the signature so
+// call-sites do not need to change when a scalable font is introduced.
 func DrawCenteredText(screen *ebiten.Image, str string, x, y float32, size float64, clr color.Color) {
-	// Approximate text width for centering (rough estimate)
-	charWidth := float32(size) * 0.5
-	textWidth := float32(len(str)) * charWidth
-	textX := x - textWidth/2
-
-	// Draw each character as a small rectangle (placeholder for actual text rendering)
-	charColor := clr.(color.RGBA)
-	charH := float32(size) * 0.8
-	charW := charWidth * 0.8
-	charY := y - charH/2
-
-	for i, char := range str {
-		if char == ' ' {
-			continue
-		}
-		charX := textX + float32(i)*charWidth
-		vector.DrawFilledRect(screen, charX, charY, charW, charH, charColor, true)
+	if str == "" {
+		return
 	}
+	w, _ := text.Measure(str, helperFace, 0)
+	op := &text.DrawOptions{}
+	op.GeoM.Translate(float64(x)-w/2, float64(y))
+	op.ColorScale.ScaleWithColor(clr)
+	text.Draw(screen, str, helperFace, op)
 }
 
 // IdentityCardStyle defines style parameters for identity cards.

@@ -5,7 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.0] - 2026-05-05
+## [0.1.1] - 2026-05-05
+
+### Fixed
+
+**Font Rendering (2026-05-05)**
+- Created `pkg/ui/font.go` — initialises the shared `defaultFont` face using
+  `text.NewGoXFace(basicfont.Face7x13)` once at program start; previously it
+  was declared as `nil`, causing nil-pointer panics in every `text.Draw` call
+  inside `forge.go`, `oracle_pool.go`, `shadowplay.go`, and
+  `territory_overview.go`.
+- Removed per-frame `text.NewGoXFace(basicfont.Face7x13)` allocation from
+  `viewport_controls.go::drawButton()` (was 180 heap allocs/sec at 60 fps);
+  now uses the shared package-level `defaultFont` via `drawUICenteredText`.
+- Replaced rectangle-placeholder rendering in
+  `pkg/onboarding/screens/helpers.go::DrawCenteredText()` with proper
+  `text.Draw` calls; this fixes the entire 6-phase onboarding flow where every
+  piece of instructional text appeared as coloured rectangles.
+- Replaced text-as-rectangle placeholders in `pkg/ui/node_detail.go` (node
+  name, fingerprint, Resonance score, action-button labels, Wave content, Wave
+  timestamps, connection count).
+- Replaced text-as-rectangle placeholders in `pkg/ui/search.go` (query text,
+  placeholder "Search by name…", result display names, Specter pseudonyms,
+  Specter badge); fixed cursor x-offset from 8 px to 7 px to match
+  `basicfont.Face7x13` metrics.
+- Replaced label-rectangle placeholder in `pkg/ui/radial_menu.go`.
+- Added text rendering to `pkg/ui/councils_draw.go`: panel title, all button
+  labels, text-field labels, text-field values, number-field labels and numeric
+  values, propose-form character counter, member names.
+- Added text rendering to `pkg/ui/compose.go`: panel title, wave content (with
+  placeholder hint when empty), character counter (`N/2048`), error message;
+  fixed cursor x-offset from 8 px to 7 px.
+
+
 
 ### Summary
 

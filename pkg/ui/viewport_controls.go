@@ -9,10 +9,10 @@ package ui
 import (
 	"image/color"
 
+	"image/color"
+
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
-	"github.com/hajimehoshi/ebiten/v2/text/v2"
-	"golang.org/x/image/font/basicfont"
 )
 
 // ViewportControls provides buttons for Macro/Meso/Micro preset zoom levels.
@@ -128,23 +128,15 @@ func (v *ViewportControls) drawButton(screen *ebiten.Image, x, y int, label stri
 
 	DrawButton(screen, x, y, v.buttonWidth, v.buttonHeight, bg, v.theme.PanelBorder, true)
 
-	// Draw label centered in button.
+	// Draw label centered in button using the shared defaultFont helper.
 	textColor := v.theme.TextPrimary
 	if hover {
 		textColor = color.RGBA{255, 255, 255, 255} // White text on hover
 	}
 
-	face := text.NewGoXFace(basicfont.Face7x13)
-
-	// Measure text to center it.
-	w, _ := text.Measure(label, face, 0)
-	textX := float64(x) + (float64(v.buttonWidth)-w)/2
-	textY := float64(y) + float64(v.buttonHeight)/2 + 4 // +4 for visual centering
-
-	op := &text.DrawOptions{}
-	op.GeoM.Translate(textX, textY)
-	op.ColorScale.ScaleWithColor(textColor)
-	text.Draw(screen, label, face, op)
+	cx := float64(x) + float64(v.buttonWidth)/2
+	ty := float64(y) + float64(v.buttonHeight)/2 - 4
+	drawUICenteredText(screen, label, cx, ty, textColor)
 }
 
 // isInButton checks if the given point is inside a button.

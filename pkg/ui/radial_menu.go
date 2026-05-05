@@ -269,15 +269,11 @@ func (r *RadialMenu) drawItem(screen *ebiten.Image, index int, item RadialMenuIt
 	// This requires ebiten/v2/text/v2 which is used elsewhere in the project.
 	// For now, the colored dot serves as a placeholder.
 
-	// Draw label below item (simplified).
-	// TODO: Use proper text rendering with item.Label.
-	// For now, we draw a small rectangle to represent the label area.
-	labelY := itemY + radialMenuItemRadius + radialMenuLabelOffset
+	// Draw label below item using the shared font helper.
+	labelY := float64(itemY) + float64(radialMenuItemRadius) + float64(radialMenuLabelOffset)
 	labelColor := r.theme.TextSecondary
 	labelColor.A = uint8(float64(labelColor.A) * alpha)
-	labelW := float32(len(item.Label) * 6) // Rough estimate
-	labelH := float32(12)
-	vector.DrawFilledRect(screen, float32(itemX)-labelW/2, float32(labelY), labelW, labelH, labelColor, true)
+	drawUICenteredText(screen, item.Label, float64(itemX), labelY, labelColor)
 }
 
 // itemAngle calculates the angle (in radians) for the item at the given index.
