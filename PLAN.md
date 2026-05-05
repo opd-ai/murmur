@@ -267,9 +267,11 @@ go test -v -run TestOnboardingFlow ./test/integration
 
 ---
 
-### Step 4: Security Hardening (7 days)
+### Step 4: Security Hardening (7 days) ✅ COMPLETE
 
-**Deliverable**: Key zeroing, Wave deduplication, per-peer rate limiting, signed DHT records.
+**Status**: RESOLVED (2026-05-04)
+
+**Deliverable**: Key zeroing, Wave deduplication, per-peer rate limiting, signed DHT records. ✅
 
 **Dependencies**: None (foundational security)
 
@@ -600,9 +602,9 @@ After Steps 1–4 complete (33 days), **v0.1 is shippable for friendly alpha tes
 - Friday: Update AUDIT.md with any security decisions made
 
 **Before v0.1 Release**:
-- [ ] All Steps 1–4 complete (33 days elapsed)
+- [ ] All Steps 1–4 complete (Steps 1, 2, 4 complete; Step 3 core 6 phases complete, nudges deferred)
 - [x] CHANGELOG.md updated with all changes
-- [ ] ROADMAP.md updated (v0.1 items checked)
+- [x] ROADMAP.md updated (v0.1 items checked — 34 onboarding items marked complete 2026-05-04)
 - [x] AUDIT.md reviewed for security gaps
 - [x] README.md updated with v0.1 status
 - [x] Test suite validation completed with complexity metrics (2026-05-04)
