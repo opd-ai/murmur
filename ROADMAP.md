@@ -689,9 +689,9 @@
 
 ### Rendering Pipeline Performance
 
-- [ ] **Batched draw calls** — grouped rendering by type
-- [ ] **Level-of-detail culling** — skip detail below zoom threshold
-- [ ] **GPU particle system** — hardware-accelerated particle rendering
+- [x] **Batched draw calls** — grouped rendering by type
+- [x] **Level-of-detail culling** — skip detail below zoom threshold
+- [x] **GPU particle system** — hardware-accelerated particle rendering (duplicate of line 623, already implemented)
 - [ ] **60 FPS target** with 500 visible nodes
 - [ ] **30 FPS minimum** acceptable threshold
 - [ ] **10,000 visible nodes** at Meso zoom without frame drop

@@ -50,6 +50,20 @@ First alpha release of MURMUR decentralized social network. Core infrastructure 
 
 ### Added
 
+**Rendering Performance (2026-05-05)**
+- Batched draw calls: grouped rendering by type to reduce draw call overhead and improve GPU utilization (ROADMAP.md line 692)
+- BatchRenderer: accumulates edges, nodes, particles, and trails into batches organized by style
+- Style-based batching: edges grouped by color/thickness, nodes grouped by core color/properties
+- Batch flush: single execution point for all accumulated draw commands per frame
+- Accumulation methods: `accumulateEdges()`, `accumulateAmplificationTrails()`, `accumulateNodes()`
+- Quantized thickness levels: 16-level quantization to reduce batch fragmentation
+- Test suite: comprehensive unit tests for batch renderer operations
+- Level-of-detail culling: confirmed implementation of zoom-based detail skipping (ROADMAP.md line 693)
+- Macro zoom: simple colored dots without sigils, labels, or halos (ZoomMacro at scale <0.3)
+- Meso zoom: full node detail with labels (ZoomMeso at scale 0.3-1.5)
+- Micro zoom: maximum detail with all effects (ZoomMicro at scale ≥1.5)
+- Edge LOD: faint lines at Macro zoom to prevent visual overload
+
 **Pulse Map Visualization (2026-05-05)**
 - Macro View rendering: simple colored dots for full network overview at scale <0.5
 - Meso View rendering: full node detail with labels for 50-200 node neighborhoods at scale 0.5-2.0

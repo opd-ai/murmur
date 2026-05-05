@@ -78,6 +78,11 @@ type Renderer struct {
 	graphLayer      *ebiten.Image
 	overlayLayer    *ebiten.Image
 	uiLayer         *ebiten.Image
+
+	// batchRenderer accumulates draw commands for batched execution.
+	// Per ROADMAP.md line 692, batched rendering groups operations by type
+	// to reduce draw call overhead and improve GPU utilization.
+	batchRenderer *BatchRenderer
 }
 
 // NodeData holds visual properties for a renderable node.
@@ -136,6 +141,7 @@ func NewRenderer(engine *layout.Engine, db *store.DB) (*Renderer, error) {
 		particles:           NewAmbientParticleField(),   // Sparse drifting particles per ROADMAP.md line 687
 		screenWidth:         800,
 		screenHeight:        600,
+		batchRenderer:       NewBatchRenderer(), // Batched rendering per ROADMAP.md line 692
 	}, nil
 }
 
@@ -318,15 +324,22 @@ func (r *Renderer) Draw(screen *ebiten.Image) {
 	// Calculate zoom level for detail decisions.
 	zoom := ZoomLevelFromScale(r.camera.Scale)
 
-	// Layer 3: Draw graph (edges + nodes).
-	// Draw edges first (below nodes).
-	r.drawEdges(r.graphLayer, positions, zoom)
+	// Layer 3: Draw graph (edges + nodes) using batched rendering.
+	// Per ROADMAP.md line 692, batch rendering groups operations by type
+	// to reduce draw call overhead and improve GPU utilization.
+	r.batchRenderer.Clear()
 
-	// Draw amplification trails (above edges, below nodes).
-	r.drawAmplificationTrails(r.graphLayer, positions, zoom)
+	// Accumulate edges into batch.
+	r.accumulateEdges(positions, zoom)
 
-	// Draw nodes on top.
-	r.drawNodes(r.graphLayer, positions, minX, minY, maxX, maxY, zoom)
+	// Accumulate amplification trails into batch.
+	r.accumulateAmplificationTrails(positions, zoom)
+
+	// Accumulate nodes into batch.
+	r.accumulateNodes(positions, minX, minY, maxX, maxY, zoom)
+
+	// Execute all batched draw commands at once.
+	r.batchRenderer.Flush(r.graphLayer)
 
 	// Layer 4: Overlays (Specter Marks, annotations, etc.).
 	// Currently empty - future implementation for cross-layer artifacts.
@@ -966,5 +979,125 @@ func (r *Renderer) drawCrossLayerArtifacts(screen *ebiten.Image, nodeData *NodeD
 				vector.StrokeLine(screen, cx, cy, nextCx, nextCy, 1.0, councilColor, false)
 			}
 		}
+	}
+}
+
+// accumulateEdges adds all edges to the batch renderer.
+// This replaces the old drawEdges method for batched rendering.
+func (r *Renderer) accumulateEdges(positions map[string]layout.Position, zoom ZoomLevel) {
+	screenW := float64(r.screenWidth)
+	screenH := float64(r.screenHeight)
+
+	for _, edge := range r.edges {
+		srcPos, srcOK := positions[edge.SourceID]
+		dstPos, dstOK := positions[edge.TargetID]
+		if !srcOK || !dstOK {
+			continue
+		}
+
+		// Transform and cull.
+		srcScreenX, srcScreenY, dstScreenX, dstScreenY, visible := r.transformAndCullLine(srcPos.X, srcPos.Y, dstPos.X, dstPos.Y, screenW, screenH)
+		if !visible {
+			continue
+		}
+
+		// Build edge style from data.
+		style := EdgeStyle{
+			Color:                color.RGBA{100, 120, 140, 255}, // Default edge color
+			Age:                  edge.Age,
+			Active:               edge.Active,
+			InteractionFrequency: edge.InteractionFrequency,
+		}
+
+		// Add to batch renderer.
+		r.batchRenderer.AddEdge(float32(srcScreenX), float32(srcScreenY),
+			float32(dstScreenX), float32(dstScreenY), style, zoom)
+	}
+}
+
+// accumulateAmplificationTrails adds all amplification trails to the batch renderer.
+// This replaces the old drawAmplificationTrails method for batched rendering.
+func (r *Renderer) accumulateAmplificationTrails(positions map[string]layout.Position, zoom ZoomLevel) {
+	screenW := float64(r.screenWidth)
+	screenH := float64(r.screenHeight)
+
+	for _, trail := range r.amplificationTrails {
+		ampPos, ampOK := positions[trail.AmplifierID]
+		origPos, origOK := positions[trail.OriginalID]
+		if !ampOK || !origOK {
+			continue
+		}
+
+		// Transform and cull.
+		ampScreenX, ampScreenY, origScreenX, origScreenY, visible := r.transformAndCullLine(ampPos.X, ampPos.Y, origPos.X, origPos.Y, screenW, screenH)
+		if !visible {
+			continue
+		}
+
+		// Calculate fade alpha.
+		baseAlpha := calculateTrailFade(trail.RecentSeconds)
+		if baseAlpha < 10 {
+			continue // Skip nearly invisible trails
+		}
+
+		// Add to batch renderer.
+		r.batchRenderer.AddTrail(float32(ampScreenX), float32(ampScreenY),
+			float32(origScreenX), float32(origScreenY),
+			baseAlpha, trail.HasComment, float64(r.time))
+	}
+}
+
+// accumulateNodes adds all visible nodes to the batch renderer.
+// This replaces the old drawNodes method for batched rendering.
+func (r *Renderer) accumulateNodes(positions map[string]layout.Position,
+	minX, minY, maxX, maxY float64, zoom ZoomLevel,
+) {
+	screenW := float64(r.screenWidth)
+	screenH := float64(r.screenHeight)
+	margin := 50.0 // Render nodes slightly outside visible area for smooth scrolling.
+
+	for id, pos := range positions {
+		// Frustum culling in world space.
+		if pos.X < minX-margin || pos.X > maxX+margin ||
+			pos.Y < minY-margin || pos.Y > maxY+margin {
+			continue
+		}
+
+		// Get node visual data.
+		data, ok := r.nodeData[id]
+		if !ok {
+			// Node not in render data; use default style.
+			data = &NodeData{
+				ID:          id,
+				Connections: 1,
+			}
+		}
+
+		// Transform to screen coordinates.
+		screenX, screenY := r.camera.WorldToScreen(pos.X, pos.Y, screenW, screenH)
+
+		// Build node style.
+		style := r.buildNodeStyle(data)
+
+		// Calculate radius.
+		radius := computeNodeRadius(style)
+
+		// Add node to batch renderer.
+		r.batchRenderer.AddNode(float32(screenX), float32(screenY), radius, style)
+
+		// Render glow effect for active/selected nodes (not batched - uses shaders).
+		if r.shaders != nil && (style.HasHalo || style.Selected) {
+			r.drawNodeGlow(r.graphLayer, float32(screenX), float32(screenY), style)
+		}
+
+		// Render cross-layer artifacts (not batched - complex custom rendering).
+		// Per AUDIT.md HIGH finding "Cross-layer visibility not implemented", this enables
+		// Surface users to see anonymous activity on their Pulse Map.
+		if r.store != nil {
+			r.drawCrossLayerArtifacts(r.graphLayer, data, float32(screenX), float32(screenY))
+		}
+
+		// Render text label at Micro zoom level (not batched - uses text rendering).
+		RenderTextLabel(r.graphLayer, float32(screenX), float32(screenY), data.DisplayName, data.IsSpecter, zoom)
 	}
 }
