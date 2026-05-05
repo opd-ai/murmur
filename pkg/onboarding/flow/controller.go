@@ -78,6 +78,7 @@ type Controller struct {
 	completedTime time.Time
 	skipped       bool
 	callbacks     Callbacks
+	invitation    string // Optional invitation URI for warm-start onboarding
 }
 
 // Callbacks provides hooks for phase transitions.
@@ -102,6 +103,29 @@ func NewController(callbacks Callbacks) *Controller {
 		}
 	}
 	return c
+}
+
+// NewControllerWithInvitation creates a new onboarding controller with an invitation.
+// Per VIRAL_GROWTH_AND_ONBOARDING.md, invitations enable warm-start onboarding with
+// direct bootstrap through the inviter's node.
+func NewControllerWithInvitation(callbacks Callbacks, invitationURI string) *Controller {
+	c := NewController(callbacks)
+	c.invitation = invitationURI
+	return c
+}
+
+// Invitation returns the invitation URI if one was provided.
+func (c *Controller) Invitation() string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.invitation
+}
+
+// HasInvitation returns true if an invitation was provided.
+func (c *Controller) HasInvitation() bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.invitation != ""
 }
 
 // Start begins the onboarding flow.

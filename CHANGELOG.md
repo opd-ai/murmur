@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+**Bootstrap Advantage & Warm Start (2026-05-05)**
+- **Inviter prioritization** — Modified `pkg/onboarding/bootstrap/network.go::runBootstrapSequence()` to attempt inviter connection before standard bootstrap peers (ROADMAP.md lines 789-790).
+- **connectToInviter method** — Added dedicated connection logic with retry support specifically for inviter peers, ensuring warm-start capability.
+- **First connection establishment** — Warm-start onboarding pre-forms connection between inviter and invitee before general network bootstrap, reducing initial latency.
+- **Error resilience** — Inviter connection failures gracefully fall back to standard bootstrap without blocking onboarding flow.
+
+**Invitation Acceptance (2026-05-05)**
+- **Command-line invitation support** — Added `--invite` flag to `cmd/murmur/main.go` for accepting invitation URIs during launch (ROADMAP.md line 788).
+- **Config extension** — Added `InvitationURI` field to `pkg/app/Config` for passing invitations through the application lifecycle.
+- **Controller integration** — Extended `pkg/onboarding/flow/Controller` with `NewControllerWithInvitation()`, `Invitation()`, and `HasInvitation()` methods.
+- **Bootstrap integration** — Added `InvitationURI` field to `pkg/onboarding/bootstrap/Config` for warm-start bootstrap.
+- **Invitation processing** — Created `pkg/onboarding/bootstrap/invitation.go` with `AcceptInvitation()` for decoding and validating invitation URIs, and `BuildBootstrapAddrFromInvitation()` for constructing peer addresses.
+- **Comprehensive tests** — Added `invitation_test.go` with 5 test cases validating acceptance, error handling, and bootstrap address construction.
+
+**Sharing Integration (2026-05-05)**
+- **System share sheet integration** — Created `pkg/identity/share.go` with platform-specific sharing mechanisms for invitations (ROADMAP.md line 787).
+- **Multi-method sharing** — Supports three sharing methods: ShareText (clipboard/URI), ShareEmail (mailto: URL), ShareQR (image file).
+- **Platform-specific implementations** — Separate files for Linux (`share_linux.go`), macOS (`share_darwin.go`), and Windows (`share_windows.go`) using native clipboard and file-opening tools.
+- **Email composition** — `shareEmail()` generates RFC-compliant mailto: URLs with customizable subject, body, and embedded invitation URI.
+- **QR code file generation** — `shareQR()` saves QR code images to temporary directory with configurable size for easy sharing via file managers or messaging apps.
+- **Comprehensive tests** — Added `share_test.go` with 8 test cases validating all three sharing methods, custom options, error handling, and URL encoding.
+
 **Invitation System (2026-05-05)**
 - **Invitation generation and encoding** — Created `pkg/identity/invitation.go` with `GenerateInvitation()` and `Encode()` methods for frictionless two-tap invite creation (ROADMAP.md lines 784-785).
 - **Protobuf message** — Added `Invitation` message to `proto/identity.proto` containing peer ID, public key, and optional welcome message (max 128 characters).

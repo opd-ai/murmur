@@ -5,6 +5,7 @@ package bootstrap
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 )
@@ -66,6 +67,11 @@ type Config struct {
 
 	// MaxRetries is the maximum number of retry attempts per peer.
 	MaxRetries int
+
+	// InvitationURI is an optional invitation for warm-start bootstrap.
+	// Format: murmur://invite/[Base64]. If provided, bootstrap will
+	// prioritize connecting to the inviter's node.
+	InvitationURI string
 }
 
 // DefaultConfig returns sensible default bootstrap configuration.
@@ -178,6 +184,15 @@ func (m *Manager) initializeBootstrap() {
 
 // runBootstrapSequence executes the bootstrap phases.
 func (m *Manager) runBootstrapSequence(ctx context.Context) error {
+	// If an invitation was provided, prioritize connecting to the inviter first.
+	// Per ROADMAP.md line 790, warm start pre-forms connection between inviter and invitee.
+	if m.config.InvitationURI != "" {
+		if err := m.connectToInviter(ctx); err != nil {
+			// Log the error but continue with normal bootstrap.
+			m.recordError(fmt.Errorf("inviter connection failed: %w", err))
+		}
+	}
+
 	connectedCount := m.connectToBootstrapPeers(ctx)
 	if connectedCount == 0 {
 		m.setStatus(StatusFailed)
@@ -380,6 +395,45 @@ func (m *Manager) recordError(err error) {
 	if m.callbacks.OnError != nil {
 		go m.callbacks.OnError(err)
 	}
+}
+
+// connectToInviter attempts to connect to the inviter's node from an invitation.
+// Per ROADMAP.md lines 789-790, invitations provide bootstrap advantage and warm start.
+// Returns error if invitation decoding or connection fails.
+func (m *Manager) connectToInviter(ctx context.Context) error {
+	// Decode the invitation.
+	inv, err := AcceptInvitation(m.config.InvitationURI)
+	if err != nil {
+		return fmt.Errorf("accepting invitation: %w", err)
+	}
+
+	// Build bootstrap address from invitation.
+	addr := BuildBootstrapAddrFromInvitation(inv)
+
+	// Attempt connection with retries (prioritize inviter).
+	for attempt := 0; attempt < m.config.MaxRetries; attempt++ {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+
+		if m.attemptConnection(ctx, addr) {
+			// Successfully connected to inviter.
+			if m.callbacks.OnPeerConnected != nil {
+				go m.callbacks.OnPeerConnected(inv.PeerID.String())
+			}
+			return nil
+		}
+
+		// Wait before retry.
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(m.config.RetryInterval):
+			// Continue to next retry.
+		}
+	}
+
+	return fmt.Errorf("failed to connect to inviter after %d attempts", m.config.MaxRetries)
 }
 
 // FirstWavePrompt contains data for prompting the user's first Wave.

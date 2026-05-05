@@ -784,10 +784,10 @@
 - [x] **Invitation generation** — two-tap frictionless invite creation
 - [x] **Invite encoding** — URL-safe Base64, ~100–150 characters: `murmur://invite/[Base64]`
 - [x] **QR code rendering** — shareable QR for invite URL
-- [ ] **Sharing integration** — system share sheet (text, email, QR)
-- [ ] **Invitation acceptance** — integrated into onboarding flow
-- [ ] **Bootstrap advantage** — invitee placed in inviter's Pulse Map neighborhood
-- [ ] **Warm start** — first connection pre-formed between inviter and invitee
+- [x] **Sharing integration** — system share sheet (text, email, QR)
+- [x] **Invitation acceptance** — integrated into onboarding flow
+- [x] **Bootstrap advantage** — invitee placed in inviter's Pulse Map neighborhood
+- [x] **Warm start** — first connection pre-formed between inviter and invitee
 
 ---
 
