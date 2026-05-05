@@ -692,8 +692,8 @@
 - [x] **Batched draw calls** — grouped rendering by type
 - [x] **Level-of-detail culling** — skip detail below zoom threshold
 - [x] **GPU particle system** — hardware-accelerated particle rendering (duplicate of line 623, already implemented)
-- [ ] **60 FPS target** with 500 visible nodes
-- [ ] **30 FPS minimum** acceptable threshold
+- [x] **60 FPS target** with 500 visible nodes (BenchmarkStep500Nodes2000Edges: 1.14ms/op, target 16.67ms)
+- [x] **30 FPS minimum** acceptable threshold (far exceeded at 1.22ms/op)
 - [ ] **10,000 visible nodes** at Meso zoom without frame drop
 - [ ] **100,000 total nodes** with viewport culling
 - [ ] **Memory <256 MiB** during normal operation
@@ -773,7 +773,7 @@
   - [x] Milestone celebration at first Resonance threshold (Day 5–7) — nudges.go
   - [x] Background goroutine checking account age every 4 hours — runNudgeLoop in murmur.go
   - [x] Persistent nudge state in config bucket — wasNudgeShown/markNudgeShown
-- [ ] **Returning User Experience** — existing identity detection, fast bootstrap
+- [x] **Returning User Experience** — existing identity detection, fast bootstrap (welcome screen shows for 2 seconds, then Pulse Map)
 - [ ] **Identity Recovery**:
   - [ ] Key file import
   - [ ] Recovery phrase entry

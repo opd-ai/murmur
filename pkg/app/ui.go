@@ -14,16 +14,19 @@ import (
 	"github.com/opd-ai/murmur/pkg/onboarding/flow"
 	"github.com/opd-ai/murmur/pkg/onboarding/screens"
 	"github.com/opd-ai/murmur/pkg/pulsemap"
+	"github.com/opd-ai/murmur/pkg/store"
 )
 
 // runUI initializes and starts the Pulse Map UI via Ebitengine.
 // Per AUDIT.md remediation, this wires ebiten.RunGame() to enable the visualization.
 // If firstRun is true, displays onboarding screens instead of Pulse Map.
+// Per ROADMAP.md line 776, returning users see a welcome back screen before Pulse Map.
 func (a *App) runUI() error {
 	// Check if this is first run.
 	a.mu.RLock()
 	isFirstRun := a.firstRun
 	onboardingFlow := a.subsystems.OnboardingFlow
+	displayName, _ := a.subsystems.Storage.Get(store.BucketIdentity, []byte("display_name"))
 	a.mu.RUnlock()
 
 	// If first run and onboarding flow exists, show onboarding screens.
@@ -31,7 +34,15 @@ func (a *App) runUI() error {
 		return a.runOnboardingUI()
 	}
 
-	// Otherwise, show normal Pulse Map.
+	// For returning users, show welcome back screen first.
+	if !isFirstRun {
+		if err := a.runReturningUserScreen(string(displayName)); err != nil {
+			// If welcome screen fails, just continue to Pulse Map.
+			fmt.Printf("Warning: returning user screen failed: %v\n", err)
+		}
+	}
+
+	// Show normal Pulse Map.
 	return a.runPulseMapUI()
 }
 
@@ -136,4 +147,44 @@ func (a *App) runPulseMapUI() error {
 	a.mu.Unlock()
 
 	return a.runEbitenGame(game, "MURMUR — Pulse Map", "Starting Pulse Map visualization...", "running Pulse Map")
+}
+
+// runReturningUserScreen displays a welcome back screen for returning users.
+// Per ROADMAP.md line 776, this provides fast bootstrap with existing identity detection.
+func (a *App) runReturningUserScreen(displayName string) error {
+	fmt.Println("Showing returning user welcome screen...")
+
+	// Get keypair for fingerprint display.
+	a.mu.RLock()
+	keypair := a.subsystems.Identity
+	a.mu.RUnlock()
+
+	if keypair == nil {
+		return fmt.Errorf("identity not initialized")
+	}
+
+	// Create returning user screen.
+	continueCh := make(chan struct{})
+	screen := screens.NewReturningScreen(
+		displayName,
+		keypair,
+		func() { close(continueCh) },
+	)
+
+	// Run the screen in a separate goroutine.
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- a.runEbitenGame(screen, "MURMUR — Welcome Back", "Loading...", "running welcome screen")
+	}()
+
+	// Wait for either completion or error.
+	select {
+	case <-continueCh:
+		// User continuing, screen will exit naturally.
+		return nil
+	case err := <-errCh:
+		return err
+	case <-a.ctx.Done():
+		return a.ctx.Err()
+	}
 }

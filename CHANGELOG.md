@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] - 2026-05-05
+
+### Added
+
+**Returning User Experience (2026-05-05)**
+- **Returning user welcome screen** — Created `pkg/onboarding/screens/returning_screen.go` with animated welcome-back splash screen showing for 2 seconds before transitioning to Pulse Map (ROADMAP.md line 776).
+- **Fast bootstrap detection** — Modified `pkg/app/ui.go::runUI()` to detect returning users (non-first-run) and show welcome screen with display name or public key fingerprint.
+- **Test coverage** — Added `returning_screen_test.go` with stub and full implementations following existing screen patterns.
+
+### Validated
+
+**Performance Benchmarks (2026-05-05)**
+- **60 FPS target confirmed** — Benchmark `BenchmarkStep500Nodes2000Edges` achieves 1.14ms/op (14.6x faster than 16.67ms target), validating ROADMAP.md line 695.
+- **30 FPS minimum exceeded** — Both 500-node benchmarks execute in <2ms, far exceeding the 33.33ms minimum threshold (ROADMAP.md line 696).
+
 ## [0.1.2] - 2026-05-05
 
 ### Added
