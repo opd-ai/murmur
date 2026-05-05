@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+**Invitation System (2026-05-05)**
+- **Invitation generation and encoding** — Created `pkg/identity/invitation.go` with `GenerateInvitation()` and `Encode()` methods for frictionless two-tap invite creation (ROADMAP.md lines 784-785).
+- **Protobuf message** — Added `Invitation` message to `proto/identity.proto` containing peer ID, public key, and optional welcome message (max 128 characters).
+- **URL-safe Base64 encoding** — Invitations encode to ~100-150 character Base64 strings suitable for text messages, tweets, and forum posts per VIRAL_GROWTH_AND_ONBOARDING.md.
+- **murmur:// URI scheme** — `EncodeURI()` method generates `murmur://invite/[Base64]` URIs for deep linking on supported platforms.
+- **QR code rendering** — Added `GenerateQRCode()` and `GenerateQRCodePNG()` methods for in-person invitation at conferences and meetups (ROADMAP.md line 786).
+- **Comprehensive tests** — Added `invitation_test.go` with 12 test cases and 3 benchmarks validating encoding, decoding, QR generation, validation, and error handling.
+
+**Identity Recovery (2026-05-05)**
+- **Recovery screen UI** — Created `pkg/onboarding/screens/recovery_screen.go` with support for mnemonic phrase entry and encrypted key file import (ROADMAP.md lines 777-780).
+- **Key file import with passphrase** — Added `ImportKeyPairFromFile()` to `pkg/identity/keys/backup.go` for offline recovery from encrypted keystore files.
+- **Mnemonic recovery validation** — Full BIP-39 mnemonic phrase validation and keypair restoration without network access.
+- **Test coverage** — Added comprehensive tests in `recovery_screen_test.go` and `backup_test.go` validating both recovery methods, error handling, and security measures.
+
 **Returning User Experience (2026-05-05)**
 - **Returning user welcome screen** — Created `pkg/onboarding/screens/returning_screen.go` with animated welcome-back splash screen showing for 2 seconds before transitioning to Pulse Map (ROADMAP.md line 776).
 - **Fast bootstrap detection** — Modified `pkg/app/ui.go::runUI()` to detect returning users (non-first-run) and show welcome screen with display name or public key fingerprint.

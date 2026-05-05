@@ -774,16 +774,16 @@
   - [x] Background goroutine checking account age every 4 hours — runNudgeLoop in murmur.go
   - [x] Persistent nudge state in config bucket — wasNudgeShown/markNudgeShown
 - [x] **Returning User Experience** — existing identity detection, fast bootstrap (welcome screen shows for 2 seconds, then Pulse Map)
-- [ ] **Identity Recovery**:
-  - [ ] Key file import
-  - [ ] Recovery phrase entry
-  - [ ] Offline recovery (no network required)
+- [x] **Identity Recovery**:
+  - [x] Key file import
+  - [x] Recovery phrase entry
+  - [x] Offline recovery (no network required)
 
 ### Invitation & Growth
 
-- [ ] **Invitation generation** — two-tap frictionless invite creation
-- [ ] **Invite encoding** — URL-safe Base64, ~100–150 characters: `murmur://invite/[Base64]`
-- [ ] **QR code rendering** — shareable QR for invite URL
+- [x] **Invitation generation** — two-tap frictionless invite creation
+- [x] **Invite encoding** — URL-safe Base64, ~100–150 characters: `murmur://invite/[Base64]`
+- [x] **QR code rendering** — shareable QR for invite URL
 - [ ] **Sharing integration** — system share sheet (text, email, QR)
 - [ ] **Invitation acceptance** — integrated into onboarding flow
 - [ ] **Bootstrap advantage** — invitee placed in inviter's Pulse Map neighborhood

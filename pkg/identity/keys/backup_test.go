@@ -174,6 +174,66 @@ func TestBackupSigningRoundTrip(t *testing.T) {
 	}
 }
 
+// TestImportKeyPairFromFile validates encrypted key file import.
+func TestImportKeyPairFromFile(t *testing.T) {
+	// Generate a keypair.
+	original, err := GenerateKeyPair()
+	if err != nil {
+		t.Fatalf("GenerateKeyPair failed: %v", err)
+	}
+
+	// Export and encrypt.
+	exported, err := ExportKeyPair(original)
+	if err != nil {
+		t.Fatalf("ExportKeyPair failed: %v", err)
+	}
+
+	passphrase := "test-passphrase-12345"
+	encrypted, err := EncryptKeystore(exported, passphrase)
+	if err != nil {
+		t.Fatalf("EncryptKeystore failed: %v", err)
+	}
+
+	// Import from encrypted file data.
+	imported, err := ImportKeyPairFromFile(encrypted, passphrase)
+	if err != nil {
+		t.Fatalf("ImportKeyPairFromFile failed: %v", err)
+	}
+
+	// Verify keys match.
+	if !bytes.Equal(original.PublicKey, imported.PublicKey) {
+		t.Error("imported public key does not match")
+	}
+	if !bytes.Equal(original.PrivateKey, imported.PrivateKey) {
+		t.Error("imported private key does not match")
+	}
+}
+
+// TestImportKeyPairFromFileWrongPassphrase validates error on wrong passphrase.
+func TestImportKeyPairFromFileWrongPassphrase(t *testing.T) {
+	// Generate and encrypt a keypair.
+	original, err := GenerateKeyPair()
+	if err != nil {
+		t.Fatalf("GenerateKeyPair failed: %v", err)
+	}
+
+	exported, err := ExportKeyPair(original)
+	if err != nil {
+		t.Fatalf("ExportKeyPair failed: %v", err)
+	}
+
+	encrypted, err := EncryptKeystore(exported, "correct-passphrase")
+	if err != nil {
+		t.Fatalf("EncryptKeystore failed: %v", err)
+	}
+
+	// Attempt import with wrong passphrase.
+	_, err = ImportKeyPairFromFile(encrypted, "wrong-passphrase")
+	if err == nil {
+		t.Error("expected error with wrong passphrase")
+	}
+}
+
 func countWords(s string) int {
 	if s == "" {
 		return 0

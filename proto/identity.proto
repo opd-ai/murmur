@@ -283,3 +283,17 @@ message SpecterConnectionRevocation {
   // Original connection type being revoked.
   SpecterConnectionType connection_type = 5;
 }
+
+// Invitation represents a MURMUR invitation for warm-start onboarding.
+// Per VIRAL_GROWTH_AND_ONBOARDING.md, invitations enable bootstrap bypass
+// by connecting new users directly through the inviter's node.
+message Invitation {
+  // Inviter's libp2p Peer ID.
+  bytes peer_id = 1;
+  
+  // Inviter's Ed25519 public key (32 bytes).
+  bytes public_key = 2;
+  
+  // Optional welcome message (max 128 characters).
+  string welcome_message = 3;
+}

@@ -121,3 +121,18 @@ func ImportKeyPair(data []byte) (*KeyPair, error) {
 		PrivateKey: privateKey,
 	}, nil
 }
+
+// ImportKeyPairFromFile deserializes and decrypts a keypair from encrypted file data.
+// This function handles the common case of loading an encrypted keystore from disk.
+// Per ROADMAP.md Milestone v0.9, supports offline recovery with passphrase.
+func ImportKeyPairFromFile(encryptedData []byte, passphrase string) (*KeyPair, error) {
+	// Decrypt the keystore.
+	plaintext, err := DecryptKeystore(encryptedData, passphrase)
+	if err != nil {
+		return nil, fmt.Errorf("decrypting keystore: %w", err)
+	}
+	defer ZeroBytes(plaintext)
+
+	// Import the keypair from decrypted data.
+	return ImportKeyPair(plaintext)
+}
