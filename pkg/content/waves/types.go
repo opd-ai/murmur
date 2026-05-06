@@ -257,18 +257,20 @@ func int64ToBytes(v int64) [8]byte {
 	return b
 }
 
-// computeWaveID generates a BLAKE3 hash of the Wave content and metadata.
-func computeWaveID(wave *pb.Wave) []byte {
+// hashWavePrefix hashes the common wave fields: type, content, author, creation time.
+func hashWavePrefix(wave *pb.Wave) *blake3.Hasher {
 	h := blake3.New()
-
-	// Include type, content, author, and creation time.
 	h.Write([]byte{byte(wave.WaveType)})
 	h.Write(wave.Content)
 	h.Write(wave.AuthorPubkey)
-
-	// Include creation time as bytes.
 	ts := int64ToBytes(wave.CreatedAt)
 	h.Write(ts[:])
+	return h
+}
+
+// computeWaveID generates a BLAKE3 hash of the Wave content and metadata.
+func computeWaveID(wave *pb.Wave) []byte {
+	h := hashWavePrefix(wave)
 
 	// Include parent hash if present.
 	if len(wave.ParentHash) > 0 {

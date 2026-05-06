@@ -208,14 +208,7 @@ func buildMaskedWave(content []byte, mk *MaskedKeypair, opts MaskedOptions) *pb.
 
 // computeMaskedWaveID generates a BLAKE3 hash including event-specific data.
 func computeMaskedWaveID(wave *pb.Wave) []byte {
-	h := blake3.New()
-
-	h.Write([]byte{byte(wave.WaveType)})
-	h.Write(wave.Content)
-	h.Write(wave.AuthorPubkey)
-
-	ts := int64ToBytes(wave.CreatedAt)
-	h.Write(ts[:])
+	h := hashWavePrefix(wave)
 
 	// Include event ID in hash for scoping.
 	if eventID, ok := wave.Metadata[MetaMaskedEventID]; ok {

@@ -358,30 +358,19 @@ func (p *BulletproofThresholdProof) Bytes() []byte {
 	// Serialize delta range proof components.
 	out := make([]byte, 0, len(p.DeltaRangeProof.Proof)+200)
 
-	// Proof length + proof.
-	proofLen := uint16(len(p.DeltaRangeProof.Proof))
-	out = append(out, byte(proofLen), byte(proofLen>>8))
-	out = append(out, p.DeltaRangeProof.Proof...)
+	// Helper to append length-prefixed byte slice.
+	appendLenPrefixed := func(data []byte) {
+		length := uint16(len(data))
+		out = append(out, byte(length), byte(length>>8))
+		out = append(out, data...)
+	}
 
-	// CapV length + CapV.
-	capVLen := uint16(len(p.DeltaRangeProof.CapV))
-	out = append(out, byte(capVLen), byte(capVLen>>8))
-	out = append(out, p.DeltaRangeProof.CapV...)
-
-	// G length + G.
-	gLen := uint16(len(p.DeltaRangeProof.G))
-	out = append(out, byte(gLen), byte(gLen>>8))
-	out = append(out, p.DeltaRangeProof.G...)
-
-	// H length + H.
-	hLen := uint16(len(p.DeltaRangeProof.H))
-	out = append(out, byte(hLen), byte(hLen>>8))
-	out = append(out, p.DeltaRangeProof.H...)
-
-	// U length + U.
-	uLen := uint16(len(p.DeltaRangeProof.U))
-	out = append(out, byte(uLen), byte(uLen>>8))
-	out = append(out, p.DeltaRangeProof.U...)
+	// Proof, CapV, G, H, U.
+	appendLenPrefixed(p.DeltaRangeProof.Proof)
+	appendLenPrefixed(p.DeltaRangeProof.CapV)
+	appendLenPrefixed(p.DeltaRangeProof.G)
+	appendLenPrefixed(p.DeltaRangeProof.H)
+	appendLenPrefixed(p.DeltaRangeProof.U)
 
 	// N (4 bytes).
 	var nBytes [4]byte

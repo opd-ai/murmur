@@ -213,8 +213,11 @@ func (m *EphemeralTopicManager) SubscribeToEventTopic(ctx context.Context, event
 
 // LeaveEventTopic leaves and cleans up an event topic.
 func (m *EphemeralTopicManager) LeaveEventTopic(eventID string) error {
-	topicName := EventTopic(eventID)
+	return m.leaveTopic(EventTopic(eventID), nil)
+}
 
+// leaveTopic handles common topic leave logic with optional pre-delete callback.
+func (m *EphemeralTopicManager) leaveTopic(topicName string, preDeleteFn func(*ephemeralTopicEntry)) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -224,6 +227,9 @@ func (m *EphemeralTopicManager) LeaveEventTopic(eventID string) error {
 	}
 
 	cleanupTopicEntry(entry)
+	if preDeleteFn != nil {
+		preDeleteFn(entry)
+	}
 	delete(m.topics, topicName)
 	return nil
 }
