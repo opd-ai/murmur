@@ -51,14 +51,14 @@ func TestMetricsInitialization(t *testing.T) {
 	// Test deduplication metrics
 	DeduplicationDropsTotal.Inc()
 
-	// Verify Waves received counter has value > 0
-	if count := testutil.ToFloat64(WavesReceivedTotal); count != 1 {
-		t.Errorf("WavesReceivedTotal = %f, want 1", count)
+	// Verify Waves received counter has value >= 1 (may be higher if running with -count > 1)
+	if count := testutil.ToFloat64(WavesReceivedTotal); count < 1 {
+		t.Errorf("WavesReceivedTotal = %f, want >= 1", count)
 	}
 
-	// Verify deduplication drops counter has value > 0
-	if count := testutil.ToFloat64(DeduplicationDropsTotal); count != 1 {
-		t.Errorf("DeduplicationDropsTotal = %f, want 1", count)
+	// Verify deduplication drops counter has value >= 1 (may be higher if running with -count > 1)
+	if count := testutil.ToFloat64(DeduplicationDropsTotal); count < 1 {
+		t.Errorf("DeduplicationDropsTotal = %f, want >= 1", count)
 	}
 }
 

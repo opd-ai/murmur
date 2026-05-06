@@ -19,6 +19,14 @@ var Version = "0.0.0-alpha"
 // appNew is a variable to allow testing with a mock app creator.
 var appNew = app.New
 
+// Command-line flags (package-level to avoid redefinition on multiple calls).
+var (
+	cliMode      = flag.Bool("cli", false, "Run in CLI mode (interactive REPL)")
+	enableHealth = flag.Bool("enable-health", false, "Enable HTTP health check endpoint (for bootstrap nodes)")
+	healthPort   = flag.Int("health-port", 8080, "Port for health check endpoint")
+	invite       = flag.String("invite", "", "Accept an invitation (murmur://invite/... URI)")
+)
+
 func main() {
 	if err := run(); err != nil {
 		// Check if it's an InitError with formatting.
@@ -34,12 +42,10 @@ func main() {
 
 // run initializes and starts the MURMUR application.
 func run() error {
-	// Parse command-line flags.
-	cliMode := flag.Bool("cli", false, "Run in CLI mode (interactive REPL)")
-	enableHealth := flag.Bool("enable-health", false, "Enable HTTP health check endpoint (for bootstrap nodes)")
-	healthPort := flag.Int("health-port", 8080, "Port for health check endpoint")
-	invite := flag.String("invite", "", "Accept an invitation (murmur://invite/... URI)")
-	flag.Parse()
+	// Parse command-line flags (only if not already parsed, to support test scenarios).
+	if !flag.Parsed() {
+		flag.Parse()
+	}
 
 	return runWithConfig(app.Config{
 		Version:              Version,

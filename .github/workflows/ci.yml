@@ -109,3 +109,73 @@ jobs:
           else
             echo "✅ No complexity regressions detected"
           fi
+
+  coverage:
+    name: Test Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: Run tests with coverage
+        run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
+
+      - name: Generate coverage report
+        run: go tool cover -func=coverage.out -o coverage.txt
+
+      - name: Check coverage thresholds
+        run: |
+          echo "=== Coverage Report ==="
+          cat coverage.txt
+          echo ""
+          
+          # Extract overall coverage percentage
+          OVERALL=$(go tool cover -func=coverage.out | grep total: | awk '{print $3}' | sed 's/%//')
+          echo "Overall coverage: ${OVERALL}%"
+          
+          # Check critical packages meet 80% threshold
+          echo ""
+          echo "=== Critical Package Coverage (80% threshold) ==="
+          
+          CRITICAL_PKGS=(
+            "github.com/opd-ai/murmur/pkg/identity/keys"
+            "github.com/opd-ai/murmur/pkg/content/waves"
+            "github.com/opd-ai/murmur/pkg/content/pow"
+            "github.com/opd-ai/murmur/pkg/anonymous/shroud"
+            "github.com/opd-ai/murmur/pkg/security"
+          )
+          
+          FAILED=0
+          for pkg in "${CRITICAL_PKGS[@]}"; do
+            COV=$(grep "^${pkg}" coverage.txt | awk '{sum+=$3; count++} END {if(count>0) print sum/count; else print 0}')
+            if (( $(echo "$COV < 80" | bc -l) )); then
+              echo "❌ ${pkg}: ${COV}% (below 80% threshold)"
+              FAILED=1
+            else
+              echo "✅ ${pkg}: ${COV}%"
+            fi
+          done
+          
+          if [ $FAILED -eq 1 ]; then
+            echo ""
+            echo "Some critical packages are below the 80% coverage threshold."
+            exit 1
+          fi
+          
+          echo ""
+          echo "✅ All critical packages meet coverage thresholds"
+
+      - name: Upload coverage to GitHub
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            coverage.out
+            coverage.txt
+          retention-days: 30
+
