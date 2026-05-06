@@ -100,4 +100,4 @@ See `DESIGN_DOCUMENT.md` for the complete specification.
 - ✅ **Onboarding**: All 6 phases complete (Welcome, Identity, Mode, Bootstrap, Exploration, First Wave) with first-week nudges
 - ✅ **Cross-Layer Visibility**: Specter Marks render on Surface Layer with orbit animations and tooltips; remaining mechanics (gifts, puzzles, mini-games) deferred to post-v0.1
 
-Binary builds and connects to network. Test suite: 100% pass rate (38 packages), zero race conditions. See AUDIT.md for detailed goal-achievement assessment and ROADMAP.md for implementation checklist.
+Binary builds and connects to network. Test suite: 100% pass rate (64 packages with tests, 72 total packages), zero race conditions. Cross-platform validation: Ebitengine rendering and libp2p connectivity validated on Linux/macOS/Windows. See AUDIT.md for detailed goal-achievement assessment and ROADMAP.md for implementation checklist.
