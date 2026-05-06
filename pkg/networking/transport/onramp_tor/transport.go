@@ -15,7 +15,7 @@ import (
 	gtransport "github.com/libp2p/go-libp2p/core/transport"
 	ma "github.com/multiformats/go-multiaddr"
 
-	transport "github.com/opd-ai/murmur/pkg/networking/transport"
+	transport "github.com/opd-ai/murmur/pkg/networking/transport/onramp"
 )
 
 // Transport implements libp2p transport.Transport interface for Tor hidden services.
@@ -73,13 +73,13 @@ func (t *Transport) Dial(ctx context.Context, raddr ma.Multiaddr, p peer.ID) (gt
 		return nil, fmt.Errorf("onion dial failed: %w", err)
 	}
 
-	return transport.upgradeConnection(ctx, rawConn, t, t.upgrader, t.rcmgr, raddr, p)
+	return transport.UpgradeConnection(ctx, rawConn, t, t.upgrader, t.rcmgr, raddr, p)
 }
 
 // Listen creates a listener on a Tor hidden service.
 // Per PLAN.md §5.3: delegate to Onion.Listen, translate returned hidden-service
 // address into an /onion3 multiaddr.
-func (t *Transport) Listen(laddr ma.Multiaddr) (transport.Listener, error) {
+func (t *Transport) Listen(laddr ma.Multiaddr) (gtransport.Listener, error) {
 	t.mu.Lock()
 	if t.closed {
 		t.mu.Unlock()
@@ -104,19 +104,7 @@ func (t *Transport) Listen(laddr ma.Multiaddr) (transport.Listener, error) {
 		return nil, fmt.Errorf("failed to convert onion address to multiaddr: %w", err)
 	}
 
-	maListener, err := manet.WrapNetListener(netListener)
-	if err != nil {
-		netListener.Close()
-		return nil, fmt.Errorf("failed to wrap listener: %w", err)
-	}
-
-	gatedListener := t.upgrader.GateMaListener(maListener)
-	upgradedListener := t.upgrader.UpgradeGatedMaListener(t, gatedListener)
-
-	return &listener{
-		Listener:  upgradedListener,
-		multiaddr: listenerMultiaddr,
-	}, nil
+	return transport.UpgradeListener(netListener, listenerMultiaddr, t, t.upgrader)
 }
 
 // CanDial returns true if this transport can dial the given multiaddr.
@@ -150,16 +138,6 @@ func (t *Transport) Close() error {
 		return t.onion.Close()
 	}
 	return nil
-}
-
-// listener wraps a libp2p Listener with the correct multiaddr.
-type listener struct {
-	transport.Listener
-	multiaddr ma.Multiaddr
-}
-
-func (l *listener) Multiaddr() ma.Multiaddr {
-	return l.multiaddr
 }
 
 // parseOnion3Addr extracts the onion address and port from an onion3 multiaddr.
@@ -239,4 +217,4 @@ func hasOnion3Protocol(maddr ma.Multiaddr) bool {
 	return false
 }
 
-var _ transport.Transport = (*Transport)(nil)
+var _ gtransport.Transport = (*Transport)(nil)

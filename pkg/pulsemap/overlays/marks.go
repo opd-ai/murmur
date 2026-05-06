@@ -84,16 +84,25 @@ func (o *MarkOverlay) RemoveMark(markID [32]byte) {
 	defer o.mu.Unlock()
 
 	for targetID, displays := range o.marks {
-		for i, d := range displays {
-			if d.Mark != nil && d.Mark.ID == markID {
-				o.marks[targetID] = append(displays[:i], displays[i+1:]...)
-				if len(o.marks[targetID]) == 0 {
-					delete(o.marks, targetID)
-				}
-				return
-			}
+		if o.removeMarkFromDisplays(targetID, displays, markID) {
+			return
 		}
 	}
+}
+
+// removeMarkFromDisplays removes mark from displays list. Returns true if found.
+func (o *MarkOverlay) removeMarkFromDisplays(targetID string, displays []*MarkDisplay, markID [32]byte) bool {
+	for i, d := range displays {
+		if d.Mark == nil || d.Mark.ID != markID {
+			continue
+		}
+		o.marks[targetID] = append(displays[:i], displays[i+1:]...)
+		if len(o.marks[targetID]) == 0 {
+			delete(o.marks, targetID)
+		}
+		return true
+	}
+	return false
 }
 
 // RemoveAllMarksForTarget removes all marks from a target node.

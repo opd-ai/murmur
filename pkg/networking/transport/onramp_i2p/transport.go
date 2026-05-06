@@ -15,7 +15,7 @@ import (
 	gtransport "github.com/libp2p/go-libp2p/core/transport"
 	ma "github.com/multiformats/go-multiaddr"
 
-	transport "github.com/opd-ai/murmur/pkg/networking/transport"
+	transport "github.com/opd-ai/murmur/pkg/networking/transport/onramp"
 )
 
 const (
@@ -83,7 +83,7 @@ func (t *Transport) Dial(ctx context.Context, raddr ma.Multiaddr, p peer.ID) (gt
 		return nil, fmt.Errorf("garlic dial failed: %w", err)
 	}
 
-	return transport.upgradeConnection(ctx, rawConn, t, t.upgrader, t.rcmgr, raddr, p)
+	return transport.UpgradeConnection(ctx, rawConn, t, t.upgrader, t.rcmgr, raddr, p)
 }
 
 // Listen creates a listener on an I2P destination.
@@ -109,7 +109,7 @@ func (t *Transport) Listen(laddr ma.Multiaddr) (gtransport.Listener, error) {
 		return nil, fmt.Errorf("failed to convert garlic address to multiaddr: %w", err)
 	}
 
-	return transport.upgradeListener(netListener, listenerMultiaddr, t, t.upgrader)
+	return transport.UpgradeListener(netListener, listenerMultiaddr, t, t.upgrader)
 }
 
 // CanDial returns true if this transport can dial the given multiaddr.
@@ -216,4 +216,4 @@ func appendPortIfPresent(dest string, maddr ma.Multiaddr) string {
 	return dest
 }
 
-var _ transport.Transport = (*Transport)(nil)
+var _ gtransport.Transport = (*Transport)(nil)

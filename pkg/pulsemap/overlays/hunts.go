@@ -178,18 +178,27 @@ func (o *HuntsOverlay) RevealClue(fragID [32]byte) {
 
 	// Update in hunts map.
 	for _, hunt := range o.hunts {
-		for i := range hunt.Fragments {
-			if hunt.Fragments[i].FragmentID == fragID {
-				if hunt.Fragments[i].ClueLevel < 3 {
-					hunt.Fragments[i].ClueLevel++
-				}
-				break
-			}
+		if o.revealClueInHunt(hunt, fragID) {
+			break
 		}
 	}
 
 	// Update in effects renderer.
 	o.effects.RevealClue(fragID)
+}
+
+// revealClueInHunt increments clue level for fragment in hunt. Returns true if found.
+func (o *HuntsOverlay) revealClueInHunt(hunt *HuntInfo, fragID [32]byte) bool {
+	for i := range hunt.Fragments {
+		if hunt.Fragments[i].FragmentID != fragID {
+			continue
+		}
+		if hunt.Fragments[i].ClueLevel < 3 {
+			hunt.Fragments[i].ClueLevel++
+		}
+		return true
+	}
+	return false
 }
 
 // Update advances animation state.

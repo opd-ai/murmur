@@ -199,14 +199,20 @@ func (g *TrophyGlyphGenerator) drawRing(img *image.RGBA, cx, cy, radius int, c c
 func (g *TrophyGlyphGenerator) drawFilledCircle(img *image.RGBA, cx, cy, radius int, c color.RGBA) {
 	for dy := -radius; dy <= radius; dy++ {
 		for dx := -radius; dx <= radius; dx++ {
-			if dx*dx+dy*dy <= radius*radius {
-				x, y := cx+dx, cy+dy
-				if x >= 0 && x < GlyphSize && y >= 0 && y < GlyphSize {
-					img.Set(x, y, c)
-				}
+			if dx*dx+dy*dy > radius*radius {
+				continue
+			}
+			x, y := cx+dx, cy+dy
+			if g.inBounds(x, y) {
+				img.Set(x, y, c)
 			}
 		}
 	}
+}
+
+// inBounds checks if coordinates are within glyph boundaries.
+func (g *TrophyGlyphGenerator) inBounds(x, y int) bool {
+	return x >= 0 && x < GlyphSize && y >= 0 && y < GlyphSize
 }
 
 // drawStarburst draws radiating lines from center.

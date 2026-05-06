@@ -19,6 +19,13 @@ All notable changes to this project will be documented in this file.
 
 ### Refactored
 
+**Transport Layer Deduplication (2026-05-06)**
+- **Code Consolidation** — Reduced duplication by 7% (48 lines eliminated). Created `pkg/networking/transport/onramp/common.go` with shared upgrade helpers for I2P and Tor transports.
+- **Functions Extracted**: `UpgradeConnection()` and `UpgradeListener()` consolidate identical post-dial/listen upgrade sequences (manet wrapping, resource management, connection upgrading).
+- **Files Modified**: Created onramp/common.go (83 lines), modified onramp_i2p/transport.go and onramp_tor/transport.go (removed 24 duplicated lines each).
+- **Metrics**: Duplication ratio reduced from 0.675% → 0.628%. All 60 packages pass tests with race detector.
+- **Decision Rationale**: Analyzed top 10 clone groups. Consolidated transport layer (48L, high ROI). Did not consolidate UI panels (25L, reduces readability), mechanics publishers (22L, different domain types), resonance cache (17L, simple pattern), ignition parser (14L, clarity > DRY), overlay count (11L, below threshold). See `DEDUPLICATION_CONSOLIDATION_SUMMARY.md`.
+
 **Code Complexity Reduction - Function Extraction (2026-05-06)**
 - **Helper Function Extraction** — Refactored 8 files to extract validation and processing logic into separate helper functions, reducing cyclomatic complexity and improving readability. All changes maintain identical behavior (zero functional changes).
 - **Affected Subsystems**: Anonymous layer (shroud/advertisement.go, shroud/beacon_wire.go, shroud/whisper.go, specters/connection.go, mechanics/forge/forge_publisher.go, resonance/pedersen.go), CLI (cli/repl.go), Content (content/storage/cache.go, content/waves/reference.go).
@@ -1471,4 +1478,19 @@ This changelog was established 2026-04-13 to track implementation progress. Prio
 ### Documentation
 - Created `REFACTORING_SUMMARY_2026-05-06.md` with detailed analysis
 - Updated complexity baselines (baseline-refactor.json, post-refactor.json)
+
+
+### [2026-05-06] Test Failure Classification Validation
+
+#### Validated
+- **Test Failure Classification Framework**: Autonomous workflow for classifying and resolving test failures using complexity metrics
+  - Phase 0: Codebase understanding (test framework, error conventions, concurrency model)
+  - Phase 1: Failure identification with baseline complexity analysis
+  - Phase 2: Classification (Cat 1: Implementation Bug, Cat 2: Test Spec Error, Cat 3: Negative Test Gap)
+  - Phase 3: Validation with post-fix complexity diff
+  - Result: 61/61 packages passing, zero failures detected, framework validated
+  - Risk indicators: Cyclomatic complexity >12, nesting depth >3, function length >30, concurrency primitives
+  - Resolution order: Highest complexity first, Cat 1 → Cat 2 → Cat 3
+  - Tools: `go test -race`, `go-stats-generator`, complexity correlation analysis
+  - Documentation: `TEST_FAILURE_CLASSIFICATION_VALIDATION_2026-05-06.md` (11 KiB, 267 lines)
 

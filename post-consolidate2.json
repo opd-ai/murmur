@@ -1,20 +1,20 @@
 {
   "metadata": {
     "repository": "/home/user/go/src/github.com/opd-ai/murmur",
-    "generated_at": "2026-05-06T02:33:09.519335689-04:00",
-    "analysis_time": 4073064368,
-    "files_processed": 312,
+    "generated_at": "2026-05-06T04:03:19.187129931-04:00",
+    "analysis_time": 4015377467,
+    "files_processed": 315,
     "tool_version": "1.0.0",
     "go_version": ""
   },
   "overview": {
-    "total_lines_of_code": 48107,
-    "total_functions": 1317,
-    "total_methods": 4481,
-    "total_structs": 769,
+    "total_lines_of_code": 48618,
+    "total_functions": 1350,
+    "total_methods": 4512,
+    "total_structs": 773,
     "total_interfaces": 37,
-    "total_packages": 58,
-    "total_files": 312
+    "total_packages": 61,
+    "total_files": 315
   },
   "functions": null,
   "structs": null,
@@ -112,9 +112,9 @@
     "complexity_score": 0
   },
   "duplication": {
-    "clone_pairs": 47,
-    "duplicated_lines": 629,
-    "duplication_ratio": 0.00621787267694741,
+    "clone_pairs": 48,
+    "duplicated_lines": 641,
+    "duplication_ratio": 0.006279942393040139,
     "largest_clone_size": 44,
     "clones": [
       {
@@ -261,14 +261,14 @@
         "instances": [
           {
             "file": "pkg/anonymous/specters/connection.go",
-            "start_line": 221,
-            "end_line": 227,
+            "start_line": 236,
+            "end_line": 242,
             "node_count": 52
           },
           {
             "file": "pkg/anonymous/specters/connection.go",
-            "start_line": 375,
-            "end_line": 381,
+            "start_line": 390,
+            "end_line": 396,
             "node_count": 52
           },
           {
@@ -504,8 +504,8 @@
         "instances": [
           {
             "file": "pkg/anonymous/specters/connection.go",
-            "start_line": 375,
-            "end_line": 383,
+            "start_line": 390,
+            "end_line": 398,
             "node_count": 54
           },
           {
@@ -567,8 +567,8 @@
         "instances": [
           {
             "file": "pkg/anonymous/specters/connection.go",
-            "start_line": 223,
-            "end_line": 231,
+            "start_line": 238,
+            "end_line": 246,
             "node_count": 42
           },
           {
@@ -651,8 +651,8 @@
         "instances": [
           {
             "file": "pkg/anonymous/mechanics/forge/forge_publisher.go",
-            "start_line": 397,
-            "end_line": 406,
+            "start_line": 414,
+            "end_line": 423,
             "node_count": 42
           },
           {
@@ -791,6 +791,27 @@
         "line_count": 11,
         "severity": "warning",
         "suggestion": "Extract 11-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
+      },
+      {
+        "hash": "0f2d41191f008b93",
+        "type": "renamed",
+        "instances": [
+          {
+            "file": "pkg/networking/transport/onramp_i2p/transport.go",
+            "start_line": 134,
+            "end_line": 145,
+            "node_count": 42
+          },
+          {
+            "file": "pkg/networking/transport/onramp_tor/transport.go",
+            "start_line": 129,
+            "end_line": 140,
+            "node_count": 42
+          }
+        ],
+        "line_count": 12,
+        "severity": "warning",
+        "suggestion": "Extract 12-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
       },
       {
         "hash": "7b1caf46e49ea3b3",
