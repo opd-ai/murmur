@@ -65,7 +65,7 @@ See `DESIGN_DOCUMENT.md` for the complete specification.
     │   │   ├── interaction/         # Pan, zoom, navigation
     │   │   └── overlays/            # Anonymous layer overlay
     │   └── onboarding/
-    │       ├── flow /                # Six-phase sequence
+    │       ├── flow/                # Six-phase sequence
     │       ├── tutorials/           # Guided exploration
     │       └── bootstrap/           # Initial peer connection
     └── assets/
