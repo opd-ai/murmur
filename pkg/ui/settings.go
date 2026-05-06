@@ -173,6 +173,21 @@ func (p *SettingsPanel) Update() bool {
 	if p.scrollY < 0 {
 		p.scrollY = 0
 	}
+	// Clamp scrollY to the maximum scroll offset so the list cannot scroll
+	// past the last setting item (per audit MEDIUM finding: missing upper bound).
+	const (
+		titleAreaH = 50 + 40 // title bar + tab strip
+		settingH   = 50
+	)
+	if p.selected < len(p.categories) {
+		maxScroll := len(p.categories[p.selected].Settings)*settingH - (p.height - titleAreaH)
+		if maxScroll < 0 {
+			maxScroll = 0
+		}
+		if p.scrollY > maxScroll {
+			p.scrollY = maxScroll
+		}
+	}
 
 	return true
 }
@@ -232,8 +247,10 @@ func (p *SettingsPanel) drawCategoryTabs(screen *ebiten.Image, px, py int) {
 		vector.DrawFilledRect(screen, float32(tabX), float32(py),
 			float32(tabWidth-2), 35, tabBg, true)
 
-		// Tab text would be rendered with text/v2.
-		_ = cat.Name
+		// Render the tab label centred inside the tab rectangle.
+		tabCenterX := float64(tabX) + float64(tabWidth-2)/2
+		tabCenterY := float64(py) + 17.5
+		drawUICenteredText(screen, cat.Name, tabCenterX, tabCenterY, p.theme.TextPrimary)
 	}
 }
 

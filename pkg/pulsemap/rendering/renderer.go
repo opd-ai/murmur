@@ -230,6 +230,17 @@ func (r *Renderer) Update() error {
 	// Update animation time.
 	r.time += 1.0 / float32(TargetFPS)
 
+	// Resize framebuffer layers here, while the write lock is already held,
+	// to avoid the lock-downgrade race window that existed in Draw().
+	// Per audit MEDIUM finding: RLock→unlock→Lock→unlock→RLock creates a gap
+	// where concurrent goroutines could observe inconsistent state.
+	w, h := ebiten.WindowSize()
+	if w > 0 && h > 0 && (w != r.screenWidth || h != r.screenHeight || r.backgroundLayer == nil) {
+		r.screenWidth = w
+		r.screenHeight = h
+		r.ensureLayers(w, h)
+	}
+
 	// Update camera animations.
 	if r.camera != nil {
 		r.camera.Update()
@@ -268,19 +279,14 @@ func (r *Renderer) ensureLayers(w, h int) {
 // (background/graph/overlays/UI) composited for improved performance.
 func (r *Renderer) Draw(screen *ebiten.Image) {
 	r.mu.RLock()
-
-	// Get screen dimensions.
-	w, h := screen.Bounds().Dx(), screen.Bounds().Dy()
-
-	// Ensure layers are properly sized (requires upgrading to write lock).
-	r.mu.RUnlock()
-	r.mu.Lock()
-	r.screenWidth = w
-	r.screenHeight = h
-	r.ensureLayers(w, h)
-	r.mu.Unlock()
-	r.mu.RLock()
 	defer r.mu.RUnlock()
+
+	// Layers are sized in Update() under the write lock; no lock downgrade needed here.
+	// Guard against Draw() being called before the first Update() initialises layers.
+	if r.backgroundLayer == nil {
+		screen.Fill(r.backgroundColor)
+		return
+	}
 
 	// Clear all layers for fresh frame.
 	r.backgroundLayer.Clear()
@@ -319,7 +325,7 @@ func (r *Renderer) Draw(screen *ebiten.Image) {
 	}
 
 	// Compute visible bounds for culling.
-	minX, minY, maxX, maxY := r.camera.ViewBounds(float64(w), float64(h))
+	minX, minY, maxX, maxY := r.camera.ViewBounds(float64(r.screenWidth), float64(r.screenHeight))
 
 	// Calculate zoom level for detail decisions.
 	zoom := ZoomLevelFromScale(r.camera.Scale)

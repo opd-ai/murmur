@@ -16,17 +16,39 @@ import (
 	"github.com/opd-ai/murmur/pkg/identity/sigils"
 )
 
+// glowCacheKey uniquely identifies a glow image by its parameters.
+type glowCacheKey struct {
+	size      int
+	r, g, b   uint8
+	intensity uint8 // scaled 0–255 from float32
+}
+
+// glowImageCache stores pre-rendered glow images keyed by parameters.
+// Glow images are pure functions of their inputs so they are safe to reuse.
+var (
+	glowCacheMu sync.RWMutex
+	glowImages  = make(map[glowCacheKey]*ebiten.Image, 64)
+)
+
+// sigilCacheMaxSize is the maximum number of sigil images held in the cache.
+// Beyond this limit the oldest entry is evicted and its VRAM is freed.
+const sigilCacheMaxSize = 512
+
 // SigilCache caches Ebitengine images for sigils to avoid recreation each frame.
 // Per PULSE_MAP.md, sigils are rendered as node overlays in the Pulse Map.
+// The cache is bounded to sigilCacheMaxSize entries; oldest entries are evicted
+// first to free VRAM (per audit MEDIUM finding: unbounded cache growth).
 type SigilCache struct {
-	mu    sync.RWMutex
-	cache map[[32]byte]*ebiten.Image
+	mu          sync.RWMutex
+	cache       map[[32]byte]*ebiten.Image
+	insertOrder [][32]byte // FIFO order for eviction
 }
 
 // NewSigilCache creates a new sigil image cache.
 func NewSigilCache() *SigilCache {
 	return &SigilCache{
-		cache: make(map[[32]byte]*ebiten.Image),
+		cache:       make(map[[32]byte]*ebiten.Image),
+		insertOrder: make([][32]byte, 0, sigilCacheMaxSize),
 	}
 }
 
@@ -47,9 +69,18 @@ func (c *SigilCache) Get(sigil *sigils.Sigil) *ebiten.Image {
 	// Create Ebitengine image from sigil.
 	img := SigilToEbitenImage(sigil)
 
-	// Cache the result.
+	// Cache the result, evicting the oldest entry if the cache is full.
 	c.mu.Lock()
+	if len(c.cache) >= sigilCacheMaxSize && len(c.insertOrder) > 0 {
+		oldest := c.insertOrder[0]
+		c.insertOrder = c.insertOrder[1:]
+		if evicted, ok := c.cache[oldest]; ok {
+			evicted.Deallocate()
+			delete(c.cache, oldest)
+		}
+	}
 	c.cache[sigil.Hash] = img
+	c.insertOrder = append(c.insertOrder, sigil.Hash)
 	c.mu.Unlock()
 
 	return img
@@ -62,10 +93,14 @@ func (c *SigilCache) Remove(hash [32]byte) {
 	c.mu.Unlock()
 }
 
-// Clear removes all cached sigil images.
+// Clear removes all cached sigil images and frees associated VRAM.
 func (c *SigilCache) Clear() {
 	c.mu.Lock()
+	for _, img := range c.cache {
+		img.Deallocate()
+	}
 	c.cache = make(map[[32]byte]*ebiten.Image)
+	c.insertOrder = c.insertOrder[:0]
 	c.mu.Unlock()
 }
 
@@ -128,6 +163,8 @@ func RenderSigilWithGlow(dst, sigilImg *ebiten.Image, x, y, nodeRadius float32, 
 }
 
 // drawGlowCircle draws a soft glow circle effect.
+// The rendered glow image is cached by (size, colour, intensity) to avoid
+// allocating a new GPU texture on every call (per the audit HIGH finding).
 func drawGlowCircle(dst *ebiten.Image, cx, cy, radius float32, c color.RGBA, intensity float32) {
 	// Create a temporary image for the glow effect.
 	size := int(radius * 2)
@@ -135,28 +172,47 @@ func drawGlowCircle(dst *ebiten.Image, cx, cy, radius float32, c color.RGBA, int
 		return
 	}
 
-	glow := image.NewRGBA(image.Rect(0, 0, size, size))
-	center := float32(size) / 2
-
-	// Draw a radial gradient.
-	for y := 0; y < size; y++ {
-		for x := 0; x < size; x++ {
-			dx := float32(x) - center
-			dy := float32(y) - center
-			dist := dx*dx + dy*dy
-			maxDist := center * center
-
-			if dist < maxDist {
-				// Quadratic falloff for soft glow.
-				falloff := 1.0 - dist/maxDist
-				alpha := uint8(float32(c.A) * falloff * intensity)
-				glow.SetRGBA(x, y, color.RGBA{R: c.R, G: c.G, B: c.B, A: alpha})
-			}
-		}
+	key := glowCacheKey{
+		size:      size,
+		r:         c.R,
+		g:         c.G,
+		b:         c.B,
+		intensity: uint8(intensity * 255),
 	}
 
-	// Draw the glow image.
-	glowImg := ebiten.NewImageFromImage(glow)
+	// Fast path: check cache under read lock.
+	glowCacheMu.RLock()
+	glowImg, ok := glowImages[key]
+	glowCacheMu.RUnlock()
+
+	if !ok {
+		// Slow path: build and store the glow image.
+		glow := image.NewRGBA(image.Rect(0, 0, size, size))
+		center := float32(size) / 2
+
+		for y := 0; y < size; y++ {
+			for x := 0; x < size; x++ {
+				dx := float32(x) - center
+				dy := float32(y) - center
+				dist := dx*dx + dy*dy
+				maxDist := center * center
+
+				if dist < maxDist {
+					falloff := 1.0 - dist/maxDist
+					alpha := uint8(float32(c.A) * falloff * intensity)
+					glow.SetRGBA(x, y, color.RGBA{R: c.R, G: c.G, B: c.B, A: alpha})
+				}
+			}
+		}
+
+		glowImg = ebiten.NewImageFromImage(glow)
+
+		glowCacheMu.Lock()
+		glowImages[key] = glowImg
+		glowCacheMu.Unlock()
+	}
+
+	center := float32(size) / 2
 	opts := &ebiten.DrawImageOptions{}
 	opts.GeoM.Translate(float64(cx-center), float64(cy-center))
 	dst.DrawImage(glowImg, opts)

@@ -42,9 +42,14 @@ type ActivityHeatMap struct {
 	// Grid cells for aggregating activity
 	grid map[gridKey]float32
 
-	// Cached heat map image (regenerated when samples change)
+	// Cached heat map image (regenerated when samples or camera change)
 	heatMapImage *ebiten.Image
 	needsRedraw  bool
+
+	// Last camera state used when the cached image was rendered.
+	// If the camera moves or zooms, needsRedraw is forced true so the cached
+	// image is rebuilt with the new world-to-screen transform.
+	lastCameraX, lastCameraY, lastZoom float64
 
 	// Last update time for expiry checking
 	lastUpdate time.Time
@@ -132,9 +137,18 @@ func (h *ActivityHeatMap) Render(screen *ebiten.Image, cameraX, cameraY, zoom fl
 		return
 	}
 
+	// Invalidate the cached image when the camera moves or zooms so that cell
+	// positions are recomputed with the new world-to-screen transform.
+	if cameraX != h.lastCameraX || cameraY != h.lastCameraY || zoom != h.lastZoom {
+		h.needsRedraw = true
+	}
+
 	if h.needsRedraw {
 		h.regenerateHeatMap(screen, cameraX, cameraY, zoom)
 		h.needsRedraw = false
+		h.lastCameraX = cameraX
+		h.lastCameraY = cameraY
+		h.lastZoom = zoom
 	}
 
 	if h.heatMapImage != nil {

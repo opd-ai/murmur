@@ -190,28 +190,31 @@ func (s *SearchBar) handleTextInput() bool {
 	// Handle character input.
 	runes := ebiten.AppendInputChars(nil)
 	for _, r := range runes {
-		// Insert at cursor position.
-		before := s.query[:s.cursorPos]
-		after := s.query[s.cursorPos:]
-		s.query = before + string(r) + after
+		// Insert at cursor position using rune slices so that multibyte
+		// characters are handled correctly. Per audit MEDIUM finding: using
+		// byte offsets into a UTF-8 string corrupts multibyte characters.
+		queryRunes := []rune(s.query)
+		queryRunes = append(queryRunes[:s.cursorPos],
+			append([]rune{r}, queryRunes[s.cursorPos:]...)...)
+		s.query = string(queryRunes)
 		s.cursorPos++
 		changed = true
 	}
 
-	// Handle backspace.
+	// Handle backspace — delete the rune before the cursor.
 	if inpututil.IsKeyJustPressed(ebiten.KeyBackspace) && s.cursorPos > 0 {
-		before := s.query[:s.cursorPos-1]
-		after := s.query[s.cursorPos:]
-		s.query = before + after
+		queryRunes := []rune(s.query)
+		queryRunes = append(queryRunes[:s.cursorPos-1], queryRunes[s.cursorPos:]...)
+		s.query = string(queryRunes)
 		s.cursorPos--
 		changed = true
 	}
 
-	// Handle delete.
+	// Handle delete — delete the rune at the cursor.
 	if inpututil.IsKeyJustPressed(ebiten.KeyDelete) && s.cursorPos < utf8.RuneCountInString(s.query) {
-		before := s.query[:s.cursorPos]
-		after := s.query[s.cursorPos+1:]
-		s.query = before + after
+		queryRunes := []rune(s.query)
+		queryRunes = append(queryRunes[:s.cursorPos], queryRunes[s.cursorPos+1:]...)
+		s.query = string(queryRunes)
 		changed = true
 	}
 
@@ -349,12 +352,16 @@ func (s *SearchBar) Draw(screen *ebiten.Image) {
 	// Draw cursor (blinking).
 	// Measure the rendered text prefix up to cursorPos so the cursor is
 	// positioned accurately regardless of character width or encoding.
+	// cursorPos is a rune index; convert to a byte-string prefix so that
+	// measureUIText gets the correct UTF-8 sequence.
 	if s.visible && (ebiten.TPS()/searchCursorBlinkRate)%2 == 0 {
-		prefixEnd := s.cursorPos
-		if prefixEnd > len(s.query) {
-			prefixEnd = len(s.query)
+		queryRunes := []rune(s.query)
+		safePos := s.cursorPos
+		if safePos > len(queryRunes) {
+			safePos = len(queryRunes)
 		}
-		prefixW, _ := measureUIText(s.query[:prefixEnd])
+		prefixStr := string(queryRunes[:safePos])
+		prefixW, _ := measureUIText(prefixStr)
 		cursorX := float32(s.barX+searchBarPadding) + float32(prefixW)
 		cursorColor := s.theme.TextPrimary
 		cursorColor.A = alpha

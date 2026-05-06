@@ -497,6 +497,16 @@ func (cp *CouncilPanel) handleMembersInput() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyDown) {
 		cp.scrollOffset++
 	}
+	// Clamp to list length so the view cannot scroll past the last member.
+	if cp.currentCouncil != nil {
+		maxScroll := len(cp.currentCouncil.Members) - 1
+		if maxScroll < 0 {
+			maxScroll = 0
+		}
+		if cp.scrollOffset > maxScroll {
+			cp.scrollOffset = maxScroll
+		}
+	}
 }
 
 // handleProposalsInput handles input in proposals view mode.
@@ -507,6 +517,16 @@ func (cp *CouncilPanel) handleProposalsInput() {
 	}
 	if inpututil.IsKeyJustPressed(ebiten.KeyDown) {
 		cp.scrollOffset++
+	}
+	// Clamp to list length so the view cannot scroll past the last proposal.
+	if cp.currentCouncil != nil {
+		maxScroll := len(cp.currentCouncil.Proposals) - 1
+		if maxScroll < 0 {
+			maxScroll = 0
+		}
+		if cp.scrollOffset > maxScroll {
+			cp.scrollOffset = maxScroll
+		}
 	}
 
 	// Enter to vote on selected proposal.
@@ -638,9 +658,13 @@ func handleTextInput(current string, maxLen int) string {
 		}
 	}
 
-	// Handle backspace.
-	if inpututil.IsKeyJustPressed(ebiten.KeyBackspace) && len(current) > 0 {
-		current = current[:len(current)-1]
+	// Handle backspace — delete the last Unicode rune, not the last byte,
+	// so that multibyte characters (e.g. CJK, emoji) are removed correctly.
+	// Per audit MEDIUM finding: current[:len-1] truncates the last byte,
+	// which corrupts multibyte UTF-8 characters.
+	if inpututil.IsKeyJustPressed(ebiten.KeyBackspace) && current != "" {
+		runes := []rune(current)
+		current = string(runes[:len(runes)-1])
 	}
 
 	return current

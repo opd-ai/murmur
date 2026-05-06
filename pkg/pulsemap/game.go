@@ -197,9 +197,15 @@ func (g *Game) Update() error {
 
 	g.handleComposePanelToggle()
 	g.handleSearchBarToggle()
-	g.handleFindSelf()
-	g.handleNetworkView()
-	g.handleBookmarkKeys()
+
+	// Only fire navigation hotkeys when no text-input panel is active.
+	// Prevents H/Home/N from hijacking camera while typing in search, compose, or detail.
+	panelActive := g.searchBar.Visible() || g.nodeDetailPanel.Visible() || g.composePanel.Visible()
+	if !panelActive {
+		g.handleFindSelf()
+		g.handleNetworkView()
+		g.handleBookmarkKeys()
+	}
 	g.handleNodeSelection()
 
 	// Update search bar first (highest priority if visible).

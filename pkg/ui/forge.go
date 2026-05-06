@@ -243,9 +243,13 @@ func (p *ForgePanel) updateEntriesMode() {
 }
 
 func (p *ForgePanel) handleTextInput(target *string, maxLen int) {
-	// Handle backspace.
-	if inpututil.IsKeyJustPressed(ebiten.KeyBackspace) && len(*target) > 0 {
-		*target = (*target)[:len(*target)-1]
+	// Handle backspace — delete the last Unicode rune, not the last byte,
+	// so that multibyte characters (e.g. CJK, emoji) are removed correctly.
+	// Per audit MEDIUM finding: (*target)[:len-1] truncates the last byte,
+	// which corrupts multibyte UTF-8 characters.
+	if inpututil.IsKeyJustPressed(ebiten.KeyBackspace) && *target != "" {
+		runes := []rune(*target)
+		*target = string(runes[:len(runes)-1])
 	}
 
 	// Handle regular text input.

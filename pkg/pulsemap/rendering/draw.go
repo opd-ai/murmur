@@ -11,7 +11,6 @@ package rendering
 import (
 	"image/color"
 	"math"
-	"math/rand"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
@@ -316,13 +315,19 @@ func renderSpecterParticlesAnimated(dst *ebiten.Image, x, y, radius float32, sty
 
 	orbitRadius := radius * SpecterParticleOrbitRadius
 
-	// Seeded random for consistent particle offsets per node.
-	rng := rand.New(rand.NewSource(int64(style.CoreColor.R) + int64(style.CoreColor.G)*256 + int64(style.CoreColor.B)*65536))
+	// Derive a stable per-node seed directly from the core colour components.
+	// Using a multiplicative hash avoids allocating a *rand.Rand on every call
+	// (per audit MEDIUM finding: 30 000 allocations/sec at 500 nodes × 60 fps).
+	seed := uint32(style.CoreColor.R)*2654435761 ^ uint32(style.CoreColor.G)*2246822519 ^ uint32(style.CoreColor.B)*1812433253
 
 	for i := 0; i < particleCount; i++ {
-		// Each particle has a unique phase offset.
-		phaseOffset := rng.Float64() * 2 * math.Pi
-		speedVariation := 0.5 + rng.Float64()*0.5
+		// Per-particle deterministic phase offset via Knuth multiplicative hash.
+		h := (seed ^ uint32(i)*2654435769) * 2246822519
+		phaseOffset := float64(h) / float64(^uint32(0)) * 2 * math.Pi
+
+		// Per-particle speed variation in [0.5, 1.0].
+		h2 := (h ^ 0xdeadbeef) * 1812433253
+		speedVariation := 0.5 + float64(h2)/float64(^uint32(0))*0.5
 
 		angle := phaseOffset + time*speedVariation
 		px := x + float32(math.Cos(angle))*orbitRadius

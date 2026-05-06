@@ -8,6 +8,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 	"github.com/opd-ai/murmur/pkg/identity/keys"
 )
@@ -59,9 +60,20 @@ func (s *RecoveryScreen) Update() error {
 		s.updateMnemonicEntry()
 	}
 
-	// Handle key file passphrase entry.
-	if s.method == RecoveryMethodKeyFile && s.passphraseMode {
-		s.updatePassphraseEntry()
+	// Handle key file: back button is available even before a file is loaded.
+	if s.method == RecoveryMethodKeyFile {
+		if s.passphraseMode {
+			s.updatePassphraseEntry()
+		} else {
+			// No file loaded yet — only the back button is interactive.
+			if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+				x, y := ebiten.CursorPosition()
+				if isInButton(float32(x), float32(y), 200, 500, 120, 40) {
+					s.method = RecoveryMethodNone
+					s.errorMsg = ""
+				}
+			}
+		}
 	}
 
 	return nil
@@ -115,6 +127,16 @@ func (s *RecoveryScreen) updateMnemonicEntry() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) {
 		s.attemptRecovery()
 	}
+
+	// Back button click — handled here, not in Draw, to keep rendering side-effect-free.
+	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+		x, y := ebiten.CursorPosition()
+		if isInButton(float32(x), float32(y), 200, 500, 120, 40) {
+			s.method = RecoveryMethodNone
+			s.mnemonicText = ""
+			s.errorMsg = ""
+		}
+	}
 }
 
 // updatePassphraseEntry handles passphrase text input for key file recovery.
@@ -136,6 +158,18 @@ func (s *RecoveryScreen) updatePassphraseEntry() {
 	// Handle Enter to attempt recovery.
 	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) {
 		s.attemptKeyFileRecovery()
+	}
+
+	// Back button click — handled here, not in Draw, to keep rendering side-effect-free.
+	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+		x, y := ebiten.CursorPosition()
+		if isInButton(float32(x), float32(y), 200, 500, 120, 40) {
+			s.method = RecoveryMethodNone
+			s.passphrase = ""
+			s.passphraseMode = false
+			s.keyFileData = nil
+			s.errorMsg = ""
+		}
 	}
 }
 
@@ -263,20 +297,10 @@ func (s *RecoveryScreen) drawMnemonicEntry(screen *ebiten.Image) {
 	// Instructions.
 	DrawCenteredText(screen, "Press Enter to recover", 400, 380, 12, color.RGBA{150, 150, 160, 255})
 
-	// Back button.
+	// Back button (click is handled in Update, not here).
 	style := DefaultButtonStyle()
 	style.Width = 120
 	DrawButton(screen, "← Back", 200, 500, style)
-
-	// Handle back button click.
-	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
-		x, y := ebiten.CursorPosition()
-		if isInButton(float32(x), float32(y), 200, 500, 120, 40) {
-			s.method = RecoveryMethodNone
-			s.mnemonicText = ""
-			s.errorMsg = ""
-		}
-	}
 }
 
 // IsCompleted returns true if recovery was successful.
@@ -313,6 +337,9 @@ func appendTypedText(text string) string {
 }
 
 // drawWrappedText draws text with word wrapping.
+// Per audit LOW finding: the previous implementation measured line width as
+// len(testLine)*7 (bytes × 7 px), which is incorrect for non-ASCII text.
+// text.Measure is used instead for accurate pixel-width calculations.
 func drawWrappedText(screen *ebiten.Image, text string, x, y, maxWidth float32, size int, clr color.Color) {
 	// Simple word wrapping implementation.
 	words := strings.Fields(text)
@@ -326,8 +353,9 @@ func drawWrappedText(screen *ebiten.Image, text string, x, y, maxWidth float32, 
 		}
 		testLine += word
 
-		// Estimate width (rough approximation: 7 pixels per character).
-		if float32(len(testLine)*7) > maxWidth {
+		// Use text.Measure for the exact rendered pixel width.
+		measuredW, _ := measureLine(testLine)
+		if measuredW > float64(maxWidth) {
 			// Draw current line and start new one.
 			if currentLine != "" {
 				DrawCenteredText(screen, currentLine, x+maxWidth/2, lineY, float64(size), clr)
@@ -343,6 +371,13 @@ func drawWrappedText(screen *ebiten.Image, text string, x, y, maxWidth float32, 
 	if currentLine != "" {
 		DrawCenteredText(screen, currentLine, x+maxWidth/2, lineY, float64(size), clr)
 	}
+}
+
+// measureLine returns the rendered pixel width and height of s using the shared
+// helper font face from helpers.go.  Uses text.Measure for accurate pixel widths
+// that account for glyph advance widths, not just byte count × 7.
+func measureLine(s string) (float64, float64) {
+	return text.Measure(s, helperFace, 0)
 }
 
 // isInButton checks if a point is within a button's bounds.
@@ -389,20 +424,8 @@ func (s *RecoveryScreen) drawKeyFileEntry(screen *ebiten.Image) {
 		DrawCenteredText(screen, "Press Enter to recover", 400, 320, 12, color.RGBA{150, 150, 160, 255})
 	}
 
-	// Back button.
+	// Back button (click is handled in Update, not here).
 	style := DefaultButtonStyle()
 	style.Width = 120
 	DrawButton(screen, "← Back", 200, 500, style)
-
-	// Handle back button click.
-	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
-		x, y := ebiten.CursorPosition()
-		if isInButton(float32(x), float32(y), 200, 500, 120, 40) {
-			s.method = RecoveryMethodNone
-			s.passphrase = ""
-			s.passphraseMode = false
-			s.keyFileData = nil
-			s.errorMsg = ""
-		}
-	}
 }
