@@ -7,9 +7,12 @@ package keys
 import (
 	"crypto/ed25519"
 	"crypto/rand"
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"time"
 
+	pb "github.com/opd-ai/murmur/proto"
 	"golang.org/x/crypto/argon2"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/curve25519"
@@ -336,4 +339,78 @@ func keysMatch(a, b []byte) bool {
 		}
 	}
 	return true
+}
+
+// RotateKeyPair generates a new Ed25519 keypair and constructs a ContinuityDeclaration
+// linking the old key to the new key.
+// Per docs/KEY_ROTATION.md, both old and new keys sign the declaration to prove
+// cooperation (prevents old-key-holder-only attacks).
+func RotateKeyPair(oldKey *KeyPair, gracePeriodDays int64, reason string) (*KeyPair, *pb.ContinuityDeclaration, error) {
+	if oldKey == nil {
+		return nil, nil, errors.New("old keypair is nil")
+	}
+	if gracePeriodDays < 1 || gracePeriodDays > 30 {
+		return nil, nil, errors.New("grace_period_days must be between 1 and 30")
+	}
+
+	// Generate new Ed25519 keypair.
+	newKey, err := GenerateKeyPair()
+	if err != nil {
+		return nil, nil, fmt.Errorf("generating new keypair: %w", err)
+	}
+
+	// Prevent self-rotation.
+	if keysMatch(oldKey.PublicKey, newKey.PublicKey) {
+		newKey.ZeroKeyPair()
+		return nil, nil, errors.New("new key cannot equal old key (self-rotation not allowed)")
+	}
+
+	// Construct ContinuityDeclaration.
+	timestamp := time.Now().Unix()
+	decl := &pb.ContinuityDeclaration{
+		OldPublicKey:          oldKey.PublicKey,
+		NewPublicKey:          newKey.PublicKey,
+		RotationTimestampUnix: timestamp,
+		GracePeriodDays:       gracePeriodDays,
+		RotationReason:        reason,
+	}
+
+	// Sign with old key.
+	// Message format: old_pubkey || new_pubkey || timestamp || grace_period || reason
+	sigData := buildRotationSignatureData(decl)
+	decl.OldKeySignature = oldKey.Sign(sigData)
+
+	// Sign with new key (proves new key holder participated).
+	decl.NewKeySignature = newKey.Sign(sigData)
+
+	return newKey, decl, nil
+}
+
+// buildRotationSignatureData constructs the canonical byte representation
+// for ContinuityDeclaration signatures.
+func buildRotationSignatureData(decl *pb.ContinuityDeclaration) []byte {
+	// Compute total size: 32 + 32 + 8 + 8 + len(reason)
+	size := 32 + 32 + 8 + 8 + len(decl.RotationReason)
+	data := make([]byte, 0, size)
+
+	// Append old_public_key (32 bytes)
+	data = append(data, decl.OldPublicKey...)
+
+	// Append new_public_key (32 bytes)
+	data = append(data, decl.NewPublicKey...)
+
+	// Append rotation_timestamp_unix (8 bytes, big-endian)
+	var tsBuf [8]byte
+	binary.BigEndian.PutUint64(tsBuf[:], uint64(decl.RotationTimestampUnix))
+	data = append(data, tsBuf[:]...)
+
+	// Append grace_period_days (8 bytes, big-endian)
+	var gpBuf [8]byte
+	binary.BigEndian.PutUint64(gpBuf[:], uint64(decl.GracePeriodDays))
+	data = append(data, gpBuf[:]...)
+
+	// Append rotation_reason (variable length)
+	data = append(data, []byte(decl.RotationReason)...)
+
+	return data
 }
