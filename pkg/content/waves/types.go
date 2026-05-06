@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/opd-ai/murmur/pkg/content/pow"
+	"github.com/opd-ai/murmur/pkg/encoding"
 	"github.com/opd-ai/murmur/pkg/identity/keys"
 	pb "github.com/opd-ai/murmur/proto"
 	"github.com/zeebo/blake3"
@@ -317,16 +318,7 @@ func IncrementHop(wave *pb.Wave) *pb.Wave {
 
 // int64ToBytes converts an int64 to an 8-byte big-endian array.
 func int64ToBytes(v int64) [8]byte {
-	var b [8]byte
-	b[0] = byte(v >> 56)
-	b[1] = byte(v >> 48)
-	b[2] = byte(v >> 40)
-	b[3] = byte(v >> 32)
-	b[4] = byte(v >> 24)
-	b[5] = byte(v >> 16)
-	b[6] = byte(v >> 8)
-	b[7] = byte(v)
-	return b
+	return encoding.Int64ToBytes(v)
 }
 
 // hashWavePrefix hashes the common wave fields: type, content, author, creation time.

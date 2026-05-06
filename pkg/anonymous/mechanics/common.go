@@ -4,6 +4,7 @@ package mechanics
 import (
 	"errors"
 
+	"github.com/opd-ai/murmur/pkg/encoding"
 	"github.com/opd-ai/murmur/pkg/store"
 )
 
@@ -69,16 +70,7 @@ func GarbageCollectHistory[T any](history []T, lookup map[[32]byte]T, maxHistory
 // EncodeTimestamp encodes a Unix timestamp in seconds to 8 bytes (big-endian).
 // This is used for event signature data construction across mechanics.
 func EncodeTimestamp(timestamp int64) [8]byte {
-	var ts [8]byte
-	ts[0] = byte(timestamp >> 56)
-	ts[1] = byte(timestamp >> 48)
-	ts[2] = byte(timestamp >> 40)
-	ts[3] = byte(timestamp >> 32)
-	ts[4] = byte(timestamp >> 24)
-	ts[5] = byte(timestamp >> 16)
-	ts[6] = byte(timestamp >> 8)
-	ts[7] = byte(timestamp)
-	return ts
+	return encoding.Int64ToBytes(timestamp)
 }
 
 // Expirable represents an object that can expire based on time.

@@ -304,9 +304,7 @@ func (s *RecoveryScreen) drawMnemonicEntry(screen *ebiten.Image) {
 	boxWidth := float32(500)
 	boxHeight := float32(120)
 
-	// Draw box using vector.
-	vector.DrawFilledRect(screen, boxX, boxY, boxWidth, boxHeight, color.RGBA{40, 40, 60, 255}, true)
-	vector.StrokeRect(screen, boxX, boxY, boxWidth, boxHeight, 1, color.RGBA{70, 80, 120, 255}, true)
+	drawInputBox(screen, boxX, boxY, boxWidth, boxHeight)
 
 	// Draw entered text (with wrapping).
 	drawWrappedText(screen, s.mnemonicText, boxX+10, boxY+10, boxWidth-20, 14, color.RGBA{220, 220, 230, 255})
@@ -362,6 +360,12 @@ func appendTypedText(text string) string {
 // Per audit LOW finding: the previous implementation measured line width as
 // len(testLine)*7 (bytes × 7 px), which is incorrect for non-ASCII text.
 // text.Measure is used instead for accurate pixel-width calculations.
+// drawInputBox draws a styled input box with background and border.
+func drawInputBox(screen *ebiten.Image, x, y, width, height float32) {
+	vector.DrawFilledRect(screen, x, y, width, height, color.RGBA{40, 40, 60, 255}, true)
+	vector.StrokeRect(screen, x, y, width, height, 1, color.RGBA{70, 80, 120, 255}, true)
+}
+
 func drawWrappedText(screen *ebiten.Image, text string, x, y, maxWidth float32, size int, clr color.Color) {
 	// Simple word wrapping implementation.
 	words := strings.Fields(text)
@@ -429,9 +433,7 @@ func (s *RecoveryScreen) drawKeyFileEntry(screen *ebiten.Image) {
 		boxWidth := float32(300)
 		boxHeight := float32(40)
 
-		// Draw box using vector.
-		vector.DrawFilledRect(screen, boxX, boxY, boxWidth, boxHeight, color.RGBA{40, 40, 60, 255}, true)
-		vector.StrokeRect(screen, boxX, boxY, boxWidth, boxHeight, 1, color.RGBA{70, 80, 120, 255}, true)
+		drawInputBox(screen, boxX, boxY, boxWidth, boxHeight)
 
 		// Draw passphrase as asterisks.
 		masked := strings.Repeat("*", len(s.passphrase))
