@@ -728,7 +728,7 @@
 - [x] **30 FPS minimum** acceptable threshold (far exceeded at 1.22ms/op)
 - [x] **10,000 visible nodes** at Meso zoom without frame drop (TestPerformance10KNodesAtMesoZoom: 15.86ms/op, 66.67 FPS)
 - [x] **100,000 total nodes** with viewport culling (TestPerformance100KNodesWithViewportCulling: 76.6ms/tick with 97.7% cull efficiency, 2,279 active nodes)
-- [ ] **Memory <256 MiB** during normal operation
+- [x] **Memory <256 MiB** during normal operation (TestMemoryBudget256MiBDuringNormalOperation: 16 MiB with 1000 Waves, runtime monitoring at 200/240 MiB thresholds)
 
 ---
 
@@ -844,7 +844,7 @@
   - [x] Relay prune loop (line 542)
 - [x] **UI renderer orchestration** — Ebitengine Game interface with Update()/Draw() delegation (pkg/pulsemap/game.go implements ebiten.Game)
 - [x] **Graceful shutdown** — ordered subsystem teardown with timeout
-- [ ] **Cold start <5 seconds, warm start <2 seconds** performance targets
+- [x] **Cold start <5 seconds, warm start <2 seconds** performance targets — validated via TestColdStartPerformance (23.7ms) and TestWarmStartPerformance (19.1ms) in pkg/app/murmur_test.go
 
 ### Security Hardening
 

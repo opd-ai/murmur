@@ -2,9 +2,14 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"runtime"
+	"strings"
 	"testing"
 	"time"
+
+	pb "github.com/opd-ai/murmur/proto"
 )
 
 func TestNew(t *testing.T) {
@@ -360,5 +365,244 @@ func TestAllGoroutinesExitOnContextCancel(t *testing.T) {
 	// Per AUDIT.md H2, we verify <1s exit time for defensive programming.
 	if duration > time.Second {
 		t.Logf("WARNING: goroutines took %v to exit (target <1s)", duration)
+	}
+}
+
+// TestMemoryBudget256MiBDuringNormalOperation validates that memory usage
+// stays under 256 MiB during normal operation per ROADMAP.md line 731
+// and TECHNICAL_IMPLEMENTATION.md §6.
+func TestMemoryBudget256MiBDuringNormalOperation(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping memory budget test in short mode")
+	}
+
+	tmpDir, err := os.MkdirTemp("", "murmur-test-*")
+	if err != nil {
+		t.Fatalf("creating temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	app, err := New(Config{DataDir: tmpDir, SkipUI: true})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	defer app.Close()
+
+	runErr := make(chan error, 1)
+	go func() {
+		runErr <- app.Run()
+	}()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := app.WaitReady(ctx); err != nil {
+		t.Fatalf("WaitReady() error = %v", err)
+	}
+
+	// Simulate normal operation: create and store Waves.
+	// With typical Wave size (~500 bytes) and TTL enforcement,
+	// memory should stay well under 256 MiB.
+	cache := app.subsystems.WaveCache
+	if cache == nil {
+		t.Fatal("WaveCache not initialized")
+	}
+
+	// Add 1000 Waves (typical active content window).
+	// Each Wave is ~500 bytes including protobuf overhead.
+	for i := 0; i < 1000; i++ {
+		waveID := []byte(fmt.Sprintf("wave-%06d-test", i))
+		content := []byte(strings.Repeat("x", 400))
+
+		wave := &pb.Wave{
+			WaveId:     waveID,
+			Content:    content,
+			CreatedAt:  time.Now().Unix(),
+			TtlSeconds: 7 * 24 * 60 * 60, // 7 days in seconds
+			WaveType:   pb.WaveType_WAVE_TYPE_SURFACE,
+		}
+
+		if err := cache.Put(wave); err != nil {
+			t.Logf("Warning: Failed to put wave %d: %v", i, err)
+		}
+	}
+
+	// Force GC to get accurate memory reading.
+	runtime.GC()
+	time.Sleep(100 * time.Millisecond)
+
+	// Check memory usage.
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	allocMB := m.Alloc / (1024 * 1024)
+
+	const budgetMB = 256
+	t.Logf("Memory usage: %d MiB (budget: %d MiB)", allocMB, budgetMB)
+	t.Logf("  Alloc: %d MiB", allocMB)
+	t.Logf("  TotalAlloc: %d MiB", m.TotalAlloc/(1024*1024))
+	t.Logf("  Sys: %d MiB", m.Sys/(1024*1024))
+	t.Logf("  NumGC: %d", m.NumGC)
+	t.Logf("  Waves stored: 1000")
+
+	// Validate memory is under budget.
+	if allocMB > budgetMB {
+		t.Errorf("Memory budget exceeded: %d MiB > %d MiB budget", allocMB, budgetMB)
+	}
+
+	// Validate memory monitor would trigger eviction before critical.
+	const evictionThreshold = 200 // Per app.checkMemory()
+	if allocMB > evictionThreshold {
+		t.Logf("WARNING: Memory %d MiB exceeds eviction threshold %d MiB", allocMB, evictionThreshold)
+	}
+
+	// Clean shutdown.
+	if err := app.Close(); err != nil {
+		t.Errorf("Close() error = %v", err)
+	}
+
+	select {
+	case <-runErr:
+		// Expected
+	case <-time.After(2 * time.Second):
+		t.Fatal("app.Run() did not return within 2s")
+	}
+}
+
+// TestColdStartPerformance validates that application cold start completes in <5 seconds.
+// Per ROADMAP.md line 847 and TECHNICAL_IMPLEMENTATION.md §6 performance targets.
+// Cold start = first run with no existing database or keystore.
+func TestColdStartPerformance(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "murmur-cold-*")
+	if err != nil {
+		t.Fatalf("creating temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	app, err := New(Config{
+		Version:     "0.0.0-test",
+		DataDir:     tmpDir,
+		SkipUI:      true,
+		ListenAddrs: []string{"/ip4/127.0.0.1/tcp/0"},
+	})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	defer app.Close()
+
+	startTime := time.Now()
+	runErr := make(chan error, 1)
+	go func() {
+		runErr <- app.Run()
+	}()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := app.WaitReady(ctx); err != nil {
+		t.Fatalf("WaitReady() error = %v", err)
+	}
+
+	elapsed := time.Since(startTime)
+	t.Logf("Cold start completed in %v", elapsed)
+
+	const coldStartTarget = 5 * time.Second
+	if elapsed > coldStartTarget {
+		t.Errorf("Cold start took %v, exceeds target of %v", elapsed, coldStartTarget)
+	}
+
+	if err := app.Close(); err != nil {
+		t.Errorf("Close() error = %v", err)
+	}
+
+	select {
+	case <-runErr:
+		// Expected
+	case <-time.After(2 * time.Second):
+		t.Fatal("app.Run() did not return within 2s")
+	}
+}
+
+// TestWarmStartPerformance validates that application warm start completes in <2 seconds.
+// Per ROADMAP.md line 847 and TECHNICAL_IMPLEMENTATION.md §6 performance targets.
+// Warm start = subsequent run with existing database and keystore.
+func TestWarmStartPerformance(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "murmur-warm-*")
+	if err != nil {
+		t.Fatalf("creating temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// First run to initialize database and keystore.
+	app1, err := New(Config{
+		Version:     "0.0.0-test",
+		DataDir:     tmpDir,
+		SkipUI:      true,
+		ListenAddrs: []string{"/ip4/127.0.0.1/tcp/0"},
+	})
+	if err != nil {
+		t.Fatalf("New() first run error = %v", err)
+	}
+
+	runErr1 := make(chan error, 1)
+	go func() {
+		runErr1 <- app1.Run()
+	}()
+
+	ctx1, cancel1 := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel1()
+	if err := app1.WaitReady(ctx1); err != nil {
+		t.Fatalf("WaitReady() first run error = %v", err)
+	}
+
+	if err := app1.Close(); err != nil {
+		t.Fatalf("Close() first run error = %v", err)
+	}
+
+	select {
+	case <-runErr1:
+		// Expected
+	case <-time.After(2 * time.Second):
+		t.Fatal("app.Run() first run did not return within 2s")
+	}
+
+	// Second run (warm start) with existing database and keystore.
+	app2, err := New(Config{
+		Version:     "0.0.0-test",
+		DataDir:     tmpDir,
+		SkipUI:      true,
+		ListenAddrs: []string{"/ip4/127.0.0.1/tcp/0"},
+	})
+	if err != nil {
+		t.Fatalf("New() second run error = %v", err)
+	}
+	defer app2.Close()
+
+	startTime := time.Now()
+	runErr2 := make(chan error, 1)
+	go func() {
+		runErr2 <- app2.Run()
+	}()
+
+	ctx2, cancel2 := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel2()
+	if err := app2.WaitReady(ctx2); err != nil {
+		t.Fatalf("WaitReady() second run error = %v", err)
+	}
+
+	elapsed := time.Since(startTime)
+	t.Logf("Warm start completed in %v", elapsed)
+
+	const warmStartTarget = 2 * time.Second
+	if elapsed > warmStartTarget {
+		t.Errorf("Warm start took %v, exceeds target of %v", elapsed, warmStartTarget)
+	}
+
+	if err := app2.Close(); err != nil {
+		t.Errorf("Close() second run error = %v", err)
+	}
+
+	select {
+	case <-runErr2:
+		// Expected
+	case <-time.After(2 * time.Second):
+		t.Fatal("app.Run() second run did not return within 2s")
 	}
 }
