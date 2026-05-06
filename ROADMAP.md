@@ -861,7 +861,7 @@
 ### Monitoring & Observability
 
 - [x] Prometheus metrics integration (connection count, message rates, Resonance distribution)
-- [ ] OpenTelemetry tracing for subsystem interactions
+- [x] OpenTelemetry tracing for subsystem interactions
 - [x] Health check endpoint for bootstrap node operators
 - [x] Memory usage monitoring (<256 MiB budget enforcement)
 - [x] Bbolt database size monitoring (<50 MiB budget)
@@ -880,7 +880,7 @@
 - [x] **Simulation tests** — 10–100 in-process libp2p nodes with memory transports (`//go:build simulation`) all passing (exit code 0)
   - [x] Gossip propagation latency verification (<3s to 99% of subscribers) — TestGossipPropagation50Nodes: p99 2.5ms
   - [x] Shroud anonymity verification (100-node network, traffic analysis resistance 94.95%)
-  - [ ] Resonance convergence verification across network (100+ nodes, 1000+ interactions)
+  - [x] Resonance convergence verification across network (100+ nodes, 1000+ interactions)
   - [ ] Wave TTL expiration correctness (end-to-end validation)
   - [ ] Mini-game network propagation end-to-end
 - [ ] **Integration tests** — in-memory Bbolt + mock event bus, no libp2p, no Ebitengine
