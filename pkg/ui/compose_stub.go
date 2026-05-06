@@ -134,3 +134,39 @@ func (p *ComposePanel) Submit() {
 	p.cursorPos = 0
 	p.visible = false
 }
+
+// SimulateClick simulates a left-click at (cx, cy) and returns true if a button was hit.
+// Mirrors the handleClickAt logic in compose.go for test coverage.
+func (p *ComposePanel) SimulateClick(cx, cy int) bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if !p.visible {
+		return false
+	}
+	const submitWidth = 100
+	const cancelWidth = 80
+	buttonY := p.y + p.height - p.theme.Padding - p.theme.ButtonHeight
+	submitX := p.x + p.width - p.theme.Padding - submitWidth
+	cancelX := p.x + p.theme.Padding
+	if cy >= buttonY && cy < buttonY+p.theme.ButtonHeight {
+		if cx >= submitX && cx < submitX+submitWidth {
+			// Inline submit logic (no Ebitengine dependency).
+			if len(p.content) == 0 {
+				p.errorMessage = "Cannot send empty Wave"
+				return true
+			}
+			if p.onSubmit != nil {
+				p.onSubmit(p.content, p.waveType, p.targetNodeID)
+			}
+			p.content = ""
+			p.cursorPos = 0
+			p.visible = false
+			return true
+		}
+		if cx >= cancelX && cx < cancelX+cancelWidth {
+			p.visible = false
+			return true
+		}
+	}
+	return false
+}

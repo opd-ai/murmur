@@ -127,6 +127,12 @@ func (p *ComposePanel) Update() bool {
 	// Update common animation/error handling.
 	p.anim.UpdateAnimation()
 
+	// Handle mouse button clicks on Submit/Cancel before text input
+	// so that clicking the button does not also insert a character.
+	if p.handleMouseClick() {
+		return true
+	}
+
 	// Handle text input.
 	p.handleTextInput()
 
@@ -146,6 +152,39 @@ func (p *ComposePanel) Update() bool {
 	}
 
 	return true // Panel consumes all input when visible.
+}
+
+// handleMouseClick detects left-clicks on the Submit and Cancel buttons.
+// Must be called under p.mu write lock.
+// Returns true if a button was clicked (input consumed).
+func (p *ComposePanel) handleMouseClick() bool {
+	if !inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+		return false
+	}
+	cx, cy := ebiten.CursorPosition()
+	return p.handleClickAt(cx, cy)
+}
+
+// handleClickAt checks whether (cx, cy) hits a button and acts on it.
+// Extracted so the logic can be reused in tests via the stub.
+// Must be called under p.mu write lock.
+func (p *ComposePanel) handleClickAt(cx, cy int) bool {
+	const submitWidth = 100
+	const cancelWidth = 80
+	buttonY := p.y + p.height - p.theme.Padding - p.theme.ButtonHeight
+	submitX := p.x + p.width - p.theme.Padding - submitWidth
+	cancelX := p.x + p.theme.Padding
+	if cy >= buttonY && cy < buttonY+p.theme.ButtonHeight {
+		if cx >= submitX && cx < submitX+submitWidth {
+			p.submit()
+			return true
+		}
+		if cx >= cancelX && cx < cancelX+cancelWidth {
+			p.visible = false
+			return true
+		}
+	}
+	return false
 }
 
 // handleTextInput processes keyboard input for the text field.
@@ -241,6 +280,11 @@ func (p *ComposePanel) Draw(screen *ebiten.Image) {
 	if ctx == nil {
 		return
 	}
+
+	// Store base panel position so Update() can compute button hit-rects
+	// without recalculating from screen dimensions independently.
+	p.x = ctx.PanelX
+	p.y = ctx.PanelY
 
 	px := ctx.PanelX
 	py := ctx.PanelY + int(p.anim.SlideOffset()) // Apply slide animation.
