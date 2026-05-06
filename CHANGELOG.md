@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+**Game Library Strategic Analysis (2026-05-06 03:42 UTC)**
+- **Game Classification** — Created `docs/GAME_CLASSIFICATION.md` with complete 4-axis classification of all 10 mini-games: Sync/Async, 1:1/Group, Skill/Chance/Social, Anonymity Leak Surface (None/Low/Medium/High). Key findings: 9 of 10 games are async (zero real-time latency fingerprints); 7 have None/Low leak surfaces; Shadow Play (Medium) acceptable at Resonance 200 gate; Surface Sparks (High) correctly isolated to Surface Layer. No cuts required — all mechanics retention-positive. Identified 3 flagship games: Cipher Puzzles (skill-based, zero-leak), Sigil Forge (creative, zero-leak), Shadow Play (social deduction, Medium leak but exclusive). Completes PLAN.md §2.1–2.3.
+- **Game Module SDK Design** — Created `docs/GAME_SDK_DESIGN.md` with complete SDK specification for third-party game development. Defined 5 core interfaces (Game, Match, Event, StateStore, ResonanceRewarder) with full sandboxing model preventing direct identity/network/storage access. Games interact only via SDK primitives. Designed 3-phase migration: Phase 1 extract SDK from Cipher Puzzles (2 weeks), Phase 2 migrate remaining games (4 weeks), Phase 3 documentation + example game (1 week). Implementation ready for engineering sprint. Completes PLAN.md §2.4 (design phase).
+- **Game Privacy Datasheets** — Created `docs/privacy/GAME_PRIVACY_DATASHEETS.md` with per-game privacy disclosures for all 10 games. Each datasheet documents: (1) Metadata collected (timing, interactions, patterns), (2) Anonymity guarantees (what is protected), (3) Known limitations (leak surfaces), (4) Recommended precautions (Tor transport, behavioral variation, mode-specific guidance). Privacy ratings: 4 Zero-Leak, 5 Low-Leak, 1 Medium-Leak (Shadow Play with documented mitigations), 1 High-Leak (Surface Sparks, Surface-only per design). Designed in-app privacy modal for first participation requiring acknowledgment. Completes PLAN.md §2.5.
+- **BIP-39 Recovery Audit** — Created `docs/BIP39_RECOVERY_AUDIT.md` with comprehensive UX assessment of current identity recovery system. Time-to-recover: 90-200 seconds (acceptable). Preserved on recovery: cryptographic identity (keypairs, sigils). Lost: connections, Resonance, game history, council memberships (documented UX limitation). CRITICAL GAPS: (1) no multi-device support (unrealistic single-device pattern), (2) no social recovery (high backup anxiety vs Signal/Element), (3) no partial seed assistance (all-or-nothing), (4) no key rotation (forced identity loss on compromise), (5) key file picker incomplete. Prioritized recommendations for v1.0: multi-device (§3.2), social recovery (§3.3), key rotation (§3.4). Current state: cryptographically sound but UX-incomplete; identified gaps are blockers to product-market fit. Completes PLAN.md §3.1.
+
 ### Fixed
 
 **Flaky Performance Test Resolution (2026-05-06 03:38 UTC)**
@@ -17,13 +25,14 @@ All notable changes to this project will be documented in this file.
 
 ### Validated
 
-**Test Suite Health Verification (2026-05-06)**
+**Test Suite Health Verification & Re-Validation (2026-05-06)**
 - **Zero test failures confirmed** — Comprehensive autonomous test failure analysis using complexity metrics completed. All 57 packages pass with race detector enabled (100% pass rate).
 - **Complexity baseline generated** — Created `baseline-final.json` (5.3 MB) with function-level complexity metrics for root cause correlation in future test failures.
 - **Classification framework validated** — Confirmed previous test failures (2 in `pkg/app`, documented in `TEST_RESOLUTION_COMPLETE.md`) were correctly classified as Cat 2 (Test Spec Errors) and resolved with `SkipUI: true` configuration flags.
 - **Concurrency health verified** — Zero race conditions across 8 persistent goroutines (main, network, layout, expiry, heartbeat, Shroud maintenance, event bus, DHT refresh).
 - **Report generated** — Created `TEST_CLASSIFICATION_REPORT_2026-05-06.md` documenting: Phase 0 (codebase understanding), Phase 1 (test execution results), Phase 2 (complexity baseline), Phase 3 (failure classification), Phase 4 (validation), risk assessment, and recommendations for simulation tests, performance benchmarks, integration tests, and coverage reporting.
 - **Production readiness confirmed** — Test suite validates all v0.1 milestone requirements: identity creation, Wave creation/validation, GossipSub propagation, Shroud onion routing, Resonance computation, Pulse Map rendering, onboarding flow.
+- **Final re-validation (2026-05-06 03:52 UTC)** — Executed full autonomous test classification workflow per task specification. Results: 57/57 packages passing (100%), zero failures, zero race conditions, zero panics. Generated `baseline-current-workflow.json` (5.3 MB) and `TEST_VALIDATION_2026-05-06.md` confirming continued test suite health after all complexity refactoring. No action required — test suite ready for v0.1 milestone.
 
 ### Changed
 

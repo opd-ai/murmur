@@ -1,0 +1,475 @@
+
+Processing files: 1/310 (0.3%)Processing files: 2/310 (0.6%)Processing files: 3/310 (1.0%)Processing files: 4/310 (1.3%)Processing files: 5/310 (1.6%)Processing files: 6/310 (1.9%)Processing files: 7/310 (2.3%)Processing files: 8/310 (2.6%)Processing files: 9/310 (2.9%)Processing files: 10/310 (3.2%)Processing files: 11/310 (3.5%)Processing files: 12/310 (3.9%)Processing files: 13/310 (4.2%)Processing files: 14/310 (4.5%)Processing files: 15/310 (4.8%)Processing files: 16/310 (5.2%)Processing files: 17/310 (5.5%)Processing files: 18/310 (5.8%)Processing files: 19/310 (6.1%)Processing files: 20/310 (6.5%)Processing files: 21/310 (6.8%)Processing files: 22/310 (7.1%)Processing files: 23/310 (7.4%)Processing files: 24/310 (7.7%)Processing files: 25/310 (8.1%)Processing files: 26/310 (8.4%)Processing files: 27/310 (8.7%)Processing files: 28/310 (9.0%)Processing files: 29/310 (9.4%)Processing files: 30/310 (9.7%)Processing files: 31/310 (10.0%)Processing files: 32/310 (10.3%)Processing files: 33/310 (10.6%)Processing files: 34/310 (11.0%)Processing files: 35/310 (11.3%)Processing files: 36/310 (11.6%)Processing files: 37/310 (11.9%)Processing files: 38/310 (12.3%)Processing files: 39/310 (12.6%)Processing files: 40/310 (12.9%)Processing files: 41/310 (13.2%)Processing files: 42/310 (13.5%)Processing files: 43/310 (13.9%)Processing files: 44/310 (14.2%)Processing files: 45/310 (14.5%)Processing files: 46/310 (14.8%)Processing files: 47/310 (15.2%)Processing files: 48/310 (15.5%)Processing files: 49/310 (15.8%)Processing files: 50/310 (16.1%)Processing files: 51/310 (16.5%)Processing files: 52/310 (16.8%)Processing files: 53/310 (17.1%)Processing files: 54/310 (17.4%)Processing files: 55/310 (17.7%)Processing files: 56/310 (18.1%)Processing files: 57/310 (18.4%)Processing files: 58/310 (18.7%)Processing files: 59/310 (19.0%)Processing files: 60/310 (19.4%)Processing files: 61/310 (19.7%)Processing files: 62/310 (20.0%)Processing files: 63/310 (20.3%)Processing files: 64/310 (20.6%)Processing files: 65/310 (21.0%)Processing files: 66/310 (21.3%)Processing files: 67/310 (21.6%)Processing files: 68/310 (21.9%)Processing files: 69/310 (22.3%)Processing files: 70/310 (22.6%)Processing files: 71/310 (22.9%)Processing files: 72/310 (23.2%)Processing files: 73/310 (23.5%)Processing files: 74/310 (23.9%)Processing files: 75/310 (24.2%)Processing files: 76/310 (24.5%)Processing files: 77/310 (24.8%)Processing files: 78/310 (25.2%)Processing files: 79/310 (25.5%)Processing files: 80/310 (25.8%)Processing files: 81/310 (26.1%)Processing files: 82/310 (26.5%)Processing files: 83/310 (26.8%)Processing files: 84/310 (27.1%)Processing files: 85/310 (27.4%)Processing files: 86/310 (27.7%)Processing files: 87/310 (28.1%)Processing files: 88/310 (28.4%)Processing files: 89/310 (28.7%)Processing files: 90/310 (29.0%)Processing files: 91/310 (29.4%)Processing files: 92/310 (29.7%)Processing files: 93/310 (30.0%)Processing files: 94/310 (30.3%)Processing files: 95/310 (30.6%)Processing files: 96/310 (31.0%)Processing files: 97/310 (31.3%)Processing files: 98/310 (31.6%)Processing files: 99/310 (31.9%)Processing files: 100/310 (32.3%)Processing files: 101/310 (32.6%)Processing files: 102/310 (32.9%)Processing files: 103/310 (33.2%)Processing files: 104/310 (33.5%)Processing files: 105/310 (33.9%)Processing files: 106/310 (34.2%)Processing files: 107/310 (34.5%)Processing files: 108/310 (34.8%)Processing files: 109/310 (35.2%)Processing files: 110/310 (35.5%)Processing files: 111/310 (35.8%)Processing files: 112/310 (36.1%)Processing files: 113/310 (36.5%)Processing files: 114/310 (36.8%)Processing files: 115/310 (37.1%)Processing files: 116/310 (37.4%)Processing files: 117/310 (37.7%)Processing files: 118/310 (38.1%)Processing files: 119/310 (38.4%)Processing files: 120/310 (38.7%)Processing files: 121/310 (39.0%)Processing files: 122/310 (39.4%)Processing files: 123/310 (39.7%)Processing files: 124/310 (40.0%)Processing files: 125/310 (40.3%)Processing files: 126/310 (40.6%)Processing files: 127/310 (41.0%)Processing files: 128/310 (41.3%)Processing files: 129/310 (41.6%)Processing files: 130/310 (41.9%)Processing files: 131/310 (42.3%)Processing files: 132/310 (42.6%)Processing files: 133/310 (42.9%)Processing files: 134/310 (43.2%)Processing files: 135/310 (43.5%)Processing files: 136/310 (43.9%)Processing files: 137/310 (44.2%)Processing files: 138/310 (44.5%)Processing files: 139/310 (44.8%)Processing files: 140/310 (45.2%)Processing files: 141/310 (45.5%)Processing files: 142/310 (45.8%)Processing files: 143/310 (46.1%)Processing files: 144/310 (46.5%)Processing files: 145/310 (46.8%)Processing files: 146/310 (47.1%)Processing files: 147/310 (47.4%)Processing files: 148/310 (47.7%)Processing files: 149/310 (48.1%)Processing files: 150/310 (48.4%)Processing files: 151/310 (48.7%)Processing files: 152/310 (49.0%)Processing files: 153/310 (49.4%)Processing files: 154/310 (49.7%)Processing files: 155/310 (50.0%)Processing files: 156/310 (50.3%)Processing files: 157/310 (50.6%)Processing files: 158/310 (51.0%)Processing files: 159/310 (51.3%)Processing files: 160/310 (51.6%)Processing files: 161/310 (51.9%)Processing files: 162/310 (52.3%)Processing files: 163/310 (52.6%)Processing files: 164/310 (52.9%)Processing files: 165/310 (53.2%)Processing files: 166/310 (53.5%)Processing files: 167/310 (53.9%)Processing files: 168/310 (54.2%)Processing files: 169/310 (54.5%)Processing files: 170/310 (54.8%)Processing files: 171/310 (55.2%)Processing files: 172/310 (55.5%)Processing files: 173/310 (55.8%)Processing files: 174/310 (56.1%)Processing files: 175/310 (56.5%)Processing files: 176/310 (56.8%)Processing files: 177/310 (57.1%)Processing files: 178/310 (57.4%)Processing files: 179/310 (57.7%)Processing files: 180/310 (58.1%)Processing files: 181/310 (58.4%)Processing files: 182/310 (58.7%)Processing files: 183/310 (59.0%)Processing files: 184/310 (59.4%)Processing files: 185/310 (59.7%)Processing files: 186/310 (60.0%)Processing files: 187/310 (60.3%)Processing files: 188/310 (60.6%)Processing files: 189/310 (61.0%)Processing files: 190/310 (61.3%)Processing files: 191/310 (61.6%)Processing files: 192/310 (61.9%)Processing files: 193/310 (62.3%)Processing files: 194/310 (62.6%)Processing files: 195/310 (62.9%)Processing files: 196/310 (63.2%)Processing files: 197/310 (63.5%)Processing files: 198/310 (63.9%)Processing files: 199/310 (64.2%)Processing files: 200/310 (64.5%)Processing files: 201/310 (64.8%)Processing files: 202/310 (65.2%)Processing files: 203/310 (65.5%)Processing files: 204/310 (65.8%)Processing files: 205/310 (66.1%)Processing files: 206/310 (66.5%)Processing files: 207/310 (66.8%)Processing files: 208/310 (67.1%)Processing files: 209/310 (67.4%)Processing files: 210/310 (67.7%)Processing files: 211/310 (68.1%)Processing files: 212/310 (68.4%)Processing files: 213/310 (68.7%)Processing files: 214/310 (69.0%)Processing files: 215/310 (69.4%)Processing files: 216/310 (69.7%)Processing files: 217/310 (70.0%)Processing files: 218/310 (70.3%)Processing files: 219/310 (70.6%)Processing files: 220/310 (71.0%)Processing files: 221/310 (71.3%)Processing files: 222/310 (71.6%)Processing files: 223/310 (71.9%)Processing files: 224/310 (72.3%)Processing files: 225/310 (72.6%)Processing files: 226/310 (72.9%)Processing files: 227/310 (73.2%)Processing files: 228/310 (73.5%)Processing files: 229/310 (73.9%)Processing files: 230/310 (74.2%)Processing files: 231/310 (74.5%)Processing files: 232/310 (74.8%)Processing files: 233/310 (75.2%)Processing files: 234/310 (75.5%)Processing files: 235/310 (75.8%)Processing files: 236/310 (76.1%)Processing files: 237/310 (76.5%)Processing files: 238/310 (76.8%)Processing files: 239/310 (77.1%)Processing files: 240/310 (77.4%)Processing files: 241/310 (77.7%)Processing files: 242/310 (78.1%)Processing files: 243/310 (78.4%)Processing files: 244/310 (78.7%)Processing files: 245/310 (79.0%)Processing files: 246/310 (79.4%)Processing files: 247/310 (79.7%)Processing files: 248/310 (80.0%)Processing files: 249/310 (80.3%)Processing files: 250/310 (80.6%)Processing files: 251/310 (81.0%)Processing files: 252/310 (81.3%)Processing files: 253/310 (81.6%)Processing files: 254/310 (81.9%)Processing files: 255/310 (82.3%)Processing files: 256/310 (82.6%)Processing files: 257/310 (82.9%)Processing files: 258/310 (83.2%)Processing files: 259/310 (83.5%)Processing files: 260/310 (83.9%)Processing files: 261/310 (84.2%)Processing files: 262/310 (84.5%)Processing files: 263/310 (84.8%)Processing files: 264/310 (85.2%)Processing files: 265/310 (85.5%)Processing files: 266/310 (85.8%)Processing files: 267/310 (86.1%)Processing files: 268/310 (86.5%)Processing files: 269/310 (86.8%)Processing files: 270/310 (87.1%)Processing files: 271/310 (87.4%)Processing files: 272/310 (87.7%)Processing files: 273/310 (88.1%)Processing files: 274/310 (88.4%)Processing files: 275/310 (88.7%)Processing files: 276/310 (89.0%)Processing files: 277/310 (89.4%)Processing files: 278/310 (89.7%)Processing files: 279/310 (90.0%)Processing files: 280/310 (90.3%)Processing files: 281/310 (90.6%)Processing files: 282/310 (91.0%)Processing files: 283/310 (91.3%)Processing files: 284/310 (91.6%)Processing files: 285/310 (91.9%)Processing files: 286/310 (92.3%)Processing files: 287/310 (92.6%)Processing files: 288/310 (92.9%)Processing files: 289/310 (93.2%)Processing files: 290/310 (93.5%)Processing files: 291/310 (93.9%)Processing files: 292/310 (94.2%)Processing files: 293/310 (94.5%)Processing files: 294/310 (94.8%)Processing files: 295/310 (95.2%)Processing files: 296/310 (95.5%)Processing files: 297/310 (95.8%)Processing files: 298/310 (96.1%)Processing files: 299/310 (96.5%)Processing files: 300/310 (96.8%)Processing files: 301/310 (97.1%)Processing files: 302/310 (97.4%)Processing files: 303/310 (97.7%)Processing files: 304/310 (98.1%)Processing files: 305/310 (98.4%)Processing files: 306/310 (98.7%)Processing files: 307/310 (99.0%)Processing files: 308/310 (99.4%)Processing files: 309/310 (99.7%)Processing files: 310/310 (100.0%)Processing files: 310/310 (100.0%)=== GO SOURCE CODE STATISTICS REPORT ===
+Repository: /home/user/go/src/github.com/opd-ai/murmur
+Generated: 2026-05-05 23:03:18
+Analysis Time: 4.053s
+Files Processed: 310
+
+=== OVERVIEW ===
+Total Lines of Code: 48043
+Total Functions: 1299
+Total Methods: 4423
+Total Structs: 768
+Total Interfaces: 36
+Total Packages: 57
+Total Files: 310
+
+=== FUNCTION ANALYSIS ===
+Function Statistics:
+  Average Function Length: 10.1 lines
+  Longest Function: NewGame (88 lines)
+  Functions > 50 lines: 34 (0.6%)
+  Functions > 100 lines: 0 (0.0%)
+  Average Complexity: 3.3
+  High Complexity (>10): 0 functions
+
+Top Complex Functions:
+Rank Function                  File                    Lines Complexity
+-----------------------------------------------------------------------
+   1 openSystemShareImpl       pkg/identity/shar...       46       12.7
+   2 openSystemShareImpl       pkg/identity/shar...       46       12.7
+   3 DecodeNFCIgnitionData     pkg/identity/igni...       48       12.2
+   4 UpdateClusters            pkg/pulsemap/layo...       50       11.4
+   5 checkAndSendNudges        pkg/app/nudges.go          46       11.4
+   6 Update                    pkg/ui/puzzle.go           44       11.4
+   7 Start                     pkg/networking/he...       44       11.4
+   8 Update                    pkg/onboarding/sc...       43       11.4
+   9 RotateCircuit             pkg/anonymous/shr...       43       11.4
+  10 Update                    pkg/ui/puzzle_sol...       42       11.4
+
+=== COMPLEXITY ANALYSIS ===
+Top 10 Most Complex Functions:
+Function                       Package                 Lines Cyclomatic    Overall
+--------------------------------------------------------------------------------
+openSystemShareImpl            identity                   46          9       12.7
+openSystemShareImpl            identity                   46          9       12.7
+DecodeNFCIgnitionData          ignition                   48          9       12.2
+UpdateClusters                 layout                     50          8       11.4
+checkAndSendNudges             app                        46          8       11.4
+Update                         ui                         44          8       11.4
+Start                          health                     44          8       11.4
+Update                         screens                    43          8       11.4
+RotateCircuit                  shroud                     43          8       11.4
+Update                         ui                         42          8       11.4
+
+=== PACKAGE ANALYSIS ===
+Total Packages: 57
+Average Dependencies per Package: 4.8
+Average Files per Package: 5.4
+
+High Coupling Packages (>3 dependencies):
+  app: 24 dependencies (coupling: 10.0)
+  cli: 9 dependencies (coupling: 4.5)
+  councils: 5 dependencies (coupling: 2.5)
+  declarations: 5 dependencies (coupling: 2.5)
+  discovery: 10 dependencies (coupling: 5.0)
+  forge: 5 dependencies (coupling: 2.5)
+  gifts: 5 dependencies (coupling: 2.5)
+  gossip: 9 dependencies (coupling: 4.5)
+  hunts: 5 dependencies (coupling: 2.5)
+  identity: 4 dependencies (coupling: 2.0)
+  integration: 7 dependencies (coupling: 3.5)
+  keys: 4 dependencies (coupling: 2.0)
+  main: 8 dependencies (coupling: 4.0)
+  marks: 5 dependencies (coupling: 2.5)
+  mechanics: 5 dependencies (coupling: 2.5)
+  mesh: 5 dependencies (coupling: 2.5)
+  oracle: 5 dependencies (coupling: 2.5)
+  overlays: 6 dependencies (coupling: 3.0)
+  propagation: 4 dependencies (coupling: 2.0)
+  pulsemap: 12 dependencies (coupling: 6.0)
+  puzzles: 5 dependencies (coupling: 2.5)
+  relay: 9 dependencies (coupling: 4.5)
+  rendering: 9 dependencies (coupling: 4.5)
+  resonance: 8 dependencies (coupling: 4.0)
+  screens: 9 dependencies (coupling: 4.5)
+  shadowplay: 5 dependencies (coupling: 2.5)
+  shroud: 6 dependencies (coupling: 3.0)
+  sparks: 4 dependencies (coupling: 2.0)
+  specters: 5 dependencies (coupling: 2.5)
+  storage: 5 dependencies (coupling: 2.5)
+  territory: 5 dependencies (coupling: 2.5)
+  threads: 4 dependencies (coupling: 2.0)
+  transport: 16 dependencies (coupling: 8.0)
+  ui: 8 dependencies (coupling: 4.0)
+  waves: 5 dependencies (coupling: 2.5)
+  wavesync: 4 dependencies (coupling: 2.0)
+
+Low Cohesion Packages (<2.0 cohesion score):
+  assets: 1.4 cohesion, 1 files, 7 functions
+  config: 1.8 cohesion, 2 files, 16 functions
+  discovery: 2.0 cohesion, 13 files, 110 functions
+  health: 1.2 cohesion, 1 files, 4 functions
+  identity: 0.9 cohesion, 5 files, 20 functions
+  metrics: 0.0 cohesion, 1 files, 0 functions
+
+Largest Packages (by function count):
+  ui: 929 functions, 146 structs, 0 interfaces, 42 files
+  overlays: 694 functions, 134 structs, 0 interfaces, 38 files
+  resonance: 284 functions, 49 structs, 0 interfaces, 11 files
+  screens: 270 functions, 31 structs, 0 interfaces, 13 files
+  shroud: 255 functions, 55 structs, 0 interfaces, 5 files
+  mechanics: 247 functions, 51 structs, 0 interfaces, 11 files
+  effects: 188 functions, 55 structs, 0 interfaces, 20 files
+  rendering: 178 functions, 33 structs, 0 interfaces, 14 files
+  waves: 155 functions, 27 structs, 0 interfaces, 9 files
+  layout: 139 functions, 20 structs, 0 interfaces, 6 files
+
+=== CIRCULAR DEPENDENCIES ===
+No circular dependencies detected.
+
+=== DUPLICATION ANALYSIS ===
+Clone Pairs Detected: 61
+Duplicated Lines: 793
+Duplication Ratio: 0.79%
+Largest Clone Size: 44 lines
+
+Clone Pairs (shortest to longest, 10 shown):
+Type               Lines Instances Locations
+--------------------------------------------------------------------------------
+exact                  6        2 pkg/ui/forge.go:70-75, pkg/ui/forge_stub.go:56-61
+exact                  6        2 pkg/ui/specter_detail.go:45-50, pkg/ui/specter_detail_stub.go:29-34
+renamed                6        2 pkg/anonymous/mechanics/puzzles/puzzl...:191-196, pkg/anonymous/mechanics/sparks/spark_...:185-190
+renamed                6        3 pkg/anonymous/resonance/specter.go:425-430, pkg/anonymous/resonance/specter.go:431-436, pkg/anonymous/resonance/surface.go:405-410
+renamed                7        3 pkg/anonymous/resonance/specter.go:425-431, pkg/anonymous/resonance/specter.go:432-438, pkg/anonymous/resonance/surface.go:405-411
+renamed                7        3 pkg/anonymous/specters/connection.go:221-227, pkg/anonymous/specters/connection.go:375-381, pkg/app/handlers.go:622-628
+renamed                7        2 pkg/pulsemap/rendering/renderer.go:711-717, pkg/ui/oracle_pool.go:322-328
+renamed                7        3 pkg/store/masked_events.go:445-451, pkg/store/masked_events.go:453-459, pkg/store/masked_events.go:519-525
+renamed                7        2 pkg/store/masked_events.go:490-496, pkg/store/masked_events.go:544-550
+renamed                7        2 pkg/store/masked_events.go:494-500, pkg/store/masked_events.go:546-552
+
+=== NAMING CONVENTION ANALYSIS ===
+File Name Violations: 34
+Identifier Violations: 99
+Package Name Violations: 0
+Overall Naming Score: 0.99
+
+Top 10 Identifier Violations:
+Name                      Type       Violation    File:Line                               
+--------------------------------------------------------------------------------
+CouncilState              type       package_s... pkg/anonymous/mechanics/cou...:48       
+CouncilStateString        function   package_s... pkg/anonymous/mechanics/cou...:107      
+CouncilStore              type       package_s... pkg/anonymous/mechanics/cou...:12       
+ForgeStore                type       package_s... pkg/anonymous/mechanics/for...:604      
+ForgeEntry                type       package_s... pkg/anonymous/mechanics/for...:164      
+ForgeStateString          function   package_s... pkg/anonymous/mechanics/for...:93       
+ForgeTypeString           function   package_s... pkg/anonymous/mechanics/for...:79       
+ForgeState                type       package_s... pkg/anonymous/mechanics/for...:62       
+ForgeType                 type       package_s... pkg/anonymous/mechanics/for...:48       
+ForgePublisher            type       package_s... pkg/anonymous/mechanics/for...:23       
+
+Top 10 File Name Violations:
+File                                     Violation            Suggested Name                
+--------------------------------------------------------------------------------
+pkg/anonymous/mechanics/common.go        generic_name                                       
+pkg/anonymous/mechanics/councils/coun... stuttering           councils.go                   
+pkg/anonymous/mechanics/councils/coun... stuttering           publisher.go                  
+pkg/anonymous/mechanics/councils/coun... stuttering           store.go                      
+pkg/anonymous/mechanics/forge/forge.go   stuttering           forge.go                      
+pkg/anonymous/mechanics/forge/forge_p... stuttering           publisher.go                  
+pkg/anonymous/mechanics/forge/forge_t... stuttering           timing.go                     
+pkg/anonymous/mechanics/gifts/gifts.go   stuttering           gifts.go                      
+pkg/anonymous/mechanics/gifts/gifts_p... stuttering           publisher.go                  
+pkg/anonymous/mechanics/hunts/hunts.go   stuttering           hunts.go                      
+
+=== PLACEMENT ANALYSIS ===
+Misplaced Functions: 385
+Misplaced Methods: 707
+Low Cohesion Files: 161
+Average File Cohesion: 0.29
+
+Top 10 Misplaced Functions:
+Function                       Current File              Suggested File            Affinity Gain
+--------------------------------------------------------------------------------
+DefaultTheme                   /home/user/go/src/gith... /home/user/go/src/gith... +1.00
+TypeSigil                      /home/user/go/src/gith... /home/user/go/src/gith... +1.00
+SpecterModeActivity            /home/user/go/src/gith... /home/user/go/src/gith... +1.00
+ErrInvalidZKClaim              /home/user/go/src/gith... /home/user/go/src/gith... +1.00
+NewPuzzleEffects               /home/user/go/src/gith... /home/user/go/src/gith... +1.00
+CreateSurfaceWave              /home/user/go/src/gith... /home/user/go/src/gith... +1.00
+EffectName                     /home/user/go/src/gith... /home/user/go/src/gith... +1.00
+NewBatchRenderer               /home/user/go/src/gith... /home/user/go/src/gith... +1.00
+SpecterModeTrophies            /home/user/go/src/gith... /home/user/go/src/gith... +1.00
+NewGiftStore                   /home/user/go/src/gith... /home/user/go/src/gith... +1.00
+
+Top 10 Misplaced Methods:
+Method                         Receiver Type        Current File              Receiver File            
+--------------------------------------------------------------------------------
+Config.applyBootstrapPeersD... Config               /home/user/go/src/gith... /home/user/go/src/gith...
+Config.applyDataDirDefault     Config               /home/user/go/src/gith... /home/user/go/src/gith...
+Config.applyDefaults           Config               /home/user/go/src/gith... /home/user/go/src/gith...
+Config.applyHealthEndpointP... Config               /home/user/go/src/gith... /home/user/go/src/gith...
+Config.applyHeartbeatInterv... Config               /home/user/go/src/gith... /home/user/go/src/gith...
+Config.applyListenAddrsDefault Config               /home/user/go/src/gith... /home/user/go/src/gith...
+Config.applyRelayBandwidthD... Config               /home/user/go/src/gith... /home/user/go/src/gith...
+ConnectionTier.IsProtected     ConnectionTier       /home/user/go/src/gith... /home/user/go/src/gith...
+ConnectionTier.String          ConnectionTier       /home/user/go/src/gith... /home/user/go/src/gith...
+Manager.AcknowledgeHint        Manager              /home/user/go/src/gith... /home/user/go/src/gith...
+
+Top 10 Low Cohesion Files:
+File                                     Cohesion     Suggested Splits
+--------------------------------------------------------------------------------
+/home/user/go/src/github.com/opd-ai/m... 0.00         game_related.go
+/home/user/go/src/github.com/opd-ai/m... 0.00         dht_related.go (+2 more)
+/home/user/go/src/github.com/opd-ai/m... 0.00         share_related.go (+1 more)
+/home/user/go/src/github.com/opd-ai/m... 0.00         layer_related.go (+2 more)
+/home/user/go/src/github.com/opd-ai/m... 0.00         masked_events_related.go (+1 more)
+/home/user/go/src/github.com/opd-ai/m... 0.00         generator_related.go (+1 more)
+/home/user/go/src/github.com/opd-ai/m... 0.00         territory_related.go (+4 more)
+/home/user/go/src/github.com/opd-ai/m... 0.00         part1.go (+1 more)
+/home/user/go/src/github.com/opd-ai/m... 0.00         forge_types_related.go (+1 more)
+/home/user/go/src/github.com/opd-ai/m... 0.00         specter_detail_types_related.go (+1 more)
+
+=== DOCUMENTATION ANALYSIS ===
+Overall Coverage: 82.0%
+Package Coverage: 93.0%
+Function Coverage: 92.5%
+Type Coverage: 84.7%
+Method Coverage: 78.1%
+
+Annotation Summary:
+  TODO: 14
+  FIXME: 0 (critical)
+  HACK: 0
+  BUG: 0 (critical)
+  XXX: 1
+  DEPRECATED: 2
+  NOTE: 39
+  Total: 56
+
+Top 10 Annotations by Severity:
+Category   File                                               Line   Description
+--------------------------------------------------------------------------------
+TODO       /home/user/go/src/github.com/opd-ai/murmur/pkg/... 355    add passphrase).
+TODO       /home/user/go/src/github.com/opd-ai/murmur/pkg/... 357    Get display name from node data when ...
+TODO       /home/user/go/src/github.com/opd-ai/murmur/pkg/... 700    Query from store when Wave indexing b...
+TODO       /home/user/go/src/github.com/opd-ai/murmur/pkg/... 707    Query from renderer or store when con...
+TODO       /home/user/go/src/github.com/opd-ai/murmur/pkg/... 742    Open gift selection UI when Phantom G...
+TODO       /home/user/go/src/github.com/opd-ai/murmur/pkg/... 748    Open mark type selection UI when Spec...
+TODO       /home/user/go/src/github.com/opd-ai/murmur/pkg/... 754    Open whisper compose UI when Whisper ...
+TODO       /home/user/go/src/github.com/opd-ai/murmur/pkg/... 777    Add pseudonym field to NodeData if ne...
+TODO       /home/user/go/src/github.com/opd-ai/murmur/pkg/... 240    Pass shaders from renderer or initial...
+TODO       /home/user/go/src/github.com/opd-ai/murmur/pkg/... 139    Define a proper NudgeEvent type in ev...
+
+
+=== MAINTENANCE BURDEN ===
+Magic Numbers: 10027
+Dead Code (Unreferenced): 100 functions
+Dead Code (Unreachable): 0 blocks
+Dead Code Percentage: 0.00%
+Complex Signatures: 255
+Deeply Nested Functions: 0
+Feature Envy Methods: 427
+
+Top 10 Complex Signatures:
+Function                                 File                   Params  Returns
+--------------------------------------------------------------------------------
+PlaceMark                                /home/user/go/src...        6        2
+NewHunt                                  /home/user/go/src...        6        2
+PlaceMark                                /home/user/go/src...        6        2
+extractVoteIDs                           /home/user/go/src...        1        4
+NewMaskedEventGated                      /home/user/go/src...        6        2
+NewPuzzleGated                           /home/user/go/src...        6        2
+NewOraclePool                            /home/user/go/src...        6        2
+NewOraclePoolGated                       /home/user/go/src...        7        2
+computeModularityDelta                   /home/user/go/src...        7        1
+NewPhantomCouncil                        /home/user/go/src...        7        2
+
+Top 10 Magic Numbers:
+Value                File                               Line Context
+--------------------------------------------------------------------------------
+"encoding/hex"       /home/user/go/src/github.co...        6 expression
+"sort"               /home/user/go/src/github.co...        7 expression
+"sync"               /home/user/go/src/github.co...        8 expression
+"encoding/hex"       /home/user/go/src/github.co...        6 expression
+"fmt"                /home/user/go/src/github.co...        7 expression
+"time"               /home/user/go/src/github.co...        8 expression
+"github.com/zeebo... /home/user/go/src/github.co...       10 expression
+"github.com/opd-a... /home/user/go/src/github.co...       12 expression
+"github.com/opd-a... /home/user/go/src/github.co...       13 expression
+"google.golang.or... /home/user/go/src/github.co...       14 expression
+
+
+=== ORGANIZATION HEALTH ===
+Oversized Files: 119
+Oversized Packages: 33
+Deep Directories: 0
+High Fan-In Packages: 0
+High Fan-Out Packages: 0
+Avg Package Instability: 0.00
+
+Top 10 Oversized Files:
+File                                                  Lines    Funcs    Types Burden
+--------------------------------------------------------------------------------
+pkg/anonymous/shroud/circuit.go                        1293      113       22 4.61
+pkg/anonymous/shroud/whisper.go                         697       46       17 2.64
+pkg/anonymous/mechanics/councils/councils.go            686       47       10 2.13
+pkg/anonymous/shroud/relay.go                           560       55        9 2.06
+pkg/store/typed_accessors.go                            759       73        0 1.87
+pkg/ui/councils.go                                      509       40       10 1.79
+pkg/ui/masked_event.go                                  639       51        5 1.76
+pkg/anonymous/resonance/specter.go                      464       59        5 1.75
+pkg/onboarding/tutorials/guide.go                       460       38       11 1.75
+pkg/app/eventbus.go                                     374       25       14 1.74
+
+Top 10 Oversized Packages:
+Package                           Files  Exports    Funcs Mega?
+--------------------------------------------------------------------------------
+ui                                   42     1075      929 No
+overlays                             38      828      694 No
+resonance                            11      333      284 No
+screens                              13      301      270 No
+shroud                                5      310      255 No
+mechanics                            11      298      247 No
+effects                              20      243      188 No
+rendering                            14      211      178 No
+waves                                 9      182      155 No
+layout                                6      159      139 No
+
+=== REFACTORING SUGGESTIONS ===
+Total Suggestions: 476 (sorted by impact/effort ratio)
+
+1. [duplication] Extract duplicated code block (25 lines) to shared function
+   Target: pkg/ui/puzzle.go
+   Location: pkg/ui/puzzle.go:362
+   Effort: low (50 lines affected)
+   MBI Impact: 12.5 points
+   ROI Score: 25.00 (higher = better)
+
+2. [duplication] Extract duplicated code block (24 lines) to shared function
+   Target: pkg/pulsemap/overlays/marks.go
+   Location: pkg/pulsemap/overlays/marks.go:329
+   Effort: low (48 lines affected)
+   MBI Impact: 12.0 points
+   ROI Score: 24.00 (higher = better)
+
+3. [duplication] Extract duplicated code block (23 lines) to shared function
+   Target: pkg/pulsemap/overlays/marks.go
+   Location: pkg/pulsemap/overlays/marks.go:56
+   Effort: low (46 lines affected)
+   MBI Impact: 11.5 points
+   ROI Score: 23.00 (higher = better)
+
+4. [duplication] Extract duplicated code block (22 lines) to shared function
+   Target: pkg/anonymous/mechanics/gifts/gifts_publisher.go
+   Location: pkg/anonymous/mechanics/gifts/gifts_publisher.go:147
+   Effort: low (44 lines affected)
+   MBI Impact: 11.0 points
+   ROI Score: 22.00 (higher = better)
+
+5. [duplication] Extract duplicated code block (22 lines) to shared function
+   Target: pkg/identity/share_darwin.go
+   Location: pkg/identity/share_darwin.go:18
+   Effort: low (44 lines affected)
+   MBI Impact: 11.0 points
+   ROI Score: 22.00 (higher = better)
+
+6. [duplication] Extract duplicated code block (22 lines) to shared function
+   Target: pkg/ui/gift.go
+   Location: pkg/ui/gift.go:108
+   Effort: low (44 lines affected)
+   MBI Impact: 11.0 points
+   ROI Score: 22.00 (higher = better)
+
+7. [duplication] Extract duplicated code block (21 lines) to shared function
+   Target: pkg/pulsemap/rendering/effects/gpu_particles.go
+   Location: pkg/pulsemap/rendering/effects/gpu_particles.go:81
+   Effort: low (42 lines affected)
+   MBI Impact: 10.5 points
+   ROI Score: 21.00 (higher = better)
+
+8. [placement] Move to /home/user/go/src/github.com/opd-ai/murmur/pkg/onboarding/screens/identity.go for better cohesion
+   Target: StateBackupMnemonic
+   Location: /home/user/go/src/github.com/opd-ai/murmur/pkg/onboarding/screens/identity_stub.go
+   Effort: low (10 lines affected)
+   MBI Impact: 10.0 points
+   ROI Score: 20.00 (higher = better)
+
+9. [placement] Move to /home/user/go/src/github.com/opd-ai/murmur/pkg/app/handlers.go for better cohesion
+   Target: WavesReceivedTotal
+   Location: /home/user/go/src/github.com/opd-ai/murmur/pkg/networking/metrics/metrics.go
+   Effort: low (10 lines affected)
+   MBI Impact: 10.0 points
+   ROI Score: 20.00 (higher = better)
+
+10. [placement] Move to /home/user/go/src/github.com/opd-ai/murmur/proto/factories.go for better cohesion
+   Target: ComputeMessageID
+   Location: /home/user/go/src/github.com/opd-ai/murmur/proto/validation.go
+   Effort: low (10 lines affected)
+   MBI Impact: 10.0 points
+   ROI Score: 20.00 (higher = better)
+
+11. [placement] Move to /home/user/go/src/github.com/opd-ai/murmur/pkg/networking/wavesync/client.go for better cohesion
+   Target: ErrResponseTooLarge
+   Location: /home/user/go/src/github.com/opd-ai/murmur/pkg/networking/wavesync/sync.go
+   Effort: low (10 lines affected)
+   MBI Impact: 10.0 points
+   ROI Score: 20.00 (higher = better)
+
+12. [placement] Move to /home/user/go/src/github.com/opd-ai/murmur/pkg/onboarding/screens/completion_screen.go for better cohesion
+   Target: CompletionIdentityCardStyle
+   Location: /home/user/go/src/github.com/opd-ai/murmur/pkg/onboarding/screens/helpers.go
+   Effort: low (10 lines affected)
+   MBI Impact: 10.0 points
+   ROI Score: 20.00 (higher = better)
+
+13. [placement] Move to /home/user/go/src/github.com/opd-ai/murmur/pkg/pulsemap/overlays/hunts.go for better cohesion
+   Target: NewHuntEffects
+   Location: /home/user/go/src/github.com/opd-ai/murmur/pkg/pulsemap/rendering/effects/hunts.go
+   Effort: low (10 lines affected)
+   MBI Impact: 10.0 points
+   ROI Score: 20.00 (higher = better)
+
+14. [placement] Move to /home/user/go/src/github.com/opd-ai/murmur/pkg/content/waves/sigil.go for better cohesion
+   Target: TypeSigil
+   Location: /home/user/go/src/github.com/opd-ai/murmur/pkg/content/waves/types.go
+   Effort: low (10 lines affected)
+   MBI Impact: 10.0 points
+   ROI Score: 20.00 (higher = better)
+
+15. [placement] Move to /home/user/go/src/github.com/opd-ai/murmur/pkg/pulsemap/rendering/draw.go for better cohesion
+   Target: SpecterParticleOrbitRadius
+   Location: /home/user/go/src/github.com/opd-ai/murmur/pkg/pulsemap/rendering/draw_stub.go
+   Effort: low (10 lines affected)
+   MBI Impact: 10.0 points
+   ROI Score: 20.00 (higher = better)
+
+16. [placement] Move to /home/user/go/src/github.com/opd-ai/murmur/pkg/anonymous/mechanics/oracle/oracle_observers.go for better cohesion
+   Target: MetricSpecterCount
+   Location: /home/user/go/src/github.com/opd-ai/murmur/pkg/anonymous/mechanics/oracle/oracle_verification.go
+   Effort: low (10 lines affected)
+   MBI Impact: 10.0 points
+   ROI Score: 20.00 (higher = better)
+
+17. [placement] Move to /home/user/go/src/github.com/opd-ai/murmur/pkg/pulsemap/overlays/minimap.go for better cohesion
+   Target: MinimapTopLeft
+   Location: /home/user/go/src/github.com/opd-ai/murmur/pkg/pulsemap/overlays/minimap_stub.go
+   Effort: low (10 lines affected)
+   MBI Impact: 10.0 points
+   ROI Score: 20.00 (higher = better)
+
+18. [placement] Move to /home/user/go/src/github.com/opd-ai/murmur/pkg/anonymous/mechanics/hunts/persistence_hunts.go for better cohesion
+   Target: NewHuntStore
+   Location: /home/user/go/src/github.com/opd-ai/murmur/pkg/anonymous/mechanics/hunts/hunts.go
+   Effort: low (10 lines affected)
+   MBI Impact: 10.0 points
+   ROI Score: 20.00 (higher = better)
+
+19. [placement] Move to /home/user/go/src/github.com/opd-ai/murmur/pkg/onboarding/screens/identity.go for better cohesion
+   Target: StateKeypairGen
+   Location: /home/user/go/src/github.com/opd-ai/murmur/pkg/onboarding/screens/identity_stub.go
+   Effort: low (10 lines affected)
+   MBI Impact: 10.0 points
+   ROI Score: 20.00 (higher = better)
+
+20. [placement] Move to /home/user/go/src/github.com/opd-ai/murmur/pkg/app/broadcast.go for better cohesion
+   Target: CreateReplyWave
+   Location: /home/user/go/src/github.com/opd-ai/murmur/proto/factories.go
+   Effort: low (10 lines affected)
+   MBI Impact: 10.0 points
+   ROI Score: 20.00 (higher = better)
+
+... and 456 more suggestions (use JSON output for full list)
+
+=== ANALYSIS COMPLETE ===
+Report generated by go-stats-generator v1.0.0
