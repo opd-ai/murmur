@@ -156,7 +156,6 @@ func (r *REPL) shutdown() {
 	r.wg.Wait()
 	fmt.Fprintln(r.out, "Goodbye!")
 }
-}
 
 var errQuit = errors.New("quit requested")
 

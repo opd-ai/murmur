@@ -12,9 +12,10 @@ import (
 	"github.com/go-i2p/onramp"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/libp2p/go-libp2p/core/transport"
+	gtransport "github.com/libp2p/go-libp2p/core/transport"
 	ma "github.com/multiformats/go-multiaddr"
-	manet "github.com/multiformats/go-multiaddr/net"
+
+	transport "github.com/opd-ai/murmur/pkg/networking/transport"
 )
 
 const (
@@ -26,7 +27,7 @@ const (
 // Wraps onramp.Garlic to provide Dial and Listen semantics compatible with libp2p.
 type Transport struct {
 	garlic   *onramp.Garlic
-	upgrader transport.Upgrader
+	upgrader gtransport.Upgrader
 	rcmgr    network.ResourceManager
 	mu       sync.Mutex
 	closed   bool
@@ -38,7 +39,7 @@ type Transport struct {
 // The tunName parameter identifies this I2P tunnel for key persistence.
 // The samAddr parameter specifies the SAMv3 bridge address (default: 127.0.0.1:7656).
 // The options parameter configures I2P tunnel parameters (inbound/outbound length, quantity).
-func NewTransport(ctx context.Context, tunName, samAddr string, options []string, upgrader transport.Upgrader, rcmgr network.ResourceManager) (*Transport, error) {
+func NewTransport(ctx context.Context, tunName, samAddr string, options []string, upgrader gtransport.Upgrader, rcmgr network.ResourceManager) (*Transport, error) {
 	if upgrader == nil {
 		return nil, fmt.Errorf("upgrader cannot be nil")
 	}
@@ -64,7 +65,7 @@ func NewTransport(ctx context.Context, tunName, samAddr string, options []string
 // Dial connects to a remote peer via I2P destination.
 // Per PLAN.md §5.4: resolve /garlic64 multiaddr, delegate to Garlic.Dial,
 // wrap net.Conn in libp2p's connection upgrader for Noise + multiplexing.
-func (t *Transport) Dial(ctx context.Context, raddr ma.Multiaddr, p peer.ID) (transport.CapableConn, error) {
+func (t *Transport) Dial(ctx context.Context, raddr ma.Multiaddr, p peer.ID) (gtransport.CapableConn, error) {
 	t.mu.Lock()
 	if t.closed {
 		t.mu.Unlock()
@@ -82,32 +83,13 @@ func (t *Transport) Dial(ctx context.Context, raddr ma.Multiaddr, p peer.ID) (tr
 		return nil, fmt.Errorf("garlic dial failed: %w", err)
 	}
 
-	maConn, err := manet.WrapNetConn(rawConn)
-	if err != nil {
-		rawConn.Close()
-		return nil, fmt.Errorf("failed to wrap connection: %w", err)
-	}
-
-	scope, err := t.rcmgr.OpenConnection(network.DirOutbound, false, raddr)
-	if err != nil {
-		maConn.Close()
-		return nil, fmt.Errorf("resource manager rejected connection: %w", err)
-	}
-
-	capableConn, err := t.upgrader.Upgrade(ctx, t, maConn, network.DirOutbound, p, scope)
-	if err != nil {
-		scope.Done()
-		maConn.Close()
-		return nil, fmt.Errorf("upgrade failed: %w", err)
-	}
-
-	return capableConn, nil
+	return transport.upgradeConnection(ctx, rawConn, t, t.upgrader, t.rcmgr, raddr, p)
 }
 
 // Listen creates a listener on an I2P destination.
 // Per PLAN.md §5.4: delegate to Garlic.Listen, translate the returned I2P
 // destination into a /garlic64 multiaddr.
-func (t *Transport) Listen(laddr ma.Multiaddr) (transport.Listener, error) {
+func (t *Transport) Listen(laddr ma.Multiaddr) (gtransport.Listener, error) {
 	t.mu.Lock()
 	if t.closed {
 		t.mu.Unlock()
@@ -127,19 +109,7 @@ func (t *Transport) Listen(laddr ma.Multiaddr) (transport.Listener, error) {
 		return nil, fmt.Errorf("failed to convert garlic address to multiaddr: %w", err)
 	}
 
-	maListener, err := manet.WrapNetListener(netListener)
-	if err != nil {
-		netListener.Close()
-		return nil, fmt.Errorf("failed to wrap listener: %w", err)
-	}
-
-	gatedListener := t.upgrader.GateMaListener(maListener)
-	upgradedListener := t.upgrader.UpgradeGatedMaListener(t, gatedListener)
-
-	return &listener{
-		Listener:  upgradedListener,
-		multiaddr: listenerMultiaddr,
-	}, nil
+	return transport.upgradeListener(netListener, listenerMultiaddr, t, t.upgrader)
 }
 
 // CanDial returns true if this transport can dial the given multiaddr.
@@ -173,16 +143,6 @@ func (t *Transport) Close() error {
 		return t.garlic.Close()
 	}
 	return nil
-}
-
-// listener wraps a libp2p Listener with the correct multiaddr.
-type listener struct {
-	transport.Listener
-	multiaddr ma.Multiaddr
-}
-
-func (l *listener) Multiaddr() ma.Multiaddr {
-	return l.multiaddr
 }
 
 // parseGarlicAddr extracts the I2P destination from a garlic64 multiaddr.

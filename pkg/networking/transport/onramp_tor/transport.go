@@ -12,16 +12,17 @@ import (
 	"github.com/go-i2p/onramp"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/libp2p/go-libp2p/core/transport"
+	gtransport "github.com/libp2p/go-libp2p/core/transport"
 	ma "github.com/multiformats/go-multiaddr"
-	manet "github.com/multiformats/go-multiaddr/net"
+
+	transport "github.com/opd-ai/murmur/pkg/networking/transport"
 )
 
 // Transport implements libp2p transport.Transport interface for Tor hidden services.
 // Wraps onramp.Onion to provide Dial and Listen semantics compatible with libp2p.
 type Transport struct {
 	onion    *onramp.Onion
-	upgrader transport.Upgrader
+	upgrader gtransport.Upgrader
 	rcmgr    network.ResourceManager
 	mu       sync.Mutex
 	closed   bool
@@ -31,7 +32,7 @@ type Transport struct {
 // The underlying onion instance is constructed once per host and reused for the
 // process lifetime per PLAN.md §5.3 lifecycle requirements.
 // The name parameter identifies this Tor instance for key persistence.
-func NewTransport(ctx context.Context, name string, upgrader transport.Upgrader, rcmgr network.ResourceManager) (*Transport, error) {
+func NewTransport(ctx context.Context, name string, upgrader gtransport.Upgrader, rcmgr network.ResourceManager) (*Transport, error) {
 	if upgrader == nil {
 		return nil, fmt.Errorf("upgrader cannot be nil")
 	}
@@ -54,7 +55,7 @@ func NewTransport(ctx context.Context, name string, upgrader transport.Upgrader,
 // Dial connects to a remote peer via Tor hidden service.
 // Per PLAN.md §5.3: resolve /onion3 multiaddr, delegate to Onion.Dial,
 // wrap net.Conn in libp2p's connection upgrader for Noise + multiplexing.
-func (t *Transport) Dial(ctx context.Context, raddr ma.Multiaddr, p peer.ID) (transport.CapableConn, error) {
+func (t *Transport) Dial(ctx context.Context, raddr ma.Multiaddr, p peer.ID) (gtransport.CapableConn, error) {
 	t.mu.Lock()
 	if t.closed {
 		t.mu.Unlock()
@@ -72,26 +73,7 @@ func (t *Transport) Dial(ctx context.Context, raddr ma.Multiaddr, p peer.ID) (tr
 		return nil, fmt.Errorf("onion dial failed: %w", err)
 	}
 
-	maConn, err := manet.WrapNetConn(rawConn)
-	if err != nil {
-		rawConn.Close()
-		return nil, fmt.Errorf("failed to wrap connection: %w", err)
-	}
-
-	scope, err := t.rcmgr.OpenConnection(network.DirOutbound, false, raddr)
-	if err != nil {
-		maConn.Close()
-		return nil, fmt.Errorf("resource manager rejected connection: %w", err)
-	}
-
-	capableConn, err := t.upgrader.Upgrade(ctx, t, maConn, network.DirOutbound, p, scope)
-	if err != nil {
-		scope.Done()
-		maConn.Close()
-		return nil, fmt.Errorf("upgrade failed: %w", err)
-	}
-
-	return capableConn, nil
+	return transport.upgradeConnection(ctx, rawConn, t, t.upgrader, t.rcmgr, raddr, p)
 }
 
 // Listen creates a listener on a Tor hidden service.

@@ -322,7 +322,7 @@ func (r *ForgeReceiver) handleContribution(event *pb.ForgeEvent) error {
 	return r.addNewEntry(forge, forgeID, contrib)
 }
 
-func (r *ForgeReceiver) getForge(event *pb.ForgeEvent) (*Forge, [32]byte, error) {
+func (r *ForgeReceiver) getForge(event *pb.ForgeEvent) (*SigilForge, [32]byte, error) {
 	var forgeID [32]byte
 	copy(forgeID[:], event.ProjectId)
 
@@ -333,7 +333,7 @@ func (r *ForgeReceiver) getForge(event *pb.ForgeEvent) (*Forge, [32]byte, error)
 	return forge, forgeID, nil
 }
 
-func (r *ForgeReceiver) tryHandleAmplification(forge *Forge, contrib *pb.ForgeContribution) bool {
+func (r *ForgeReceiver) tryHandleAmplification(forge *SigilForge, contrib *pb.ForgeContribution) bool {
 	if len(contrib.Contribution) != 32 {
 		return false
 	}
@@ -352,7 +352,7 @@ func (r *ForgeReceiver) tryHandleAmplification(forge *Forge, contrib *pb.ForgeCo
 	return false
 }
 
-func (r *ForgeReceiver) addNewEntry(forge *Forge, forgeID [32]byte, contrib *pb.ForgeContribution) error {
+func (r *ForgeReceiver) addNewEntry(forge *SigilForge, forgeID [32]byte, contrib *pb.ForgeContribution) error {
 	var specterKey [32]byte
 	copy(specterKey[:], contrib.SpecterPubkey)
 

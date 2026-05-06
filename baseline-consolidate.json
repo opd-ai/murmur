@@ -1,20 +1,20 @@
 {
   "metadata": {
     "repository": "/home/user/go/src/github.com/opd-ai/murmur",
-    "generated_at": "2026-05-06T02:27:13.684844389-04:00",
-    "analysis_time": 4001216136,
-    "files_processed": 312,
+    "generated_at": "2026-05-06T03:55:07.468940496-04:00",
+    "analysis_time": 3502963436,
+    "files_processed": 314,
     "tool_version": "1.0.0",
     "go_version": ""
   },
   "overview": {
-    "total_lines_of_code": 48109,
-    "total_functions": 1315,
-    "total_methods": 4481,
-    "total_structs": 769,
-    "total_interfaces": 36,
-    "total_packages": 58,
-    "total_files": 312
+    "total_lines_of_code": 48643,
+    "total_functions": 1348,
+    "total_methods": 4513,
+    "total_structs": 774,
+    "total_interfaces": 37,
+    "total_packages": 60,
+    "total_files": 314
   },
   "functions": null,
   "structs": null,
@@ -112,9 +112,9 @@
     "complexity_score": 0
   },
   "duplication": {
-    "clone_pairs": 49,
-    "duplicated_lines": 649,
-    "duplication_ratio": 0.006416847933557445,
+    "clone_pairs": 50,
+    "duplicated_lines": 689,
+    "duplication_ratio": 0.006750401692988988,
     "largest_clone_size": 44,
     "clones": [
       {
@@ -261,14 +261,14 @@
         "instances": [
           {
             "file": "pkg/anonymous/specters/connection.go",
-            "start_line": 221,
-            "end_line": 227,
+            "start_line": 236,
+            "end_line": 242,
             "node_count": 52
           },
           {
             "file": "pkg/anonymous/specters/connection.go",
-            "start_line": 375,
-            "end_line": 381,
+            "start_line": 390,
+            "end_line": 396,
             "node_count": 52
           },
           {
@@ -504,8 +504,8 @@
         "instances": [
           {
             "file": "pkg/anonymous/specters/connection.go",
-            "start_line": 375,
-            "end_line": 383,
+            "start_line": 390,
+            "end_line": 398,
             "node_count": 54
           },
           {
@@ -562,34 +562,13 @@
         "suggestion": "Extract 9-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
       },
       {
-        "hash": "517b48a09a656dd1",
-        "type": "exact",
-        "instances": [
-          {
-            "file": "pkg/pulsemap/overlays/masked_event.go",
-            "start_line": 272,
-            "end_line": 280,
-            "node_count": 83
-          },
-          {
-            "file": "pkg/pulsemap/overlays/shadowplay.go",
-            "start_line": 373,
-            "end_line": 381,
-            "node_count": 83
-          }
-        ],
-        "line_count": 9,
-        "severity": "warning",
-        "suggestion": "Extract 9-line duplicate code block into a shared function. Found in 2 locations"
-      },
-      {
         "hash": "533d9e4d195541ac",
         "type": "renamed",
         "instances": [
           {
             "file": "pkg/anonymous/specters/connection.go",
-            "start_line": 223,
-            "end_line": 231,
+            "start_line": 238,
+            "end_line": 246,
             "node_count": 42
           },
           {
@@ -672,8 +651,8 @@
         "instances": [
           {
             "file": "pkg/anonymous/mechanics/forge/forge_publisher.go",
-            "start_line": 397,
-            "end_line": 406,
+            "start_line": 414,
+            "end_line": 423,
             "node_count": 42
           },
           {
@@ -772,27 +751,6 @@
         "suggestion": "Extract 10-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
       },
       {
-        "hash": "1874dc52c2620940",
-        "type": "renamed",
-        "instances": [
-          {
-            "file": "pkg/anonymous/mechanics/gifts/persistence_gifts.go",
-            "start_line": 128,
-            "end_line": 138,
-            "node_count": 51
-          },
-          {
-            "file": "pkg/anonymous/mechanics/marks/persistence_marks.go",
-            "start_line": 105,
-            "end_line": 113,
-            "node_count": 51
-          }
-        ],
-        "line_count": 11,
-        "severity": "warning",
-        "suggestion": "Extract 11-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
-      },
-      {
         "hash": "4d3297d36ccd14d2",
         "type": "exact",
         "instances": [
@@ -833,6 +791,27 @@
         "line_count": 11,
         "severity": "warning",
         "suggestion": "Extract 11-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
+      },
+      {
+        "hash": "0f2d41191f008b93",
+        "type": "renamed",
+        "instances": [
+          {
+            "file": "pkg/networking/transport/onramp_i2p/transport.go",
+            "start_line": 164,
+            "end_line": 175,
+            "node_count": 42
+          },
+          {
+            "file": "pkg/networking/transport/onramp_tor/transport.go",
+            "start_line": 159,
+            "end_line": 170,
+            "node_count": 42
+          }
+        ],
+        "line_count": 12,
+        "severity": "warning",
+        "suggestion": "Extract 12-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
       },
       {
         "hash": "7b1caf46e49ea3b3",
@@ -1093,6 +1072,27 @@
         "suggestion": "Extract 23-line duplicate code block into a shared function. Found in 2 locations"
       },
       {
+        "hash": "10a689c038fa9fd7",
+        "type": "renamed",
+        "instances": [
+          {
+            "file": "pkg/networking/transport/onramp_i2p/transport.go",
+            "start_line": 81,
+            "end_line": 104,
+            "node_count": 114
+          },
+          {
+            "file": "pkg/networking/transport/onramp_tor/transport.go",
+            "start_line": 71,
+            "end_line": 94,
+            "node_count": 114
+          }
+        ],
+        "line_count": 24,
+        "severity": "violation",
+        "suggestion": "Extract 24-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
+      },
+      {
         "hash": "24abfc9d63d0b562",
         "type": "exact",
         "instances": [
@@ -1112,6 +1112,27 @@
         "line_count": 24,
         "severity": "violation",
         "suggestion": "Extract 24-line duplicate code block into a shared function. Found in 2 locations"
+      },
+      {
+        "hash": "f98ecaa263b553d4",
+        "type": "renamed",
+        "instances": [
+          {
+            "file": "pkg/networking/transport/onramp_i2p/transport.go",
+            "start_line": 119,
+            "end_line": 142,
+            "node_count": 102
+          },
+          {
+            "file": "pkg/networking/transport/onramp_tor/transport.go",
+            "start_line": 114,
+            "end_line": 137,
+            "node_count": 102
+          }
+        ],
+        "line_count": 24,
+        "severity": "violation",
+        "suggestion": "Extract 24-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
       },
       {
         "hash": "deceba632d0c9536",
