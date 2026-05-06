@@ -7,6 +7,8 @@
 
 package ui
 
+import "time"
+
 // All types moved to forge_types.go to eliminate duplication with forge.go.
 
 // NewForgePanel creates a new Forge panel.

@@ -1,4 +1,8 @@
 // Package ui - ComposePanel unit tests.
+//
+//go:build test
+// +build test
+
 package ui
 
 import (

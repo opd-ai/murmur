@@ -1,4 +1,4 @@
-~~~
+```md
 MURMUR GAME LIBRARY — CONSOLIDATED CATALOG v4.0
 ================================================
 
@@ -23,9 +23,9 @@ Shelf legend:
   [N] Narrative & RPG         [P] Puzzle & Solo
   [X] Abstract Strategy       [E] Economy & 4X
   [C] Cards & Tricks          [W] Worlds & Persistent
-~~~
+```
 
-~~~
+```md
 SHELF [A] — AMBIENT & SOCIAL
 =============================
 
@@ -94,9 +94,9 @@ SHELF [A] — AMBIENT & SOCIAL
    image data. The walk can be paced or stationary. This is the
    AR flagship: a game whose entire point — transient shared
    presence — becomes profound with embodied space.
-~~~
+```
 
-~~~
+```md
 SHELF [S] — SOCIAL DEDUCTION & PARTY
 =====================================
 
@@ -144,9 +144,9 @@ SHELF [S] — SOCIAL DEDUCTION & PARTY
    Choose an evocative image, write a short clue. Others pick
    images matching your clue. Dixit scoring — be guessed by
    some but not all.
-~~~
+```
 
-~~~
+```md
 SHELF [N] — NARRATIVE & RPG
 ============================
 
@@ -192,9 +192,9 @@ SHELF [N] — NARRATIVE & RPG
     Light caper RPG. Plan via shared doc, execute with
     flashback mechanics — declare prep retroactively, spend a
     resource, roll. One heist per week.
-~~~
+```
 
-~~~
+```md
 SHELF [P] — PUZZLE & SOLO
 ==========================
 
@@ -231,9 +231,9 @@ SHELF [P] — PUZZLE & SOLO
     One player invents a secret rule; others propose examples;
     rule-holder marks them following or breaking. Induce the
     rule. Zendo lineage.
-~~~
+```
 
-~~~
+```md
 SHELF [X] — ABSTRACT STRATEGY
 ==============================
 
@@ -267,9 +267,9 @@ SHELF [X] — ABSTRACT STRATEGY
     AR LAYER: Fleet deploys on a tabletop ocean. Sonar pings
     ripple visibly. Opponent's grid remains opaque until hits
     confirm, preserving hidden information.
-~~~
+```
 
-~~~
+```md
 SHELF [E] — ECONOMY & 4X
 =========================
 
@@ -303,9 +303,9 @@ SHELF [E] — ECONOMY & 4X
     Async · 1:1 · skill
     Two-player card-driven area-influence over 8–10 rounds,
     ~2 weeks. Heavy theme, heavy strategy.
-~~~
+```
 
-~~~
+```md
 SHELF [C] — CARDS & TRICKS
 ===========================
 
@@ -330,9 +330,9 @@ SHELF [C] — CARDS & TRICKS
     scale; your hole cards are only visible to you when you tilt
     to look. Other seats hold mask-avatars (#9 lineage). Never
     real money on this platform.
-~~~
+```
 
-~~~
+```md
 SHELF [W] — WORLDS & PERSISTENT
 ================================
 
@@ -401,9 +401,9 @@ SHELF [W] — WORLDS & PERSISTENT
     Sync · group (6–20) · skill
     Live trivia nights. Rotating categories, community-
     submitted questions with moderation. Wager rounds.
-~~~
+```
 
-~~~
+```md
 LIBRARY COMPOSITION SUMMARY
 ============================
 
@@ -485,4 +485,4 @@ NEXT ACTIONS:
      Journal (currently [A], originally classified as [P]) and
      #17 Broadcast (currently [A], originally classified as
      [C]) for final placement.
-~~~
+```

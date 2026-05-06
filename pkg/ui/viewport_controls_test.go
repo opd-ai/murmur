@@ -60,7 +60,8 @@ func TestViewportControlsButtonLayout(t *testing.T) {
 	controls := NewViewportControls(theme, callbacks)
 
 	// Test button dimensions are set.
+	// Per AUDIT.md LOW finding: buttonHeight must be ≥44px for WCAG 2.5.5 touch targets.
 	assert.Equal(t, 70, controls.buttonWidth)
-	assert.Equal(t, 30, controls.buttonHeight)
+	assert.Equal(t, 44, controls.buttonHeight)
 	assert.Equal(t, 5, controls.buttonGap)
 }

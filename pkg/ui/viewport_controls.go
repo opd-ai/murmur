@@ -58,7 +58,8 @@ func NewViewportControls(theme Theme, callbacks ViewportCallbacks) *ViewportCont
 		onMeso:       callbacks.OnMeso,
 		onMicro:      callbacks.OnMicro,
 		buttonWidth:  70,
-		buttonHeight: 30,
+		// Per AUDIT.md LOW finding: minimum 44px touch target (WCAG 2.5.5 / Apple HIG).
+		buttonHeight: 44,
 		buttonGap:    5,
 	}
 }

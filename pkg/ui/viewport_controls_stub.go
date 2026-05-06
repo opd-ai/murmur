@@ -12,10 +12,13 @@ import (
 
 // ViewportControls test stub.
 type ViewportControls struct {
-	theme   Theme
-	onMacro func()
-	onMeso  func()
-	onMicro func()
+	theme        Theme
+	onMacro      func()
+	onMeso       func()
+	onMicro      func()
+	buttonWidth  int
+	buttonHeight int
+	buttonGap    int
 }
 
 // ViewportCallbacks test stub.
@@ -28,10 +31,13 @@ type ViewportCallbacks struct {
 // NewViewportControls test stub.
 func NewViewportControls(theme Theme, callbacks ViewportCallbacks) *ViewportControls {
 	return &ViewportControls{
-		theme:   theme,
-		onMacro: callbacks.OnMacro,
-		onMeso:  callbacks.OnMeso,
-		onMicro: callbacks.OnMicro,
+		theme:        theme,
+		onMacro:      callbacks.OnMacro,
+		onMeso:       callbacks.OnMeso,
+		onMicro:      callbacks.OnMicro,
+		buttonWidth:  70,
+		buttonHeight: 44,
+		buttonGap:    5,
 	}
 }
 
