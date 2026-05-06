@@ -275,6 +275,18 @@
 - [x] Network separation enforcement — distinct gossip topics per layer
 - [x] Behavioral separation guidance — activity pattern differentiation
 
+### Identity Recovery & Continuity
+
+- [x] **BIP-39 recovery assessment** — UX audit completed (docs/BIP39_RECOVERY_AUDIT.md)
+- [x] **Multi-device identity design** — Master Identity + Device Keys architecture (docs/MULTI_DEVICE_IDENTITY.md)
+- [x] **Social recovery design** — Shamir Secret Sharing M-of-N threshold system (docs/SOCIAL_RECOVERY.md)
+- [x] **Key rotation design** — Cryptographic continuity declarations with grace period (docs/KEY_ROTATION.md)
+- [x] **User-facing recovery guide** — Complete recovery documentation (RECOVERY.md)
+- [ ] Multi-device identity implementation — DeviceAuthorizationDeclaration, device pairing flow
+- [ ] Social recovery implementation — SSS enrollment, encrypted share distribution, recovery flow
+- [ ] Key rotation implementation — ContinuityDeclaration protobuf, gossip propagation, chain storage
+- [ ] Recovery UI flows — device pairing, contact enrollment, rotation wizard
+
 ### Proximity Ignition
 
 - [x] QR code generation with public key, IP/port, one-time token
@@ -876,8 +888,12 @@
 - [x] docs/BOOTSTRAP_OPERATION.md — bootstrap node procedures
 - [x] docs/DEPLOYMENT.md — deployment guide
 - [x] docs/SHROUD_OPERATION.md — Shroud relay operation
+- [x] docs/MULTI_DEVICE_IDENTITY.md — Multi-device identity specification (completed 2026-05-06)
+- [x] docs/SOCIAL_RECOVERY.md — Shamir Secret Sharing recovery design (completed 2026-05-06)
+- [x] docs/KEY_ROTATION.md — Cryptographic continuity specification (completed 2026-05-06)
+- [x] RECOVERY.md — User-facing recovery guide (completed 2026-05-06)
 - [x] AUDIT.md — security decisions and deviations log (updated 2026-05-04 with test suite validation)
-- [x] PLAN.md — sprint-level task tracking (updated 2026-05-04 with test suite status)
+- [x] PLAN.md — sprint-level task tracking (updated 2026-05-06 with recovery design completion)
 - [x] TEST_RESOLUTION_STATUS_2026-05-04.md — autonomous test failure classification report (100% pass rate)
 - [ ] API documentation for all exported types and functions
 - [ ] Architecture decision records (ADRs) for key design choices
@@ -930,19 +946,21 @@
 | Core Foundation | 15 | 8 | 23 |
 | Network & Messaging | 16 | 37 | 53 |
 | Content System | 12 | 21 | 33 |
-| Identity & Privacy | 9 | 18 | 27 |
+| Identity & Privacy | 14 | 17 | 31 |
 | Anonymous Layer Core | 8 | 19 | 27 |
 | Resonance & Reputation | 8 | 28 | 36 |
 | Mini-Games & Mechanics | 41 | 62 | 103 |
 | Pulse Map & Visualization | 18 | 55 | 73 |
 | Onboarding & Growth | 41 | 10 | 51 |
-| Production Readiness | 12 | 24 | 36 |
+| Production Readiness | 16 | 24 | 40 |
 | Cross-Cutting | 2 | 10 | 12 |
-| **Total** | **182** | **292** | **474** |
+| **Total** | **191** | **291** | **482** |
 
-> **Implementation progress: ~38% complete (updated 2026-05-06)** — Core data structures, game mechanics, 
-> and all 6 onboarding phases (Welcome, Identity Creation, Mode Selection, Bootstrap, Guided Exploration, 
-> First Action) are complete. Network integration, UI rendering, persistence, and cross-subsystem wiring 
-> represent the majority of remaining work. Test suite health: 100% pass rate across 57 packages with race 
-> detector, high-complexity function count reduced from 3 to 0 (professional standards met), comprehensive 
-> unit test coverage for cryptography and mechanics (validated 2026-05-06).
+> **Implementation progress: ~40% complete (updated 2026-05-06)** — Core data structures, game mechanics, 
+> all 6 onboarding phases (Welcome, Identity Creation, Mode Selection, Bootstrap, Guided Exploration, 
+> First Action), and complete identity recovery system design are complete. Network integration, UI rendering, 
+> persistence, and cross-subsystem wiring represent the majority of remaining work. Test suite health: 100% 
+> pass rate across 57 packages with race detector, high-complexity function count reduced from 3 to 0 
+> (professional standards met), comprehensive unit test coverage for cryptography and mechanics (validated 
+> 2026-05-06). Recovery system ready for implementation: multi-device (14d), social recovery (16d), key 
+> rotation (17d).

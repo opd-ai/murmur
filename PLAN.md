@@ -248,21 +248,25 @@ Treat recovery as a first-class feature, not a checkbox.
          - What is preserved vs. lost on recovery?
          - **COMPLETED**: Created docs/BIP39_RECOVERY_AUDIT.md with comprehensive assessment. Time-to-recover: 90-200 seconds (acceptable). Preserved: cryptographic identity (keypairs, sigils). Lost: connections, Resonance, game history, council memberships (UX limitation). CRITICAL GAPS identified: (1) no multi-device support (single-device pattern unrealistic), (2) no social recovery (high backup anxiety vs competitors), (3) no partial seed assistance (all-or-nothing recovery), (4) no key rotation (forced identity loss on compromise), (5) key file picker not integrated. Recommendations prioritized for v1.0: multi-device (§3.2), social recovery (§3.3), key rotation (§3.4). Current state: cryptographically sound but UX-incomplete; gaps are blockers to product-market fit.
 
-[ ] 3.2  Design multi-device identity
+[x] 3.2  Design multi-device identity
          - One logical identity, multiple device keys
          - Device revocation path that doesn't require the lost device
+         - **COMPLETED**: Created docs/MULTI_DEVICE_IDENTITY.md with complete multi-device identity specification. One Master Identity (from BIP-39) authorizes multiple Device Keys (ephemeral Ed25519 keypairs). Device addition flow via QR code pairing (30-60s). Device revocation without device access via signed declarations (7-day grace period). Master Key remains offline (only for device management, never for routine signing). Protobuf schema additions: DeviceAuthorizationDeclaration, DeviceRevocationDeclaration. Storage: new `devices` Bbolt bucket. Enhanced Wave signatures include device_public_key field with backward compatibility. Security analysis covers theft/loss, compromise, MITM, replay attacks. 8-phase implementation checklist (14 days estimate). Success criteria: up to 10 devices per identity, revocation effective within 7 days, Master Key never transmitted, device pairing <60s. Ready for implementation sprint.
 
-[ ] 3.3  Design social recovery (Shamir or equivalent)
+[x] 3.3  Design social recovery (Shamir or equivalent)
          - User designates N trusted contacts; M-of-N can co-sign recovery
          - Works for both Surface and Specter identities (separately)
          - Must not deanonymize Specter to recovery participants
+         - **COMPLETED**: Created docs/SOCIAL_RECOVERY.md with complete Shamir Secret Sharing design. M-of-N threshold recovery (standard: 3-of-5, 2-of-3). Separate SSS schemes for Surface and Specter (no cross-layer linkability). Library: github.com/hashicorp/vault/shamir (well-audited). Protobuf additions: RecoveryShareEnrollment, RecoveryRequest, RecoveryResponse. Enrollment flow via encrypted direct messages (X25519 ECDH + XChaCha20-Poly1305). Recovery flow: ephemeral keypair, contact cooperation, Shamir reconstruction. Storage: `recovery_shares` Bbolt bucket. Security: adversary needs ≥M contacts to compromise (information-theoretic security with <M shares). No single point of trust. Contact verification via out-of-band (phone/video). Future: ZK proofs for Specter recovery anonymity (v1.1+). 8-phase implementation checklist (16 days estimate). Success criteria: enrollment <120s for 5 contacts, reconstruction works with any M shares, zero cross-layer linkage. Ready for implementation sprint.
 
-[ ] 3.4  Design identity continuity across key rotation
+[x] 3.4  Design identity continuity across key rotation
          - A signed "continuity statement" from old key authorizes new key
          - Contacts verify continuity automatically
          - Prevents the "is this really you?" problem after rotation
+         - **COMPLETED**: Created docs/KEY_ROTATION.md with complete key rotation specification. ContinuityDeclaration protobuf: old key signs authorization for new key, dual signatures (old + new) prove cooperation. Grace period (default 7 days, configurable 1-14 days) allows old and new keys both valid during transition. Automatic peer updates via gossip (no manual re-verification). Continuity chain storage (up to 100 rotations). DHT-based chain lookup for offline peers. Revocation declarations counter fraudulent rotations. Separate Surface and Specter rotation (no cross-layer linkage). Chain resolution O(N) with O(1) cached lookup. Security: attacker with old key alone cannot rotate (requires new key signature), grace period limits exposure window, revocations invalidate fraudulent keys. 9-phase implementation checklist (17 days estimate). Success criteria: rotation <60s, 95% propagation in 24h, expired keys rejected, zero cross-layer linkage. Ready for implementation sprint.
 
-[ ] 3.5  Write RECOVERY.md with user-facing flows and failure handling
+[x] 3.5  Write RECOVERY.md with user-facing flows and failure handling
+         - **COMPLETED**: Created RECOVERY.md as comprehensive user-facing guide covering all four recovery methods: BIP-39 recovery phrase (90-200s, keys only), Multi-Device Identity (30-60s, full continuity), Social Recovery (5-15min, requires 3-of-5 contacts), Key Rotation (30-60s, proactive security). Each method includes: step-by-step user flows, what gets recovered vs lost, when to use, security notes, timing expectations. Comparison table shows speed/recovery/requirements. Failure modes section covers: lost phrase + all devices (social recovery fallback), failed social recovery (not enough contacts), unauthorized rotation (revocation flow), device conflicts. Troubleshooting for common issues. Best practices for maximum security (annual rotation, 5-of-7 threshold), convenience (password manager), paranoid users (quarterly rotation, paper-only backup). FAQ covers 8 common questions. References technical specs (MULTI_DEVICE_IDENTITY.md, SOCIAL_RECOVERY.md, KEY_ROTATION.md). User-ready documentation for v1.0 launch.
 
 
 =====================================
