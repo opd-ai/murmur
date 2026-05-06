@@ -1,0 +1,106 @@
+=================================================================
+CODE CONSOLIDATION SUMMARY - ROUND 8
+Date: 2026-05-06
+Execution: Autonomous
+=================================================================
+
+BASELINE METRICS
+----------------
+Total LOC:           51,629
+Duplicated Lines:    482
+Duplication Ratio:   0.4433% (excellent, target <5%)
+Clone Groups:        33
+Largest Clone:       44 lines
+
+CONSOLIDATION TARGETS ANALYZED
+-------------------------------
+✓ 33 clone groups examined
+✓ 19 HIGH priority (≥10 lines)
+✓ 14 MEDIUM priority (≥6 lines)
+✓ 0 CRITICAL (≥20 lines, ≥3 instances)
+
+CHANGES MADE
+------------
+Strategy: Consolidated magic number constants → named constants
+Files Modified: 8 files in pkg/ui/
+Lines Changed: +25 insertions, -20 deletions
+
+1. pkg/ui/panel.go
+   + Added 3 shared constants:
+     - FrameTime = 1.0/60.0
+     - ErrorMessageTimeout = 3.0
+     - SlideAnimationDamping = 0.85
+
+2. Replaced magic numbers across 8 UI files:
+   - hunt_tracker.go: 3 replacements
+   - puzzle.go: 3 replacements
+   - puzzle_solver.go: 3 replacements
+   - node_detail.go: 1 replacement
+   - radial_menu.go: 1 replacement
+   - settings.go: 1 replacement
+   - specter_detail.go: 1 replacement
+
+IMPACT
+------
+Magic Number Instances: 12+ → 3 named constants (-9 instances)
+Code Maintainability: IMPROVED (easier to tune animation timing)
+Duplication Ratio: 0.4433% → 0.4432% (stable)
+Test Status: ✅ All tests pass (go test -race ./pkg/... -short)
+
+WHY LOW CONSOLIDATION RATE?
+----------------------------
+The duplication detector found 33 clone groups, but most are
+FALSE POSITIVES for consolidation:
+
+1. STUB FILES (6 groups, ~50 lines total)
+   → Intentional duplication for build tags
+   → Merging would break test/real separation
+   
+2. IDIOMATIC PATTERNS (8 groups, ~80 lines total)
+   → Standard Go error handling: if err != nil { return nil, err }
+   → Lock/defer boilerplate: mu.Lock(); defer mu.Unlock()
+   → Extracting adds abstraction without reducing complexity
+
+3. DOMAIN-SPECIFIC (6 groups, ~60 lines total)
+   → Similar structure but different purposes
+   → Example: HuntTrackerPanel vs PuzzlePanel Update() methods
+   → Share 8-line boilerplate but domain logic differs
+
+4. TYPE-SPECIFIC (4 groups, ~40 lines total)
+   → Publisher state updates on different state machines
+   → ForgeState, HuntState, CouncilState — not interchangeable
+   → Generic extraction requires interfaces/reflection = overkill
+
+5. ALREADY EXTRACTED (9 groups)
+   → Success animation helpers already in screens/helpers.go
+   → InitPanelDrawWithScreen already shared
+   → Detector flagging call sites, not duplication
+
+VALIDATION
+----------
+✅ Build:      go build ./... — PASS
+✅ Tests:      go test -race ./pkg/... -short — PASS
+✅ Lint:       go vet ./... — PASS
+✅ Format:     Code follows gofumpt conventions
+✅ Quality:    No regressions introduced
+
+CONCLUSION
+----------
+The codebase is WELL-FACTORED with 0.44% duplication (excellent).
+Most "duplicates" are intentional patterns or false positives.
+
+Primary value: Consolidated timing constants for better maintainability.
+
+RECOMMENDATIONS
+---------------
+1. ✅ DONE: Magic number consolidation
+2. ⏭️ SKIP: Further deduplication (diminishing returns)
+3. 📊 MONITOR: Run go-stats-generator before releases
+4. 🎯 FOCUS: Feature development for v0.1 milestone
+
+=================================================================
+Generated: 2026-05-06T18:06:00Z
+Baseline: baseline-dedup-round8.json
+Post: post-dedup-round8.json
+Report: DEDUPLICATION_CONSOLIDATION_RESULT_2026-05-06_ROUND8.md
+=================================================================
