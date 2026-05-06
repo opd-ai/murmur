@@ -15,6 +15,20 @@ import (
 // EventType identifies the type of event being dispatched.
 type EventType uint8
 
+// EventPriority indicates the priority level of an event type.
+type EventPriority uint8
+
+const (
+	// PriorityCritical events must never be dropped (circuit failures, replies).
+	PriorityCritical EventPriority = iota
+
+	// PriorityHigh events should rarely be dropped (Wave received, identity updates).
+	PriorityHigh
+
+	// PriorityNormal events can be dropped under load (heartbeats, timer events).
+	PriorityNormal
+)
+
 const (
 	// EventWaveReceived indicates a new Wave was received from the network.
 	EventWaveReceived EventType = iota + 1
@@ -110,6 +124,28 @@ type Event struct {
 	// For EventTimerExpired: *TimerEvent
 	// For EventUserAction: *UserActionEvent
 	Payload any
+
+	// priority is the computed priority level for this event.
+	priority EventPriority
+}
+
+// Priority returns the priority level of this event.
+func (e Event) Priority() EventPriority {
+	return e.priority
+}
+
+// priorityFor returns the priority level for a given event type.
+// Per AUDIT.md M1, critical events bypass the buffer and must never be dropped.
+func priorityFor(et EventType) EventPriority {
+	switch et {
+	case EventShroudCircuitFailed, EventShroudCircuitBuilt, EventReplyReceived:
+		return PriorityCritical
+	case EventWaveReceived, EventWaveCreated, EventIdentityUpdated,
+		EventPeerConnected, EventPeerDisconnected, EventResonanceUpdated:
+		return PriorityHigh
+	default:
+		return PriorityNormal
+	}
 }
 
 // WaveEvent contains details about a Wave event.
@@ -222,24 +258,37 @@ type EventBus struct {
 
 	// closed indicates if the event bus has been closed.
 	closed bool
+
+	// backpressureThreshold is the buffer fullness ratio (0.0-1.0) at which
+	// backpressure warnings are logged.
+	backpressureThreshold float64
 }
 
 // EventBusConfig holds configuration for the event bus.
 type EventBusConfig struct {
 	// BufferSize is the size of the inbound event buffer.
-	// Defaults to 256 if not specified.
+	// Defaults to 1024 if not specified (increased from 256 per AUDIT.md M1).
 	BufferSize int
+
+	// BackpressureThreshold is the buffer fullness percentage (0.0-1.0)
+	// at which backpressure warnings are logged.
+	// Defaults to 0.8 (80%) if not specified.
+	BackpressureThreshold float64
 }
 
 // NewEventBus creates a new event bus with the given configuration.
 func NewEventBus(cfg EventBusConfig) *EventBus {
 	if cfg.BufferSize <= 0 {
-		cfg.BufferSize = 256
+		cfg.BufferSize = 1024 // Increased from 256 per AUDIT.md M1
+	}
+	if cfg.BackpressureThreshold <= 0 {
+		cfg.BackpressureThreshold = 0.8
 	}
 
 	return &EventBus{
-		subscribers: make([]*subscription, 0),
-		inbound:     make(chan Event, cfg.BufferSize),
+		subscribers:           make([]*subscription, 0),
+		inbound:               make(chan Event, cfg.BufferSize),
+		backpressureThreshold: cfg.BackpressureThreshold,
 	}
 }
 

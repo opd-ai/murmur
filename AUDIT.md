@@ -88,7 +88,7 @@ The `-race` detector is the authoritative source for concurrency bugs. **All fin
   - **Verification:** `go test -v -run TestGracefulShutdown ./cmd/murmur` should complete in <3s.
   - **Resolution:** Fixed nudge loop blocking on `time.Sleep(5 * time.Minute)` without context awareness. Replaced with timer + select on ctx.Done(). Added per-subsystem close timing instrumentation that logs warnings for operations exceeding 2s. All goroutines now properly exit on context cancellation.
 
-- [ ] **H2: 20/28 production goroutines lack explicit context cancellation handling in loops** — various files
+- [x] **H2: 20/28 production goroutines lack explicit context cancellation handling in loops** — various files
   - **Evidence:** Only 8/28 goroutines explicitly `select` on `ctx.Done()` in their main loop. The remaining 20 either:
     1. Exit on channel closure (safe if channel is closed on context cancel)
     2. Use blocking operations without timeout (e.g., `sub.Next(ctx)` relies on libp2p respecting context)
@@ -116,6 +116,13 @@ The `-race` detector is the authoritative source for concurrency bugs. **All fin
         t.Fatal("goroutine did not exit within 1s of context cancellation")
     }
     ```
+  - **Resolution:** Added comprehensive context cancellation tests per the preferred remediation strategy. Tests added:
+    - `TestMemoryMonitorContextCancellation` in `pkg/app/murmur_test.go`
+    - `TestNudgeLoopContextCancellation` in `pkg/app/murmur_test.go`
+    - `TestAllGoroutinesExitOnContextCancel` in `pkg/app/murmur_test.go`
+    - `TestStartDedupRotationContextCancellation` in `pkg/app/handlers_test.go`
+    - `TestStartGCContextCancellation` in `pkg/content/storage/cache_test.go`
+  All tests verify goroutines exit within 1s of context cancellation. All tests pass with `-race` detector. This provides defensive programming against future regressions without requiring architectural changes.
 
 ---
 

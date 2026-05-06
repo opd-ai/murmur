@@ -302,10 +302,15 @@ func (s *GiftStore) storeGift(gift *Gift, senderKey [32]byte, recipientKey []byt
 }
 
 // GetGift retrieves a gift by ID.
+// Returns the gift even if expired; GarbageCollect() removes expired gifts.
 func (s *GiftStore) GetGift(id [32]byte) (*Gift, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return mechanics.GetItemByID(s.gifts, id, nil)
+	gift, ok := s.gifts[id]
+	if !ok {
+		return nil, nil
+	}
+	return gift, nil
 }
 
 // GetGiftsForRecipient returns all active gifts for a recipient.

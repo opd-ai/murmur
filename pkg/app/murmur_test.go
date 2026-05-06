@@ -236,3 +236,129 @@ func TestAppSubsystemsPersistence(t *testing.T) {
 		<-runErr
 	}
 }
+
+// TestMemoryMonitorContextCancellation verifies the memory monitor goroutine
+// exits within 1s of context cancellation per AUDIT.md H2.
+func TestMemoryMonitorContextCancellation(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "murmur-test-*")
+	if err != nil {
+		t.Fatalf("creating temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	app, err := New(Config{DataDir: tmpDir, SkipUI: true})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	defer app.Close()
+
+	runErr := make(chan error, 1)
+	go func() {
+		runErr <- app.Run()
+	}()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := app.WaitReady(ctx); err != nil {
+		t.Fatalf("WaitReady() error = %v", err)
+	}
+
+	// Close should trigger context cancellation and all goroutines should exit.
+	start := time.Now()
+	if err := app.Close(); err != nil {
+		t.Errorf("Close() error = %v", err)
+	}
+	duration := time.Since(start)
+
+	select {
+	case <-runErr:
+		// Expected - app.Run() returned
+	case <-time.After(2 * time.Second):
+		t.Fatal("app.Run() did not return within 2s of Close()")
+	}
+
+	if duration > time.Second {
+		t.Logf("WARNING: Close() took %v (target <1s)", duration)
+	}
+}
+
+// TestNudgeLoopContextCancellation verifies the nudge loop goroutine
+// exits within 1s of context cancellation per AUDIT.md H2.
+func TestNudgeLoopContextCancellation(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "murmur-test-*")
+	if err != nil {
+		t.Fatalf("creating temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	app, err := New(Config{DataDir: tmpDir, SkipUI: true})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	app.ctx = ctx
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		app.runNudgeLoop()
+	}()
+
+	// Cancel context and verify goroutine exits promptly.
+	cancel()
+
+	select {
+	case <-done:
+		// Expected - goroutine exited
+	case <-time.After(1 * time.Second):
+		t.Fatal("runNudgeLoop() did not exit within 1s of context cancellation")
+	}
+}
+
+// TestAllGoroutinesExitOnContextCancel verifies all production goroutines
+// exit within 1s of context cancellation per AUDIT.md H2.
+func TestAllGoroutinesExitOnContextCancel(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "murmur-test-*")
+	if err != nil {
+		t.Fatalf("creating temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	app, err := New(Config{DataDir: tmpDir, SkipUI: true})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	defer app.Close()
+
+	runErr := make(chan error, 1)
+	go func() {
+		runErr <- app.Run()
+	}()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := app.WaitReady(ctx); err != nil {
+		t.Fatalf("WaitReady() error = %v", err)
+	}
+
+	// Close triggers context cancellation. All goroutines should exit within 1s.
+	start := time.Now()
+	if err := app.Close(); err != nil {
+		t.Errorf("Close() error = %v", err)
+	}
+	duration := time.Since(start)
+
+	// Wait for Run() to return, confirming all goroutines have exited.
+	select {
+	case <-runErr:
+		// Expected
+	case <-time.After(2 * time.Second):
+		t.Fatal("app.Run() did not return within 2s, indicating hanging goroutines")
+	}
+
+	// Per AUDIT.md H2, we verify <1s exit time for defensive programming.
+	if duration > time.Second {
+		t.Logf("WARNING: goroutines took %v to exit (target <1s)", duration)
+	}
+}

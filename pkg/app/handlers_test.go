@@ -429,3 +429,30 @@ func TestHandlers_validateWaveWithPoW(t *testing.T) {
 		t.Error("validateWave should fail for invalid PoW")
 	}
 }
+
+// TestStartDedupRotationContextCancellation verifies the deduplication rotation
+// goroutine exits within 1s of context cancellation per AUDIT.md H2.
+func TestStartDedupRotationContextCancellation(t *testing.T) {
+	h, err := NewHandlers(HandlersConfig{})
+	if err != nil {
+		t.Fatalf("NewHandlers failed: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		h.StartDedupRotation(ctx)
+	}()
+
+	// Cancel context and verify goroutine exits promptly.
+	cancel()
+
+	select {
+	case <-done:
+		// Expected - goroutine exited
+	case <-time.After(1 * time.Second):
+		t.Fatal("StartDedupRotation() did not exit within 1s of context cancellation")
+	}
+}

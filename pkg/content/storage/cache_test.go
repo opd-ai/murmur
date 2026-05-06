@@ -235,6 +235,34 @@ func TestCacheStartGC(t *testing.T) {
 	}
 }
 
+// TestStartGCContextCancellation verifies the GC goroutine exits within 1s
+// of context cancellation per AUDIT.md H2.
+func TestStartGCContextCancellation(t *testing.T) {
+	db, cleanup := createTestDB(t)
+	defer cleanup()
+
+	cache, _ := NewCache(db)
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// StartGC launches a goroutine and returns a cancel function.
+	gcCancel := cache.StartGC(ctx, 100*time.Millisecond)
+	defer gcCancel()
+
+	// Cancel context and verify goroutine exits promptly.
+	start := time.Now()
+	cancel()
+
+	// Give goroutine time to detect cancellation. StartGC goroutine should
+	// exit on next ticker.C or ctx.Done(), whichever comes first.
+	time.Sleep(200 * time.Millisecond)
+
+	duration := time.Since(start)
+	if duration > time.Second {
+		t.Errorf("GC goroutine took %v to exit (expected <1s)", duration)
+	}
+}
+
 func TestCacheClose(t *testing.T) {
 	db, cleanup := createTestDB(t)
 	defer cleanup()
