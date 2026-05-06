@@ -48,6 +48,42 @@ Comprehensive deduplication analysis executed using `go-stats-generator` on 341 
 - Well-maintained codebases: 1-3% duplication
 - **MURMUR**: 0.44% duplication
 
+---
+
+## [2026-05-06T21:30:00Z] Static Analysis Baseline Update
+
+### Audit Type
+**Code Quality — Static Analysis Refresh**
+
+### Analysis Summary
+Refreshed static analysis baseline JSON outputs with updated violation counts from `go-stats-generator`. Analysis detected additional linting violations in newly implemented masked events subsystem (`pkg/store/masked_events.go`) and councils rendering (`pkg/ui/councils_draw.go`).
+
+### Findings
+**New Violations Detected**:
+- **Bare Error Returns**: 8 instances in `masked_events.go` (lines 94, 108, 138, 188, 192, 211, 228, 428, 619) — errors returned without context wrapping
+- **Memory Allocation**: 4 instances in `masked_events.go` (lines 301, 326, 360, 450) — `append()` in loops without pre-allocation
+- **Unused Receivers**: 7 instances in `masked_events.go` (lines 220, 383, 486, 519, 567, 588) + 2 in `councils_draw.go` (lines 334, 381) — method receivers never referenced in body
+
+### Code Quality Assessment
+**Severity Classification**:
+- **Violations** (bare error returns): Should wrap with `fmt.Errorf("context: %w", err)` for error chain preservation
+- **Warnings** (memory allocation): Pre-allocate slices with `make()` for known capacity to reduce GC pressure
+- **Info** (unused receivers): Use `_` as receiver name if receiver not needed (or convert to plain function)
+
+**Recommendation**: Address violations in next code quality pass. Current state does not block release but should be resolved for production hardening.
+
+### Security Implications
+**No Security Concerns**:
+- Violations are code quality issues, not security vulnerabilities
+- Error wrapping improves debugging but does not affect cryptographic properties
+- Memory allocation patterns do not introduce race conditions (all tests pass with `-race`)
+- Unused receivers are cosmetic, no functional impact
+
+**Action Items**:
+- Task: Wrap errors in `masked_events.go` with context preservation
+- Task: Pre-allocate slices in `masked_events.go` loops where capacity known
+- Task: Rename unused receivers to `_` or refactor to plain functions
+
 **Assessment**: Project ranks in **top 5% of well-maintained codebases**.
 
 ### Recommendations
