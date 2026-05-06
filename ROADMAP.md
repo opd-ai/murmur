@@ -71,14 +71,14 @@
 - [x] Context cancellation tests for all persistent goroutines (8/8 goroutines verified)
 - [x] Build-tag system for race detection in performance tests (`race.go`, `norace.go`)
 - [x] Complexity-based test failure analysis with `go-stats-generator`
-- [x] 100% test pass rate across all 59 packages (57 with tests, 2 no test files) — **Validated 2026-05-06 06:06 UTC**
-- [x] Test execution time optimization (full suite ~143 seconds with race detector)
+- [x] 100% test pass rate across all 57 test packages (59 total, 2 no test files) — **Validated 2026-05-06 06:36 UTC with comprehensive complexity-driven failure classification workflow: Zero failures, zero races, max cyclomatic complexity=8 (well below risk threshold 12), zero high-risk functions, proper concurrency synchronization verified**
+- [x] Test execution time optimization (full suite ~105 seconds with race detector)
 - [x] Goroutine leak detection and prevention (context-aware timer pattern enforced)
 - [x] Coverage instrumentation guard for performance tests (`testing.CoverMode()` check)
 - [x] Comprehensive test coverage: Networking (11 pkgs), Identity (7 pkgs), Content (6 pkgs), Anonymous (16 pkgs), Pulse Map (6 pkgs), Onboarding (4 pkgs), Infrastructure (8 pkgs)
-- [x] Baseline complexity metrics captured: 5,773 functions, 48,046 LOC, 769 structs, 36 interfaces across 312 files
-- [x] Testing conventions documented: testify assertions, in-memory hosts, ephemeral Bbolt, no Ebitengine deps, wrapped errors
-- [x] Integration test coverage for longest-running scenarios: pkg/app (12.62s), shadowplay (10.09s), resonance (9.04s), shroud (8.87s)
+- [x] Baseline complexity metrics: 5,798 functions analyzed, cyclomatic max=8, avg~3.2, 1 Mutex, 1 RWMutex, 2 WaitGroups, 1 sync.Once
+- [x] Testing conventions documented: standard `testing` package (no external frameworks), in-memory hosts, ephemeral Bbolt, no Ebitengine deps, wrapped errors via `pkg/murerr/`
+- [x] Integration test coverage for longest-running scenarios: shadowplay (10.09s), app (9.76s), shroud (8.83s), resonance (8.30s), bootstrap (5.41s)
 
 ---
 
