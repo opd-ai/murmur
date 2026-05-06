@@ -413,3 +413,66 @@ message RecoveryShareRecord {
   string recovery_label = 6;        // "Surface Recovery" or "Specter Recovery"
   bytes enrollment_signature = 7;   // Original signature from User (verification)
 }
+
+// ContinuityDeclaration announces key rotation from old key to new key.
+// Per docs/KEY_ROTATION.md, old key authorizes the new key to act as the identity.
+message ContinuityDeclaration {
+  // Ed25519 public key being rotated out (32 bytes).
+  bytes old_public_key = 1;
+  
+  // Ed25519 public key being rotated in (32 bytes).
+  bytes new_public_key = 2;
+  
+  // When rotation takes effect (Unix seconds).
+  int64 rotation_timestamp_unix = 3;
+  
+  // How long old key remains valid (days, default 7).
+  int64 grace_period_days = 4;
+  
+  // Optional rotation reason ("Security incident", "Proactive rotation", "Device upgrade").
+  string rotation_reason = 5;
+  
+  // Ed25519 signature by old_private_key over:
+  // (old_public_key || new_public_key || rotation_timestamp_unix || grace_period_days || rotation_reason)
+  // Proves old key holder authorizes this rotation.
+  bytes old_key_signature = 6;
+  
+  // Ed25519 signature by new_private_key over same message.
+  // Proves new key holder participated in rotation (prevents old-key-holder-only attacks).
+  bytes new_key_signature = 7;
+}
+
+// ContinuityChain stores the complete rotation history for an identity.
+// Stored in Bbolt `continuity_chains` bucket, keyed by identity_root_key.
+message ContinuityChain {
+  // Original identity public key (start of chain, immutable).
+  bytes identity_root_key = 1;
+  
+  // Ordered list of continuity declarations (oldest to newest).
+  repeated ContinuityDeclaration declarations = 2;
+  
+  // Current active public key (convenience field, equals latest in chain).
+  bytes current_active_key = 3;
+  
+  // Last update timestamp (Unix seconds).
+  int64 last_updated_unix = 4;
+}
+
+// ContinuityChainRequest queries DHT for an identity's rotation history.
+// Per docs/KEY_ROTATION.md §2, used when receiving Wave from unknown key.
+message ContinuityChainRequest {
+  // Original identity public key (chain root).
+  bytes identity_root_key = 1;
+}
+
+// ContinuityChainResponse returns the full rotation history.
+message ContinuityChainResponse {
+  // Original identity public key (chain root).
+  bytes identity_root_key = 1;
+  
+  // Full chain from root to current key.
+  repeated ContinuityDeclaration chain = 2;
+  
+  // Latest key in chain (convenience field).
+  bytes current_active_key = 3;
+}

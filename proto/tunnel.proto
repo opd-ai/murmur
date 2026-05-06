@@ -1,0 +1,39 @@
+// Tunnel cell protocol for Shroud-based tunneling.
+// Per TUNNEL_DESIGN.md, tunnels route HTTP traffic over Shroud circuits.
+syntax = "proto3";
+package murmur.tunnel;
+
+option go_package = "github.com/opd-ai/murmur/proto";
+
+// TunnelRegisterCell initiates a tunnel at the exit relay.
+message TunnelRegisterCell {
+    bytes tunnel_id = 1;           // 16-byte tunnel ID (BLAKE3 derived)
+    bytes operator_pubkey = 2;     // Ed25519 public key (32 bytes)
+    bytes signature = 3;           // Ed25519 signature over (tunnel_id || timestamp)
+    int64 timestamp_unix = 4;      // Unix timestamp (replay protection, ±300s window)
+    uint64 bandwidth_limit = 5;    // Requested daily bandwidth quota (bytes, 0 = unlimited)
+}
+
+// TunnelDataCell carries HTTP request/response data.
+message TunnelDataCell {
+    bytes tunnel_id = 1;           // Which tunnel this data belongs to
+    bytes payload = 2;             // Raw HTTP message bytes (request or response)
+    uint32 sequence = 3;           // Sequence number for ordering
+    bool is_final = 4;             // Last fragment in stream (no more data)
+}
+
+// TunnelTeardownCell closes a tunnel gracefully.
+message TunnelTeardownCell {
+    bytes tunnel_id = 1;           // Tunnel to close
+    TeardownReason reason = 2;     // Why closing
+    string message = 3;            // Human-readable reason (optional)
+}
+
+// TeardownReason explains why a tunnel was closed.
+enum TeardownReason {
+    OPERATOR_REQUEST = 0;          // Normal shutdown by operator
+    QUOTA_EXCEEDED = 1;            // Bandwidth limit hit
+    ABUSE_DETECTED = 2;            // Policy violation (content-type, hostname)
+    CIRCUIT_FAILURE = 3;           // Shroud circuit collapsed
+    TIMEOUT = 4;                   // Idle timeout (no traffic for >5min)
+}

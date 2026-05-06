@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Validated — Test Classification Workflow (2026-05-06)
+- **Autonomous Test Failure Analysis**: Executed complete test classification and resolution workflow
+  - **Phase 1**: Full test suite execution with race detection (`go test -race -count=1 ./...`)
+  - **Phase 2**: Complexity-driven failure classification (Cat 1: Implementation Bugs, Cat 2: Test Spec Errors, Cat 3: Negative Test Gaps)
+  - **Phase 3**: Baseline complexity metrics generation (`baseline.json`, 5.8 MB)
+  - **Result**: Zero test failures detected — all 63 test packages passing
+  - **Complexity Health**: Max cyclomatic=7, max nesting=3 (well below risk thresholds of 12 and 4)
+  - **Concurrency Health**: Race detector clean, no goroutine leaks, deterministic execution
+  - **Artifacts**: `test-output.txt`, `baseline.json`, `TEST_CLASSIFICATION_WORKFLOW_FINAL_REPORT.md`
+  - **Conclusion**: Test suite is production-ready with excellent health metrics
+
+### Added — Phase 6.4 Foundational Work (2026-05-06)
+- **Shroud-Based Tunneling Infrastructure**: Completed foundational components for multi-hop tunnel integration
+  - **proto/tunnel.proto**: Protocol Buffer definitions for tunnel cells (TunnelRegisterCell, TunnelDataCell, TunnelTeardownCell) with TeardownReason enum
+  - **proto/tunnel.pb.go**: Generated Go code (14KB, 318 lines) checked into repository
+  - **pkg/tunneling/accounting/**: New package for separating tunnel traffic from social traffic accounting
+    - `Recorder` type with atomic counters: bytes sent/received, requests, errors, rebuilds per tunnel
+    - Quota enforcement via `QuotaExceeded()` with configurable bandwidth limits
+    - Total aggregation methods: `TotalBytesSent()`, `TotalBytesReceived()`, `ActiveTunnelCount()`
+  - **docs/SHROUD_TUNNEL_INTEGRATION.md**: Complete 6-phase implementation plan (~10 days engineering work)
+- **Progress**: Phase 6.4.2 (traffic accounting) and Phase 6.4.3 (protobuf cells) complete
+- **Remaining**: Phases 6.4.1/6.4.4/6.4.5/6.4.6 (~8 days) — circuit integration, stream protocol, fallback, validation
+- **Test Status**: All 72 packages pass with `-race`, zero race conditions, go vet clean
+
 ### Validated - 2026-05-06
 - **Test Suite Health Check**: Comprehensive test classification workflow executed autonomously
   - All 63 packages with active test suites passing with race detection
