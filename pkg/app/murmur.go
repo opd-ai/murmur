@@ -558,74 +558,100 @@ func (a *App) startFirstWeekNudges() {
 // initBeacon initializes the Shroud beacon and circuit manager.
 // Per SHADOW_GRADIENT.md, all nodes can use Shroud circuits; only relays advertise.
 func (a *App) initBeacon() error {
-	// Always create a beacon for relay discovery (receiving ads from others).
+	beacon, err := a.createBeacon()
+	if err != nil {
+		return err
+	}
+
+	a.enableRelayModeIfConfigured(beacon)
+	a.setupRelayAdvertisementHandler(beacon)
+	a.startRelayPruneLoop()
+	a.createCircuitManagerAndStartRotation(beacon)
+
+	return nil
+}
+
+// createBeacon creates and registers the Shroud beacon.
+func (a *App) createBeacon() (*shroud.Beacon, error) {
 	beacon, err := shroud.NewBeacon()
 	if err != nil {
-		return fmt.Errorf("creating beacon: %w", err)
+		return nil, fmt.Errorf("creating beacon: %w", err)
 	}
 	a.subsystems.Beacon = beacon
+	return beacon, nil
+}
 
-	// Enable relay mode if configured.
-	if a.config.EnableRelay {
-		bandwidth := a.config.RelayBandwidth
-		if bandwidth == 0 {
-			bandwidth = 10 * 1024 * 1024 // Default 10 MiB/s.
-		}
-		peerID := a.subsystems.Host.PeerID().String()
-		beacon.EnableRelay(peerID, bandwidth)
-
-		// Start periodic advertisement broadcasting.
-		a.wg.Add(1)
-		go func() {
-			defer a.wg.Done()
-			defer fmt.Println("[SHUTDOWN] Beacon loop goroutine exited")
-			a.runBeaconLoop()
-		}()
+// enableRelayModeIfConfigured enables relay mode and starts beacon loop if configured.
+func (a *App) enableRelayModeIfConfigured(beacon *shroud.Beacon) {
+	if !a.config.EnableRelay {
+		return
 	}
 
-	// Wire up relay advertisement handler to process incoming advertisements.
+	bandwidth := a.config.RelayBandwidth
+	if bandwidth == 0 {
+		bandwidth = 10 * 1024 * 1024 // Default 10 MiB/s.
+	}
+	peerID := a.subsystems.Host.PeerID().String()
+	beacon.EnableRelay(peerID, bandwidth)
+
+	a.wg.Add(1)
+	go func() {
+		defer a.wg.Done()
+		defer fmt.Println("[SHUTDOWN] Beacon loop goroutine exited")
+		a.runBeaconLoop()
+	}()
+}
+
+// setupRelayAdvertisementHandler wires up the relay ad callback handler.
+func (a *App) setupRelayAdvertisementHandler(beacon *shroud.Beacon) {
 	a.subsystems.Handlers.SetRelayAdCallback(func(ad *pb.RelayAdvertisement) {
-		// Extract peer ID from advertisement addrs if possible.
-		relayPeerID := ""
-		if len(ad.Addrs) > 0 {
-			relayPeerID = ad.Addrs[0] // Simplified: use first addr as identifier.
-		}
+		relayPeerID := extractRelayPeerID(ad)
 		beacon.ProcessAdvertisement(ad, relayPeerID)
-
-		// Emit event for relay discovery.
-		if a.subsystems.EventBus != nil {
-			a.subsystems.EventBus.Emit(Event{
-				Type: EventShroudRelayDiscovered,
-				Payload: ShroudEvent{
-					RelayPeerID: relayPeerID,
-				},
-			})
-		}
+		a.emitRelayDiscoveryEvent(relayPeerID)
 	})
+}
 
-	// Start periodic relay pruning.
+// extractRelayPeerID extracts peer ID from advertisement addresses.
+func extractRelayPeerID(ad *pb.RelayAdvertisement) string {
+	if len(ad.Addrs) > 0 {
+		return ad.Addrs[0]
+	}
+	return ""
+}
+
+// emitRelayDiscoveryEvent emits a relay discovered event if event bus is available.
+func (a *App) emitRelayDiscoveryEvent(relayPeerID string) {
+	if a.subsystems.EventBus != nil {
+		a.subsystems.EventBus.Emit(Event{
+			Type: EventShroudRelayDiscovered,
+			Payload: ShroudEvent{
+				RelayPeerID: relayPeerID,
+			},
+		})
+	}
+}
+
+// startRelayPruneLoop starts the periodic relay pruning goroutine.
+func (a *App) startRelayPruneLoop() {
 	a.wg.Add(1)
 	go func() {
 		defer a.wg.Done()
 		defer fmt.Println("[SHUTDOWN] Relay prune loop goroutine exited")
 		a.runRelayPruneLoop()
 	}()
+}
 
-	// Create circuit manager for building Shroud circuits.
-	// Exclude our own peer ID from relay selection.
+// createCircuitManagerAndStartRotation creates circuit manager and starts rotation.
+func (a *App) createCircuitManagerAndStartRotation(beacon *shroud.Beacon) {
 	selfPeerID := a.subsystems.Host.PeerID().String()
 	a.subsystems.CircuitManager = shroud.NewCircuitManager(beacon, []string{selfPeerID})
 
-	// Start circuit rotation timer per TECHNICAL_IMPLEMENTATION.md §8.
-	// This is one of the ~8 persistent goroutines.
 	a.wg.Add(1)
 	go func() {
 		defer a.wg.Done()
 		defer fmt.Println("[SHUTDOWN] Circuit rotation goroutine exited")
 		a.subsystems.CircuitManager.StartRotation(a.ctx)
 	}()
-
-	return nil
 }
 
 // runBeaconLoop broadcasts relay advertisements periodically.

@@ -140,30 +140,55 @@ func (s *SparkStore) CreateSpark(
 	prompt string,
 	privKey ed25519.PrivateKey,
 ) (*Spark, error) {
+	if err := validateSparkCreationParams(sparkType, prompt); err != nil {
+		return nil, err
+	}
+
+	sparkID := generateSparkID(initiatorID, sparkType, prompt)
+	spark := buildSpark(sparkID, sparkType, initiatorID, prompt)
+	signSparkIfKeyProvided(spark, privKey)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.registerSpark(spark, initiatorID)
+
+	return spark, nil
+}
+
+// validateSparkCreationParams validates spark type and prompt requirements.
+func validateSparkCreationParams(sparkType SparkType, prompt string) error {
 	if sparkType != SparkWaveRelay && sparkType != SparkEchoRace {
-		return nil, ErrSparkInvalidType
+		return ErrSparkInvalidType
 	}
-
-	// WaveRelay requires a prompt.
 	if sparkType == SparkWaveRelay && len(prompt) == 0 {
-		return nil, ErrInvalidPrompt
+		return ErrInvalidPrompt
 	}
+	return nil
+}
 
-	// Generate spark ID.
+// generateSparkID creates a unique spark ID using BLAKE3.
+func generateSparkID(initiatorID []byte, sparkType SparkType, prompt string) [32]byte {
 	h := blake3.New()
 	h.Write(initiatorID)
 	h.Write([]byte{byte(sparkType)})
 	h.Write([]byte(prompt))
+
 	now := time.Now()
 	nowBytes := make([]byte, 8)
 	for i := 0; i < 8; i++ {
 		nowBytes[i] = byte(now.UnixNano() >> (8 * i))
 	}
 	h.Write(nowBytes)
+
 	var id [32]byte
 	copy(id[:], h.Sum(nil))
+	return id
+}
 
-	spark := &Spark{
+// buildSpark constructs a Spark with the given parameters.
+func buildSpark(id [32]byte, sparkType SparkType, initiatorID []byte, prompt string) *Spark {
+	now := time.Now()
+	return &Spark{
 		ID:          id,
 		Type:        sparkType,
 		InitiatorID: initiatorID,
@@ -172,24 +197,25 @@ func (s *SparkStore) CreateSpark(
 		ExpiresAt:   now.Add(SparkDuration),
 		State:       SparkActive,
 	}
+}
 
-	// Sign the spark.
-	if privKey != nil {
-		signData := append(id[:], byte(sparkType))
-		signData = append(signData, initiatorID...)
-		signData = append(signData, []byte(prompt)...)
-		spark.Signature = ed25519.Sign(privKey, signData)
+// signSparkIfKeyProvided signs the spark if a private key is provided.
+func signSparkIfKeyProvided(spark *Spark, privKey ed25519.PrivateKey) {
+	if privKey == nil {
+		return
 	}
+	signData := append(spark.ID[:], byte(spark.Type))
+	signData = append(signData, spark.InitiatorID...)
+	signData = append(signData, []byte(spark.Prompt)...)
+	spark.Signature = ed25519.Sign(privKey, signData)
+}
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.sparks[id] = spark
+// registerSpark stores the spark in the store and indexes it by initiator.
+func (s *SparkStore) registerSpark(spark *Spark, initiatorID []byte) {
+	s.sparks[spark.ID] = spark
 	keyHex := mechanics.KeyToHex(initiatorID)
 	s.byInitiator[keyHex] = append(s.byInitiator[keyHex], spark)
-	s.responses[id] = make([]*SparkResponse, 0)
-
-	return spark, nil
+	s.responses[spark.ID] = make([]*SparkResponse, 0)
 }
 
 // AddSpark adds a pre-built spark received from the network.

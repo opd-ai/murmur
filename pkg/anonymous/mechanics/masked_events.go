@@ -427,23 +427,42 @@ func (e *MaskedEvent) Join(specterKey [32]byte) (*MaskedKeypair, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	// Check if already joined.
+	if err := e.validateJoinRequest(specterKey); err != nil {
+		return nil, err
+	}
+
+	keypair, err := e.createMaskedKeypair()
+	if err != nil {
+		return nil, err
+	}
+
+	e.registerParticipant(keypair)
+	e.trackSpecterJoin(specterKey)
+	e.storeKeypairForDestruction(keypair)
+
+	return keypair, nil
+}
+
+// validateJoinRequest checks if the Specter can join the event.
+func (e *MaskedEvent) validateJoinRequest(specterKey [32]byte) error {
 	specterHex := KeyToHex(specterKey[:])
 	if e.specterJoins[specterHex] {
-		return nil, ErrMaskedEventAlreadyJoined
+		return ErrMaskedEventAlreadyJoined
 	}
 
-	// Check if event is accepting joins.
 	if e.State == MaskedEventEnded {
-		return nil, ErrMaskedEventEnded
+		return ErrMaskedEventEnded
 	}
 
-	// Check participant limit.
 	if e.MaxParticipants > 0 && len(e.participants) >= e.MaxParticipants {
-		return nil, ErrMaskedEventFull
+		return ErrMaskedEventFull
 	}
 
-	// Generate single-use Ed25519 keypair.
+	return nil
+}
+
+// createMaskedKeypair generates a new masked keypair for event participation.
+func (e *MaskedEvent) createMaskedKeypair() (*MaskedKeypair, error) {
 	pub, priv, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		return nil, fmt.Errorf("masked event: failed to generate keypair: %w", err)
@@ -452,39 +471,41 @@ func (e *MaskedEvent) Join(specterKey [32]byte) (*MaskedKeypair, error) {
 	var pubKey [32]byte
 	copy(pubKey[:], pub)
 
-	// Generate X25519 private key for key exchange.
 	var x25519Priv [32]byte
 	if _, err := rand.Read(x25519Priv[:]); err != nil {
 		return nil, fmt.Errorf("masked event: failed to generate x25519 key: %w", err)
 	}
 
-	// Generate Masked pseudonym.
 	pseudonym := GenerateMaskedPseudonym(pubKey)
 
-	keypair := &MaskedKeypair{
+	return &MaskedKeypair{
 		PublicKey:     pubKey,
 		privateKey:    priv,
 		x25519Private: x25519Priv,
 		Pseudonym:     pseudonym,
 		EventID:       e.ID,
-	}
+	}, nil
+}
 
-	// Record participant.
-	pubKeyHex := KeyToHex(pubKey[:])
+// registerParticipant records the masked participant in the event.
+func (e *MaskedEvent) registerParticipant(keypair *MaskedKeypair) {
+	pubKeyHex := KeyToHex(keypair.PublicKey[:])
 	e.participants[pubKeyHex] = &MaskedParticipant{
-		MaskedPublicKey: pubKey,
-		Pseudonym:       pseudonym,
+		MaskedPublicKey: keypair.PublicKey,
+		Pseudonym:       keypair.Pseudonym,
 		JoinedAt:        time.Now(),
 	}
+}
 
-	// Track Specter join.
+// trackSpecterJoin records the Specter's join to prevent duplicate joins.
+func (e *MaskedEvent) trackSpecterJoin(specterKey [32]byte) {
+	specterHex := KeyToHex(specterKey[:])
 	e.specterJoins[specterHex] = true
+}
 
-	// Store keypair for destruction when event ends.
-	// Per AUDIT.md MEDIUM finding, keypairs must be destroyed post-event.
+// storeKeypairForDestruction stores the keypair for secure destruction when event ends.
+func (e *MaskedEvent) storeKeypairForDestruction(keypair *MaskedKeypair) {
 	e.keypairs = append(e.keypairs, keypair)
-
-	return keypair, nil
 }
 
 // RegisterMaskedKey registers a pre-generated masked key.

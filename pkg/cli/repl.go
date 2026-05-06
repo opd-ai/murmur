@@ -190,21 +190,48 @@ func (r *REPL) handleCommand(line string) error {
 // cmdWave creates and publishes a Wave.
 // Usage: wave <text>
 func (r *REPL) cmdWave(args []string) error {
+	content, err := r.validateAndJoinWaveContent(args)
+	if err != nil {
+		return err
+	}
+
+	wave, duration, err := r.createWaveWithPoW(content)
+	if err != nil {
+		return err
+	}
+
+	if err := r.storeWaveInCache(wave); err != nil {
+		return err
+	}
+
+	if err := r.publishWaveToNetwork(wave); err != nil {
+		return err
+	}
+
+	fmt.Fprintf(r.out, "PoW completed in %.2f seconds\n", duration.Seconds())
+	fmt.Fprintf(r.out, "Published Wave [%x]\n", wave.WaveId[:8])
+	return nil
+}
+
+// validateAndJoinWaveContent validates arguments and joins them into content.
+func (r *REPL) validateAndJoinWaveContent(args []string) (string, error) {
 	if len(args) == 0 {
-		return errors.New("usage: wave <text>")
+		return "", errors.New("usage: wave <text>")
 	}
 
 	content := strings.Join(args, " ")
 	if len(content) > waves.MaxContentSize {
-		return fmt.Errorf("content exceeds maximum size (%d bytes)", waves.MaxContentSize)
+		return "", fmt.Errorf("content exceeds maximum size (%d bytes)", waves.MaxContentSize)
 	}
+	return content, nil
+}
 
+// createWaveWithPoW creates a Wave with PoW computation and returns duration.
+func (r *REPL) createWaveWithPoW(content string) (*pb.Wave, time.Duration, error) {
 	fmt.Fprintln(r.out, "Creating Wave...")
 	fmt.Fprintln(r.out, "Computing Proof of Work (this may take 2-5 seconds)...")
 
 	start := time.Now()
-
-	// Create Wave with PoW.
 	wave, err := waves.Create(
 		waves.TypeSurface,
 		[]byte(content),
@@ -212,18 +239,22 @@ func (r *REPL) cmdWave(args []string) error {
 		waves.DefaultCreateOptions(),
 	)
 	if err != nil {
-		return fmt.Errorf("creating wave: %w", err)
+		return nil, 0, fmt.Errorf("creating wave: %w", err)
 	}
 
-	duration := time.Since(start)
-	fmt.Fprintf(r.out, "PoW completed in %.2f seconds\n", duration.Seconds())
+	return wave, time.Since(start), nil
+}
 
-	// Store in local cache.
+// storeWaveInCache stores the wave in the local cache.
+func (r *REPL) storeWaveInCache(wave *pb.Wave) error {
 	if err := r.waveCache.Put(wave); err != nil {
 		return fmt.Errorf("storing wave: %w", err)
 	}
+	return nil
+}
 
-	// Wrap in MurmurEnvelope.
+// publishWaveToNetwork wraps the wave in an envelope and publishes to gossip.
+func (r *REPL) publishWaveToNetwork(wave *pb.Wave) error {
 	envelope := &pb.MurmurEnvelope{
 		Version:       1,
 		Type:          pb.MessageType_MESSAGE_TYPE_WAVE,
@@ -234,13 +265,10 @@ func (r *REPL) cmdWave(args []string) error {
 		MessageId:     wave.WaveId,
 	}
 
-	// Publish to /murmur/waves/1 topic.
 	envelopeBytes := mustMarshal(envelope)
 	if err := r.pubsub.Publish(r.ctx, "/murmur/waves/1", envelopeBytes); err != nil {
 		return fmt.Errorf("publishing wave: %w", err)
 	}
-
-	fmt.Fprintf(r.out, "Published Wave [%x]\n", wave.WaveId[:8])
 	return nil
 }
 

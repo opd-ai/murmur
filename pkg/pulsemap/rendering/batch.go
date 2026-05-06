@@ -356,22 +356,33 @@ func drawBatchedTrail(dst *ebiten.Image, cmd trailDrawCommand) {
 		return
 	}
 
-	trailColor := color.RGBA{R: 100, G: 255, B: 220, A: uint8(cmd.baseAlpha)}
-
-	// Calculate direction and distance
-	dx := float64(cmd.x2 - cmd.x1)
-	dy := float64(cmd.y2 - cmd.y1)
-	distance := math.Sqrt(dx*dx + dy*dy)
+	dirX, dirY, distance := calculateBatchedTrailDirection(cmd)
 	if distance < 1.0 {
 		return
 	}
 
-	dirX := dx / distance
-	dirY := dy / distance
+	trailColor := color.RGBA{R: 100, G: 255, B: 220, A: uint8(cmd.baseAlpha)}
+	drawBatchedDashedLine(dst, cmd, dirX, dirY, distance, trailColor)
+	drawBatchedParticles(dst, cmd, trailColor)
+	drawBatchedCommentIndicator(dst, cmd)
+}
 
-	// Draw dashed line
-	dashLength := 8.0
-	segmentLength := 12.0
+// calculateBatchedTrailDirection computes direction vector and distance for trail.
+func calculateBatchedTrailDirection(cmd trailDrawCommand) (dirX, dirY, distance float64) {
+	dx := float64(cmd.x2 - cmd.x1)
+	dy := float64(cmd.y2 - cmd.y1)
+	distance = math.Sqrt(dx*dx + dy*dy)
+	if distance > 0 {
+		dirX = dx / distance
+		dirY = dy / distance
+	}
+	return dirX, dirY, distance
+}
+
+// drawBatchedDashedLine renders the dashed line portion of the trail.
+func drawBatchedDashedLine(dst *ebiten.Image, cmd trailDrawCommand, dirX, dirY, distance float64, trailColor color.RGBA) {
+	const dashLength = 8.0
+	const segmentLength = 12.0
 	currentPos := 0.0
 
 	for currentPos < distance {
@@ -383,10 +394,15 @@ func drawBatchedTrail(dst *ebiten.Image, cmd trailDrawCommand) {
 		vector.StrokeLine(dst, x1, y1, x2, y2, 2.0, trailColor, true)
 		currentPos += segmentLength
 	}
+}
 
-	// Draw particles
-	particleSpeed := 0.5
-	particleCount := 3
+// drawBatchedParticles renders animated particles along the trail.
+func drawBatchedParticles(dst *ebiten.Image, cmd trailDrawCommand, _ color.RGBA) {
+	const particleSpeed = 0.5
+	const particleCount = 3
+	dx := float64(cmd.x2 - cmd.x1)
+	dy := float64(cmd.y2 - cmd.y1)
+
 	for i := 0; i < particleCount; i++ {
 		offset := float64(i) / float64(particleCount)
 		particlePos := math.Mod((cmd.time*particleSpeed)+offset, 1.0)
@@ -396,15 +412,18 @@ func drawBatchedTrail(dst *ebiten.Image, cmd trailDrawCommand) {
 		particleColor := color.RGBA{150, 255, 230, particleAlpha}
 		vector.DrawFilledCircle(dst, px, py, 2.5, particleColor, true)
 	}
+}
 
-	// Draw comment indicator if present
-	if cmd.hasComment {
-		mx := (cmd.x1 + cmd.x2) / 2
-		my := (cmd.y1 + cmd.y2) / 2
-		ringPulse := 1.0 + 0.2*math.Sin(cmd.time*3.0)
-		ringRadius := 5.0 * ringPulse
-		ringAlpha := uint8(cmd.baseAlpha * 0.7)
-		ringColor := color.RGBA{255, 255, 150, ringAlpha}
-		vector.StrokeCircle(dst, mx, my, float32(ringRadius), 1.5, ringColor, true)
+// drawBatchedCommentIndicator draws pulsing ring at midpoint if comment exists.
+func drawBatchedCommentIndicator(dst *ebiten.Image, cmd trailDrawCommand) {
+	if !cmd.hasComment {
+		return
 	}
+	mx := (cmd.x1 + cmd.x2) / 2
+	my := (cmd.y1 + cmd.y2) / 2
+	ringPulse := 1.0 + 0.2*math.Sin(cmd.time*3.0)
+	ringRadius := 5.0 * ringPulse
+	ringAlpha := uint8(cmd.baseAlpha * 0.7)
+	ringColor := color.RGBA{255, 255, 150, ringAlpha}
+	vector.StrokeCircle(dst, mx, my, float32(ringRadius), 1.5, ringColor, true)
 }

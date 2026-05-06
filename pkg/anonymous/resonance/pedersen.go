@@ -323,7 +323,28 @@ func (v *RistrettoClaimVerifier) VerifyThresholdProof(
 	proof *ThresholdProof,
 	threshold int64,
 ) error {
-	// Check freshness.
+	if err := v.checkProofFreshness(proof); err != nil {
+		return err
+	}
+
+	if err := v.checkReplay(proof); err != nil {
+		return err
+	}
+
+	if err := v.verifyChallengeMatches(commitment, proof, threshold); err != nil {
+		return err
+	}
+
+	if err := v.verifySchnorrProof(proof); err != nil {
+		return err
+	}
+
+	v.recordNonce(proof)
+	return nil
+}
+
+// checkProofFreshness verifies the proof timestamp is within acceptable bounds.
+func (v *RistrettoClaimVerifier) checkProofFreshness(proof *ThresholdProof) error {
 	proofTime := time.Unix(proof.Timestamp, 0)
 	if time.Since(proofTime) > ClaimFreshness {
 		return ErrClaimExpired
@@ -331,16 +352,25 @@ func (v *RistrettoClaimVerifier) VerifyThresholdProof(
 	if proofTime.After(time.Now().Add(30 * time.Second)) {
 		return ErrInvalidClaim
 	}
+	return nil
+}
 
-	// Check replay.
+// checkReplay verifies the nonce has not been seen before.
+func (v *RistrettoClaimVerifier) checkReplay(proof *ThresholdProof) error {
 	v.mu.RLock()
+	defer v.mu.RUnlock()
 	if _, seen := v.seenOnce[proof.Nonce]; seen {
-		v.mu.RUnlock()
 		return ErrReplayDetected
 	}
-	v.mu.RUnlock()
+	return nil
+}
 
-	// Recompute challenge.
+// verifyChallengeMatches verifies the challenge was computed correctly.
+func (v *RistrettoClaimVerifier) verifyChallengeMatches(
+	commitment *PedersenCommitment,
+	proof *ThresholdProof,
+	threshold int64,
+) error {
 	expectedChallenge := computeChallenge(
 		commitment,
 		&proof.DeltaCommitment,
@@ -351,36 +381,47 @@ func (v *RistrettoClaimVerifier) VerifyThresholdProof(
 	var expectedChalScalar ristretto.Scalar
 	expectedChalScalar.SetBytes(&expectedChallenge)
 
-	// Verify challenge matches.
 	if !proof.Challenge.Equals(&expectedChalScalar) {
 		return ErrInvalidProof
 	}
+	return nil
+}
 
-	// Verify Schnorr proof: s_v*G + s_r*H == R + c*C (where C is delta commitment).
-	// This proves knowledge of the opening (delta, deltaBlind) for deltaCommitment.
-	// Left side: s_v*G + s_r*H.
+// verifySchnorrProof verifies the Schnorr proof equation: s_v*G + s_r*H == R + c*C.
+func (v *RistrettoClaimVerifier) verifySchnorrProof(proof *ThresholdProof) error {
+	left := v.computeSchnorrLeft(proof)
+	right := v.computeSchnorrRight(proof)
+
+	if !left.Equals(&right) {
+		return ErrInvalidProof
+	}
+	return nil
+}
+
+// computeSchnorrLeft computes left side of Schnorr equation: s_v*G + s_r*H.
+func (v *RistrettoClaimVerifier) computeSchnorrLeft(proof *ThresholdProof) ristretto.Point {
 	var sG, sH ristretto.Point
 	sG.ScalarMult(&v.params.G, &proof.ResponseValue)
 	sH.ScalarMult(&v.params.H, &proof.ResponseBlind)
 	var left ristretto.Point
 	left.Add(&sG, &sH)
+	return left
+}
 
-	// Right side: R + c*deltaCommitment.
+// computeSchnorrRight computes right side of Schnorr equation: R + c*deltaCommitment.
+func (v *RistrettoClaimVerifier) computeSchnorrRight(proof *ThresholdProof) ristretto.Point {
 	var cDelta ristretto.Point
 	cDelta.ScalarMult(&proof.DeltaCommitment.Point, &proof.Challenge)
 	var right ristretto.Point
 	right.Add(&proof.RandomCommitment, &cDelta)
+	return right
+}
 
-	if !left.Equals(&right) {
-		return ErrInvalidProof
-	}
-
-	// Record nonce.
+// recordNonce records the nonce in the replay cache.
+func (v *RistrettoClaimVerifier) recordNonce(proof *ThresholdProof) {
 	v.mu.Lock()
+	defer v.mu.Unlock()
 	v.seenOnce[proof.Nonce] = proof.Timestamp
-	v.mu.Unlock()
-
-	return nil
 }
 
 // CleanExpiredNonces removes old nonces from the replay cache.

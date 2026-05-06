@@ -11,6 +11,11 @@ import (
 	"image/color"
 )
 
+const (
+	// FrameTime is the time delta per frame (60 FPS).
+	FrameTime = 1.0 / 60.0
+)
+
 // Panel is the interface implemented by all UI panels.
 type Panel interface {
 	// Update handles input and updates panel state.
@@ -45,7 +50,7 @@ type PanelAnimation struct {
 // Should be called once per frame. Returns true if error message was cleared.
 func (a *PanelAnimation) UpdateAnimation() bool {
 	// Animate slide-in.
-	a.animTime += 1.0 / 60.0
+	a.animTime += FrameTime
 	if a.slideOffset > 0 {
 		a.slideOffset *= 0.85
 		if a.slideOffset < 1 {
