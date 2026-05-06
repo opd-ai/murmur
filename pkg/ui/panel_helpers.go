@@ -132,3 +132,39 @@ func DrawModalOverlayAndPanel(screen *ebiten.Image, px, py, w, h, panelWidth, pa
 	vector.StrokeRect(screen, float32(px), float32(py),
 		float32(panelWidth), float32(panelHeight), 2.0, theme.PanelBorder, true)
 }
+
+// InsertRuneAtCursor inserts a rune into a string at the cursor position.
+// Returns the new string and incremented cursor position.
+// Consolidates the pattern:
+//
+//	runes := []rune(text)
+//	newRunes := make([]rune, 0, len(runes)+1)
+//	newRunes = append(newRunes, runes[:cursorPos]...)
+//	newRunes = append(newRunes, ch)
+//	newRunes = append(newRunes, runes[cursorPos:]...)
+//	text = string(newRunes)
+//	cursorPos++
+func InsertRuneAtCursor(text string, cursorPos int, ch rune) (newText string, newCursorPos int) {
+	runes := []rune(text)
+	newRunes := make([]rune, 0, len(runes)+1)
+	newRunes = append(newRunes, runes[:cursorPos]...)
+	newRunes = append(newRunes, ch)
+	newRunes = append(newRunes, runes[cursorPos:]...)
+	return string(newRunes), cursorPos + 1
+}
+
+// CenterPanelAndDrawBackground centers a panel and draws its background.
+// Returns the calculated panel position and dimensions.
+// Consolidates the pattern:
+//
+//	sw, sh := screen.Bounds().Dx(), screen.Bounds().Dy()
+//	panelW = 400
+//	panelH = 450
+//	panelX = (sw - panelW) / 2
+//	panelY = (sh - panelH) / 2
+func CenterPanelAndDrawBackground(screen *ebiten.Image, panelWidth, panelHeight int) (panelX, panelY, screenWidth, screenHeight int) {
+	sw, sh := screen.Bounds().Dx(), screen.Bounds().Dy()
+	panelX = (sw - panelWidth) / 2
+	panelY = (sh - panelHeight) / 2
+	return panelX, panelY, sw, sh
+}

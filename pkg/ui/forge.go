@@ -277,10 +277,8 @@ func (p *ForgePanel) Draw(screen *ebiten.Image) {
 		return
 	}
 
-	screenW, screenH := screen.Bounds().Dx(), screen.Bounds().Dy()
 	panelW, panelH := 450, 400
-	panelX := (screenW - panelW) / 2
-	panelY := (screenH - panelH) / 2
+	panelX, panelY, _, _ := CenterPanelAndDrawBackground(screen, panelW, panelH)
 	padding := p.theme.Padding
 
 	// Background.

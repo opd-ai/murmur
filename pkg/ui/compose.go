@@ -212,13 +212,7 @@ func (p *ComposePanel) insertChar(ch rune) {
 		return
 	}
 
-	runes := []rune(p.content)
-	newRunes := make([]rune, 0, len(runes)+1)
-	newRunes = append(newRunes, runes[:p.cursorPos]...)
-	newRunes = append(newRunes, ch)
-	newRunes = append(newRunes, runes[p.cursorPos:]...)
-	p.content = string(newRunes)
-	p.cursorPos++
+	p.content, p.cursorPos = InsertRuneAtCursor(p.content, p.cursorPos, ch)
 }
 
 // submit validates and submits the Wave.

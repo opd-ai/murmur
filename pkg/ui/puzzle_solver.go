@@ -198,13 +198,7 @@ func (p *PuzzleSolverPanel) handleCharacterInput() {
 
 // insertCharAtCursor inserts a character at the current cursor position.
 func (p *PuzzleSolverPanel) insertCharAtCursor(ch rune) {
-	runes := []rune(p.solution)
-	newRunes := make([]rune, 0, len(runes)+1)
-	newRunes = append(newRunes, runes[:p.cursorPos]...)
-	newRunes = append(newRunes, ch)
-	newRunes = append(newRunes, runes[p.cursorPos:]...)
-	p.solution = string(newRunes)
-	p.cursorPos++
+	p.solution, p.cursorPos = InsertRuneAtCursor(p.solution, p.cursorPos, ch)
 }
 
 // handleBackspace processes backspace key.

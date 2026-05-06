@@ -318,13 +318,10 @@ func (p *SpecterDetailPanel) Draw(screen *ebiten.Image) {
 		return
 	}
 
-	sw, sh := screen.Bounds().Dx(), screen.Bounds().Dy()
-
 	// Panel dimensions.
 	p.panelW = 400
 	p.panelH = 450
-	p.panelX = (sw - p.panelW) / 2
-	p.panelY = (sh - p.panelH) / 2
+	p.panelX, p.panelY, _, _ = CenterPanelAndDrawBackground(screen, p.panelW, p.panelH)
 
 	// Draw panel background.
 	p.drawPanelBackground(screen)

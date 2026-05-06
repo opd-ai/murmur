@@ -513,10 +513,8 @@ func (mp *MaskedEventPanel) Draw(screen *ebiten.Image) {
 	}
 
 	// Draw panel background.
-	screenW, screenH := screen.Bounds().Dx(), screen.Bounds().Dy()
 	panelW, panelH := 500, 400
-	panelX := (screenW - panelW) / 2
-	panelY := (screenH - panelH) / 2
+	panelX, panelY, _, _ := CenterPanelAndDrawBackground(screen, panelW, panelH)
 
 	// Background.
 	bgColor := mp.theme.PanelBackground

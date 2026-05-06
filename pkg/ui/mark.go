@@ -433,11 +433,9 @@ func (p *MarkPanel) Draw(screen *ebiten.Image) {
 	}
 
 	// Calculate panel dimensions.
-	sw, sh := screen.Bounds().Dx(), screen.Bounds().Dy()
 	p.panelW = 380
 	p.panelH = 340
-	p.panelX = (sw - p.panelW) / 2
-	p.panelY = (sh - p.panelH) / 2
+	p.panelX, p.panelY, _, _ = CenterPanelAndDrawBackground(screen, p.panelW, p.panelH)
 
 	// Draw background.
 	p.drawBackground(screen)
