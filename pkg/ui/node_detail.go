@@ -196,7 +196,7 @@ func (p *NodeDetailPanel) updateSlideAnimation() {
 			p.slideOffset = 0
 		}
 	}
-	p.animTime += 1.0 / 60.0
+	p.animTime += FrameTime
 }
 
 // calculatePanelPosition calculates panel dimensions and position.

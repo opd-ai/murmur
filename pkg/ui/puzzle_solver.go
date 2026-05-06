@@ -145,16 +145,16 @@ func (p *PuzzleSolverPanel) Update() bool {
 
 // updateAnimations updates slide and feedback message animations.
 func (p *PuzzleSolverPanel) updateAnimations() {
-	p.animTime += 1.0 / 60.0
+	p.animTime += FrameTime
 	if p.slideOffset > 0 {
-		p.slideOffset *= 0.85
+		p.slideOffset *= SlideAnimationDamping
 		if p.slideOffset < 1 {
 			p.slideOffset = 0
 		}
 	}
 
 	if p.errorMessage != "" || p.successMsg != "" {
-		p.feedbackTime += 1.0 / 60.0
+		p.feedbackTime += FrameTime
 		if p.feedbackTime > 4.0 {
 			p.errorMessage = ""
 			p.successMsg = ""

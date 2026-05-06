@@ -289,7 +289,7 @@ func (r *RadialMenu) itemAngle(index int) float64 {
 
 // updateAnimation updates the menu's fade-in animation.
 func (r *RadialMenu) updateAnimation() {
-	r.animTime += 1.0 / 60.0
+	r.animTime += FrameTime
 	if r.animTime > radialMenuFadeInTime {
 		r.animTime = radialMenuFadeInTime
 	}

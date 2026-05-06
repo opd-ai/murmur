@@ -166,17 +166,17 @@ func (p *PuzzlePanel) Update() bool {
 
 // updateAnimations updates slide and error message animations.
 func (p *PuzzlePanel) updateAnimations() {
-	p.animTime += 1.0 / 60.0
+	p.animTime += FrameTime
 	if p.slideOffset > 0 {
-		p.slideOffset *= 0.85
+		p.slideOffset *= SlideAnimationDamping
 		if p.slideOffset < 1 {
 			p.slideOffset = 0
 		}
 	}
 
 	if p.errorMessage != "" {
-		p.errorTime += 1.0 / 60.0
-		if p.errorTime > 3.0 {
+		p.errorTime += FrameTime
+		if p.errorTime > ErrorMessageTimeout {
 			p.errorMessage = ""
 			p.errorTime = 0
 		}

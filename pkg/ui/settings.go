@@ -157,7 +157,7 @@ func (p *SettingsPanel) Update() bool {
 		return false
 	}
 
-	p.animTime += 1.0 / 60.0
+	p.animTime += FrameTime
 
 	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
 		p.visible = false

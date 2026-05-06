@@ -14,6 +14,12 @@ import (
 const (
 	// FrameTime is the time delta per frame (60 FPS).
 	FrameTime = 1.0 / 60.0
+
+	// ErrorMessageTimeout is how long error messages are displayed.
+	ErrorMessageTimeout = 3.0
+
+	// SlideAnimationDamping is the easing factor for slide animations.
+	SlideAnimationDamping = 0.85
 )
 
 // Panel is the interface implemented by all UI panels.
@@ -52,7 +58,7 @@ func (a *PanelAnimation) UpdateAnimation() bool {
 	// Animate slide-in.
 	a.animTime += FrameTime
 	if a.slideOffset > 0 {
-		a.slideOffset *= 0.85
+		a.slideOffset *= SlideAnimationDamping
 		if a.slideOffset < 1 {
 			a.slideOffset = 0
 		}
@@ -61,8 +67,8 @@ func (a *PanelAnimation) UpdateAnimation() bool {
 	// Clear error after 3 seconds.
 	errorCleared := false
 	if a.errorMessage != "" {
-		a.errorTime += 1.0 / 60.0
-		if a.errorTime > 3.0 {
+		a.errorTime += FrameTime
+		if a.errorTime > ErrorMessageTimeout {
 			a.errorMessage = ""
 			a.errorTime = 0
 			errorCleared = true

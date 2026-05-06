@@ -122,7 +122,7 @@ func (p *SpecterDetailPanel) Update() bool {
 		return false
 	}
 
-	p.animTime += 1.0 / 60.0
+	p.animTime += FrameTime
 
 	mx, my := ebiten.CursorPosition()
 

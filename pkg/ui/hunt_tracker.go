@@ -174,12 +174,11 @@ func (p *HuntTrackerPanel) Update() bool {
 
 // updateAnimations advances animation timers.
 func (p *HuntTrackerPanel) updateAnimations() {
-	const frameTime = 1.0 / 60.0
-	p.animTime += frameTime
-	p.pulseTime += frameTime
+	p.animTime += FrameTime
+	p.pulseTime += FrameTime
 
 	if p.slideOffset > 0 {
-		p.slideOffset *= 0.85
+		p.slideOffset *= SlideAnimationDamping
 		if p.slideOffset < 1 {
 			p.slideOffset = 0
 		}
@@ -189,8 +188,8 @@ func (p *HuntTrackerPanel) updateAnimations() {
 // updateErrorTimeout clears error message after timeout.
 func (p *HuntTrackerPanel) updateErrorTimeout() {
 	if p.errorMessage != "" {
-		p.errorTime += 1.0 / 60.0
-		if p.errorTime > 3.0 {
+		p.errorTime += FrameTime
+		if p.errorTime > ErrorMessageTimeout {
 			p.errorMessage = ""
 			p.errorTime = 0
 		}
