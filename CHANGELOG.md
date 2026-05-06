@@ -6,6 +6,46 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+**Tunneling Primitive Design Specification (2026-05-06)**
+- Created `TUNNEL_DESIGN.md` (21KB, 600+ lines) — Complete design specification for Phase 6 tunneling primitive per PLAN.md §6.1
+- **Use Cases Defined**: Developer localhost exposure (ngrok-like), friend-to-friend reseed bootstrap, private service hosting
+- **Addressing Scheme**: `murmur://tunnel/<tunnel-id>` with Kademlia DHT resolution, persistent/ephemeral tunnel IDs, exit relay failover
+- **Anonymity Model**: Operator IP hidden via 3-hop Shroud circuits, comparison table with Tor Hidden Services and I2P Eepsites
+- **Technical Architecture**: 6-hop traffic flow (3 client→exit + 3 exit→operator), `TunnelRequestCell`/`TunnelResponseCell` protobuf wire protocol, DHT tunnel registry
+- **Abuse Prevention**: Content-type allowlists (default-deny executables), hostname restrictions (reseed mode), bandwidth caps (500 MB/24h), automated takedown protocol (anonymity-preserving)
+- **Security Analysis**: 4 threat scenarios documented (malicious exit relay, application fingerprints, DHT pollution, circuit correlation) with mitigations
+- **Performance Benchmarks**: Estimated ~3s setup, 600ms p50 latency, ~10 Mbps throughput (vs ngrok's 50ms/100 Mbps) — acceptable for development/webhooks
+- **Implementation Roadmap**: 4 phases defined (core infrastructure, abuse integration, testing/docs, production hardening) with 10-week timeline
+- **Success Criteria**: <60s tunnel creation, exit relay cannot learn operator IP, 95%+ malware C2 blocking, 50+ active tunnels/month adoption target
+- **Open Questions**: 7 design decisions deferred to implementation (WebSocket support, custom ports, multi-operator load balancing, exit relay incentives, IPv6, circuit reuse, discovery UI)
+- Ready for Phase 6.2 (tunnel abuse policy refinement) and Phase 6.3 (minimal HTTP tunnel prototype)
+
+**Test Failure Classification Workflow Validation (2026-05-06)**
+- Executed autonomous test failure classification workflow with complexity metrics correlation
+- Validated all 60 packages with test coverage (100% pass rate)
+- Confirmed zero race conditions across concurrency-intensive packages (Shroud, Resonance, GossipSub)
+- Generated baseline complexity metrics: 323 files, 49,425 LOC, 1,368 functions, 4,615 methods
+- Documented workflow in `TEST_WORKFLOW_RESULT_2026-05-06.md`
+
+**Multi-Device Identity UI (Phase 3) (2026-05-06)**
+- **Device Pairing Panel** — Complete QR code-based device pairing UI with 5-minute expiry enforcement (`pkg/ui/device_pairing.go`, 419 lines).
+  - QR code generation with pairing token (256-bit nonce, local IP, master public key)
+  - Real-time expiry countdown display
+  - State machine: Idle → GeneratingQR → WaitingForScan → Connecting → Authorizing → Complete/Error
+  - Encodes pairing data as `murmur://pair/` URI with Base64 token
+- **Device Management Panel** — View and revoke authorized devices (`pkg/ui/device_management.go`, 350 lines).
+  - Scrollable list of authorized devices with label, public key (truncated), authorization date
+  - Current device protection (no revoke button for active device)
+  - Two-step revocation confirmation dialog
+  - Error display for failed operations
+- **Master Key Passphrase Prompt** — Secure passphrase input for device operations (`pkg/ui/passphrase_prompt.go`, 219 lines).
+  - Masked passphrase display with bullet characters
+  - Submit/cancel buttons with keyboard shortcuts (Enter/Escape)
+  - Error message display for invalid passphrase
+- **Settings Integration** — Added "Devices" category with device count and management toggle.
+- **Test Coverage** — 15 new test functions covering pairing, management, and revocation flows. All tests pass with race detector.
+- **Documentation** — Added comprehensive audit entry documenting security properties, implementation notes, and Phase 3 completion status.
+
 **Test Suite Validation and Complexity Baseline (2026-05-06)**
 - **Comprehensive Test Validation** — Executed complete test failure classification workflow per autonomous test resolution protocol.
 - **Zero Failures**: All 61 test packages pass with 100% success rate. No Cat 1 (implementation bugs), Cat 2 (test spec errors), or Cat 3 (negative test gaps) failures detected.

@@ -439,10 +439,11 @@ PHASE 6: TUNNELING PRIMITIVE (PageKite/ngrok) (Weeks 16–26)
 Major new capability. Requires architectural care and abuse planning
 BEFORE code. Do not start before Phase 4 completes.
 
-[ ] 6.1  Write TUNNEL_DESIGN.md
+[x] 6.1  Write TUNNEL_DESIGN.md
          - Use case: developer exposes localhost service via Murmur
          - Addressing: how does a client reach the tunneled service?
          - Anonymity: is the tunnel operator anonymous? The user? Both?
+         - **COMPLETED 2026-05-06**: Created TUNNEL_DESIGN.md (21KB, 600+ lines) as comprehensive design specification for tunneling primitive. Sections: (1) Overview with 5 design principles (reuse Shroud, operator anonymity, abuse-aware, explicit opt-in, clear threat model), (2) Three use cases (developer localhost exposure, friend-to-friend reseed, private service hosting), (3) Addressing scheme (`murmur://tunnel/<tunnel-id>` with DHT resolution), (4) Anonymity model (operator/client guarantees, comparison with Tor/I2P hidden services), (5) Technical architecture (initiator/relay/client components, 6-hop traffic flow, wire protocol with TunnelRequestCell/TunnelResponseCell protobuf), (6) Abuse prevention (content-type allowlists, hostname restrictions, bandwidth caps, automated takedown protocol), (7) Security considerations (4 threat scenarios: malicious exit relay, application fingerprints, DHT pollution, circuit correlation), (8) Performance benchmarks (estimates: ~3s setup, 600ms p50 latency, ~10 Mbps throughput vs ngrok's 50ms/100 Mbps), (9) Open questions (7 deferred decisions: WebSocket, custom ports, multi-operator, incentives, IPv6, circuit reuse, discovery UI), (10) Implementation roadmap (4 phases: core infrastructure, abuse integration, testing/docs, production hardening). Success criteria: <60s tunnel setup, exit relay cannot learn operator IP, 95%+ malware C2 blocking, <1s p50 latency, 50+ active tunnels/month adoption target. Ready for Phase 6.2 (abuse policy refinement).
 
 [ ] 6.2  Define tunnel abuse policy BEFORE implementation
          - Exit/edge operators can set content-type and hostname allowlists
