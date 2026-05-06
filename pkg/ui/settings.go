@@ -88,6 +88,13 @@ func NewSettingsPanel(theme Theme, onChange SettingsChangeCallback) *SettingsPan
 				},
 			},
 			{
+				Name: "Devices",
+				Settings: []Setting{
+					{Key: "device_count", Label: "Authorized Devices", Type: SettingTypeText, Value: "1"},
+					{Key: "show_devices", Label: "Manage Devices", Type: SettingTypeToggle, Value: false},
+				},
+			},
+			{
 				Name: "Display",
 				Settings: []Setting{
 					{

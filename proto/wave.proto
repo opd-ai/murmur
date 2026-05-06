@@ -92,6 +92,11 @@ message Wave {
   // Type-specific metadata (key-value pairs).
   // Used for veil flags, encryption parameters, event IDs, etc.
   map<string, bytes> metadata = 11;
+  
+  // Device public key that signed this Wave (for multi-device identity).
+  // If empty, author_pubkey is assumed to be both master and device key (single-device mode).
+  // Per docs/MULTI_DEVICE_IDENTITY.md, signature verifies against this key, then device→master authorization is checked.
+  bytes device_public_key = 12;
 }
 
 // Reply extends a Wave with threading information.

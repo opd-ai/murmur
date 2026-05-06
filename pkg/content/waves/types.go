@@ -5,6 +5,7 @@ package waves
 import (
 	"crypto/ed25519"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/opd-ai/murmur/pkg/content/pow"
@@ -61,6 +62,10 @@ type CreateOptions struct {
 	TTL        time.Duration
 	ParentHash []byte
 	Difficulty uint8
+	// DeviceKey is the device public key for multi-device identity.
+	// If nil, single-device mode is assumed (author_pubkey is both master and device key).
+	// Per docs/MULTI_DEVICE_IDENTITY.md, this enables device→master authorization verification.
+	DeviceKey []byte
 }
 
 // DefaultCreateOptions returns default options for Wave creation.
@@ -69,6 +74,7 @@ func DefaultCreateOptions() CreateOptions {
 		TTL:        DefaultTTL,
 		ParentHash: nil,
 		Difficulty: DefaultDifficulty,
+		DeviceKey:  nil, // Single-device mode by default
 	}
 }
 
@@ -107,13 +113,14 @@ func validateCreateParams(kp *keys.KeyPair, content []byte, opts CreateOptions) 
 func buildWave(waveType WaveType, content []byte, kp *keys.KeyPair, opts CreateOptions) *pb.Wave {
 	now := time.Now()
 	wave := &pb.Wave{
-		WaveType:     pb.WaveType(waveType),
-		Content:      content,
-		AuthorPubkey: kp.PublicKey,
-		CreatedAt:    now.Unix(),
-		TtlSeconds:   int64(opts.TTL.Seconds()),
-		ParentHash:   opts.ParentHash,
-		HopCount:     0,
+		WaveType:        pb.WaveType(waveType),
+		Content:         content,
+		AuthorPubkey:    kp.PublicKey,
+		CreatedAt:       now.Unix(),
+		TtlSeconds:      int64(opts.TTL.Seconds()),
+		ParentHash:      opts.ParentHash,
+		HopCount:        0,
+		DevicePublicKey: opts.DeviceKey, // Set device key if provided (multi-device mode)
 	}
 	wave.WaveId = computeWaveID(wave)
 	return wave
@@ -153,6 +160,7 @@ func CreateReply(content, parentHash []byte, kp *keys.KeyPair) (*pb.Wave, error)
 }
 
 // Validate checks if a Wave is valid (signature, PoW, TTL).
+// For single-device mode compatibility (device_public_key empty).
 func Validate(wave *pb.Wave, difficulty uint8) error {
 	if err := validateCommon(wave, difficulty); err != nil {
 		return err
@@ -162,6 +170,59 @@ func Validate(wave *pb.Wave, difficulty uint8) error {
 	if !keys.Verify(wave.AuthorPubkey, sigData, wave.Signature) {
 		return ErrInvalidSig
 	}
+	return nil
+}
+
+// DeviceAuthorizer is an interface for checking device authorization.
+// Implemented by devices.DeviceStore.
+type DeviceAuthorizer interface {
+	IsDeviceAuthorizedWithGracePeriod(masterPubKey, devicePubKey []byte, waveTimestamp int64) (bool, error)
+}
+
+// ValidateWithDeviceStore checks Wave validity including multi-device authorization.
+// Per docs/MULTI_DEVICE_IDENTITY.md, verifies:
+// 1. Common checks (size, expiry, PoW)
+// 2. Signature verifies against device_public_key (or author_pubkey if single-device)
+// 3. If multi-device mode, device_public_key is authorized by master author_pubkey
+func ValidateWithDeviceStore(wave *pb.Wave, difficulty uint8, deviceStore DeviceAuthorizer) error {
+	if err := validateCommon(wave, difficulty); err != nil {
+		return err
+	}
+
+	sigData := signatureData(wave)
+
+	// Determine which key to use for signature verification
+	var signingKey []byte
+	multiDevice := len(wave.DevicePublicKey) > 0
+
+	if multiDevice {
+		// Multi-device mode: signature is from device key
+		signingKey = wave.DevicePublicKey
+
+		// Verify device is authorized by master
+		if deviceStore != nil {
+			authorized, err := deviceStore.IsDeviceAuthorizedWithGracePeriod(
+				wave.AuthorPubkey,
+				wave.DevicePublicKey,
+				wave.CreatedAt,
+			)
+			if err != nil {
+				return fmt.Errorf("checking device authorization: %w", err)
+			}
+			if !authorized {
+				return fmt.Errorf("device key not authorized by master key")
+			}
+		}
+	} else {
+		// Single-device mode: signature is from author (master = device)
+		signingKey = wave.AuthorPubkey
+	}
+
+	// Verify signature
+	if !keys.Verify(signingKey, sigData, wave.Signature) {
+		return ErrInvalidSig
+	}
+
 	return nil
 }
 
