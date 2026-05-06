@@ -297,3 +297,73 @@ message Invitation {
   // Optional welcome message (max 128 characters).
   string welcome_message = 3;
 }
+
+// DeviceAuthorizationDeclaration authorizes a new device to act on behalf of an identity.
+// Per docs/MULTI_DEVICE_IDENTITY.md, Master Key authorizes Device Keys for multi-device usage.
+message DeviceAuthorizationDeclaration {
+  // Master Ed25519 public key (32 bytes) - the identity root.
+  bytes master_public_key = 1;
+  
+  // Device Ed25519 public key (32 bytes) - the new device being authorized.
+  bytes device_public_key = 2;
+  
+  // Human-readable device label (e.g., "iPhone 15", "Work Laptop").
+  string device_label = 3;
+  
+  // Authorization timestamp (Unix seconds).
+  int64 timestamp_unix = 4;
+  
+  // Optional expiry timestamp (Unix seconds). 0 = no expiry.
+  int64 expires_unix = 5;
+  
+  // Ed25519 signature by master_public_key over:
+  // (master_public_key || device_public_key || device_label || timestamp_unix || expires_unix)
+  bytes master_signature = 6;
+}
+
+// DeviceRevocationDeclaration revokes a compromised or lost device.
+// Per docs/MULTI_DEVICE_IDENTITY.md, Master Key can revoke any device without device access.
+message DeviceRevocationDeclaration {
+  // Master Ed25519 public key (32 bytes) - the identity root.
+  bytes master_public_key = 1;
+  
+  // Device Ed25519 public key (32 bytes) - the device being revoked.
+  bytes device_public_key_to_revoke = 2;
+  
+  // Optional revocation reason (e.g., "Lost phone", "Security incident").
+  string revocation_reason = 3;
+  
+  // Revocation timestamp (Unix seconds).
+  int64 timestamp_unix = 4;
+  
+  // Ed25519 signature by master_public_key over:
+  // (master_public_key || device_public_key_to_revoke || timestamp_unix)
+  bytes master_signature = 5;
+}
+
+// DeviceList stores authorized devices for a master identity.
+// Stored in Bbolt `devices` bucket, keyed by master_public_key.
+message DeviceList {
+  repeated AuthorizedDevice devices = 1;
+}
+
+// AuthorizedDevice represents a single device authorized for an identity.
+message AuthorizedDevice {
+  // Device Ed25519 public key (32 bytes).
+  bytes device_public_key = 1;
+  
+  // Human-readable device label.
+  string device_label = 2;
+  
+  // Authorization timestamp (Unix seconds).
+  int64 authorized_at_unix = 3;
+  
+  // Optional expiry timestamp. 0 = no expiry.
+  int64 expires_at_unix = 4;
+  
+  // Whether this device has been revoked.
+  bool is_revoked = 5;
+  
+  // Revocation timestamp. 0 if not revoked.
+  int64 revoked_at_unix = 6;
+}
