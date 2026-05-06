@@ -219,35 +219,34 @@ func (o *HuntsOverlay) Draw(screen *ebiten.Image, cameraX, cameraY, zoom float64
 	}
 
 	screenW, screenH, centerX, centerY := getCameraSetup(screen)
+	o.updateFragmentPositions(screenW, screenH, cameraX, cameraY, centerX, centerY, zoom)
+}
 
-	// Update fragment positions in effects renderer with screen coordinates.
+func (o *HuntsOverlay) updateFragmentPositions(screenW, screenH, cameraX, cameraY, centerX, centerY, zoom float64) {
 	for _, hunt := range o.hunts {
 		for _, frag := range hunt.Fragments {
 			sx, sy := worldToScreen(frag.X, frag.Y, cameraX, cameraY, centerX, centerY, zoom)
 
-			// Skip if off-screen.
 			if isOffScreen(sx, sy, screenW, screenH, 100) {
 				continue
 			}
 
-			// Update the fragment visual with current screen position.
-			o.effects.AddFragment(&effects.FragmentVisual{
-				ID:         frag.FragmentID,
-				HuntID:     hunt.HuntID,
-				Index:      frag.Index,
-				X:          float32(sx),
-				Y:          float32(sy),
-				State:      mapFragmentStatus(frag.State),
-				ClaimerKey: frag.ClaimerKey,
-				ClueLevel:  frag.ClueLevel,
-			})
+			o.addFragmentToEffects(hunt.HuntID, frag)
 		}
 	}
+}
 
-	// Delegate rendering to effects (Note: shaders parameter would be needed for full integration).
-	// For now, we skip actual drawing as it requires shaders setup.
-	// TODO: Pass shaders from renderer or initialize in overlay.
-	// o.effects.Draw(screen, shaders)
+func (o *HuntsOverlay) addFragmentToEffects(huntID [32]byte, frag FragmentInfo) {
+	o.effects.AddFragment(&effects.FragmentVisual{
+		ID:         frag.FragmentID,
+		HuntID:     huntID,
+		Index:      frag.Index,
+		X:          float32(frag.X),
+		Y:          float32(frag.Y),
+		State:      mapFragmentStatus(frag.State),
+		ClaimerKey: frag.ClaimerKey,
+		ClueLevel:  frag.ClueLevel,
+	})
 }
 
 // mapHuntStatus converts overlay HuntStatus to effects HuntState.

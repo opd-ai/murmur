@@ -101,45 +101,54 @@ type NFCAddress struct {
 // The addresses parameter should be simple IP:port strings or peer IDs.
 // Only the first address is included to minimize payload size.
 func GenerateNFCIgnitionData(privateKey ed25519.PrivateKey, addrs []string, token [TokenSize]byte) (*NFCIgnitionData, error) {
-	if len(privateKey) != ed25519.PrivateKeySize {
-		return nil, ErrInvalidPublicKey
-	}
-	if len(addrs) == 0 {
-		return nil, ErrNFCNoAddresses
+	if err := validateNFCInputs(privateKey, addrs); err != nil {
+		return nil, err
 	}
 
 	publicKey := privateKey.Public().(ed25519.PublicKey)
-
-	// Parse addresses into compact format (limit to first 3).
-	nfcAddrs := make([]NFCAddress, 0, 3)
-	for i, addr := range addrs {
-		if i >= 3 {
-			break // Max 3 addresses for NFC
-		}
-		nfcAddr, err := parseAddressCompact(addr)
-		if err != nil {
-			continue // Skip invalid addresses
-		}
-		nfcAddrs = append(nfcAddrs, nfcAddr)
-	}
+	nfcAddrs := parseAddressesForNFC(addrs)
 
 	if len(nfcAddrs) == 0 {
 		return nil, ErrNFCNoAddresses
 	}
 
-	data := &NFCIgnitionData{
+	data := buildNFCData(publicKey, token, nfcAddrs)
+	data.Signature = ed25519.Sign(privateKey, data.signatureInput())
+
+	return data, nil
+}
+
+func validateNFCInputs(privateKey ed25519.PrivateKey, addrs []string) error {
+	if len(privateKey) != ed25519.PrivateKeySize {
+		return ErrInvalidPublicKey
+	}
+	if len(addrs) == 0 {
+		return ErrNFCNoAddresses
+	}
+	return nil
+}
+
+func parseAddressesForNFC(addrs []string) []NFCAddress {
+	nfcAddrs := make([]NFCAddress, 0, 3)
+	for i, addr := range addrs {
+		if i >= 3 {
+			break
+		}
+		if nfcAddr, err := parseAddressCompact(addr); err == nil {
+			nfcAddrs = append(nfcAddrs, nfcAddr)
+		}
+	}
+	return nfcAddrs
+}
+
+func buildNFCData(publicKey ed25519.PublicKey, token [TokenSize]byte, nfcAddrs []NFCAddress) *NFCIgnitionData {
+	return &NFCIgnitionData{
 		Version:   NFCVersion,
 		PublicKey: publicKey,
 		Token:     token,
 		Timestamp: uint32(currentTimestamp()),
 		Addresses: nfcAddrs,
 	}
-
-	// Sign the data.
-	sigInput := data.signatureInput()
-	data.Signature = ed25519.Sign(privateKey, sigInput)
-
-	return data, nil
 }
 
 // signatureInput returns the data to be signed (excludes signature itself).

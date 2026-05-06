@@ -325,43 +325,60 @@ func (s *MaskedEventStore) ListEventsByTimeRange(start, end time.Time) ([]*Store
 
 	err := s.db.bolt.View(func(tx *bbolt.Tx) error {
 		bucket := tx.Bucket(BucketMaskedEvents)
-
-		// Use time index to iterate by start time.
-		idxPrefix := []byte("idx:")
-
-		cursor := bucket.Cursor()
-		for k, v := cursor.Seek(idxPrefix); k != nil; k, v = cursor.Next() {
-			if !hasPrefix(k, idxPrefix) {
-				break
-			}
-			// Extract timestamp from key.
-			if len(k) < 12 {
-				continue
-			}
-			ts := binary.BigEndian.Uint64(k[4:12])
-			eventTime := time.Unix(int64(ts), 0)
-
-			if eventTime.Before(start) {
-				continue
-			}
-			if eventTime.After(end) {
-				break
-			}
-
-			// v contains the event ID.
-			var eventID [32]byte
-			copy(eventID[:], v)
-
-			eventData := bucket.Get(s.eventKey(eventID))
-			if eventData != nil {
-				events = append(events, s.deserializeEvent(eventData))
-			}
-		}
-
+		events = s.scanTimeIndex(bucket, start, end)
 		return nil
 	})
 
 	return events, err
+}
+
+func (s *MaskedEventStore) scanTimeIndex(bucket *bbolt.Bucket, start, end time.Time) []*StoredMaskedEvent {
+	var events []*StoredMaskedEvent
+	idxPrefix := []byte("idx:")
+
+	cursor := bucket.Cursor()
+	for k, v := cursor.Seek(idxPrefix); k != nil; k, v = cursor.Next() {
+		if !hasPrefix(k, idxPrefix) {
+			break
+		}
+
+		eventTime, valid := s.extractTimeFromKey(k)
+		if !valid {
+			continue
+		}
+
+		if eventTime.Before(start) {
+			continue
+		}
+		if eventTime.After(end) {
+			break
+		}
+
+		event := s.loadEventByID(bucket, v)
+		if event != nil {
+			events = append(events, event)
+		}
+	}
+	return events
+}
+
+func (s *MaskedEventStore) extractTimeFromKey(key []byte) (time.Time, bool) {
+	if len(key) < 12 {
+		return time.Time{}, false
+	}
+	ts := binary.BigEndian.Uint64(key[4:12])
+	return time.Unix(int64(ts), 0), true
+}
+
+func (s *MaskedEventStore) loadEventByID(bucket *bbolt.Bucket, idBytes []byte) *StoredMaskedEvent {
+	var eventID [32]byte
+	copy(eventID[:], idBytes)
+
+	eventData := bucket.Get(s.eventKey(eventID))
+	if eventData == nil {
+		return nil
+	}
+	return s.deserializeEvent(eventData)
 }
 
 // CountParticipants returns the participant count for an event.

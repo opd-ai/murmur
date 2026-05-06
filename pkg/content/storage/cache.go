@@ -494,17 +494,26 @@ func (c *Cache) Close() error {
 // Must be called with c.mu held.
 // Per AUDIT.md HIGH finding: "PoW difficulty not dynamically adjusted".
 func (c *Cache) trackArrivalLocked(arrivalTime time.Time) {
-	// Add current arrival to window.
 	c.rateWindow = append(c.rateWindow, arrivalTime)
 
-	// Check rate every 30 seconds to avoid constant recalculation.
-	timeSinceLastCheck := arrivalTime.Sub(c.lastRateCheck)
-	if timeSinceLastCheck < 30*time.Second {
+	if !c.shouldCheckRate(arrivalTime) {
 		return
 	}
 	c.lastRateCheck = arrivalTime
 
-	// Prune window to last 5 minutes.
+	c.pruneRateWindow(arrivalTime)
+	rate := c.calculateCurrentRate(arrivalTime)
+
+	if c.shouldAdjustDifficulty(arrivalTime) && rate > 0 {
+		c.adjustDifficultyLocked(rate, arrivalTime)
+	}
+}
+
+func (c *Cache) shouldCheckRate(arrivalTime time.Time) bool {
+	return arrivalTime.Sub(c.lastRateCheck) >= 30*time.Second
+}
+
+func (c *Cache) pruneRateWindow(arrivalTime time.Time) {
 	windowStart := arrivalTime.Add(-5 * time.Minute)
 	validIdx := 0
 	for i, t := range c.rateWindow {
@@ -514,24 +523,21 @@ func (c *Cache) trackArrivalLocked(arrivalTime time.Time) {
 		}
 	}
 	c.rateWindow = c.rateWindow[validIdx:]
+}
 
-	// Calculate rate (Waves per minute).
+func (c *Cache) calculateCurrentRate(arrivalTime time.Time) float64 {
 	if len(c.rateWindow) == 0 {
-		return
+		return 0
 	}
 	duration := arrivalTime.Sub(c.rateWindow[0]).Minutes()
-	if duration < 0.1 { // avoid division by near-zero
-		return
+	if duration < 0.1 {
+		return 0
 	}
-	rate := float64(len(c.rateWindow)) / duration
+	return float64(len(c.rateWindow)) / duration
+}
 
-	// Adjust difficulty if needed (but not more often than every 5 minutes).
-	timeSinceLastAdjustment := arrivalTime.Sub(c.lastAdjustment)
-	if timeSinceLastAdjustment < 5*time.Minute {
-		return
-	}
-
-	c.adjustDifficultyLocked(rate, arrivalTime)
+func (c *Cache) shouldAdjustDifficulty(arrivalTime time.Time) bool {
+	return arrivalTime.Sub(c.lastAdjustment) >= 5*time.Minute
 }
 
 // adjustDifficultyLocked modifies PoW difficulty based on incoming Wave rate.

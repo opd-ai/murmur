@@ -511,44 +511,58 @@ func (ce *CulledEngine) collectResults(wg *sync.WaitGroup, resultsCh chan forceR
 // applySpringForcesFiltered applies spring forces for edges with active nodes.
 func (ce *CulledEngine) applySpringForcesFiltered(forces map[string][2]float64) {
 	for _, edge := range ce.Engine.edges {
-		_, src := forces[edge.SourceID]
-		_, tgt := forces[edge.TargetID]
-
-		// Skip if neither endpoint is active.
-		if !src && !tgt {
+		if !ce.shouldProcessEdge(edge, forces) {
 			continue
 		}
+		ce.applyEdgeForce(edge, forces)
+	}
+}
 
-		pos1, ok1 := ce.Engine.positions[edge.SourceID]
-		pos2, ok2 := ce.Engine.positions[edge.TargetID]
-		if !ok1 || !ok2 {
-			continue
+func (ce *CulledEngine) shouldProcessEdge(edge Edge, forces map[string][2]float64) bool {
+	_, srcActive := forces[edge.SourceID]
+	_, tgtActive := forces[edge.TargetID]
+	return srcActive || tgtActive
+}
+
+func (ce *CulledEngine) applyEdgeForce(edge Edge, forces map[string][2]float64) {
+	pos1, ok1 := ce.Engine.positions[edge.SourceID]
+	pos2, ok2 := ce.Engine.positions[edge.TargetID]
+	if !ok1 || !ok2 {
+		return
+	}
+
+	fx, fy := ce.calculateSpringForce(pos1, pos2, edge.Age)
+	ce.distributeForceToEndpoints(edge, forces, fx, fy)
+}
+
+func (ce *CulledEngine) calculateSpringForce(pos1, pos2 Position, edgeAge float64) (float64, float64) {
+	dx := pos2.X - pos1.X
+	dy := pos2.Y - pos1.Y
+	dist := math.Sqrt(dx*dx + dy*dy)
+	if dist < 1 {
+		dist = 1
+	}
+
+	restLength := ce.Engine.params.SpringRestLength * math.Exp(-edgeAge/365.0)
+	displacement := dist - restLength
+	force := ce.Engine.params.SpringConstant * displacement
+	return force * dx / dist, force * dy / dist
+}
+
+func (ce *CulledEngine) distributeForceToEndpoints(edge Edge, forces map[string][2]float64, fx, fy float64) {
+	_, srcActive := forces[edge.SourceID]
+	_, tgtActive := forces[edge.TargetID]
+
+	if srcActive {
+		forces[edge.SourceID] = [2]float64{
+			forces[edge.SourceID][0] + fx,
+			forces[edge.SourceID][1] + fy,
 		}
-
-		dx := pos2.X - pos1.X
-		dy := pos2.Y - pos1.Y
-		dist := math.Sqrt(dx*dx + dy*dy)
-		if dist < 1 {
-			dist = 1
-		}
-
-		restLength := ce.Engine.params.SpringRestLength * math.Exp(-edge.Age/365.0)
-		displacement := dist - restLength
-		force := ce.Engine.params.SpringConstant * displacement
-		fx := force * dx / dist
-		fy := force * dy / dist
-
-		if src {
-			forces[edge.SourceID] = [2]float64{
-				forces[edge.SourceID][0] + fx,
-				forces[edge.SourceID][1] + fy,
-			}
-		}
-		if tgt {
-			forces[edge.TargetID] = [2]float64{
-				forces[edge.TargetID][0] - fx,
-				forces[edge.TargetID][1] - fy,
-			}
+	}
+	if tgtActive {
+		forces[edge.TargetID] = [2]float64{
+			forces[edge.TargetID][0] - fx,
+			forces[edge.TargetID][1] - fy,
 		}
 	}
 }

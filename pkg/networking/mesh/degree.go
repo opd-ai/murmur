@@ -150,36 +150,36 @@ func (dc *DegreeController) adjustDegree() {
 
 // acquirePeers attempts to connect to additional peers.
 func (dc *DegreeController) acquirePeers(count int) {
-	dc.mu.RLock()
-	source := dc.peerSource
-	callback := dc.acquireCallback
-	dc.mu.RUnlock()
-
+	source, callback := dc.getAcquireConfig()
 	if source == nil {
 		return
 	}
 
-	// Get candidate peers
 	ctx, cancel := context.WithTimeout(dc.ctx, ConnectionAcquisitionTimeout)
 	defer cancel()
 
-	candidates := source.GetCandidatePeers(ctx, count*2) // Request extra candidates
+	candidates := source.GetCandidatePeers(ctx, count*2)
+	dc.connectToCandidates(ctx, candidates, count, callback)
+}
 
+func (dc *DegreeController) getAcquireConfig() (PeerSource, AcquireCallback) {
+	dc.mu.RLock()
+	defer dc.mu.RUnlock()
+	return dc.peerSource, dc.acquireCallback
+}
+
+func (dc *DegreeController) connectToCandidates(ctx context.Context, candidates []peer.AddrInfo, maxCount int, callback AcquireCallback) {
 	connected := 0
 	for _, addrInfo := range candidates {
-		if connected >= count {
+		if connected >= maxCount {
 			break
 		}
 
-		// Skip if already connected
-		if dc.h.Network().Connectedness(addrInfo.ID) == 1 { // Connected
+		if dc.isAlreadyConnected(addrInfo.ID) {
 			continue
 		}
 
-		// Attempt connection
-		err := dc.h.Connect(ctx, addrInfo)
-		success := err == nil
-
+		success := dc.attemptConnection(ctx, addrInfo)
 		if callback != nil {
 			callback(addrInfo, success)
 		}
@@ -188,6 +188,15 @@ func (dc *DegreeController) acquirePeers(count int) {
 			connected++
 		}
 	}
+}
+
+func (dc *DegreeController) isAlreadyConnected(peerID peer.ID) bool {
+	return dc.h.Network().Connectedness(peerID) == 1
+}
+
+func (dc *DegreeController) attemptConnection(ctx context.Context, addrInfo peer.AddrInfo) bool {
+	err := dc.h.Connect(ctx, addrInfo)
+	return err == nil
 }
 
 // prunePeers disconnects lowest priority peers.

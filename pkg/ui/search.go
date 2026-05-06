@@ -130,22 +130,29 @@ func (s *SearchBar) Update() bool {
 	s.updateFadeAnimation()
 	s.calculateBarPosition()
 
-	// Handle text input.
 	if s.handleTextInput() {
 		s.performSearch()
 	}
 
-	// Handle keyboard navigation.
 	if s.handleKeyboardNav() {
 		return true
 	}
 
-	// Handle mouse clicks on results.
+	if s.handleMouseInput() {
+		return true
+	}
+
+	return s.handleEscapeKey()
+}
+
+func (s *SearchBar) handleMouseInput() bool {
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		return s.handleMouseClick()
 	}
+	return false
+}
 
-	// Handle Escape to close.
+func (s *SearchBar) handleEscapeKey() bool {
 	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
 		s.visible = false
 		if s.callbacks.OnClose != nil {
@@ -155,8 +162,7 @@ func (s *SearchBar) Update() bool {
 		}
 		return true
 	}
-
-	return true // Search bar is visible, consume all input
+	return true
 }
 
 // updateFadeAnimation updates the fade in/out animation.

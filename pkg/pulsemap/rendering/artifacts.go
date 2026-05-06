@@ -119,34 +119,48 @@ func (r *Renderer) drawPhantomGifts(screen *ebiten.Image, nodeData *NodeData, no
 		if gift == nil {
 			continue
 		}
+		r.drawSingleGift(screen, gift, i, nodeX, nodeY)
+	}
+}
 
-		// Calculate visibility decay.
-		createdAt := time.Unix(gift.CreatedAt, 0)
-		expiresAt := time.Unix(gift.ExpiresAt, 0)
-		age := time.Since(createdAt)
-		lifetime := expiresAt.Sub(createdAt)
-		visibility := float32(1.0 - (float64(age) / float64(lifetime)))
-		if visibility < 0 {
-			visibility = 0
-		}
+func (r *Renderer) drawSingleGift(screen *ebiten.Image, gift *pb.PhantomGift, index int, nodeX, nodeY float32) {
+	visibility := r.calculateGiftVisibility(gift)
+	particleCount := 3 + index
 
-		// Draw particle animation for gifts.
-		particleCount := 3 + i
-		for p := 0; p < particleCount; p++ {
-			angle := float32(p)*2.0*math.Pi/float32(particleCount) + float32(r.time)*0.5
-			radius := 18.0 + float32(math.Sin(float64(r.time)*1.5+float64(p)))*4.0
-			px := nodeX + float32(math.Cos(float64(angle)))*radius
-			py := nodeY + float32(math.Sin(float64(angle)))*radius
+	for p := 0; p < particleCount; p++ {
+		px, py := r.calculateGiftParticlePosition(p, particleCount, nodeX, nodeY)
+		giftColor := r.buildGiftColor(gift, visibility)
+		vector.DrawFilledCircle(screen, px, py, 2.5, giftColor, false)
+	}
+}
 
-			alpha := uint8(visibility * 180)
-			giftColor := color.RGBA{
-				R: 255,
-				G: 200 - uint8(gift.EffectType*20),
-				B: 150,
-				A: alpha,
-			}
-			vector.DrawFilledCircle(screen, px, py, 2.5, giftColor, false)
-		}
+func (r *Renderer) calculateGiftVisibility(gift *pb.PhantomGift) float32 {
+	createdAt := time.Unix(gift.CreatedAt, 0)
+	expiresAt := time.Unix(gift.ExpiresAt, 0)
+	age := time.Since(createdAt)
+	lifetime := expiresAt.Sub(createdAt)
+	visibility := float32(1.0 - (float64(age) / float64(lifetime)))
+	if visibility < 0 {
+		visibility = 0
+	}
+	return visibility
+}
+
+func (r *Renderer) calculateGiftParticlePosition(particleIndex, particleCount int, nodeX, nodeY float32) (float32, float32) {
+	angle := float32(particleIndex)*2.0*math.Pi/float32(particleCount) + float32(r.time)*0.5
+	radius := 18.0 + float32(math.Sin(float64(r.time)*1.5+float64(particleIndex)))*4.0
+	px := nodeX + float32(math.Cos(float64(angle)))*radius
+	py := nodeY + float32(math.Sin(float64(angle)))*radius
+	return px, py
+}
+
+func (r *Renderer) buildGiftColor(gift *pb.PhantomGift, visibility float32) color.RGBA {
+	alpha := uint8(visibility * 180)
+	return color.RGBA{
+		R: 255,
+		G: 200 - uint8(gift.EffectType*20),
+		B: 150,
+		A: alpha,
 	}
 }
 
