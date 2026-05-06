@@ -246,34 +246,41 @@ func (pm *PartitionManager) updateStateLocked() {
 	peerCount := len(pm.h.Network().Peers())
 	newState := pm.calculateState(peerCount)
 
-	// Handle transition to partitioned with confirmation delay
+	if pm.shouldWaitForPartitionConfirmation(newState) {
+		return
+	}
+
+	if newState != pm.state {
+		pm.transitionToState(newState)
+	}
+}
+
+func (pm *PartitionManager) shouldWaitForPartitionConfirmation(newState PartitionState) bool {
 	if pm.state != StatePartitioned && newState == StatePartitioned {
 		if !pm.pendingPartition {
 			pm.pendingPartition = true
 			pm.pendingPartitionAt = time.Now()
-			return // Don't change state yet
+			return true
 		}
-		// Check if confirmation delay has passed
 		if time.Since(pm.pendingPartitionAt) < PartitionConfirmationDelay {
-			return // Still waiting for confirmation
+			return true
 		}
 	}
+	return false
+}
 
-	if newState != pm.state {
-		oldState := pm.state
-		pm.state = newState
-		pm.stateChangeTime = time.Now()
-		pm.pendingPartition = false
+func (pm *PartitionManager) transitionToState(newState PartitionState) {
+	oldState := pm.state
+	pm.state = newState
+	pm.stateChangeTime = time.Now()
+	pm.pendingPartition = false
 
-		// Trigger healing on partition
-		if newState == StatePartitioned && !pm.healingActive {
-			go pm.startHealing()
-		}
+	if newState == StatePartitioned && !pm.healingActive {
+		go pm.startHealing()
+	}
 
-		// Notify callback
-		if pm.callbacks.OnStateChange != nil {
-			go pm.callbacks.OnStateChange(oldState, newState)
-		}
+	if pm.callbacks.OnStateChange != nil {
+		go pm.callbacks.OnStateChange(oldState, newState)
 	}
 }
 

@@ -265,26 +265,30 @@ func (ch *ChurnHandler) attemptReconnection(p peer.ID) {
 // retryConnection attempts connection with exponential backoff.
 func (ch *ChurnHandler) retryConnection(addrInfo peer.AddrInfo) bool {
 	for attempt := 0; attempt < ReconnectAttemptLimit; attempt++ {
-		select {
-		case <-ch.ctx.Done():
+		if ch.ctx.Err() != nil {
 			return false
-		default:
 		}
 
-		if attempt > 0 {
-			delay := time.Duration(1<<uint(attempt)) * time.Second
-			time.Sleep(delay)
-		}
+		ch.backoffIfNeeded(attempt)
 
-		ctx, cancel := context.WithTimeout(ch.ctx, 10*time.Second)
-		err := ch.h.Connect(ctx, addrInfo)
-		cancel()
-
-		if err == nil {
+		if ch.attemptConnect(addrInfo) {
 			return true
 		}
 	}
 	return false
+}
+
+func (ch *ChurnHandler) backoffIfNeeded(attempt int) {
+	if attempt > 0 {
+		delay := time.Duration(1<<uint(attempt)) * time.Second
+		time.Sleep(delay)
+	}
+}
+
+func (ch *ChurnHandler) attemptConnect(addrInfo peer.AddrInfo) bool {
+	ctx, cancel := context.WithTimeout(ch.ctx, 10*time.Second)
+	defer cancel()
+	return ch.h.Connect(ctx, addrInfo) == nil
 }
 
 // notifyReconnectResult invokes the callback if set.

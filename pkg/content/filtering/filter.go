@@ -199,41 +199,42 @@ func (f *Filter) containsMutedKeyword(content []byte) bool {
 // The pattern can contain * which matches any sequence of characters.
 // This is similar to glob matching but looks for the pattern anywhere in text.
 func matchWildcard(pattern, text string) bool {
-	// Handle simple case: no wildcards.
 	if !strings.Contains(pattern, "*") {
 		return strings.Contains(text, pattern)
 	}
 
-	// Handle empty pattern or just wildcards.
 	pattern = strings.Trim(pattern, "*")
 	if pattern == "" {
 		return true
 	}
 
-	// Split by wildcards.
-	parts := strings.Split(pattern, "*")
+	return matchWildcardParts(strings.Split(pattern, "*"), text)
+}
 
-	// Empty parts list means pattern was just wildcards.
+func matchWildcardParts(parts []string, text string) bool {
 	if len(parts) == 0 {
 		return true
 	}
 
-	// For a pattern like "*spam*", just check if all parts appear in order.
 	pos := 0
 	for _, part := range parts {
 		if part == "" {
 			continue
 		}
-
-		idx := strings.Index(text[pos:], part)
-		if idx == -1 {
+		pos = findPartOrFail(text, part, pos)
+		if pos == -1 {
 			return false
 		}
-
-		pos += idx + len(part)
 	}
-
 	return true
+}
+
+func findPartOrFail(text, part string, startPos int) int {
+	idx := strings.Index(text[startPos:], part)
+	if idx == -1 {
+		return -1
+	}
+	return startPos + idx + len(part)
 }
 
 // FilterWaves returns only the Waves that should be displayed.

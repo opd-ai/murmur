@@ -77,9 +77,28 @@ install:
 	@echo "Installing $(BINARY_NAME)..."
 	$(GOCMD) install $(LDFLAGS) ./cmd/murmur
 
+# Package targets
+package:
+	@echo "Creating release packages..."
+	@./scripts/package.sh all
+
+package-linux:
+	@echo "Creating Linux packages..."
+	@./scripts/package.sh linux-amd64
+	@./scripts/package.sh linux-arm64
+
+package-darwin:
+	@echo "Creating macOS packages..."
+	@./scripts/package.sh darwin-amd64
+	@./scripts/package.sh darwin-arm64
+
+package-windows:
+	@echo "Creating Windows packages..."
+	@./scripts/package.sh windows-amd64
+
 clean:
 	@echo "Cleaning..."
-	@rm -rf $(BINARY_DIR)
+	@rm -rf $(BINARY_DIR) dist
 	@$(GOCMD) clean
 
 # Test targets
@@ -181,7 +200,13 @@ help:
 	@echo "  build-static-darwin- Build static for macOS (amd64, arm64)"
 	@echo "  build-static-windows- Build static for Windows (amd64)"
 	@echo "  install            - Install the binary"
-	@echo "  clean              - Remove build artifacts"
+	@echo "  clean              - Remove build artifacts and dist directory"
+	@echo ""
+	@echo "Package targets:"
+	@echo "  package        - Create release packages for all platforms"
+	@echo "  package-linux  - Create Linux packages (amd64, arm64)"
+	@echo "  package-darwin - Create macOS packages (amd64, arm64)"
+	@echo "  package-windows- Create Windows package (amd64)"
 	@echo ""
 	@echo "Test targets:"
 	@echo "  test          - Run tests with race detector"

@@ -41,28 +41,37 @@ func NewResolverChain(userPeers []peer.AddrInfo, resolvers ...BootstrapResolver)
 // Returns all discovered peers (user-supplied + resolver results).
 // Per PLAN.md: "the first one that yields ≥1 successful connection halts the chain."
 func (rc *ResolverChain) Resolve(ctx context.Context) ([]peer.AddrInfo, error) {
-	// Start with user-supplied peers (always included)
-	allPeers := make([]peer.AddrInfo, len(rc.userPeers))
-	copy(allPeers, rc.userPeers)
+	allPeers := rc.initializeWithUserPeers()
 
-	// Try each resolver in order
 	for _, resolver := range rc.resolvers {
-		select {
-		case <-ctx.Done():
+		if ctx.Err() != nil {
 			return allPeers, ctx.Err()
-		default:
 		}
 
-		peers, err := resolver.Resolve(ctx)
-		if err == nil && len(peers) > 0 {
-			// Success - merge and return
+		if peers := rc.tryResolver(ctx, resolver); peers != nil {
 			allPeers = append(allPeers, peers...)
 			return deduplicatePeers(allPeers), nil
 		}
-		// Continue to next resolver on failure
 	}
 
-	// All resolvers failed - return user peers if any, otherwise error
+	return rc.finalizeResult(allPeers)
+}
+
+func (rc *ResolverChain) initializeWithUserPeers() []peer.AddrInfo {
+	allPeers := make([]peer.AddrInfo, len(rc.userPeers))
+	copy(allPeers, rc.userPeers)
+	return allPeers
+}
+
+func (rc *ResolverChain) tryResolver(ctx context.Context, resolver BootstrapResolver) []peer.AddrInfo {
+	peers, err := resolver.Resolve(ctx)
+	if err == nil && len(peers) > 0 {
+		return peers
+	}
+	return nil
+}
+
+func (rc *ResolverChain) finalizeResult(allPeers []peer.AddrInfo) ([]peer.AddrInfo, error) {
 	if len(allPeers) > 0 {
 		return allPeers, nil
 	}

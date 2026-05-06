@@ -232,42 +232,50 @@ func (a *App) checkNotRunning() error {
 }
 
 func (a *App) initializeSubsystems() error {
-	t0 := time.Now()
-	a.initEventBus()
-	fmt.Printf("  [0/7] Event bus started (%v)\n", time.Since(t0))
+	a.initAndLogStep(0, "Event bus started", func() error {
+		a.initEventBus()
+		return nil
+	})
 
-	t1 := time.Now()
-	if err := a.initStorage(); err != nil {
+	if err := a.initAndLogStep(1, "Storage initialized", a.initStorage); err != nil {
 		return murerr.WrapStorageError(err)
 	}
-	fmt.Printf("  [1/7] Storage initialized (%v)\n", time.Since(t1))
 
-	t2 := time.Now()
-	if err := a.initIdentity(); err != nil {
+	if err := a.initAndLogStep(2, "Identity initialized", a.initIdentity); err != nil {
 		return murerr.WrapIdentityError(err)
 	}
-	fmt.Printf("  [2/7] Identity initialized (%v)\n", time.Since(t2))
 
-	t3 := time.Now()
-	if err := a.initNetworking(); err != nil {
+	if err := a.initAndLogStep(3, "Networking initialized", a.initNetworking); err != nil {
 		return murerr.WrapNetworkError(err)
 	}
-	fmt.Printf("  [3/7] Networking initialized (%v)\n", time.Since(t3))
 
-	// Initialize health check endpoint if enabled
+	if err := a.maybeInitHealthServer(); err != nil {
+		return err
+	}
+
+	if err := a.initAndLogStep(4, "Content initialized", a.initContent); err != nil {
+		return murerr.WrapContentError(err)
+	}
+
+	return a.initShroud()
+}
+
+func (a *App) initAndLogStep(step int, label string, initFn func() error) error {
+	start := time.Now()
+	if err := initFn(); err != nil {
+		return err
+	}
+	fmt.Printf("  [%d/7] %s (%v)\n", step, label, time.Since(start))
+	return nil
+}
+
+func (a *App) maybeInitHealthServer() error {
 	if a.config.EnableHealthEndpoint {
 		if err := a.initHealthServer(); err != nil {
 			return fmt.Errorf("initializing health server: %w", err)
 		}
 	}
-
-	t4 := time.Now()
-	if err := a.initContent(); err != nil {
-		return murerr.WrapContentError(err)
-	}
-	fmt.Printf("  [4/7] Content initialized (%v)\n", time.Since(t4))
-
-	return a.initShroud()
+	return nil
 }
 
 func (a *App) initShroud() error {

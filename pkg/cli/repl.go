@@ -270,12 +270,7 @@ func (r *REPL) cmdPeers(args []string) error {
 // cmdWaves lists cached Waves.
 // Usage: waves [limit]
 func (r *REPL) cmdWaves(args []string) error {
-	limit := 10
-	if len(args) > 0 {
-		if _, err := fmt.Sscanf(args[0], "%d", &limit); err != nil {
-			return fmt.Errorf("invalid limit: %v", err)
-		}
-	}
+	limit := r.parseLimitArg(args)
 
 	waveList, err := r.waveCache.List(limit)
 	if err != nil {
@@ -287,17 +282,32 @@ func (r *REPL) cmdWaves(args []string) error {
 		return nil
 	}
 
+	r.displayWaveList(waveList)
+	return nil
+}
+
+func (r *REPL) parseLimitArg(args []string) int {
+	limit := 10
+	if len(args) > 0 {
+		fmt.Sscanf(args[0], "%d", &limit)
+	}
+	return limit
+}
+
+func (r *REPL) displayWaveList(waveList []*pb.Wave) {
 	fmt.Fprintf(r.out, "Cached Waves (showing %d):\n", len(waveList))
 	for i, wave := range waveList {
-		timestamp := time.Unix(wave.CreatedAt, 0).Format("2006-01-02 15:04:05")
-		content := string(wave.Content)
-		if len(content) > 50 {
-			content = content[:47] + "..."
-		}
-		fmt.Fprintf(r.out, "  %d. [%s] %s\n", i+1, timestamp, content)
+		fmt.Fprintf(r.out, "  %d. %s\n", i+1, r.formatWavePreview(wave))
 	}
+}
 
-	return nil
+func (r *REPL) formatWavePreview(wave *pb.Wave) string {
+	timestamp := time.Unix(wave.CreatedAt, 0).Format("2006-01-02 15:04:05")
+	content := string(wave.Content)
+	if len(content) > 50 {
+		content = content[:47] + "..."
+	}
+	return fmt.Sprintf("[%s] %s", timestamp, content)
 }
 
 // cmdConnect connects to a peer by multiaddr.

@@ -133,39 +133,43 @@ func (s *DeviceStore) createAuthorizedDevice(auth *proto.DeviceAuthorizationDecl
 
 // RevokeDevice marks a device as revoked in the device list.
 func (s *DeviceStore) RevokeDevice(rev *proto.DeviceRevocationDeclaration) error {
-	if rev == nil {
-		return errors.New("nil revocation declaration")
+	if err := s.validateRevocation(rev); err != nil {
+		return err
 	}
 
-	// Validate revocation timestamp
-	now := time.Now().Unix()
-	if abs(now-rev.TimestampUnix) > 300 {
-		return fmt.Errorf("revocation timestamp out of range: %d (now: %d)", rev.TimestampUnix, now)
-	}
-
-	// Load existing device list
 	list, err := s.getDeviceList(rev.MasterPublicKey)
 	if err != nil {
 		return fmt.Errorf("failed to load device list: %w", err)
 	}
 
-	// Find and revoke the device
-	found := false
+	if err := s.markDeviceAsRevoked(list, rev); err != nil {
+		return err
+	}
+
+	return s.saveDeviceList(rev.MasterPublicKey, list)
+}
+
+func (s *DeviceStore) validateRevocation(rev *proto.DeviceRevocationDeclaration) error {
+	if rev == nil {
+		return errors.New("nil revocation declaration")
+	}
+
+	now := time.Now().Unix()
+	if abs(now-rev.TimestampUnix) > 300 {
+		return fmt.Errorf("revocation timestamp out of range: %d (now: %d)", rev.TimestampUnix, now)
+	}
+	return nil
+}
+
+func (s *DeviceStore) markDeviceAsRevoked(list *proto.DeviceList, rev *proto.DeviceRevocationDeclaration) error {
 	for i, dev := range list.Devices {
 		if bytes.Equal(dev.DevicePublicKey, rev.DevicePublicKeyToRevoke) {
 			list.Devices[i].IsRevoked = true
 			list.Devices[i].RevokedAtUnix = rev.TimestampUnix
-			found = true
-			break
+			return nil
 		}
 	}
-
-	if !found {
-		return ErrDeviceNotFound
-	}
-
-	// Persist updated device list
-	return s.saveDeviceList(rev.MasterPublicKey, list)
+	return ErrDeviceNotFound
 }
 
 // IsDeviceAuthorized checks if a device is currently authorized for an identity.

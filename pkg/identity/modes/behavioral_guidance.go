@@ -233,28 +233,40 @@ func (bg *BehavioralGuidance) countOverlap(a, b []int) int {
 
 // assessTopicOverlap checks for overlapping topics between identities.
 func (bg *BehavioralGuidance) assessTopicOverlap() int {
-	surfaceTopics := make(map[string]bool)
-	for topic := range bg.surfaceStats.TopicCounts {
-		surfaceTopics[topic] = true
-	}
-
-	overlap := 0
-	for topic := range bg.specterStats.TopicCounts {
-		if surfaceTopics[topic] {
-			overlap++
-		}
-	}
+	surfaceTopics := bg.buildTopicSet(bg.surfaceStats.TopicCounts)
+	overlap := bg.countOverlappingTopics(surfaceTopics, bg.specterStats.TopicCounts)
 
 	totalTopics := len(surfaceTopics) + len(bg.specterStats.TopicCounts) - overlap
 	if totalTopics == 0 {
 		return 0
 	}
 
-	overlapRatio := float64(overlap) / float64(totalTopics)
-	if overlapRatio > 0.5 {
-		return 3 // High topic overlap
-	} else if overlapRatio > 0.2 {
-		return 1 // Some topic overlap
+	return bg.scoreOverlapRatio(float64(overlap) / float64(totalTopics))
+}
+
+func (bg *BehavioralGuidance) buildTopicSet(topicCounts map[string]int) map[string]bool {
+	topics := make(map[string]bool)
+	for topic := range topicCounts {
+		topics[topic] = true
+	}
+	return topics
+}
+
+func (bg *BehavioralGuidance) countOverlappingTopics(surfaceTopics map[string]bool, specterTopics map[string]int) int {
+	overlap := 0
+	for topic := range specterTopics {
+		if surfaceTopics[topic] {
+			overlap++
+		}
+	}
+	return overlap
+}
+
+func (bg *BehavioralGuidance) scoreOverlapRatio(ratio float64) int {
+	if ratio > 0.5 {
+		return 3
+	} else if ratio > 0.2 {
+		return 1
 	}
 	return 0
 }
