@@ -91,61 +91,14 @@ func CheckTor(ctx context.Context, controlAddr string) TransportStatus {
 func CheckI2P(ctx context.Context, samAddr string) TransportStatus {
 	start := time.Now()
 
-	// Probe I2P SAM bridge with 3-second timeout.
-	conn, err := net.DialTimeout("tcp", samAddr, 3*time.Second)
-	if err != nil {
-		return TransportStatus{
-			Name:      "I2P",
-			Reachable: false,
-			Error: fmt.Sprintf("I2P router unreachable at %s. "+
-				"Download i2pd from i2pd.website or java-i2p from geti2p.net. "+
-				"Enable SAM bridge on port 7656 (i2pd: sam.enabled=true in config). "+
-				"Documentation: i2pd.readthedocs.io/en/latest/user-guide/SAM/",
-				samAddr),
-			Address: samAddr,
-		}
+	conn, dialErr := net.DialTimeout("tcp", samAddr, 3*time.Second)
+	if dialErr != nil {
+		return buildI2PUnreachableStatus(samAddr)
 	}
 	defer conn.Close()
 
-	// Verify SAM protocol by sending HELLO VERSION command.
-	// SAM v3 responds with "HELLO REPLY RESULT=OK VERSION=3.1"
-	conn.SetDeadline(time.Now().Add(2 * time.Second))
-	_, err = conn.Write([]byte("HELLO VERSION MIN=3.0 MAX=3.3\n"))
-	if err != nil {
-		return TransportStatus{
-			Name:      "I2P",
-			Reachable: false,
-			Error: fmt.Sprintf("Connected to %s but SAM protocol not responding. "+
-				"Ensure I2P router is running and SAM bridge is enabled.",
-				samAddr),
-			Address: samAddr,
-		}
-	}
-
-	// Read response (expect "HELLO REPLY RESULT=OK").
-	buf := make([]byte, 256)
-	n, err := conn.Read(buf)
-	if err != nil || n < 17 {
-		return TransportStatus{
-			Name:      "I2P",
-			Reachable: false,
-			Error: fmt.Sprintf("Connected to %s but received invalid SAM response. "+
-				"Verify I2P router is running with SAM v3 bridge enabled.",
-				samAddr),
-			Address: samAddr,
-		}
-	}
-
-	response := string(buf[:n])
-	if len(response) < 17 || response[:17] != "HELLO REPLY RESUL" {
-		return TransportStatus{
-			Name:      "I2P",
-			Reachable: false,
-			Error: fmt.Sprintf("I2P SAM bridge responded with: %q. "+
-				"Expected HELLO REPLY. Verify SAM v3 configuration.",
-				response[:min(40, len(response))]),
-			Address: samAddr,
-		}
+	if status := verifySAMProtocol(conn, samAddr); !status.Reachable {
+		return status
 	}
 
 	latency := time.Since(start)
@@ -154,6 +107,79 @@ func CheckI2P(ctx context.Context, samAddr string) TransportStatus {
 		Reachable: true,
 		LatencyMs: latency.Milliseconds(),
 		Address:   samAddr,
+	}
+}
+
+// buildI2PUnreachableStatus returns a status indicating I2P is unreachable.
+func buildI2PUnreachableStatus(samAddr string) TransportStatus {
+	return TransportStatus{
+		Name:      "I2P",
+		Reachable: false,
+		Error: fmt.Sprintf("I2P router unreachable at %s. "+
+			"Download i2pd from i2pd.website or java-i2p from geti2p.net. "+
+			"Enable SAM bridge on port 7656 (i2pd: sam.enabled=true in config). "+
+			"Documentation: i2pd.readthedocs.io/en/latest/user-guide/SAM/",
+			samAddr),
+		Address: samAddr,
+	}
+}
+
+// verifySAMProtocol sends HELLO command and validates SAM v3 response.
+// Returns a success status (Reachable=true) or an error status.
+func verifySAMProtocol(conn net.Conn, samAddr string) TransportStatus {
+	conn.SetDeadline(time.Now().Add(2 * time.Second))
+	_, err := conn.Write([]byte("HELLO VERSION MIN=3.0 MAX=3.3\n"))
+	if err != nil {
+		return buildSAMWriteErrorStatus(samAddr)
+	}
+
+	buf := make([]byte, 256)
+	n, err := conn.Read(buf)
+	if err != nil || n < 17 {
+		return buildSAMReadErrorStatus(samAddr)
+	}
+
+	response := string(buf[:n])
+	if len(response) < 17 || response[:17] != "HELLO REPLY RESUL" {
+		return buildSAMInvalidResponseStatus(samAddr, response)
+	}
+
+	return TransportStatus{Reachable: true} // Success
+}
+
+// buildSAMWriteErrorStatus returns a status for SAM protocol write errors.
+func buildSAMWriteErrorStatus(samAddr string) TransportStatus {
+	return TransportStatus{
+		Name:      "I2P",
+		Reachable: false,
+		Error: fmt.Sprintf("Connected to %s but SAM protocol not responding. "+
+			"Ensure I2P router is running and SAM bridge is enabled.",
+			samAddr),
+		Address: samAddr,
+	}
+}
+
+// buildSAMReadErrorStatus returns a status for SAM protocol read errors.
+func buildSAMReadErrorStatus(samAddr string) TransportStatus {
+	return TransportStatus{
+		Name:      "I2P",
+		Reachable: false,
+		Error: fmt.Sprintf("Connected to %s but received invalid SAM response. "+
+			"Verify I2P router is running with SAM v3 bridge enabled.",
+			samAddr),
+		Address: samAddr,
+	}
+}
+
+// buildSAMInvalidResponseStatus returns a status for invalid SAM responses.
+func buildSAMInvalidResponseStatus(samAddr, response string) TransportStatus {
+	return TransportStatus{
+		Name:      "I2P",
+		Reachable: false,
+		Error: fmt.Sprintf("I2P SAM bridge responded with: %q. "+
+			"Expected HELLO REPLY. Verify SAM v3 configuration.",
+			response[:min(40, len(response))]),
+		Address: samAddr,
 	}
 }
 

@@ -30,36 +30,49 @@ const (
 // If this is the first rotation for identityRoot, creates new chain.
 // identityRoot must be 32 bytes (Ed25519 public key).
 func (db *DB) StoreContinuityDeclaration(identityRoot []byte, decl *pb.ContinuityDeclaration) error {
+	if err := validateContinuityInput(identityRoot, decl); err != nil {
+		return err
+	}
+
+	return db.bolt.Update(func(tx *bbolt.Tx) error {
+		return db.storeContinuityInTransaction(tx, identityRoot, decl)
+	})
+}
+
+// validateContinuityInput validates the identity root and declaration.
+func validateContinuityInput(identityRoot []byte, decl *pb.ContinuityDeclaration) error {
 	if len(identityRoot) != 32 {
 		return fmt.Errorf("store: invalid identity root key size: %d (want 32)", len(identityRoot))
 	}
 	if decl == nil {
 		return errors.New("store: nil continuity declaration")
 	}
+	return nil
+}
 
-	return db.bolt.Update(func(tx *bbolt.Tx) error {
-		bucket := tx.Bucket(BucketContinuityChains)
-		if bucket == nil {
-			return errors.New("store: continuity_chains bucket not found")
-		}
+// storeContinuityInTransaction stores a continuity declaration within a transaction.
+func (db *DB) storeContinuityInTransaction(tx *bbolt.Tx, identityRoot []byte, decl *pb.ContinuityDeclaration) error {
+	bucket := tx.Bucket(BucketContinuityChains)
+	if bucket == nil {
+		return errors.New("store: continuity_chains bucket not found")
+	}
 
-		chain, err := db.loadOrCreateChain(bucket, identityRoot)
-		if err != nil {
-			return err
-		}
+	chain, err := db.loadOrCreateChain(bucket, identityRoot)
+	if err != nil {
+		return err
+	}
 
-		isDuplicate, err := db.validateChainForDeclaration(chain, identityRoot, decl)
-		if err != nil {
-			return err
-		}
-		if isDuplicate {
-			return nil
-		}
+	isDuplicate, err := db.validateChainForDeclaration(chain, identityRoot, decl)
+	if err != nil {
+		return err
+	}
+	if isDuplicate {
+		return nil
+	}
 
-		db.updateChainWithDeclaration(chain, decl)
+	db.updateChainWithDeclaration(chain, decl)
 
-		return db.marshalAndStoreChain(bucket, identityRoot, chain)
-	})
+	return db.marshalAndStoreChain(bucket, identityRoot, chain)
 }
 
 // loadOrCreateChain retrieves existing chain or creates new one for first rotation.

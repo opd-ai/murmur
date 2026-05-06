@@ -66,77 +66,70 @@ func (r *ReturningScreen) Update() error {
 
 // Draw implements ebiten.Game Draw.
 func (r *ReturningScreen) Draw(screen *ebiten.Image) {
-	screen.Fill(color.RGBA{18, 20, 28, 255}) // Dark background
+	screen.Fill(color.RGBA{18, 20, 28, 255})
 
 	centerX := float32(r.width) / 2
 	centerY := float32(r.height) / 2
-
-	// Pulse animation
 	pulse := float32(0.5 + 0.3*math.Sin(r.animPhase*3.0))
 
-	// Draw central glowing node
+	r.drawCentralNode(screen, centerX, centerY, pulse)
+	r.drawWelcomeText(screen, centerX, centerY)
+	r.drawIdentityInfo(screen, centerX, centerY)
+}
+
+// drawCentralNode draws the pulsing central node.
+func (r *ReturningScreen) drawCentralNode(screen *ebiten.Image, centerX, centerY, pulse float32) {
 	nodeSize := 40.0 + 20.0*pulse
+	nodeY := centerY - 80
+
 	vector.DrawFilledCircle(
-		screen,
-		centerX,
-		centerY-80,
-		nodeSize,
+		screen, centerX, nodeY, nodeSize,
 		color.RGBA{100, 160, 220, uint8(200 * pulse)},
 		false,
 	)
 	vector.StrokeCircle(
-		screen,
-		centerX,
-		centerY-80,
-		nodeSize+10,
-		2,
+		screen, centerX, nodeY, nodeSize+10, 2,
 		color.RGBA{100, 160, 220, uint8(150 * pulse)},
 		false,
 	)
+}
 
-	// Welcome back text (fade in)
-	fade := float64(1.0)
+// drawWelcomeText draws the "Welcome back" text with fade-in.
+func (r *ReturningScreen) drawWelcomeText(screen *ebiten.Image, centerX, centerY float32) {
+	fade := 1.0
 	if r.animPhase < 0.5 {
 		fade = r.animPhase / 0.5
 	}
 
 	DrawCenteredText(
-		screen,
-		"Welcome back",
-		float32(r.width)/2,
-		float32(r.height)/2,
-		32,
+		screen, "Welcome back", centerX, centerY, 32,
 		color.RGBA{255, 255, 255, uint8(255 * fade)},
 	)
+}
 
-	// Identity info
-	if r.animPhase > 0.3 {
-		infoFade := (r.animPhase - 0.3) / 0.7
-		if infoFade > 1.0 {
-			infoFade = 1.0
-		}
-
-		identityText := r.displayName
-		if identityText == "" {
-			identityText = r.pubKeyFingerprint
-		}
-
-		DrawCenteredText(
-			screen,
-			identityText,
-			float32(r.width)/2,
-			float32(r.height)/2+50,
-			20,
-			color.RGBA{180, 180, 200, uint8(200 * infoFade)},
-		)
-
-		DrawCenteredText(
-			screen,
-			"Connecting to network...",
-			float32(r.width)/2,
-			float32(r.height)/2+80,
-			16,
-			color.RGBA{140, 140, 160, uint8(150 * infoFade)},
-		)
+// drawIdentityInfo draws the identity information and connection status.
+func (r *ReturningScreen) drawIdentityInfo(screen *ebiten.Image, centerX, centerY float32) {
+	if r.animPhase <= 0.3 {
+		return
 	}
+
+	infoFade := (r.animPhase - 0.3) / 0.7
+	if infoFade > 1.0 {
+		infoFade = 1.0
+	}
+
+	identityText := r.displayName
+	if identityText == "" {
+		identityText = r.pubKeyFingerprint
+	}
+
+	DrawCenteredText(
+		screen, identityText, centerX, centerY+50, 20,
+		color.RGBA{180, 180, 200, uint8(200 * infoFade)},
+	)
+
+	DrawCenteredText(
+		screen, "Connecting to network...", centerX, centerY+80, 16,
+		color.RGBA{140, 140, 160, uint8(150 * infoFade)},
+	)
 }

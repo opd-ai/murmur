@@ -33,13 +33,30 @@ func DefaultKeystorePaths(dataDir string) KeystorePaths {
 // Per ROADMAP.md Security Hardening, this separates Surface and Specter keys into
 // distinct encrypted files to prevent compromise of one from revealing the other.
 func SaveIdentityBundle(bundle *IdentityBundle, paths KeystorePaths, passphrase string) error {
+	if err := validateBundleAndPassphrase(bundle, passphrase); err != nil {
+		return err
+	}
+
+	if err := saveBundleKeypairs(bundle, paths, passphrase); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// validateBundleAndPassphrase validates the identity bundle and passphrase.
+func validateBundleAndPassphrase(bundle *IdentityBundle, passphrase string) error {
 	if bundle == nil {
 		return errors.New("identity bundle is nil")
 	}
 	if passphrase == "" {
 		return errors.New("passphrase cannot be empty")
 	}
+	return nil
+}
 
+// saveBundleKeypairs saves all keypairs from the bundle to their respective keystore files.
+func saveBundleKeypairs(bundle *IdentityBundle, paths KeystorePaths, passphrase string) error {
 	if bundle.Surface != nil {
 		if err := saveKeypairToKeystore(bundle.Surface, paths.Surface, passphrase, ExportKeyPair); err != nil {
 			return fmt.Errorf("saving surface keypair: %w", err)

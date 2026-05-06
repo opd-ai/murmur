@@ -296,36 +296,51 @@ func (s *MarkVoteStore) IsMarkHidden(markID [32]byte) bool {
 // GetEffectiveVisibility returns a mark's visibility adjusted for votes.
 // Base visibility is multiplied by endorsement boost and challenge penalty.
 func (s *MarkVoteStore) GetEffectiveVisibility(markID [32]byte) float64 {
-	if s.markStore == nil {
+	mark, baseVisibility := s.getMarkBaseVisibility(markID)
+	if mark == nil {
 		return 0.0
 	}
 
-	mark, err := s.markStore.GetMark(markID)
-	if err != nil || mark.IsExpired() {
-		return 0.0
-	}
-
-	baseVisibility := mark.CurrentVisibility()
-
-	s.mu.RLock()
-	score := s.markScores[markID]
-	s.mu.RUnlock()
-
+	score := s.getMarkScore(markID)
 	if score == nil {
 		return baseVisibility
 	}
 
-	if score.IsHidden {
-		return 0.0 // Hidden marks have no visibility.
+	return s.applyScoreModifiers(baseVisibility, score)
+}
+
+// getMarkBaseVisibility retrieves mark and its base visibility, or returns nil and 0.0.
+func (s *MarkVoteStore) getMarkBaseVisibility(markID [32]byte) (*Mark, float64) {
+	if s.markStore == nil {
+		return nil, 0.0
 	}
 
-	// Apply endorsement boost.
+	mark, err := s.markStore.GetMark(markID)
+	if err != nil || mark.IsExpired() {
+		return nil, 0.0
+	}
+
+	return mark, mark.CurrentVisibility()
+}
+
+// getMarkScore retrieves the vote score for a mark.
+func (s *MarkVoteStore) getMarkScore(markID [32]byte) *MarkScore {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.markScores[markID]
+}
+
+// applyScoreModifiers applies voting score modifiers to base visibility.
+func (s *MarkVoteStore) applyScoreModifiers(baseVisibility float64, score *MarkScore) float64 {
+	if score.IsHidden {
+		return 0.0
+	}
+
 	if score.NetScore > 0 {
 		boost := float64(score.NetScore) * EndorsementBoost
 		return math.Min(baseVisibility*(1.0+boost), 1.5) // Cap at 1.5x.
 	}
 
-	// Apply challenge penalty.
 	if score.NetScore < 0 {
 		penalty := float64(-score.NetScore) * EndorsementBoost
 		return math.Max(baseVisibility*(1.0-penalty), 0.1) // Floor at 0.1.

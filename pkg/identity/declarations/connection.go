@@ -117,28 +117,36 @@ func (c *ConnectionDeclaration) AcceptConnection(responder *keys.KeyPair) error 
 
 // Verify verifies both initiator and responder signatures.
 func (c *ConnectionDeclaration) Verify() error {
+	if err := c.validateConnectionFields(); err != nil {
+		return err
+	}
+
+	payload := c.signingPayload()
+	return c.verifySignatures(payload)
+}
+
+// validateConnectionFields checks that all required connection fields are present.
+func (c *ConnectionDeclaration) validateConnectionFields() error {
 	if len(c.InitiatorPublicKey) != ed25519.PublicKeySize {
 		return ErrMissingInitiator
 	}
 	if len(c.ResponderPublicKey) != ed25519.PublicKeySize {
 		return ErrMissingResponder
 	}
-	if len(c.InitiatorSignature) == 0 {
+	if len(c.InitiatorSignature) == 0 || len(c.ResponderSignature) == 0 {
 		return ErrMissingSignature
 	}
-	if len(c.ResponderSignature) == 0 {
-		return ErrMissingSignature
-	}
+	return nil
+}
 
-	payload := c.signingPayload()
-
+// verifySignatures verifies both initiator and responder signatures.
+func (c *ConnectionDeclaration) verifySignatures(payload []byte) error {
 	if !keys.Verify(c.InitiatorPublicKey, payload, c.InitiatorSignature) {
 		return ErrInvalidInitiatorSig
 	}
 	if !keys.Verify(c.ResponderPublicKey, payload, c.ResponderSignature) {
 		return ErrInvalidResponderSig
 	}
-
 	return nil
 }
 

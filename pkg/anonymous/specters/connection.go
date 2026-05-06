@@ -163,28 +163,36 @@ func (c *SpecterConnection) Verify() error {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
+	if err := c.validateConnectionFields(); err != nil {
+		return err
+	}
+
+	payload := c.signingPayload()
+	return c.verifySignatures(payload)
+}
+
+// validateConnectionFields checks that all required connection fields are present.
+func (c *SpecterConnection) validateConnectionFields() error {
 	if c.InitiatorPublicKey == [32]byte{} {
 		return ErrMissingSpecterInitiator
 	}
 	if c.ResponderPublicKey == [32]byte{} {
 		return ErrMissingSpecterResponder
 	}
-	if len(c.InitiatorSignature) == 0 {
+	if len(c.InitiatorSignature) == 0 || len(c.ResponderSignature) == 0 {
 		return ErrMissingSpecterSignature
 	}
-	if len(c.ResponderSignature) == 0 {
-		return ErrMissingSpecterSignature
-	}
+	return nil
+}
 
-	payload := c.signingPayload()
-
+// verifySignatures verifies both initiator and responder signatures.
+func (c *SpecterConnection) verifySignatures(payload []byte) error {
 	if !verifySpecterSignature(c.InitiatorPublicKey[:], payload, c.InitiatorSignature) {
 		return ErrInvalidSpecterInitiatorSig
 	}
 	if !verifySpecterSignature(c.ResponderPublicKey[:], payload, c.ResponderSignature) {
 		return ErrInvalidSpecterResponderSig
 	}
-
 	return nil
 }
 
