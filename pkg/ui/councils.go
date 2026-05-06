@@ -512,7 +512,7 @@ func (cp *CouncilPanel) handleMembersInput() {
 // handleProposalsInput handles input in proposals view mode.
 func (cp *CouncilPanel) handleProposalsInput() {
 	cp.handleScrollInput()
-	cp.handleVoteInput()
+	cp.handleProposalSelection()
 }
 
 // handleScrollInput processes up/down arrow keys for scrolling.
@@ -535,8 +535,8 @@ func (cp *CouncilPanel) handleScrollInput() {
 	}
 }
 
-// handleVoteInput processes Enter key to vote on selected proposal.
-func (cp *CouncilPanel) handleVoteInput() {
+// handleProposalSelection processes Enter key to vote on selected proposal.
+func (cp *CouncilPanel) handleProposalSelection() {
 	if !inpututil.IsKeyJustPressed(ebiten.KeyEnter) || cp.currentCouncil == nil {
 		return
 	}

@@ -14,29 +14,7 @@ func openSystemShareImpl(content string, opts ShareOptions) error {
 	switch opts.Method {
 	case ShareText:
 		// On macOS, copy to clipboard using pbcopy.
-		cmd := exec.Command("pbcopy")
-		pipe, err := cmd.StdinPipe()
-		if err != nil {
-			return fmt.Errorf("creating pipe to pbcopy: %w", err)
-		}
-
-		if err := cmd.Start(); err != nil {
-			return fmt.Errorf("starting pbcopy: %w", err)
-		}
-
-		if _, err := pipe.Write([]byte(content)); err != nil {
-			return fmt.Errorf("writing to pbcopy: %w", err)
-		}
-
-		if err := pipe.Close(); err != nil {
-			return fmt.Errorf("closing pipe to pbcopy: %w", err)
-		}
-
-		if err := cmd.Wait(); err != nil {
-			return fmt.Errorf("waiting for pbcopy: %w", err)
-		}
-
-		return nil
+		return writeToClipboard(content, "pbcopy")
 
 	case ShareEmail:
 		// Use open to open mailto: URL with default email client.

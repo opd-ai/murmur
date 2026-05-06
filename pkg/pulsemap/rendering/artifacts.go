@@ -224,17 +224,8 @@ func (r *Renderer) drawTerritoryInfluence(screen *ebiten.Image, nodeData *NodeDa
 
 // drawOraclePools renders Oracle Pools as swirling vortex patterns.
 func (r *Renderer) drawOraclePools(screen *ebiten.Image, nodeData *NodeData, nodeX, nodeY float32) {
-	if len(nodeData.PublicKey) == 0 {
-		return
-	}
-
-	oracles, err := r.store.GetActiveOraclePoolsNearNode(nodeData.PublicKey, 100.0)
-	if err != nil || len(oracles) == 0 || len(oracles) > 1 {
-		return // Max 1 visible oracle
-	}
-
-	oracle := oracles[0]
-	if oracle == nil {
+	_, ok := getSingleActiveItem(nodeData.PublicKey, r.store.GetActiveOraclePoolsNearNode)
+	if !ok {
 		return
 	}
 
@@ -288,17 +279,8 @@ func (r *Renderer) drawForgeProjects(screen *ebiten.Image, nodeData *NodeData, n
 
 // drawShadowPlays renders Shadow Plays as dark domes with lightning effects.
 func (r *Renderer) drawShadowPlays(screen *ebiten.Image, nodeData *NodeData, nodeX, nodeY float32) {
-	if len(nodeData.PublicKey) == 0 {
-		return
-	}
-
-	plays, err := r.store.GetActiveShadowPlayNearNode(nodeData.PublicKey, 100.0)
-	if err != nil || len(plays) == 0 || len(plays) > 1 {
-		return // Max 1 visible play
-	}
-
-	play := plays[0]
-	if play == nil {
+	_, ok := getSingleActiveItem(nodeData.PublicKey, r.store.GetActiveShadowPlayNearNode)
+	if !ok {
 		return
 	}
 
@@ -357,4 +339,24 @@ func (r *Renderer) drawPhantomCouncils(screen *ebiten.Image, nodeData *NodeData,
 			vector.StrokeLine(screen, cx, cy, nextCx, nextCy, 1.0, councilColor, false)
 		}
 	}
+}
+
+// getSingleActiveItem retrieves exactly one active item from a store query.
+// Returns (item, true) if exactly one non-nil item is found, otherwise (nil, false).
+func getSingleActiveItem[T any](pubkey []byte, fetchFn func([]byte, float64) ([]*T, error)) (*T, bool) {
+	if len(pubkey) == 0 {
+		return nil, false
+	}
+
+	items, err := fetchFn(pubkey, 100.0)
+	if err != nil || len(items) == 0 || len(items) > 1 {
+		return nil, false
+	}
+
+	item := items[0]
+	if item == nil {
+		return nil, false
+	}
+
+	return item, true
 }

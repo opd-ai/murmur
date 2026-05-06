@@ -14,29 +14,7 @@ func openSystemShareImpl(content string, opts ShareOptions) error {
 	switch opts.Method {
 	case ShareText:
 		// On Windows, copy to clipboard using clip.exe.
-		cmd := exec.Command("cmd", "/c", "clip")
-		pipe, err := cmd.StdinPipe()
-		if err != nil {
-			return fmt.Errorf("creating pipe to clip: %w", err)
-		}
-
-		if err := cmd.Start(); err != nil {
-			return fmt.Errorf("starting clip: %w", err)
-		}
-
-		if _, err := pipe.Write([]byte(content)); err != nil {
-			return fmt.Errorf("writing to clip: %w", err)
-		}
-
-		if err := pipe.Close(); err != nil {
-			return fmt.Errorf("closing pipe to clip: %w", err)
-		}
-
-		if err := cmd.Wait(); err != nil {
-			return fmt.Errorf("waiting for clip: %w", err)
-		}
-
-		return nil
+		return writeToClipboard(content, "cmd", "/c", "clip")
 
 	case ShareEmail:
 		// Use start to open mailto: URL with default email client.

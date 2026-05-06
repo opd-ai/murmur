@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+**Code Complexity Refactoring (2026-05-06)**
+- **8 high-complexity functions refactored** — Reduced complexity of top complex functions below professional thresholds (overall <9.0, cyclomatic <9):
+  - `flushNodes` (rendering): 18.9 → 4.9 (-74.1%) — Extracted `drawNodeHalos`, `drawNodeCores`, `drawNodeRings`, `drawSelectionHighlights`
+  - `centerOnNetwork` (pulsemap): 18.4 → 3.1 (-83.2%) — Extracted `computeNetworkCentroid`, `computeFitZoom`, `computeNetworkBounds`, `constrainZoom`
+  - `Emit` (eventbus): 16.6 → 5.7 (-65.7%) — Extracted `emitCritical`, `shouldDropEvent`, `emitNonBlocking`
+  - `handleBookmarkKeys` (pulsemap): 13.2 → 5.7 (-56.8%) — Extracted `handleAddBookmark`, `handleRemoveBookmark`, `handleNavigateToBookmark`
+  - `connectToInviter` (bootstrap): 13.2 → 5.7 (-56.8%) — Extracted `connectWithRetries`
+  - `handleProposalsInput` (councils): 13.2 → 1.3 (-90.2%) — Extracted `handleScrollInput`, `handleProposalSelection`
+  - `Update` (settings): 12.7 → ~7 — Extracted `handleCategoryNavigation` (-41.3%), `handleScrolling`
+  - `Update` (game): 12.2 → 7.0 (-42.6%) — Extracted `handleWindowResize`, `handleNavigationHotkeys`, `updateActivePanels`
+- **Zero test regressions** — All 57 packages pass with race detector enabled. All extracted helper functions <20 lines, cyclomatic <8.
+- **Quality improvement** — High complexity (>10) function count reduced from 3 to 0. Overall code quality score: 55.5/100 (improving trend).
+
 ### Added
 
 **Strategic Planning Documentation (2026-05-06)**

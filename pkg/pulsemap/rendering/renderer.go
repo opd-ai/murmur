@@ -361,6 +361,13 @@ func (r *Renderer) Draw(screen *ebiten.Image) {
 
 // drawEdges renders all edges between nodes with pulse animations.
 func (r *Renderer) drawEdges(screen *ebiten.Image, positions map[string]layout.Position, zoom ZoomLevel) {
+	r.iterateEdges(positions, zoom, func(srcX, srcY, dstX, dstY float32, style EdgeStyle) {
+		RenderEdgeWithTime(screen, srcX, srcY, dstX, dstY, style, zoom, float64(r.time))
+	})
+}
+
+// iterateEdges processes all edges with culling and style building, invoking callback for visible edges.
+func (r *Renderer) iterateEdges(positions map[string]layout.Position, zoom ZoomLevel, callback func(srcX, srcY, dstX, dstY float32, style EdgeStyle)) {
 	screenW := float64(r.screenWidth)
 	screenH := float64(r.screenHeight)
 
@@ -371,23 +378,19 @@ func (r *Renderer) drawEdges(screen *ebiten.Image, positions map[string]layout.P
 			continue
 		}
 
-		// Transform and cull.
 		srcScreenX, srcScreenY, dstScreenX, dstScreenY, visible := r.transformAndCullLine(srcPos.X, srcPos.Y, dstPos.X, dstPos.Y, screenW, screenH)
 		if !visible {
 			continue
 		}
 
-		// Build edge style from data.
 		style := EdgeStyle{
-			Color:                color.RGBA{100, 120, 140, 255}, // Default edge color
+			Color:                color.RGBA{100, 120, 140, 255},
 			Age:                  edge.Age,
 			Active:               edge.Active,
 			InteractionFrequency: edge.InteractionFrequency,
 		}
 
-		// Use time-based rendering for pulse animations on active edges.
-		RenderEdgeWithTime(screen, float32(srcScreenX), float32(srcScreenY),
-			float32(dstScreenX), float32(dstScreenY), style, zoom, float64(r.time))
+		callback(float32(srcScreenX), float32(srcScreenY), float32(dstScreenX), float32(dstScreenY), style)
 	}
 }
 
@@ -723,34 +726,9 @@ func (r *Renderer) drawCrossLayerArtifacts(screen *ebiten.Image, nodeData *NodeD
 // accumulateEdges adds all edges to the batch renderer.
 // This replaces the old drawEdges method for batched rendering.
 func (r *Renderer) accumulateEdges(positions map[string]layout.Position, zoom ZoomLevel) {
-	screenW := float64(r.screenWidth)
-	screenH := float64(r.screenHeight)
-
-	for _, edge := range r.edges {
-		srcPos, srcOK := positions[edge.SourceID]
-		dstPos, dstOK := positions[edge.TargetID]
-		if !srcOK || !dstOK {
-			continue
-		}
-
-		// Transform and cull.
-		srcScreenX, srcScreenY, dstScreenX, dstScreenY, visible := r.transformAndCullLine(srcPos.X, srcPos.Y, dstPos.X, dstPos.Y, screenW, screenH)
-		if !visible {
-			continue
-		}
-
-		// Build edge style from data.
-		style := EdgeStyle{
-			Color:                color.RGBA{100, 120, 140, 255}, // Default edge color
-			Age:                  edge.Age,
-			Active:               edge.Active,
-			InteractionFrequency: edge.InteractionFrequency,
-		}
-
-		// Add to batch renderer.
-		r.batchRenderer.AddEdge(float32(srcScreenX), float32(srcScreenY),
-			float32(dstScreenX), float32(dstScreenY), style, zoom)
-	}
+	r.iterateEdges(positions, zoom, func(srcX, srcY, dstX, dstY float32, style EdgeStyle) {
+		r.batchRenderer.AddEdge(srcX, srcY, dstX, dstY, style, zoom)
+	})
 }
 
 // accumulateAmplificationTrails adds all amplification trails to the batch renderer.
