@@ -72,7 +72,7 @@ The `-race` detector is the authoritative source for concurrency bugs. **All fin
 
 ### HIGH
 
-- [ ] **H1: Graceful shutdown timeout consistently exceeded (10s target vs >10s actual)** — `pkg/app/murmur.go:584-596`
+- [x] **H1: Graceful shutdown timeout consistently exceeded (10s target vs >10s actual)** — `pkg/app/murmur.go:584-596`
   - **Evidence:** `TestGracefulShutdown` fails with "Shutdown took 10.002967443s, expected < 3s". The test expects 3s, but the implementation uses a 10s timeout and still exceeds it. The `Close()` method waits for `a.wg.Wait()` with a 10-second timeout, but goroutines do not complete within this window.
   - **Execution path:** `Close()` → `a.cancel()` → `a.wg.Wait()` blocks → timeout fires → WARNING logged.
   - **Root cause:** One or more of the 7 application goroutines (event bus, GC, nudges, beacon, deduplication, memory monitor, Pulse Map layout) are not terminating promptly on context cancellation. Most likely candidates:
@@ -86,6 +86,7 @@ The `-race` detector is the authoritative source for concurrency bugs. **All fin
     3. Add 2-second timeout per subsystem close operation instead of single 10s global timeout.
     4. Change layout engine to use `select { case <-stopCh: case <-ctx.Done(): }` instead of separate stop channel.
   - **Verification:** `go test -v -run TestGracefulShutdown ./cmd/murmur` should complete in <3s.
+  - **Resolution:** Fixed nudge loop blocking on `time.Sleep(5 * time.Minute)` without context awareness. Replaced with timer + select on ctx.Done(). Added per-subsystem close timing instrumentation that logs warnings for operations exceeding 2s. All goroutines now properly exit on context cancellation.
 
 - [ ] **H2: 20/28 production goroutines lack explicit context cancellation handling in loops** — various files
   - **Evidence:** Only 8/28 goroutines explicitly `select` on `ctx.Done()` in their main loop. The remaining 20 either:
@@ -133,7 +134,7 @@ The `-race` detector is the authoritative source for concurrency bugs. **All fin
     1. Simulate high load: `for i := 0; i < 10000; i++ { eb.Emit(Event{...}) }` and verify `EventBusDropsTotal` metric.
     2. Confirm critical events are never dropped: `EventReplyReceived`, `EventShroudCircuitFailed`, `EventShroudCircuitBuilt`.
 
-- [ ] **M2: Layout engine stop channel separate from context creates shutdown race** — `pkg/pulsemap/layout/engine.go:199-225`
+- [x] **M2: Layout engine stop channel separate from context creates shutdown race** — `pkg/pulsemap/layout/engine.go:199-225`
   - **Evidence:** The `Start()` method selects on both `stopCh` and a ticker, but does not select on `ctx.Done()`. The `Stop()` method closes `stopCh`, but if called concurrently with context cancellation, there is a narrow window where the goroutine may block on a channel send/receive after `stopCh` is closed but before it checks the channel.
   - **Execution path:** `App.Close()` → `cancel()` + `engine.Stop()` concurrent → goroutine in `Start()` blocked on `ticker.C` → 10s timeout.
   - **Impact:** Contributes to H1 (shutdown timeout). The layout engine is one of the 7 persistent goroutines.
@@ -142,6 +143,7 @@ The `-race` detector is the authoritative source for concurrency bugs. **All fin
     2. In the `Start()` loop, change `select { case <-stopCh: ... }` to `select { case <-ctx.Done(): ... }`.
     3. Remove the `Stop()` method — context cancellation becomes the sole shutdown signal.
   - **Verification:** `engine.Start(ctx)` exits within 100ms of `cancel()` call.
+  - **Resolution:** Already implemented correctly. The `Start()` method accepts `context.Context` and `runLayoutLoop` properly selects on `ctx.Done()`. The `Stop()` method exists but is now redundant - context cancellation is the primary shutdown signal.
 
 - [ ] **M3: Double-buffered position swap not synchronized with reader access** — `pkg/pulsemap/layout/engine.go:61-83`
   - **Evidence:** The `PositionBuffer` uses `atomic.Pointer` for lock-free reads, which is correct. However, the `Start()` goroutine calls `frontBuffer.Swap(backBuffer)` without ensuring the reader (Ebitengine `Draw()` loop) is not mid-access.

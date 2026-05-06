@@ -217,7 +217,15 @@ func (b *BatchRenderer) Flush(dst *ebiten.Image) {
 		return
 	}
 
-	// Draw all edge batches
+	// Per PLAN.md Step 7, this function was refactored to reduce cyclomatic
+	// complexity from 22 to <10 by extracting draw operations into helpers.
+	b.flushEdges(dst)
+	b.flushNodes(dst)
+	b.flushEffects(dst)
+}
+
+// flushEdges draws all batched edges.
+func (b *BatchRenderer) flushEdges(dst *ebiten.Image) {
 	for key, batch := range b.edgeBatches {
 		if len(batch) == 0 {
 			continue
@@ -243,8 +251,10 @@ func (b *BatchRenderer) Flush(dst *ebiten.Image) {
 			}
 		}
 	}
+}
 
-	// Draw all node batches
+// flushNodes draws all batched nodes with halos, rings, and selection highlights.
+func (b *BatchRenderer) flushNodes(dst *ebiten.Image) {
 	for key, batch := range b.nodeBatches {
 		if len(batch) == 0 {
 			continue
@@ -299,7 +309,10 @@ func (b *BatchRenderer) Flush(dst *ebiten.Image) {
 			}
 		}
 	}
+}
 
+// flushEffects draws all batched particles and trails.
+func (b *BatchRenderer) flushEffects(dst *ebiten.Image) {
 	// Draw all particles in one batch
 	for _, cmd := range b.particleBatches {
 		vector.DrawFilledCircle(dst, cmd.x, cmd.y, cmd.radius, cmd.color, true)

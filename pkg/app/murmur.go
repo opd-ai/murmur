@@ -189,6 +189,8 @@ func New(cfg Config) (*App, error) {
 // Per TECHNICAL_IMPLEMENTATION.md §2, the initialization order is:
 // Storage → Identity → Networking → Content → Anonymous → Pulse Map → Onboarding.
 func (a *App) Run() error {
+	startTime := time.Now()
+
 	if err := a.checkNotRunning(); err != nil {
 		return err
 	}
@@ -207,6 +209,9 @@ func (a *App) Run() error {
 
 	a.printStartupInfo()
 	close(a.initComplete)
+
+	elapsed := time.Since(startTime)
+	fmt.Printf("[STARTUP] Application ready in %v\n", elapsed)
 
 	if a.firstRun {
 		a.startOnboarding()
@@ -227,23 +232,27 @@ func (a *App) checkNotRunning() error {
 }
 
 func (a *App) initializeSubsystems() error {
+	t0 := time.Now()
 	a.initEventBus()
-	fmt.Println("  [0/7] Event bus started")
+	fmt.Printf("  [0/7] Event bus started (%v)\n", time.Since(t0))
 
+	t1 := time.Now()
 	if err := a.initStorage(); err != nil {
 		return murerr.WrapStorageError(err)
 	}
-	fmt.Println("  [1/7] Storage initialized")
+	fmt.Printf("  [1/7] Storage initialized (%v)\n", time.Since(t1))
 
+	t2 := time.Now()
 	if err := a.initIdentity(); err != nil {
 		return murerr.WrapIdentityError(err)
 	}
-	fmt.Println("  [2/7] Identity initialized")
+	fmt.Printf("  [2/7] Identity initialized (%v)\n", time.Since(t2))
 
+	t3 := time.Now()
 	if err := a.initNetworking(); err != nil {
 		return murerr.WrapNetworkError(err)
 	}
-	fmt.Println("  [3/7] Networking initialized")
+	fmt.Printf("  [3/7] Networking initialized (%v)\n", time.Since(t3))
 
 	// Initialize health check endpoint if enabled
 	if a.config.EnableHealthEndpoint {
@@ -252,10 +261,11 @@ func (a *App) initializeSubsystems() error {
 		}
 	}
 
+	t4 := time.Now()
 	if err := a.initContent(); err != nil {
 		return murerr.WrapContentError(err)
 	}
-	fmt.Println("  [4/7] Content initialized")
+	fmt.Printf("  [4/7] Content initialized (%v)\n", time.Since(t4))
 
 	return a.initShroud()
 }
@@ -759,19 +769,34 @@ func (a *App) Close() error {
 }
 
 // closeSubsystems closes all subsystems in reverse initialization order.
+// Per AUDIT.md H1, log duration for any subsystem taking >2s to close.
 func (a *App) closeSubsystems() error {
 	var errs []error
 
-	errs = appendCloseError(errs, a.closeWaveCache())
-	errs = appendCloseError(errs, a.closePubSub())
-	errs = appendCloseError(errs, a.closeHost())
+	errs = appendCloseError(errs, a.closeSubsystemWithTiming("WaveCache", a.closeWaveCache))
+	errs = appendCloseError(errs, a.closeSubsystemWithTiming("PubSub", a.closePubSub))
+	errs = appendCloseError(errs, a.closeSubsystemWithTiming("Host", a.closeHost))
 	a.zeroIdentity()
-	errs = appendCloseError(errs, a.closeStorage())
+	errs = appendCloseError(errs, a.closeSubsystemWithTiming("Storage", a.closeStorage))
 
 	if len(errs) > 0 {
 		return errors.Join(errs...)
 	}
 	return nil
+}
+
+// closeSubsystemWithTiming wraps a closer function with timing instrumentation.
+// Logs a warning if the close operation exceeds 2 seconds.
+func (a *App) closeSubsystemWithTiming(name string, closer func() error) error {
+	start := time.Now()
+	err := closer()
+	duration := time.Since(start)
+
+	if duration > 2*time.Second {
+		fmt.Fprintf(os.Stderr, "[SHUTDOWN] SLOW: %s took %v to close (expected <2s)\n", name, duration)
+	}
+
+	return err
 }
 
 // appendCloseError appends non-nil errors to the slice.

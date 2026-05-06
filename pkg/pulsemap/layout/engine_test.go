@@ -2,6 +2,7 @@
 package layout
 
 import (
+	"context"
 	"testing"
 	"time"
 )
@@ -240,13 +241,13 @@ func TestStartStop(t *testing.T) {
 	}
 
 	// Start the engine
-	e.Start()
+	e.Start(context.Background())
 	if !e.IsRunning() {
 		t.Error("engine should be running after Start")
 	}
 
 	// Double start should be safe
-	e.Start()
+	e.Start(context.Background())
 	if !e.IsRunning() {
 		t.Error("engine should still be running after double Start")
 	}
@@ -285,7 +286,7 @@ func TestBackgroundLayoutUpdates(t *testing.T) {
 	posB := initialPos["b"]
 
 	// Start background layout
-	e.Start()
+	e.Start(context.Background())
 	defer e.Stop()
 
 	// Wait for some ticks
@@ -313,7 +314,7 @@ func TestTickRate(t *testing.T) {
 	e.AddNode(&Node{ID: "test"})
 
 	// Count position updates over time
-	e.Start()
+	e.Start(context.Background())
 	time.Sleep(100 * time.Millisecond)
 	e.Stop()
 

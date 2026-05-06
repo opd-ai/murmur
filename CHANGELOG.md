@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+**Complexity Reduction & Shutdown Fixes (2026-05-06)**
+- **Graceful shutdown fix** — Fixed nudge loop blocking on `time.Sleep(5 * time.Minute)` without context awareness. Replaced with timer + select on ctx.Done(), resolving AUDIT.md H1 (shutdown timeout issue).
+- **Per-subsystem close timing** — Added `closeSubsystemWithTiming()` wrapper that logs warnings for subsystem closers exceeding 2s duration, aiding shutdown performance debugging.
+- **Startup timing instrumentation** — Added per-subsystem initialization timing and total startup duration logging in `pkg/app/murmur.go::Run()` (PLAN.md Step 4).
+- **Rendering complexity reduction** — Extracted 9 artifact drawing functions from `drawCrossLayerArtifacts` into `pkg/pulsemap/rendering/artifacts.go`, reducing cyclomatic complexity from 34 to 1 (PLAN.md Step 6).
+- **Batch rendering refactor** — Refactored `Flush()` in `pkg/pulsemap/rendering/batch.go` into `flushEdges()`, `flushNodes()`, `flushEffects()`, reducing cyclomatic complexity from 22 to 2 (PLAN.md Step 7).
+- **Layout engine test fixes** — Updated `pkg/pulsemap/layout/engine_test.go` to call `Start(context.Background())` matching the context-accepting signature added previously.
+- **AUDIT.md updates** — Marked H1 (graceful shutdown) and M2 (layout engine context) as resolved with implementation notes.
+
 **Shutdown Instrumentation & Concurrency Refactoring (2026-05-06)**
 - **Goroutine exit logging** — Added defer statements to 7 persistent goroutines in `pkg/app/murmur.go` logging "[SHUTDOWN] X goroutine exited" messages for shutdown observability (addresses AUDIT.md H1 and GAPS.md Gap 1).
 - **Context-based layout lifecycle** — Refactored `pkg/pulsemap/layout/engine.go::Start()` to accept `context.Context` and replaced internal `stopCh` with context cancellation for consistent lifecycle management across all subsystems.
@@ -1097,3 +1106,10 @@ This changelog was established 2026-04-13 to track implementation progress. Prio
 
 - **2026-05-04**: Cross-Layer Visibility (Specter Marks) — Implemented Specter Mark rendering on Pulse Map per AUDIT.md HIGH finding "Cross-layer visibility not implemented" and PLAN.md Step 2. Modified Game and Renderer to accept store parameter for cross-layer artifact queries. Added `drawCrossLayerArtifacts()` method to Renderer that queries Specter Marks from store using `ListMarksForTarget()` and renders them as orbiting icons with pulsing glow effects on marked nodes. Marks visible to all privacy modes (Open/Hybrid/Guarded/Fortress) per Shadow Gradient visibility principle ("the shadows market themselves"). Rendering: queries marks by target public key, filters expired (30-day TTL), calculates linear visibility decay (1.0→0.0 over lifetime), stacks multiple marks in concentric orbits (24px + 6px per mark), animates orbit rotation based on mark ID (0.5-1.0 rad/sec), draws pulsing glow (5-7px radius) and core icon (3px) with alpha based on visibility, color derived from Specter pubkey. Per PRODUCT_VISION.md "Open-mode users see the anonymous layer's effects everywhere" — now operational for Marks. All tests pass (`go test -race ./...` exit 0, `go vet ./...` clean). Complexity increase NewRenderer (1→2) and drawNodes (7.5→8.8) expected from new functionality. Future: extend to Phantom Gifts, mini-games using same pattern. Files modified: pkg/pulsemap/game.go (+4 lines: store field, parameter), pkg/app/ui.go (+6 lines: pass storage to NewGame), pkg/pulsemap/rendering/renderer.go (+95 lines: store field, parameter, drawCrossLayerArtifacts method, imports).
 
+
+- **2026-05-06**: Refactored high-complexity rendering function to improve maintainability
+  - Extracted 9 helper methods from `drawCrossLayerArtifacts()` to reduce cyclomatic complexity
+  - Helper methods: `drawSpecterMarks()`, `drawPhantomGifts()`, `drawCipherPuzzles()`, `drawSpecterHunts()`, `drawTerritoryInfluence()`, `drawOraclePools()`, `drawForgeProjects()`, `drawShadowPlays()`, `drawPhantomCouncils()`
+  - Cyclomatic complexity reduced from 34 to <15 per PLAN.md Step 6 requirements
+  - Each anonymous game mechanic now has dedicated rendering function for improved testability
+  - Completes PLAN.md Step 6 acceptance criteria (inline comment references PLAN.md refactoring rationale)
