@@ -162,17 +162,32 @@ func (p *HuntTrackerPanel) Update() bool {
 		return false
 	}
 
-	// Animate slide-in.
-	p.animTime += 1.0 / 60.0
-	p.pulseTime += 1.0 / 60.0
+	p.updateAnimations()
+	p.updateErrorTimeout()
+
+	p.handleTabInput()
+	p.handleScrollInput()
+	p.handleFragmentInput()
+
+	return p.handleEscapeToClose()
+}
+
+// updateAnimations advances animation timers.
+func (p *HuntTrackerPanel) updateAnimations() {
+	const frameTime = 1.0 / 60.0
+	p.animTime += frameTime
+	p.pulseTime += frameTime
+
 	if p.slideOffset > 0 {
 		p.slideOffset *= 0.85
 		if p.slideOffset < 1 {
 			p.slideOffset = 0
 		}
 	}
+}
 
-	// Clear error after 3 seconds.
+// updateErrorTimeout clears error message after timeout.
+func (p *HuntTrackerPanel) updateErrorTimeout() {
 	if p.errorMessage != "" {
 		p.errorTime += 1.0 / 60.0
 		if p.errorTime > 3.0 {
@@ -180,22 +195,14 @@ func (p *HuntTrackerPanel) Update() bool {
 			p.errorTime = 0
 		}
 	}
+}
 
-	// Handle tab switching.
-	p.handleTabInput()
-
-	// Handle scrolling.
-	p.handleScrollInput()
-
-	// Handle fragment selection.
-	p.handleFragmentInput()
-
-	// Handle escape to close.
+// handleEscapeToClose closes the panel on escape key.
+func (p *HuntTrackerPanel) handleEscapeToClose() bool {
 	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
 		p.visible = false
 		return true
 	}
-
 	return true
 }
 

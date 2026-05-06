@@ -9,6 +9,7 @@ import (
 	"time"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	"github.com/libp2p/go-libp2p/core/peer"
 )
 
 // Anonymous Layer topic names per NETWORK_ARCHITECTURE.md §Protocol Multiplexing.
@@ -91,8 +92,7 @@ func (h *AnonymousTopicHandlers) SetBeaconHandler(handler BeaconWaveHandler) {
 func (h *AnonymousTopicHandlers) HandleMessage(ctx context.Context, topic string, msg *pubsub.Message) error {
 	senderID := msg.GetFrom()
 
-	// Validate envelope with quantized timestamp check
-	env, err := ValidateAnonymousEnvelope(msg.Data, time.Now())
+	env, err := h.validateMessage(msg.Data)
 	if err != nil {
 		if h.scoreTracker != nil {
 			h.recordValidationError(senderID, err)
@@ -100,21 +100,36 @@ func (h *AnonymousTopicHandlers) HandleMessage(ctx context.Context, topic string
 		return err
 	}
 
-	// Check for duplicates
-	if h.dedup.IsSeen(env.MessageID) {
-		if h.scoreTracker != nil {
-			h.scoreTracker.RecordDuplicateMessage(senderID)
-		}
+	if h.isDuplicate(env.MessageID, senderID) {
 		return ErrDuplicateMessage
 	}
-	h.dedup.MarkSeen(env.MessageID)
 
-	// Record valid message
 	if h.scoreTracker != nil {
 		h.scoreTracker.RecordValidMessage(senderID)
 	}
 
-	// Dispatch to appropriate handler based on topic
+	return h.dispatchByTopic(ctx, topic, env)
+}
+
+// validateMessage validates the envelope with quantized timestamp check.
+func (h *AnonymousTopicHandlers) validateMessage(data []byte) (*Envelope, error) {
+	return ValidateAnonymousEnvelope(data, time.Now())
+}
+
+// isDuplicate checks if a message is a duplicate and records it.
+func (h *AnonymousTopicHandlers) isDuplicate(messageID []byte, senderID peer.ID) bool {
+	if h.dedup.IsSeen(messageID) {
+		if h.scoreTracker != nil {
+			h.scoreTracker.RecordDuplicateMessage(senderID)
+		}
+		return true
+	}
+	h.dedup.MarkSeen(messageID)
+	return false
+}
+
+// dispatchByTopic routes the message to the appropriate handler.
+func (h *AnonymousTopicHandlers) dispatchByTopic(ctx context.Context, topic string, env *Envelope) error {
 	switch topic {
 	case TopicAnonymousWaves:
 		return h.handleAnonymousWavesTopic(ctx, env)

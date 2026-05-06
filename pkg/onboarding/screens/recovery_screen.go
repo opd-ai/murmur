@@ -149,36 +149,50 @@ func (s *RecoveryScreen) updateMnemonicEntry() {
 
 // updatePassphraseEntry handles passphrase text input for key file recovery.
 func (s *RecoveryScreen) updatePassphraseEntry() {
-	// Append all typed characters to passphrase.
-	typed := ebiten.AppendInputChars(nil)
-	for _, r := range typed {
-		// Accept all printable ASCII characters for passphrase.
-		if r >= 32 && r <= 126 {
-			s.passphrase += string(r)
-		}
-	}
+	s.appendPassphraseInput()
+	s.handlePassphraseBackspace()
 
-	// Handle backspace.
-	if inpututil.IsKeyJustPressed(ebiten.KeyBackspace) && len(s.passphrase) > 0 {
-		s.passphrase = s.passphrase[:len(s.passphrase)-1]
-	}
-
-	// Handle Enter to attempt recovery.
 	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) {
 		s.attemptKeyFileRecovery()
 	}
 
-	// Back button click — handled here, not in Draw, to keep rendering side-effect-free.
+	s.handlePassphraseBackButton()
+}
+
+// appendPassphraseInput adds typed characters to the passphrase.
+func (s *RecoveryScreen) appendPassphraseInput() {
+	typed := ebiten.AppendInputChars(nil)
+	for _, r := range typed {
+		if r >= 32 && r <= 126 {
+			s.passphrase += string(r)
+		}
+	}
+}
+
+// handlePassphraseBackspace removes last character on backspace.
+func (s *RecoveryScreen) handlePassphraseBackspace() {
+	if inpututil.IsKeyJustPressed(ebiten.KeyBackspace) && len(s.passphrase) > 0 {
+		s.passphrase = s.passphrase[:len(s.passphrase)-1]
+	}
+}
+
+// handlePassphraseBackButton processes back button clicks during passphrase entry.
+func (s *RecoveryScreen) handlePassphraseBackButton() {
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		x, y := ebiten.CursorPosition()
 		if isInButton(float32(x), float32(y), 200, 500, 120, 40) {
-			s.method = RecoveryMethodNone
-			s.passphrase = ""
-			s.passphraseMode = false
-			s.keyFileData = nil
-			s.errorMsg = ""
+			s.resetPassphraseState()
 		}
 	}
+}
+
+// resetPassphraseState clears passphrase entry state and returns to method selection.
+func (s *RecoveryScreen) resetPassphraseState() {
+	s.method = RecoveryMethodNone
+	s.passphrase = ""
+	s.passphraseMode = false
+	s.keyFileData = nil
+	s.errorMsg = ""
 }
 
 // attemptRecovery tries to recover the keypair from the entered mnemonic.

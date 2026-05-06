@@ -169,36 +169,51 @@ func (p *ForgePanel) updateViewMode() {
 }
 
 func (p *ForgePanel) updateCreateMode() {
-	// Tab to switch forge type.
+	p.handleForgeTypeSelection()
+	p.handleDurationToggle()
+	p.handleTextInput(&p.promptText, 256)
+	p.handleCreateConfirmation()
+}
+
+// handleForgeTypeSelection cycles through forge types with Tab.
+func (p *ForgePanel) handleForgeTypeSelection() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyTab) {
 		p.selectedType = (p.selectedType + 1) % 3
 	}
+}
 
-	// D to toggle duration.
+// handleDurationToggle switches between duration choices with D key.
+func (p *ForgePanel) handleDurationToggle() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyD) {
 		p.durationChoice = (p.durationChoice + 1) % 2
 	}
+}
 
-	// Text input for prompt.
-	p.handleTextInput(&p.promptText, 256)
-
-	// Enter to create.
-	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) {
-		if len(p.promptText) < 10 {
-			p.errorMessage = "Prompt must be at least 10 characters"
-			return
-		}
-
-		duration := 30 * time.Minute
-		if p.durationChoice == 1 {
-			duration = 60 * time.Minute
-		}
-
-		if p.onCreate != nil {
-			p.onCreate(p.selectedType, p.promptText, duration)
-		}
-		p.mode = ForgeModeView
+// handleCreateConfirmation validates and creates the forge on Enter.
+func (p *ForgePanel) handleCreateConfirmation() {
+	if !inpututil.IsKeyJustPressed(ebiten.KeyEnter) {
+		return
 	}
+
+	if len(p.promptText) < 10 {
+		p.errorMessage = "Prompt must be at least 10 characters"
+		return
+	}
+
+	duration := p.getSelectedDuration()
+
+	if p.onCreate != nil {
+		p.onCreate(p.selectedType, p.promptText, duration)
+	}
+	p.mode = ForgeModeView
+}
+
+// getSelectedDuration returns the duration based on user's choice.
+func (p *ForgePanel) getSelectedDuration() time.Duration {
+	if p.durationChoice == 1 {
+		return 60 * time.Minute
+	}
+	return 30 * time.Minute
 }
 
 func (p *ForgePanel) updateSubmitMode() {

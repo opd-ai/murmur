@@ -184,38 +184,52 @@ func (s *MaskedEventStore) DeleteEvent(id [32]byte) error {
 	return s.db.bolt.Update(func(tx *bbolt.Tx) error {
 		bucket := tx.Bucket(BucketMaskedEvents)
 
-		// Get event for index key.
-		data := bucket.Get(s.eventKey(id))
-		if data == nil {
-			return ErrMaskedEventNotFound
-		}
-		event := s.deserializeEvent(data)
-
-		// Delete event.
-		if err := bucket.Delete(s.eventKey(id)); err != nil {
+		event, err := s.getEventForDeletion(bucket, id)
+		if err != nil {
 			return err
 		}
 
-		// Delete time index.
-		indexKey := s.eventIndexKey(event.StartTime, id)
-		if err := bucket.Delete(indexKey); err != nil {
+		if err := s.deleteEventData(bucket, id, event); err != nil {
 			return err
 		}
 
-		// Delete all participants for this event.
-		prefix := append([]byte("part:"), id[:]...)
-		cursor := bucket.Cursor()
-		for k, _ := cursor.Seek(prefix); k != nil && len(k) > len(prefix); k, _ = cursor.Next() {
-			if !hasPrefix(k, prefix) {
-				break
-			}
-			if err := bucket.Delete(k); err != nil {
-				return err
-			}
-		}
-
-		return nil
+		return s.deleteEventParticipants(bucket, id)
 	})
+}
+
+// getEventForDeletion retrieves the event for deletion.
+func (s *MaskedEventStore) getEventForDeletion(bucket *bbolt.Bucket, id [32]byte) (*StoredMaskedEvent, error) {
+	data := bucket.Get(s.eventKey(id))
+	if data == nil {
+		return nil, ErrMaskedEventNotFound
+	}
+	return s.deserializeEvent(data), nil
+}
+
+// deleteEventData removes the event and its time index.
+func (s *MaskedEventStore) deleteEventData(bucket *bbolt.Bucket, id [32]byte, event *StoredMaskedEvent) error {
+	if err := bucket.Delete(s.eventKey(id)); err != nil {
+		return err
+	}
+
+	indexKey := s.eventIndexKey(event.StartTime, id)
+	return bucket.Delete(indexKey)
+}
+
+// deleteEventParticipants removes all participants for an event.
+func (s *MaskedEventStore) deleteEventParticipants(bucket *bbolt.Bucket, id [32]byte) error {
+	prefix := append([]byte("part:"), id[:]...)
+	cursor := bucket.Cursor()
+
+	for k, _ := cursor.Seek(prefix); k != nil && len(k) > len(prefix); k, _ = cursor.Next() {
+		if !hasPrefix(k, prefix) {
+			break
+		}
+		if err := bucket.Delete(k); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // AddParticipant adds a participant to an event.
@@ -406,12 +420,20 @@ func (s *MaskedEventStore) CountParticipants(eventID [32]byte) (int, error) {
 
 // CleanupExpiredEvents deletes events that ended before the given time.
 func (s *MaskedEventStore) CleanupExpiredEvents(before time.Time) (int, error) {
+	toDelete, err := s.collectExpiredEventIDs(before)
+	if err != nil {
+		return 0, err
+	}
+
+	return s.deleteCollectedEvents(toDelete), nil
+}
+
+// collectExpiredEventIDs gathers IDs of events that expired before the given time.
+func (s *MaskedEventStore) collectExpiredEventIDs(before time.Time) ([][32]byte, error) {
 	var toDelete [][32]byte
 
-	// First pass: collect events to delete.
 	err := s.db.bolt.View(func(tx *bbolt.Tx) error {
 		bucket := tx.Bucket(BucketMaskedEvents)
-
 		prefix := []byte("event:")
 		cursor := bucket.Cursor()
 
@@ -424,22 +446,21 @@ func (s *MaskedEventStore) CleanupExpiredEvents(before time.Time) (int, error) {
 				toDelete = append(toDelete, event.ID)
 			}
 		}
-
 		return nil
 	})
-	if err != nil {
-		return 0, err
-	}
 
-	// Second pass: delete.
+	return toDelete, err
+}
+
+// deleteCollectedEvents deletes events by ID and returns the count deleted.
+func (s *MaskedEventStore) deleteCollectedEvents(ids [][32]byte) int {
 	deleted := 0
-	for _, id := range toDelete {
+	for _, id := range ids {
 		if err := s.DeleteEvent(id); err == nil {
 			deleted++
 		}
 	}
-
-	return deleted, nil
+	return deleted
 }
 
 // Serialization helpers.
