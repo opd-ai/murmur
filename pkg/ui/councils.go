@@ -387,21 +387,31 @@ func (cp *CouncilPanel) Update() error {
 
 // handleListInput handles input in council list mode.
 func (cp *CouncilPanel) handleListInput() {
-	// Arrow keys for selection.
+	cp.handleCouncilNavigation()
+	cp.handleCouncilSelection()
+	cp.handleNewCouncilCreation()
+}
+
+// handleCouncilNavigation processes up/down navigation through the council list.
+func (cp *CouncilPanel) handleCouncilNavigation() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyUp) && cp.selectedCouncil > 0 {
 		cp.selectedCouncil--
 	}
 	if inpututil.IsKeyJustPressed(ebiten.KeyDown) && cp.selectedCouncil < len(cp.councils)-1 {
 		cp.selectedCouncil++
 	}
+}
 
-	// Enter to view detail.
+// handleCouncilSelection opens the detail view for the selected council.
+func (cp *CouncilPanel) handleCouncilSelection() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) && len(cp.councils) > 0 {
 		cp.currentCouncil = cp.councils[cp.selectedCouncil]
 		cp.mode = CouncilModeDetail
 	}
+}
 
-	// N for new council.
+// handleNewCouncilCreation initiates the council creation flow.
+func (cp *CouncilPanel) handleNewCouncilCreation() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyN) {
 		cp.mode = CouncilModeCreate
 		cp.createName = ""
@@ -517,13 +527,22 @@ func (cp *CouncilPanel) handleProposalsInput() {
 
 // handleScrollInput processes up/down arrow keys for scrolling.
 func (cp *CouncilPanel) handleScrollInput() {
+	cp.handleScrollNavigation()
+	cp.enforceScrollBounds()
+}
+
+// handleScrollNavigation processes up/down scroll input.
+func (cp *CouncilPanel) handleScrollNavigation() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyUp) && cp.scrollOffset > 0 {
 		cp.scrollOffset--
 	}
 	if inpututil.IsKeyJustPressed(ebiten.KeyDown) {
 		cp.scrollOffset++
 	}
+}
 
+// enforceScrollBounds clamps scroll offset to valid range.
+func (cp *CouncilPanel) enforceScrollBounds() {
 	if cp.currentCouncil != nil {
 		maxScroll := len(cp.currentCouncil.Proposals) - 1
 		if maxScroll < 0 {

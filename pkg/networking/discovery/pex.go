@@ -236,32 +236,17 @@ func (p *PEX) sendToPeer(ctx context.Context, peerID peer.ID, peers []PeerInfo) 
 func (p *PEX) handleStream(s network.Stream) {
 	defer s.Close()
 
-	if err := s.SetReadDeadline(time.Now().Add(PEXReadTimeout)); err != nil {
-		return
-	}
-
-	peers, err := readPeerList(s)
+	peers, err := p.receivePeerList(s)
 	if err != nil {
 		return
 	}
 
-	// Process received peers.
-	for _, pi := range peers {
-		// Skip self.
-		if pi.ID == p.h.ID() {
-			continue
-		}
+	p.processReceivedPeers(peers)
+	p.sendPeerListResponse(s)
+}
 
-		// Add to peerstore.
-		p.h.Peerstore().AddAddrs(pi.ID, pi.Addrs, time.Hour)
-
-		// Notify handler.
-		if p.handler != nil {
-			p.handler(peer.AddrInfo{ID: pi.ID, Addrs: pi.Addrs})
-		}
-	}
-
-	// Send our peers back.
+// sendPeerListResponse sends our peer sample back to the requester.
+func (p *PEX) sendPeerListResponse(s network.Stream) {
 	if err := s.SetWriteDeadline(time.Now().Add(PEXWriteTimeout)); err != nil {
 		return
 	}

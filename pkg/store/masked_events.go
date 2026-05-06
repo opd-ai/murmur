@@ -356,24 +356,28 @@ func (s *MaskedEventStore) scanTimeIndex(bucket *bbolt.Bucket, start, end time.T
 			break
 		}
 
-		eventTime, valid := s.extractTimeFromKey(k)
-		if !valid {
-			continue
-		}
-
-		if eventTime.Before(start) {
-			continue
-		}
-		if eventTime.After(end) {
-			break
-		}
-
-		event := s.loadEventByID(bucket, v)
-		if event != nil {
+		if event := s.processIndexEntry(bucket, k, v, start, end); event != nil {
 			events = append(events, event)
 		}
 	}
 	return events
+}
+
+// processIndexEntry validates and loads an event if it's within the time range.
+func (s *MaskedEventStore) processIndexEntry(bucket *bbolt.Bucket, key, value []byte, start, end time.Time) *StoredMaskedEvent {
+	eventTime, valid := s.extractTimeFromKey(key)
+	if !valid {
+		return nil
+	}
+
+	if eventTime.Before(start) {
+		return nil
+	}
+	if eventTime.After(end) {
+		return nil
+	}
+
+	return s.loadEventByID(bucket, value)
 }
 
 func (s *MaskedEventStore) extractTimeFromKey(key []byte) (time.Time, bool) {

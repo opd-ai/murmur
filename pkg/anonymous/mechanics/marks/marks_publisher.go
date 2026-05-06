@@ -153,19 +153,13 @@ func (r *MarkReceiver) processEvent(event *pb.MarkEvent) error {
 		return fmt.Errorf("failed to convert mark from protobuf")
 	}
 
-	// Check for duplicate.
-	existing, err := r.markStore.GetMark(mark.ID)
-	if err == nil && existing != nil {
-		return ErrMarkAlreadyPlaced
-	}
-
-	// Check expiration.
-	if mark.IsExpired() {
-		return ErrMarkNotFound // Return not found for expired marks.
-	}
-
-	// Add to store.
-	return r.addMarkToStore(mark)
+	return mechanics.ValidateReceivedItem(
+		mark,
+		func() (*Mark, error) { return r.markStore.GetMark(mark.ID) },
+		r.addMarkToStore,
+		ErrMarkAlreadyPlaced,
+		ErrMarkNotFound, // Return not found for expired marks.
+	)
 }
 
 // addMarkToStore adds a received mark to the store.

@@ -154,3 +154,35 @@ func GarbageCollectWithDB[T Expirable](
 
 	return removed
 }
+
+// ValidateReceivedItem validates a converted item: checks duplicate and expiration.
+// Consolidates the duplicate pattern from gifts_publisher.go:156-168 and marks_publisher.go:156-168.
+//
+// Steps after proto conversion:
+//  1. Check for duplicate in store
+//  2. Check expiration
+//  3. Add to store
+//
+// Returns nil on success, appropriate error on validation/storage failure.
+func ValidateReceivedItem[T Expirable](
+	item T,
+	checkDuplicate func() (T, error),
+	addToStore func(T) error,
+	duplicateErr error,
+	expiredErr error,
+) error {
+	// Check for duplicate.
+	var zero T
+	existing, err := checkDuplicate()
+	if err == nil && any(existing) != any(zero) {
+		return duplicateErr
+	}
+
+	// Check expiration.
+	if item.IsExpired() {
+		return expiredErr
+	}
+
+	// Add to store.
+	return addToStore(item)
+}

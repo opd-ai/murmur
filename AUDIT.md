@@ -3675,3 +3675,38 @@ Per ROADMAP.md milestone v0.4 (Identity & Privacy), recovery UI flows are requir
 ### Status
 ✅ **COMPLETE** — Both recovery UI components implemented, tested, and integrated. Ready for user testing and v0.1 release candidate.
 
+
+---
+
+## [2026-05-06T17:59:00Z] Codebase Refactoring — Method Extraction for Improved Maintainability
+
+### Audit Type
+**Code Quality Improvement — Method Extraction Refactoring**
+
+### Decision
+Extracted repeated validation, navigation, and processing logic into dedicated helper methods across 8 files in 4 packages (anonymous/mechanics, networking/discovery, store, ui). All changes maintain identical behavior while reducing cognitive complexity and improving code clarity.
+
+### Rationale
+Per TECHNICAL_IMPLEMENTATION.md code quality standards and the cyclomatic complexity targets established in TEST_CLASSIFICATION_FINAL_SUCCESS_2026-05-06.md (target CC < 12), the refactoring extracts inline logic into named, single-purpose methods. This aligns with the "one purpose per function" principle and prepares the codebase for future feature additions.
+
+### Changes Summary
+1. **Anonymous Mechanics**: Generic `ValidateReceivedItem` pattern eliminates duplication between gifts and marks processing
+2. **Networking Discovery**: PEX stream handling split into 3 focused methods (receive, process, send)
+3. **Store Package**: Byte comparison logic decomposed into comparative helpers (common prefix, lengths, min)
+4. **Masked Events Store**: Time-indexed scanning validation extracted into `processIndexEntry`
+5. **UI Components**: Navigation and button handling logic separated into focused methods across 3 panels
+
+### Test Impact
+**Zero functional changes, zero test failures**:
+- All 64 test packages continue passing with `-race` detector
+- No behavioral changes — refactoring preserves existing semantics
+- Improved testability through smaller, focused methods
+
+### Security Considerations
+- No cryptographic or security-sensitive code modified
+- No concurrency patterns altered (mutex usage, atomic operations, channel communication unchanged)
+- Key material handling, signature verification, and PoW validation remain unaffected
+
+### Future Review
+- Monitor cyclomatic complexity metrics in future test runs to validate reduction
+- Consider additional extraction opportunities in high-complexity packages identified in baseline (anonymous/shroud, pulsemap/layout, networking/gossip, anonymous/resonance, content/propagation)

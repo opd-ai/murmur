@@ -153,19 +153,13 @@ func (r *GiftReceiver) processEvent(event *pb.GiftEvent) error {
 		return fmt.Errorf("failed to convert gift from protobuf")
 	}
 
-	// Check for duplicate.
-	existing, err := r.giftStore.GetGift(gift.ID)
-	if err == nil && existing != nil {
-		return ErrDuplicateGift
-	}
-
-	// Check expiration.
-	if gift.IsExpired() {
-		return ErrGiftExpired
-	}
-
-	// Add to store.
-	return r.addGiftToStore(gift)
+	return mechanics.ValidateReceivedItem(
+		gift,
+		func() (*Gift, error) { return r.giftStore.GetGift(gift.ID) },
+		r.addGiftToStore,
+		ErrDuplicateGift,
+		ErrGiftExpired,
+	)
 }
 
 // addGiftToStore adds a received gift to the store.

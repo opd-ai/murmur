@@ -244,6 +244,12 @@ func (p *HuntTrackerPanel) handleDirectTabSelection() {
 
 // handleScrollInput handles scrolling with arrow keys.
 func (p *HuntTrackerPanel) handleScrollInput() {
+	p.handleSingleLineScroll()
+	p.handlePageScroll()
+}
+
+// handleSingleLineScroll processes single-line up/down scrolling.
+func (p *HuntTrackerPanel) handleSingleLineScroll() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyUp) {
 		if p.scrollOffset > 0 {
 			p.scrollOffset--
@@ -252,6 +258,10 @@ func (p *HuntTrackerPanel) handleScrollInput() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyDown) {
 		p.scrollOffset++
 	}
+}
+
+// handlePageScroll processes page up/down scrolling.
+func (p *HuntTrackerPanel) handlePageScroll() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyPageUp) {
 		p.scrollOffset -= 5
 		if p.scrollOffset < 0 {

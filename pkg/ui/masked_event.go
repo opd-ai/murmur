@@ -276,15 +276,23 @@ func (mp *MaskedEventPanel) handleListInput() {
 		return
 	}
 
-	// Navigate list.
+	mp.handleListNavigation()
+	mp.handleCreateNewEvent()
+	mp.handleEventSelection()
+}
+
+// handleListNavigation handles up/down arrow key navigation in the event list.
+func (mp *MaskedEventPanel) handleListNavigation() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyUp) && mp.selectedIdx > 0 {
 		mp.selectedIdx--
 	}
 	if inpututil.IsKeyJustPressed(ebiten.KeyDown) && mp.selectedIdx < len(mp.events)-1 {
 		mp.selectedIdx++
 	}
+}
 
-	// Create new event.
+// handleCreateNewEvent initiates the creation of a new masked event.
+func (mp *MaskedEventPanel) handleCreateNewEvent() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyN) {
 		mp.mode = MaskedEventModeCreate
 		mp.createTopic = ""
@@ -292,15 +300,16 @@ func (mp *MaskedEventPanel) handleListInput() {
 		mp.createMaxParticipants = 0
 		mp.createFieldIdx = 0
 	}
+}
 
-	// Select event to view/join.
+// handleEventSelection processes Enter key to select and view/join an event.
+func (mp *MaskedEventPanel) handleEventSelection() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) && len(mp.events) > 0 {
 		event := mp.events[mp.selectedIdx]
+		mp.activeEvent = event
 		if event.IsJoined {
-			mp.activeEvent = event
 			mp.mode = MaskedEventModeLobby
 		} else {
-			mp.activeEvent = event
 			mp.mode = MaskedEventModeJoin
 		}
 	}

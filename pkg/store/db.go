@@ -262,10 +262,15 @@ func hasPrefix(key, prefix []byte) bool {
 // compareBytes compares two byte slices lexicographically.
 // Returns -1 if a < b, 0 if a == b, 1 if a > b.
 func compareBytes(a, b []byte) int {
-	minLen := len(a)
-	if len(b) < minLen {
-		minLen = len(b)
+	if cmp := compareCommonPrefix(a, b); cmp != 0 {
+		return cmp
 	}
+	return compareLengths(a, b)
+}
+
+// compareCommonPrefix compares the common prefix of two byte slices.
+func compareCommonPrefix(a, b []byte) int {
+	minLen := minInt(len(a), len(b))
 	for i := 0; i < minLen; i++ {
 		if a[i] < b[i] {
 			return -1
@@ -274,6 +279,11 @@ func compareBytes(a, b []byte) int {
 			return 1
 		}
 	}
+	return 0
+}
+
+// compareLengths compares the lengths of two byte slices.
+func compareLengths(a, b []byte) int {
 	if len(a) < len(b) {
 		return -1
 	}
@@ -281,6 +291,14 @@ func compareBytes(a, b []byte) int {
 		return 1
 	}
 	return 0
+}
+
+// minInt returns the minimum of two integers.
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 // BucketStats contains statistics for a single bucket.

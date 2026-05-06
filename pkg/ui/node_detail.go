@@ -276,27 +276,30 @@ func (p *NodeDetailPanel) handleButtonClick(buttonIndex int) {
 
 	nodeID := p.nodeInfo.PublicKey
 
-	// Unlock before callback to avoid deadlock.
 	p.mu.Unlock()
 	defer p.mu.Lock()
 
+	p.dispatchButtonAction(buttonIndex, nodeID)
+}
+
+// dispatchButtonAction invokes the appropriate callback for the button index.
+func (p *NodeDetailPanel) dispatchButtonAction(buttonIndex int, nodeID [32]byte) {
 	switch buttonIndex {
-	case 0: // Compose Wave
-		if p.callbacks.OnComposeWave != nil {
-			p.callbacks.OnComposeWave(nodeID)
-		}
-	case 1: // Send Gift
-		if p.callbacks.OnSendGift != nil {
-			p.callbacks.OnSendGift(nodeID)
-		}
-	case 2: // Place Mark
-		if p.callbacks.OnPlaceMark != nil {
-			p.callbacks.OnPlaceMark(nodeID)
-		}
-	case 3: // Send Whisper
-		if p.callbacks.OnSendWhisper != nil {
-			p.callbacks.OnSendWhisper(nodeID)
-		}
+	case 0:
+		p.invokeCallback(p.callbacks.OnComposeWave, nodeID)
+	case 1:
+		p.invokeCallback(p.callbacks.OnSendGift, nodeID)
+	case 2:
+		p.invokeCallback(p.callbacks.OnPlaceMark, nodeID)
+	case 3:
+		p.invokeCallback(p.callbacks.OnSendWhisper, nodeID)
+	}
+}
+
+// invokeCallback calls the provided callback function if it's not nil.
+func (p *NodeDetailPanel) invokeCallback(callback func([32]byte), nodeID [32]byte) {
+	if callback != nil {
+		callback(nodeID)
 	}
 }
 

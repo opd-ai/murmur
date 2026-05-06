@@ -2408,3 +2408,40 @@ Executed autonomous test classification and resolution workflow. All 69 test pac
 - `CHANGELOG.md` — This entry (recovery UI flows implementation summary)
 - `AUDIT.md` — (To be updated with UI implementation audit entry)
 
+
+### Codebase Refactoring for Improved Maintainability — 2026-05-06
+
+**Extracted Validation and Navigation Methods**:
+- **Anonymous Mechanics** (`pkg/anonymous/mechanics/`):
+  - Extracted `ValidateReceivedItem` generic pattern for gift/mark duplicate checking and expiration validation
+  - Eliminates code duplication between `gifts_publisher.go` and `marks_publisher.go`
+- **Networking Discovery** (`pkg/networking/discovery/pex.go`):
+  - Split `handleStream` into three focused methods: `receivePeerList`, `processReceivedPeers`, `sendPeerListResponse`
+  - Improved testability and separation of concerns for peer exchange protocol
+- **Store Package** (`pkg/store/db.go`):
+  - Extracted `compareCommonPrefix`, `compareLengths`, `minInt` helpers from `compareBytes`
+  - Reduced cognitive complexity of lexicographic byte comparison
+- **Masked Events Store** (`pkg/store/masked_events.go`):
+  - Extracted `processIndexEntry` for time-indexed event scanning validation
+  - Improved readability of `scanTimeIndex` method
+- **UI Components** (`pkg/ui/`):
+  - Gift panel: Split effect selection into `handleEffectNavigation` + `handleEffectConfirmation`
+  - Masked event panel: Extracted `handleListNavigation`, `handleCreateNewEvent`, `handleEventSelection`
+  - Node detail panel: Extracted `dispatchButtonAction` + `invokeCallback` for button click handling
+
+**Impact**:
+- Zero functional changes — all behavior preserved
+- Improved code clarity and maintainability
+- Reduced function complexity (aligns with cyclomatic complexity < 12 target)
+- All 64 test packages continue passing with `-race` detector
+- Prepares codebase for future feature additions with cleaner structure
+
+**Files Modified** (8 files):
+- `pkg/anonymous/mechanics/gifts/gifts_publisher.go`
+- `pkg/anonymous/mechanics/marks/marks_publisher.go`
+- `pkg/networking/discovery/pex.go`
+- `pkg/store/db.go`
+- `pkg/store/masked_events.go`
+- `pkg/ui/gift.go`
+- `pkg/ui/masked_event.go`
+- `pkg/ui/node_detail.go`

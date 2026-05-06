@@ -203,7 +203,12 @@ func (p *GiftPanel) updateEffectSelect() {
 		return
 	}
 
-	// Navigate effects with up/down.
+	p.handleEffectNavigation()
+	p.handleEffectConfirmation()
+}
+
+// handleEffectNavigation processes up/down navigation through effects.
+func (p *GiftPanel) handleEffectNavigation() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyUp) || inpututil.IsKeyJustPressed(ebiten.KeyK) {
 		if p.selectedEffect > 0 {
 			p.selectedEffect--
@@ -214,8 +219,10 @@ func (p *GiftPanel) updateEffectSelect() {
 			p.selectedEffect++
 		}
 	}
+}
 
-	// Select effect with Enter.
+// handleEffectConfirmation proceeds to recipient selection on Enter.
+func (p *GiftPanel) handleEffectConfirmation() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) {
 		p.mode = GiftModeRecipient
 	}
