@@ -36,17 +36,35 @@ murmur
 
 # Analysis and development artifacts
 *.log
-*-baseline.json
-*-post.json
-*-new.json
+*-baseline*.json
+*-post*.json
+*-new*.json
 diff-report*.json
 pre-cleanup.json
 post-cleanup.json
-baseline.json
+baseline*.json
+post*.json
 final.json
 dedup_summary.json
 top_clones.json
 .loop-analysis.json
 test-output*.txt
+*-output*.txt
+*_SUMMARY*.txt
+*_OUTPUT*.txt
+*CONSOLIDATION*.txt
+*CONSOLIDATION*.md
 refactoring_summary.md
-tmp
+refactor_summary.txt
+*_2026-*.md
+*.test
+.test-*
+tmp/
+
+# Test-generated key directories
+i2pkeys/
+onionkeys/
+tlskeys/
+
+# Temporary build artifacts
+github.com/
