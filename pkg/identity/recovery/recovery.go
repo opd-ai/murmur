@@ -118,8 +118,8 @@ func validateTimestamp(timestamp int64) error {
 	return nil
 }
 
-// signEnrollment creates an Ed25519 signature over enrollment fields.
-func signEnrollment(enrollment *proto.RecoveryShareEnrollment, privateKey ed25519.PrivateKey) ([]byte, error) {
+// buildEnrollmentData serializes enrollment fields for signing/verification.
+func buildEnrollmentData(enrollment *proto.RecoveryShareEnrollment) []byte {
 	data := make([]byte, 0, len(enrollment.MasterPublicKey)+len(enrollment.RecipientPublicKey)+len(enrollment.EncryptedShare)+len(enrollment.Nonce)+20)
 	data = append(data, enrollment.MasterPublicKey...)
 	data = append(data, enrollment.RecipientPublicKey...)
@@ -142,6 +142,12 @@ func signEnrollment(enrollment *proto.RecoveryShareEnrollment, privateKey ed2551
 	}
 	data = append(data, tsBuf...)
 
+	return data
+}
+
+// signEnrollment creates an Ed25519 signature over enrollment fields.
+func signEnrollment(enrollment *proto.RecoveryShareEnrollment, privateKey ed25519.PrivateKey) ([]byte, error) {
+	data := buildEnrollmentData(enrollment)
 	return ed25519.Sign(privateKey, data), nil
 }
 
@@ -151,27 +157,7 @@ func verifyEnrollmentSignature(enrollment *proto.RecoveryShareEnrollment) error 
 		return ErrInvalidSignature
 	}
 
-	data := make([]byte, 0, len(enrollment.MasterPublicKey)+len(enrollment.RecipientPublicKey)+len(enrollment.EncryptedShare)+len(enrollment.Nonce)+20)
-	data = append(data, enrollment.MasterPublicKey...)
-	data = append(data, enrollment.RecipientPublicKey...)
-	data = append(data, enrollment.EncryptedShare...)
-	data = append(data, enrollment.Nonce...)
-
-	buf := make([]byte, 4)
-	for _, val := range []uint32{enrollment.ShareIndex, enrollment.Threshold, enrollment.TotalShares} {
-		buf[0] = byte(val >> 24)
-		buf[1] = byte(val >> 16)
-		buf[2] = byte(val >> 8)
-		buf[3] = byte(val)
-		data = append(data, buf...)
-	}
-
-	tsBuf := make([]byte, 8)
-	ts := uint64(enrollment.TimestampUnix)
-	for i := 0; i < 8; i++ {
-		tsBuf[7-i] = byte(ts >> (i * 8))
-	}
-	data = append(data, tsBuf...)
+	data := buildEnrollmentData(enrollment)
 
 	if !ed25519.Verify(enrollment.MasterPublicKey, data, enrollment.EnrollmentSignature) {
 		return ErrInvalidSignature

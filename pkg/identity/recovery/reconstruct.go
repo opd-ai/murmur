@@ -132,8 +132,8 @@ func CreateRecoveryRequest(
 	return req, nil
 }
 
-// signRecoveryRequest signs a recovery request.
-func signRecoveryRequest(req *proto.RecoveryRequest, privateKey ed25519.PrivateKey) []byte {
+// buildRecoveryRequestData serializes recovery request fields for signing/verification.
+func buildRecoveryRequestData(req *proto.RecoveryRequest) []byte {
 	data := make([]byte, 0, len(req.MasterPublicKey)+len(req.RequesterPublicKey)+len(req.ChallengeNonce)+8)
 	data = append(data, req.MasterPublicKey...)
 	data = append(data, req.RequesterPublicKey...)
@@ -146,6 +146,12 @@ func signRecoveryRequest(req *proto.RecoveryRequest, privateKey ed25519.PrivateK
 	}
 	data = append(data, tsBuf...)
 
+	return data
+}
+
+// signRecoveryRequest signs a recovery request.
+func signRecoveryRequest(req *proto.RecoveryRequest, privateKey ed25519.PrivateKey) []byte {
+	data := buildRecoveryRequestData(req)
 	return ed25519.Sign(privateKey, data)
 }
 
@@ -155,17 +161,7 @@ func ValidateRecoveryRequest(req *proto.RecoveryRequest) error {
 		return err
 	}
 
-	data := make([]byte, 0, len(req.MasterPublicKey)+len(req.RequesterPublicKey)+len(req.ChallengeNonce)+8)
-	data = append(data, req.MasterPublicKey...)
-	data = append(data, req.RequesterPublicKey...)
-	data = append(data, req.ChallengeNonce...)
-
-	tsBuf := make([]byte, 8)
-	ts := uint64(req.TimestampUnix)
-	for i := 0; i < 8; i++ {
-		tsBuf[7-i] = byte(ts >> (i * 8))
-	}
-	data = append(data, tsBuf...)
+	data := buildRecoveryRequestData(req)
 
 	if !ed25519.Verify(req.RequesterPublicKey, data, req.RequestSignature) {
 		return ErrInvalidSignature

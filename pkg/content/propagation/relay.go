@@ -165,23 +165,9 @@ func (r *Relay) markSeen(waveID string) {
 // evictOldestUnsafe removes the oldest entry from the cache.
 // MUST be called with r.mu held.
 func (r *Relay) evictOldestUnsafe() {
-	if len(r.seen) == 0 {
-		return
+	if oldestID := findOldestEntry(r.seen); oldestID != "" {
+		delete(r.seen, oldestID)
 	}
-
-	var oldestID string
-	var oldestTime time.Time
-	first := true
-
-	for id, t := range r.seen {
-		if first || t.Before(oldestTime) {
-			oldestID = id
-			oldestTime = t
-			first = false
-		}
-	}
-
-	delete(r.seen, oldestID)
 }
 
 // CleanExpired removes expired entries from the seen cache.

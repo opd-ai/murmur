@@ -338,23 +338,9 @@ func (b *Bridge) markInjected(waveID string) {
 // evictOldestInjectedUnsafe removes the oldest entry from the injection cache.
 // MUST be called with b.mu held.
 func (b *Bridge) evictOldestInjectedUnsafe() {
-	if len(b.injected) == 0 {
-		return
+	if oldestID := findOldestEntry(b.injected); oldestID != "" {
+		delete(b.injected, oldestID)
 	}
-
-	var oldestID string
-	var oldestTime time.Time
-	first := true
-
-	for id, t := range b.injected {
-		if first || t.Before(oldestTime) {
-			oldestID = id
-			oldestTime = t
-			first = false
-		}
-	}
-
-	delete(b.injected, oldestID)
 }
 
 // CleanExpiredInjections removes old entries from the injection cache.

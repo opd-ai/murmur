@@ -1,0 +1,21 @@
+=== RUN   TestGenerateTunnelID
+--- PASS: TestGenerateTunnelID (0.00s)
+=== RUN   TestTunnelIDValidate
+--- PASS: TestTunnelIDValidate (0.00s)
+=== RUN   TestTunnelIDString
+--- PASS: TestTunnelIDString (0.00s)
+=== RUN   TestParseTunnelAddress
+--- PASS: TestParseTunnelAddress (0.00s)
+=== RUN   TestEndToEndTunnel
+    integration_test.go:67: Tunnel started: murmur://tunnel/test-tunnel-fun4ffyqdrqsq
+    integration_test.go:97: ✅ End-to-end tunnel test passed
+--- PASS: TestEndToEndTunnel (0.40s)
+=== RUN   TestTunnelIDDeterminism
+--- PASS: TestTunnelIDDeterminism (0.00s)
+=== RUN   TestTunnelNotFound
+--- PASS: TestTunnelNotFound (0.10s)
+PASS
+ok  	github.com/opd-ai/murmur/pkg/tunneling	1.527s
+?   	github.com/opd-ai/murmur/pkg/tunneling/client	[no test files]
+?   	github.com/opd-ai/murmur/pkg/tunneling/initiator	[no test files]
+?   	github.com/opd-ai/murmur/pkg/tunneling/relay	[no test files]
