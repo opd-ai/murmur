@@ -4,6 +4,91 @@ This document tracks security-relevant decisions, code quality validations, devi
 
 ---
 
+## [2026-05-06T18:30:00Z] 100K Node Viewport Culling Implementation
+
+### Audit Type
+**Performance Validation — Large-Scale Graph Rendering**
+
+### Decision
+Implemented and validated 100,000 node viewport culling test per ROADMAP.md milestone. Test validates that CulledEngine can scale to 100k total nodes with effective viewport culling.
+
+### Implementation Summary
+**Test**: `pkg/pulsemap/layout/performance_test.go::TestPerformance100KNodesWithViewportCulling`
+- **Node Count**: 100,000 nodes with 300,000 edges (3 edges per node)
+- **Culling Strategy**: 5x zoom (1/5th world space visible), 200-unit margin
+- **Results**: 97.7% cull efficiency (97,721 nodes culled, 2,279 active)
+- **Performance**: 76.6ms average tick time (~13 FPS) with culling enabled
+- **Memory**: Test completes without OOM, validates architectural scalability
+
+### Performance Implications
+**Positive**: Viewport culling demonstrates effective large-scale optimization. With 97.7% of nodes culled, the system processes only 2,279 nodes per tick instead of 100,000, enabling acceptable performance for massive graphs. This validates the architectural decision to implement viewport culling as documented in PULSE_MAP.md and ROADMAP.md.
+
+**Limitation**: 13 FPS at 100k nodes (vs 60 FPS target for 500 nodes) indicates that while culling is effective, ultra-large graphs still require zoomed-in interaction. This is acceptable per UX design — users navigate large graphs by zooming into regions of interest.
+
+### Compliance
+- ✅ ROADMAP.md milestone "100,000 total nodes with viewport culling" achieved
+- ✅ Test passes with zero race conditions (`-race` enabled)
+- ✅ go vet clean
+- ✅ Culling efficiency >90% as expected (actual: 97.7%)
+- ✅ Per PULSE_MAP.md: "Viewport culling — only compute forces for visible nodes"
+
+### Recommendation
+Monitor memory usage at 100k scale via runtime.MemStats in future profiling tests. Current test validates functional correctness; memory budget validation deferred to integration testing with pkg/app context.
+
+---
+
+## [2026-05-06T18:22:00Z] Final Autonomous Test Classification — All Tests Passing
+
+### Audit Type
+**Code Quality Assurance — Final Autonomous Test Classification with Complexity Metrics**
+
+### Execution Summary
+Executed final comprehensive autonomous test classification workflow. Result: **All 65 test packages passing** (72 total including 7 without test files), zero failures, zero race conditions, baseline complexity metrics established.
+
+**Test Execution**:
+- **Total Packages**: 72 (65 with tests, 7 without)
+- **Pass Rate**: 100% (65/65 packages passing)
+- **Race Detector**: `-race -count=1` enabled
+- **Race Conditions**: 0 detected
+- **Total Test Time**: ~140 seconds
+- **Artifacts**: `test-output.txt` (72 lines), `baseline.json` (6.0 MB), `TEST_CLASSIFICATION_SUCCESS_2026-05-06.md`
+
+**Complexity Baseline**:
+- **Baseline File**: `baseline.json` (6.0 MB)
+- **Sections Analyzed**: functions, patterns (concurrency)
+- **Skip Tests**: Enabled (production code only)
+- **Future Use**: Root cause correlation for test failures
+
+**Test Health Metrics**:
+- Longest test: shadowplay @ 10.094s
+- All tests complete, no flaky tests observed
+- No timeouts or hangs detected
+
+**Subsystems Validated**:
+- Networking (13 packages): transport, gossip, discovery, relay, mesh, metrics, priority, health, wavesync
+- Identity (9 packages): keys, sigils, declarations, devices, ignition, modes, recovery, rotation
+- Content (6 packages): waves, pow, propagation, threads, storage, filtering
+- Anonymous (14 packages): specters, shroud, resonance + 10 mini-games
+- Pulse Map (5 packages): layout, rendering, interaction, overlays, effects
+- Onboarding (4 packages): flow, screens, tutorials, bootstrap
+- Infrastructure: store, app, config, cli, security, ui, proto
+
+### Security Implications
+**Positive**: Zero race conditions validates correct synchronization across all concurrent subsystems. Baseline complexity metrics captured for future correlation of test failures to implementation complexity.
+
+**No failures detected** — no classification or fixes required.
+
+### Compliance
+- ✅ All production code analyzed per workflow specification
+- ✅ Baseline metrics captured for future correlation
+- ✅ Race detector clean per Go best practices
+- ✅ Test suite ready for continuous integration
+
+### Recommendation
+Maintain baseline.json as reference. Re-run classification workflow on next test failure for complexity correlation.
+
+---
+
 ## [2026-05-06T18:06:00Z] Autonomous Test Classification — All Tests Passing
 
 ### Audit Type
@@ -3766,3 +3851,27 @@ Per TECHNICAL_IMPLEMENTATION.md code quality standards and the cyclomatic comple
 ### Future Review
 - Monitor cyclomatic complexity metrics in future test runs to validate reduction
 - Consider additional extraction opportunities in high-complexity packages identified in baseline (anonymous/shroud, pulsemap/layout, networking/gossip, anonymous/resonance, content/propagation)
+
+## 2026-05-06: Code Deduplication Round
+
+### Changes
+- Consolidated 5 clone groups across store, UI, and resonance packages
+- Created 3 new helper functions for common patterns
+- Reduced duplication from 0.49% to 0.45% (40 lines eliminated)
+
+### Security Considerations
+- No cryptographic code modified
+- All binary serialization helpers maintain exact byte ordering
+- UI helper maintains same rendering behavior
+- Resonance score computation preserves exact formula
+
+### Decisions
+- **Did NOT consolidate**: Idiomatic Go patterns (error handling, lock+defer)
+- **Did NOT consolidate**: Stub file duplications (build tag separation)
+- **Did NOT consolidate**: Cross-package patterns requiring new dependencies
+- Remaining 0.45% duplication is intentional and within acceptable bounds
+
+### Validation
+- Full test suite passes with race detection
+- No behavioral changes detected
+- Code review confirms helpers improve readability without abstraction overhead
