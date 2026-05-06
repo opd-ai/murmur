@@ -419,13 +419,7 @@ func (s *SurfaceScore) computeRawScore() int {
 	decayMultiplier := s.computeDecayMultiplier()
 	rawScore *= decayMultiplier
 
-	// Round to nearest integer.
-	finalScore := int(math.Round(rawScore))
-	if finalScore < 0 {
-		finalScore = 0
-	}
-
-	return finalScore
+	return roundAndClampScore(rawScore)
 }
 
 // computeConnectionAgeBonus calculates bonus points for long-standing connections.

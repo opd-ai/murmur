@@ -141,22 +141,16 @@ func (p *DeviceManagementPanel) Draw(screen *ebiten.Image) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	px, py, w, h, shouldRender := CheckPanelVisibilityAndCenter(screen, p.visible, p.width, p.height)
-	if !shouldRender {
+	px, py, contentY := DrawModalWithTitle(screen, p.visible, p.width, p.height, p.theme, "Device Management")
+	if px == 0 {
 		return
 	}
-
-	DrawModalOverlayAndPanel(screen, px, py, w, h, p.width, p.height, p.theme)
-
-	// Draw title
-	titleY := py + 30
-	drawUICenteredText(screen, "Device Management", float64(px+p.width/2), float64(titleY), p.theme.TextPrimary)
 
 	// Draw confirmation dialog or device list
 	if p.confirmRevoke && p.revokeTarget != nil {
 		p.drawRevokeConfirmation(screen, px, py)
 	} else {
-		p.drawDeviceList(screen, px, py+80)
+		p.drawDeviceList(screen, px, contentY)
 		p.drawButtons(screen, px, py+p.height-60)
 	}
 

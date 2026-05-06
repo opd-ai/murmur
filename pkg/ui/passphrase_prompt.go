@@ -147,16 +147,10 @@ func (p *PassphrasePromptPanel) Draw(screen *ebiten.Image) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	px, py, w, h, shouldRender := CheckPanelVisibilityAndCenter(screen, p.visible, p.width, p.height)
-	if !shouldRender {
+	px, py, _ := DrawModalWithTitle(screen, p.visible, p.width, p.height, p.theme, p.title)
+	if px == 0 {
 		return
 	}
-
-	DrawModalOverlayAndPanel(screen, px, py, w, h, p.width, p.height, p.theme)
-
-	// Draw title
-	titleY := py + 30
-	drawUICenteredText(screen, p.title, float64(px+p.width/2), float64(titleY), p.theme.TextPrimary)
 
 	// Draw message
 	msgY := py + 80

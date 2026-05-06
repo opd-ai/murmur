@@ -318,21 +318,12 @@ func (p *RecoveryEnrollmentPanel) Draw(screen *ebiten.Image) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	px, py, w, h, shouldRender := CheckPanelVisibilityAndCenter(screen, p.visible, p.width, p.height)
-	if !shouldRender {
+	px, py, contentY := DrawModalWithTitle(screen, p.visible, p.width, p.height, *p.theme, "Social Recovery Setup")
+	if px == 0 {
 		return
 	}
 
-	// Draw overlay and panel
-	DrawModalOverlayAndPanel(screen, px, py, w, h, p.width, p.height, *p.theme)
-
-	// Draw title
-	titleY := py + 30
-	drawUICenteredText(screen, "Social Recovery Setup", float64(px+p.width/2), float64(titleY), p.theme.TextPrimary)
-
 	// Draw content based on state
-	contentY := py + 80
-
 	switch p.state {
 	case EnrollmentStateSelectContacts:
 		p.drawContactSelection(screen, px, py, contentY)

@@ -133,6 +133,20 @@ func DrawModalOverlayAndPanel(screen *ebiten.Image, px, py, w, h, panelWidth, pa
 		float32(panelWidth), float32(panelHeight), 2.0, theme.PanelBorder, true)
 }
 
+// DrawModalWithTitle is a convenience helper that combines CheckPanelVisibilityAndCenter,
+// DrawModalOverlayAndPanel, and title drawing. Returns (px, py, contentY) where contentY
+// is the Y coordinate after the title (py + 80), or (0, 0, 0) if not visible.
+func DrawModalWithTitle(screen *ebiten.Image, visible bool, width, height int, theme Theme, title string) (px, py, contentY int) {
+	px, py, w, h, shouldRender := CheckPanelVisibilityAndCenter(screen, visible, width, height)
+	if !shouldRender {
+		return 0, 0, 0
+	}
+	DrawModalOverlayAndPanel(screen, px, py, w, h, width, height, theme)
+	titleY := py + 30
+	drawUICenteredText(screen, title, float64(px+width/2), float64(titleY), theme.TextPrimary)
+	return px, py, py + 80
+}
+
 // InsertRuneAtCursor inserts a rune into a string at the cursor position.
 // Returns the new string and incremented cursor position.
 // Consolidates the pattern:

@@ -29,6 +29,15 @@ type SpecterSignalWeights struct {
 	SpecterUptime       float64 // Coefficient: 10
 }
 
+// roundAndClampScore rounds a float64 score and clamps it to non-negative.
+func roundAndClampScore(rawScore float64) int {
+	finalScore := int(math.Round(rawScore))
+	if finalScore < 0 {
+		finalScore = 0
+	}
+	return finalScore
+}
+
 // DefaultSpecterWeights returns the standard coefficients per RESONANCE_SYSTEM.md.
 func DefaultSpecterWeights() SpecterSignalWeights {
 	return SpecterSignalWeights{
@@ -445,13 +454,7 @@ func (s *SpecterScore) computeRawScore() int {
 		chainScore + zkScore + shroudScore + councilScore +
 		ageScore + uptimeScore + ignitionScore
 
-	// Round to nearest integer.
-	finalScore := int(math.Round(rawScore))
-	if finalScore < 0 {
-		finalScore = 0
-	}
-
-	return finalScore
+	return roundAndClampScore(rawScore)
 }
 
 // computeConnectionScore: 10 * ln(1 + specter_connection_count)

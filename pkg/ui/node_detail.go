@@ -283,7 +283,7 @@ func (p *NodeDetailPanel) handleButtonClick(buttonIndex int) {
 }
 
 // dispatchButtonAction invokes the appropriate callback for the button index.
-func (p *NodeDetailPanel) dispatchButtonAction(buttonIndex int, nodeID [32]byte) {
+func (p *NodeDetailPanel) dispatchButtonAction(buttonIndex int, nodeID string) {
 	switch buttonIndex {
 	case 0:
 		p.invokeCallback(p.callbacks.OnComposeWave, nodeID)
@@ -297,7 +297,7 @@ func (p *NodeDetailPanel) dispatchButtonAction(buttonIndex int, nodeID [32]byte)
 }
 
 // invokeCallback calls the provided callback function if it's not nil.
-func (p *NodeDetailPanel) invokeCallback(callback func([32]byte), nodeID [32]byte) {
+func (p *NodeDetailPanel) invokeCallback(callback func(string), nodeID string) {
 	if callback != nil {
 		callback(nodeID)
 	}

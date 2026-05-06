@@ -249,21 +249,12 @@ func (w *KeyRotationWizard) Draw(screen *ebiten.Image) {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 
-	px, py, sw, sh, shouldRender := CheckPanelVisibilityAndCenter(screen, w.visible, w.width, w.height)
-	if !shouldRender {
+	px, py, contentY := DrawModalWithTitle(screen, w.visible, w.width, w.height, *w.theme, "Key Rotation")
+	if px == 0 {
 		return
 	}
 
-	// Draw overlay and panel
-	DrawModalOverlayAndPanel(screen, px, py, sw, sh, w.width, w.height, *w.theme)
-
-	// Draw title
-	titleY := py + 30
-	drawUICenteredText(screen, "Key Rotation", float64(px+w.width/2), float64(titleY), w.theme.TextPrimary)
-
 	// Draw content based on state
-	contentY := py + 80
-
 	switch w.state {
 	case RotationStateConfirm:
 		w.drawConfirm(screen, px, py, contentY)

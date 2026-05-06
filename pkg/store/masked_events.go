@@ -540,19 +540,28 @@ func (s *MaskedEventStore) deserializeEvent(data []byte) *StoredMaskedEvent {
 	offset += 4
 	e.CreatedAt = time.Unix(int64(binary.BigEndian.Uint64(data[offset:])), 0)
 	offset += 8
-	e.ParticipantCount = int(binary.BigEndian.Uint32(data[offset:]))
-	offset += 4
-	e.TotalWaves = int(binary.BigEndian.Uint32(data[offset:]))
-	offset += 4
-	e.TotalAmplifications = int(binary.BigEndian.Uint32(data[offset:]))
-	offset += 4
-	topicLen := int(binary.BigEndian.Uint16(data[offset:]))
-	offset += 2
-	if offset+topicLen <= len(data) {
-		e.Topic = string(data[offset : offset+topicLen])
-	}
+	fields := []int{0, 0, 0}
+	e.Topic, _ = readFieldsAndString(data, offset, &fields)
+	e.ParticipantCount = fields[0]
+	e.TotalWaves = fields[1]
+	e.TotalAmplifications = fields[2]
 
 	return e
+}
+
+// readFieldsAndString reads a sequence of uint32 fields followed by a length-prefixed string.
+func readFieldsAndString(data []byte, offset int, fields *[]int) (string, int) {
+	for i := range *fields {
+		(*fields)[i] = int(binary.BigEndian.Uint32(data[offset:]))
+		offset += 4
+	}
+	strLen := int(binary.BigEndian.Uint16(data[offset:]))
+	offset += 2
+	var str string
+	if offset+strLen <= len(data) {
+		str = string(data[offset : offset+strLen])
+	}
+	return str, offset + strLen
 }
 
 func (s *MaskedEventStore) serializeParticipant(p *StoredMaskedParticipant) []byte {
@@ -590,15 +599,10 @@ func (s *MaskedEventStore) deserializeParticipant(data []byte) *StoredMaskedPart
 	offset += 32
 	p.JoinedAt = time.Unix(int64(binary.BigEndian.Uint64(data[offset:])), 0)
 	offset += 8
-	p.WaveCount = int(binary.BigEndian.Uint32(data[offset:]))
-	offset += 4
-	p.AmplificationsReceived = int(binary.BigEndian.Uint32(data[offset:]))
-	offset += 4
-	pseudonymLen := int(binary.BigEndian.Uint16(data[offset:]))
-	offset += 2
-	if offset+pseudonymLen <= len(data) {
-		p.Pseudonym = string(data[offset : offset+pseudonymLen])
-	}
+	fields := []int{0, 0}
+	p.Pseudonym, _ = readFieldsAndString(data, offset, &fields)
+	p.WaveCount = fields[0]
+	p.AmplificationsReceived = fields[1]
 
 	return p
 }
