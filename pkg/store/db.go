@@ -33,6 +33,8 @@ var (
 	BucketDailyLimits  = []byte("daily_limits")
 	BucketMaskedEvents = []byte("masked_events")
 	BucketDevices      = []byte("devices")
+	// Continuity chain storage per docs/KEY_ROTATION.md §Continuity Chain Management.
+	BucketContinuityChains = []byte("continuity_chains")
 )
 
 // DB wraps a Bbolt database with MURMUR-specific operations.
@@ -93,6 +95,7 @@ func (db *DB) initBuckets() error {
 		BucketDailyLimits,
 		BucketMaskedEvents,
 		BucketDevices,
+		BucketContinuityChains,
 	}
 
 	return db.bolt.Update(func(tx *bbolt.Tx) error {
