@@ -342,49 +342,56 @@ func (r *WhisperRouter) Send(destination [32]byte, payload []byte) error {
 
 // HandleIncoming processes an incoming whisper message.
 func (r *WhisperRouter) HandleIncoming(data []byte) error {
-	// Decode message.
-	msg, err := decodeWhisperMessage(data)
+	msg, err := r.decodeAndValidateMessage(data)
 	if err != nil {
 		atomic.AddUint64(&r.stats.MessagesDropped, 1)
 		return err
 	}
 
-	// Check expiry.
-	if msg.IsExpired() {
-		atomic.AddUint64(&r.stats.MessagesDropped, 1)
-		return ErrWhisperExpired
-	}
-
-	// Check hop count.
-	if msg.HopCount >= WhisperChainMaxHops {
-		atomic.AddUint64(&r.stats.MessagesDropped, 1)
-		return ErrWhisperChainTooLong
-	}
-
-	// Try to decrypt (if we're the recipient).
-	payload, err := DecryptWhisper(msg, r.privateKey)
-	if err == nil {
-		// Successfully decrypted - we're the recipient.
-		atomic.AddUint64(&r.stats.MessagesReceived, 1)
-
-		r.mu.RLock()
-		handlers := r.handlers
-		r.mu.RUnlock()
-
-		for _, handler := range handlers {
-			if err := handler(msg, payload); err != nil {
-				// Handler error, but message was received.
-			}
-		}
-
+	if r.tryHandleAsRecipient(msg) {
 		return nil
 	}
 
-	// Decryption failed - we're not the recipient.
-	// For now, just track as relayed (actual relay logic would go here).
 	atomic.AddUint64(&r.stats.MessagesRelayed, 1)
-
 	return nil
+}
+
+func (r *WhisperRouter) decodeAndValidateMessage(data []byte) (*WhisperMessage, error) {
+	msg, err := decodeWhisperMessage(data)
+	if err != nil {
+		return nil, err
+	}
+
+	if msg.IsExpired() {
+		return nil, ErrWhisperExpired
+	}
+
+	if msg.HopCount >= WhisperChainMaxHops {
+		return nil, ErrWhisperChainTooLong
+	}
+
+	return msg, nil
+}
+
+func (r *WhisperRouter) tryHandleAsRecipient(msg *WhisperMessage) bool {
+	payload, err := DecryptWhisper(msg, r.privateKey)
+	if err != nil {
+		return false
+	}
+
+	atomic.AddUint64(&r.stats.MessagesReceived, 1)
+
+	r.mu.RLock()
+	handlers := r.handlers
+	r.mu.RUnlock()
+
+	for _, handler := range handlers {
+		if err := handler(msg, payload); err != nil {
+			// Handler error, but message was received.
+		}
+	}
+
+	return true
 }
 
 // Stats returns current router statistics.

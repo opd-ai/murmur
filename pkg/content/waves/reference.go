@@ -41,45 +41,70 @@ func ParseReferences(content []byte) []Reference {
 	text := string(content)
 	var refs []Reference
 
-	// Find wave:// references.
-	waveMatches := waveRefPattern.FindAllStringSubmatchIndex(text, -1)
-	for _, match := range waveMatches {
-		if len(match) >= 4 {
-			hexID := text[match[2]:match[3]]
-			id, err := hex.DecodeString(hexID)
-			if err == nil && len(id) == 32 {
-				refs = append(refs, Reference{
-					Type:       RefTypeWave,
-					ID:         id,
-					Raw:        text[match[0]:match[1]],
-					Start:      match[0],
-					End:        match[1],
-					HexEncoded: hexID,
-				})
-			}
-		}
-	}
-
-	// Find @mention references.
-	mentionMatches := mentionPattern.FindAllStringSubmatchIndex(text, -1)
-	for _, match := range mentionMatches {
-		if len(match) >= 4 {
-			hexHash := text[match[2]:match[3]]
-			hash, err := hex.DecodeString(hexHash)
-			if err == nil && len(hash) == 8 {
-				refs = append(refs, Reference{
-					Type:       RefTypeMention,
-					ID:         hash,
-					Raw:        text[match[0]:match[1]],
-					Start:      match[0],
-					End:        match[1],
-					HexEncoded: hexHash,
-				})
-			}
-		}
-	}
+	refs = append(refs, parseWaveReferences(text)...)
+	refs = append(refs, parseMentionReferences(text)...)
 
 	return refs
+}
+
+func parseWaveReferences(text string) []Reference {
+	var refs []Reference
+	waveMatches := waveRefPattern.FindAllStringSubmatchIndex(text, -1)
+	for _, match := range waveMatches {
+		if ref := tryParseWaveMatch(text, match); ref != nil {
+			refs = append(refs, *ref)
+		}
+	}
+	return refs
+}
+
+func parseMentionReferences(text string) []Reference {
+	var refs []Reference
+	mentionMatches := mentionPattern.FindAllStringSubmatchIndex(text, -1)
+	for _, match := range mentionMatches {
+		if ref := tryParseMentionMatch(text, match); ref != nil {
+			refs = append(refs, *ref)
+		}
+	}
+	return refs
+}
+
+func tryParseWaveMatch(text string, match []int) *Reference {
+	if len(match) < 4 {
+		return nil
+	}
+	hexID := text[match[2]:match[3]]
+	id, err := hex.DecodeString(hexID)
+	if err != nil || len(id) != 32 {
+		return nil
+	}
+	return &Reference{
+		Type:       RefTypeWave,
+		ID:         id,
+		Raw:        text[match[0]:match[1]],
+		Start:      match[0],
+		End:        match[1],
+		HexEncoded: hexID,
+	}
+}
+
+func tryParseMentionMatch(text string, match []int) *Reference {
+	if len(match) < 4 {
+		return nil
+	}
+	hexHash := text[match[2]:match[3]]
+	hash, err := hex.DecodeString(hexHash)
+	if err != nil || len(hash) != 8 {
+		return nil
+	}
+	return &Reference{
+		Type:       RefTypeMention,
+		ID:         hash,
+		Raw:        text[match[0]:match[1]],
+		Start:      match[0],
+		End:        match[1],
+		HexEncoded: hexHash,
+	}
 }
 
 // ParseWaveReferences extracts only Wave references from content.

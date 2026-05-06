@@ -198,6 +198,30 @@ Privacy limitations: the user's IP is still visible to direct peers and can be l
 
 ---
 
+## Transport Layer Anonymity
+
+MURMUR supports four transport modes that provide different levels of IP-level anonymity:
+
+### Mode A (Default/Clearnet)
+Shroud circuits run over standard TCP, QUIC, WebSocket, and WebRTC transports. Excellent latency (20-200ms). Zero external dependencies. IP address visible to direct MURMUR peers. ISP can see MURMUR usage (but not message content or recipient identities). Suitable for users who trust their ISP and government. Shroud provides unlinkability within the MURMUR social graph; clearnet transport does not hide your IP.
+
+### Mode B (Tor)
+All MURMUR traffic routed through Tor hidden services (.onion addresses). IP address hidden from all MURMUR peers via 3-hop onion routing through the Tor network. Higher latency (500-2000ms circuit setup, +200-800ms per hop). Requires external Tor daemon (port 9051). Two layers of anonymity: Tor hides your IP, Shroud hides your MURMUR identity graph. Suitable for users facing censorship, ISP surveillance, or network-level metadata collection. Does NOT protect against global passive adversary with majority Tor relay control.
+
+### Mode C (I2P)
+All MURMUR traffic routed through I2P destinations (.i2p addresses). IP address hidden via I2P's darknet design (unidirectional tunnels, no exit nodes). Moderate latency (300-1500ms). Requires external I2P router with SAMv3 bridge (port 7656). Better UDP support than Tor. Suitable for users already in I2P community. Does NOT protect against correlation attacks within the I2P network.
+
+### Mode D (Both Tor and I2P)
+MURMUR advertises both .onion and .i2p addresses. Peers connect via whichever network they have available. Maximum anonymity and censorship resistance (hard to block both Tor **and** I2P simultaneously). Worst latency (slowest network determines performance). Requires both Tor daemon and I2P router. Suitable for highest threat model users requiring redundancy.
+
+**Threat Model Alignment**: Clearnet mode (Mode A) is suitable for Adversary Class 1 and 2 (passive observers, malicious peers). Tor/I2P modes (B/C/D) extend protection to Adversary Class 3 (Sybil attackers with network-level observation). No mode protects against Adversary Class 4 (global passive adversary) — this requires Tor/I2P-level mitigations (bridges, pluggable transports) beyond MURMUR's scope.
+
+**Implementation**: Transport selection implemented via libp2p transport adapters (`pkg/networking/transport/onramp_tor/`, `pkg/networking/transport/onramp_i2p/`) using `github.com/go-i2p/onramp`. Startup diagnostics (`pkg/networking/transport/diagnostics/`) verify daemon reachability before host construction. See `TRANSPORT_ANONYMITY.md` for complete design rationale, adapter architecture, and security analysis.
+
+**Key Management**: Tor and I2P transport keys are **separate** from MURMUR Surface/Specter identity keys. Compromise of transport keys does NOT reveal MURMUR identity graph (Shroud layer still protects). Compromise of MURMUR identity keys does NOT reveal IP address if using Tor/I2P mode.
+
+---
+
 ## Resonance System Security
 
 ### Manipulation Resistance

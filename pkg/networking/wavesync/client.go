@@ -411,36 +411,50 @@ func (ss *SyncSession) FetchMissing(ctx context.Context, hashes [][]byte) (int, 
 
 	totalReceived := 0
 
-	// Process in batches
 	for i := 0; i < len(hashes); i += MaxMessagesPerRequest {
-		end := i + MaxMessagesPerRequest
-		if end > len(hashes) {
-			end = len(hashes)
-		}
+		batch := ss.getBatchHashes(hashes, i)
+		count, err := ss.processBatch(ctx, batch, cb)
+		totalReceived += count
 
-		batch := hashes[i:end]
-		resp, err := ss.client.RequestByHashes(ctx, ss.peer, batch)
 		if err != nil {
 			if totalReceived > 0 {
 				break
 			}
 			return totalReceived, err
 		}
-
-		for _, wave := range resp.Waves {
-			ss.mu.Lock()
-			ss.receivedWaves = append(ss.receivedWaves, wave)
-			ss.mu.Unlock()
-
-			if cb != nil {
-				cb(wave)
-			}
-		}
-
-		totalReceived += len(resp.Waves)
 	}
 
 	return totalReceived, nil
+}
+
+func (ss *SyncSession) getBatchHashes(hashes [][]byte, start int) [][]byte {
+	end := start + MaxMessagesPerRequest
+	if end > len(hashes) {
+		end = len(hashes)
+	}
+	return hashes[start:end]
+}
+
+func (ss *SyncSession) processBatch(ctx context.Context, batch [][]byte, cb func([]byte)) (int, error) {
+	resp, err := ss.client.RequestByHashes(ctx, ss.peer, batch)
+	if err != nil {
+		return 0, err
+	}
+
+	for _, wave := range resp.Waves {
+		ss.storeWave(wave)
+		if cb != nil {
+			cb(wave)
+		}
+	}
+
+	return len(resp.Waves), nil
+}
+
+func (ss *SyncSession) storeWave(wave []byte) {
+	ss.mu.Lock()
+	ss.receivedWaves = append(ss.receivedWaves, wave)
+	ss.mu.Unlock()
 }
 
 // ReceivedWaves returns all Waves received in this session.

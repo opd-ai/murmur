@@ -109,11 +109,8 @@ func (c *SpecterConnection) Accept(responder *Specter) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if responder == nil {
-		return ErrNilKeyPair
-	}
-	if !responder.IsAnnounced() {
-		return ErrSpecterNotAnnounced
+	if err := validateResponder(responder); err != nil {
+		return err
 	}
 	if c.ResponderPublicKey != responder.PublicKey {
 		return ErrSpecterNotAuthorized
@@ -122,7 +119,24 @@ func (c *SpecterConnection) Accept(responder *Specter) error {
 		return ErrMissingSpecterSignature
 	}
 
-	// Verify shared secret matches.
+	if err := c.verifySharedSecret(responder); err != nil {
+		return err
+	}
+
+	return c.signAsResponder(responder)
+}
+
+func validateResponder(responder *Specter) error {
+	if responder == nil {
+		return ErrNilKeyPair
+	}
+	if !responder.IsAnnounced() {
+		return ErrSpecterNotAnnounced
+	}
+	return nil
+}
+
+func (c *SpecterConnection) verifySharedSecret(responder *Specter) error {
 	sharedSecret, err := responder.DeriveSharedSecret(c.InitiatorPublicKey[:])
 	if err != nil {
 		return fmt.Errorf("deriving shared secret: %w", err)
@@ -131,15 +145,16 @@ func (c *SpecterConnection) Accept(responder *Specter) error {
 	if !bytesEqualSpecter(expectedHash, c.SharedSecretHash) {
 		return ErrSpecterNotAuthorized
 	}
+	return nil
+}
 
-	// Sign as responder.
+func (c *SpecterConnection) signAsResponder(responder *Specter) error {
 	payload := c.signingPayload()
 	signature, err := signWithSpecterKey(responder.PrivateKey[:], payload)
 	if err != nil {
 		return fmt.Errorf("signing connection: %w", err)
 	}
 	c.ResponderSignature = signature
-
 	return nil
 }
 

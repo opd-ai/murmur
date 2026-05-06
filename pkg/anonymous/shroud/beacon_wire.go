@@ -475,21 +475,25 @@ func (r *BeaconWaveReceiver) HandleIncoming(data []byte) error {
 		return err
 	}
 
-	// Ignore our own advertisements.
+	if err := r.validateAndRegisterWave(wave); err != nil {
+		return err
+	}
+
+	r.notifyHandlers(wave)
+	return nil
+}
+
+func (r *BeaconWaveReceiver) validateAndRegisterWave(wave *BeaconWave) error {
 	if wave.RelayPeerID == r.selfID {
 		return nil
 	}
 
-	// Check expiry.
 	if wave.IsExpired() {
 		atomic.AddUint64(&r.stats.WavesExpired, 1)
 		return ErrBeaconWaveExpired
 	}
 
-	// Check if this is a new relay or an update.
 	_, existed := r.beacon.GetRelay(wave.RelayPeerID)
-
-	// Register the relay.
 	r.beacon.AddRelay(wave.ToRelayInfo())
 
 	if existed {
@@ -499,8 +503,10 @@ func (r *BeaconWaveReceiver) HandleIncoming(data []byte) error {
 	}
 
 	atomic.AddUint64(&r.stats.WavesProcessed, 1)
+	return nil
+}
 
-	// Call handlers.
+func (r *BeaconWaveReceiver) notifyHandlers(wave *BeaconWave) {
 	r.mu.RLock()
 	handlers := r.handlers
 	r.mu.RUnlock()
@@ -510,8 +516,6 @@ func (r *BeaconWaveReceiver) HandleIncoming(data []byte) error {
 			// Log but continue.
 		}
 	}
-
-	return nil
 }
 
 // RegisterHandler registers a handler for beacon waves.

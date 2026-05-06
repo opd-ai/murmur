@@ -41,6 +41,11 @@ var (
 	ErrNilStore    = errors.New("store is nil")
 )
 
+type waveWithTime struct {
+	id   string
+	time int64
+}
+
 // Cache provides in-memory and persistent Wave storage with TTL enforcement.
 type Cache struct {
 	mu      sync.RWMutex
@@ -356,11 +361,12 @@ func (c *Cache) EvictOldest(count int) int {
 		return 0
 	}
 
-	// Collect all waves with their timestamps.
-	type waveWithTime struct {
-		id   string
-		time int64
-	}
+	waves := c.collectWavesWithTime()
+	sortWavesByTime(waves)
+	return c.evictWaves(waves, count)
+}
+
+func (c *Cache) collectWavesWithTime() []waveWithTime {
 	waves := make([]waveWithTime, 0, len(c.memory))
 	for id, wave := range c.memory {
 		waves = append(waves, waveWithTime{
@@ -368,8 +374,10 @@ func (c *Cache) EvictOldest(count int) int {
 			time: wave.CreatedAt,
 		})
 	}
+	return waves
+}
 
-	// Sort by timestamp ascending (oldest first).
+func sortWavesByTime(waves []waveWithTime) {
 	for i := 0; i < len(waves); i++ {
 		for j := i + 1; j < len(waves); j++ {
 			if waves[i].time > waves[j].time {
@@ -377,14 +385,14 @@ func (c *Cache) EvictOldest(count int) int {
 			}
 		}
 	}
+}
 
-	// Evict up to count oldest waves.
+func (c *Cache) evictWaves(waves []waveWithTime, count int) int {
 	evicted := 0
 	for i := 0; i < len(waves) && i < count; i++ {
 		delete(c.memory, waves[i].id)
 		evicted++
 	}
-
 	return evicted
 }
 

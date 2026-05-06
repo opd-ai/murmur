@@ -498,47 +498,71 @@ func (c *ZKClaim) SetBytes(data []byte) error {
 	}
 
 	pos := 0
+	var err error
 
-	// Type.
+	pos, err = c.decodeType(data, pos)
+	if err != nil {
+		return err
+	}
+
+	pos, err = c.decodeSpecterID(data, pos)
+	if err != nil {
+		return err
+	}
+
+	pos, err = c.decodeThreshold(data, pos)
+	if err != nil {
+		return err
+	}
+
+	pos, err = c.decodeCommitment(data, pos)
+	if err != nil {
+		return err
+	}
+
+	return c.decodeProof(data, pos)
+}
+
+func (c *ZKClaim) decodeType(data []byte, pos int) (int, error) {
 	c.Type = ZKClaimType(data[pos])
-	pos++
+	return pos + 1, nil
+}
 
-	// SpecterID.
+func (c *ZKClaim) decodeSpecterID(data []byte, pos int) (int, error) {
 	idLen := int(binary.LittleEndian.Uint16(data[pos : pos+2]))
 	pos += 2
 	if pos+idLen > len(data) {
-		return ErrInvalidClaim
+		return pos, ErrInvalidClaim
 	}
 	c.SpecterID = string(data[pos : pos+idLen])
-	pos += idLen
+	return pos + idLen, nil
+}
 
-	// Threshold.
+func (c *ZKClaim) decodeThreshold(data []byte, pos int) (int, error) {
 	if pos+8 > len(data) {
-		return ErrInvalidClaim
+		return pos, ErrInvalidClaim
 	}
 	c.Threshold = int64(binary.LittleEndian.Uint64(data[pos : pos+8]))
-	pos += 8
+	return pos + 8, nil
+}
 
-	// Commitment.
+func (c *ZKClaim) decodeCommitment(data []byte, pos int) (int, error) {
 	if pos+32 > len(data) {
-		return ErrInvalidClaim
+		return pos, ErrInvalidClaim
 	}
 	var commitBytes [32]byte
 	copy(commitBytes[:], data[pos:pos+32])
 	if err := c.Commitment.SetBytes(commitBytes); err != nil {
-		return err
+		return pos, err
 	}
-	pos += 32
+	return pos + 32, nil
+}
 
-	// Proof.
+func (c *ZKClaim) decodeProof(data []byte, pos int) error {
 	if pos+200 > len(data) {
 		return ErrInvalidClaim
 	}
-	if err := c.Proof.SetProofBytes(data[pos:]); err != nil {
-		return err
-	}
-
-	return nil
+	return c.Proof.SetProofBytes(data[pos:])
 }
 
 // ProofSizeBytes returns the expected size of a ZK proof.

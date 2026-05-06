@@ -47,18 +47,29 @@ func ValidateAdvertisement(ad *pb.RelayAdvertisement) error {
 		return ErrInvalidPacket
 	}
 
-	// Check expiry.
+	if err := checkAdvertisementExpiry(ad); err != nil {
+		return err
+	}
+
+	if err := verifyAdvertisementSignature(ad); err != nil {
+		return err
+	}
+
+	return validateCurve25519Key(ad)
+}
+
+func checkAdvertisementExpiry(ad *pb.RelayAdvertisement) error {
 	now := time.Now().Unix()
 	if ad.ExpiresAt < now {
 		return ErrRelayNotFound // Expired.
 	}
-
-	// Check timestamp not too far in future.
 	if ad.Timestamp > now+300 {
 		return ErrInvalidPacket // Future timestamp.
 	}
+	return nil
+}
 
-	// Verify signature.
+func verifyAdvertisementSignature(ad *pb.RelayAdvertisement) error {
 	if len(ad.Ed25519Pubkey) != ed25519.PublicKeySize {
 		return ErrInvalidPacket
 	}
@@ -70,12 +81,13 @@ func ValidateAdvertisement(ad *pb.RelayAdvertisement) error {
 	if !ed25519.Verify(ad.Ed25519Pubkey, signatureData, ad.Signature) {
 		return ErrDecryptionFailed
 	}
+	return nil
+}
 
-	// Validate Curve25519 public key.
+func validateCurve25519Key(ad *pb.RelayAdvertisement) error {
 	if len(ad.Curve25519Pubkey) != 32 {
 		return ErrInvalidPacket
 	}
-
 	return nil
 }
 

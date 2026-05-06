@@ -56,34 +56,11 @@ type Config struct {
 
 // NewREPL creates a new interactive REPL with the given subsystems.
 func NewREPL(cfg Config) (*REPL, error) {
-	if cfg.Host == nil {
-		return nil, errors.New("host is required")
-	}
-	if cfg.PubSub == nil {
-		return nil, errors.New("pubsub is required")
-	}
-	if cfg.KeyPair == nil {
-		return nil, errors.New("keypair is required")
-	}
-	if cfg.WaveCache == nil {
-		return nil, errors.New("wave cache is required")
+	if err := validateREPLConfig(cfg); err != nil {
+		return nil, err
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-
-	// Default to standard streams if not specified.
-	in := cfg.In
-	if in == nil {
-		in = os.Stdin
-	}
-	out := cfg.Out
-	if out == nil {
-		out = os.Stdout
-	}
-	errOut := cfg.Err
-	if errOut == nil {
-		errOut = os.Stderr
-	}
 
 	return &REPL{
 		host:      cfg.Host,
@@ -92,29 +69,71 @@ func NewREPL(cfg Config) (*REPL, error) {
 		waveCache: cfg.WaveCache,
 		ctx:       ctx,
 		cancel:    cancel,
-		in:        in,
-		out:       out,
-		err:       errOut,
+		in:        defaultReader(cfg.In, os.Stdin),
+		out:       defaultWriter(cfg.Out, os.Stdout),
+		err:       defaultWriter(cfg.Err, os.Stderr),
 	}, nil
+}
+
+func validateREPLConfig(cfg Config) error {
+	if cfg.Host == nil {
+		return errors.New("host is required")
+	}
+	if cfg.PubSub == nil {
+		return errors.New("pubsub is required")
+	}
+	if cfg.KeyPair == nil {
+		return errors.New("keypair is required")
+	}
+	if cfg.WaveCache == nil {
+		return errors.New("wave cache is required")
+	}
+	return nil
+}
+
+func defaultReader(stream, fallback io.Reader) io.Reader {
+	if stream == nil {
+		return fallback
+	}
+	return stream
+}
+
+func defaultWriter(stream, fallback io.Writer) io.Writer {
+	if stream == nil {
+		return fallback
+	}
+	return stream
 }
 
 // Run starts the REPL and blocks until quit command or context cancellation.
 func (r *REPL) Run() error {
-	// Start background goroutine to print incoming Waves.
 	r.wg.Add(1)
 	go r.printIncomingWaves()
 
+	r.printWelcome()
+
+	scanner := bufio.NewScanner(r.in)
+	r.runCommandLoop(scanner)
+
+	if err := scanner.Err(); err != nil {
+		fmt.Fprintf(r.err, "Scanner error: %v\n", err)
+	}
+
+	r.shutdown()
+	return nil
+}
+
+func (r *REPL) printWelcome() {
 	fmt.Fprintln(r.out, "MURMUR CLI — Interactive Mode")
 	fmt.Fprintln(r.out, "Type 'help' for available commands, 'quit' to exit.")
 	fmt.Fprintln(r.out)
+}
 
-	scanner := bufio.NewScanner(r.in)
-
+func (r *REPL) runCommandLoop(scanner *bufio.Scanner) {
 	for {
 		fmt.Fprint(r.out, "murmur> ")
 
 		if !scanner.Scan() {
-			// EOF or error.
 			break
 		}
 
@@ -130,17 +149,13 @@ func (r *REPL) Run() error {
 			fmt.Fprintf(r.err, "Error: %v\n", err)
 		}
 	}
+}
 
-	if err := scanner.Err(); err != nil {
-		fmt.Fprintf(r.err, "Scanner error: %v\n", err)
-	}
-
-	// Clean shutdown.
+func (r *REPL) shutdown() {
 	r.cancel()
 	r.wg.Wait()
-
 	fmt.Fprintln(r.out, "Goodbye!")
-	return nil
+}
 }
 
 var errQuit = errors.New("quit requested")

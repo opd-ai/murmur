@@ -309,33 +309,50 @@ func (r *ForgeReceiver) handleContribution(event *pb.ForgeEvent) error {
 		return fmt.Errorf("contribution event missing contribution data")
 	}
 
+	forge, forgeID, err := r.getForge(event)
+	if err != nil {
+		return err
+	}
+
+	contrib := event.Contribution
+	if isAmplification := r.tryHandleAmplification(forge, contrib); isAmplification {
+		return nil
+	}
+
+	return r.addNewEntry(forge, forgeID, contrib)
+}
+
+func (r *ForgeReceiver) getForge(event *pb.ForgeEvent) (*Forge, [32]byte, error) {
 	var forgeID [32]byte
 	copy(forgeID[:], event.ProjectId)
 
 	forge := r.forgeStore.GetForge(forgeID)
 	if forge == nil {
-		return fmt.Errorf("forge not found: %x", forgeID)
+		return nil, forgeID, fmt.Errorf("forge not found: %x", forgeID)
+	}
+	return forge, forgeID, nil
+}
+
+func (r *ForgeReceiver) tryHandleAmplification(forge *Forge, contrib *pb.ForgeContribution) bool {
+	if len(contrib.Contribution) != 32 {
+		return false
 	}
 
-	// Check if this is a new entry or an amplification.
-	contrib := event.Contribution
-	if len(contrib.Contribution) == 32 {
-		// Could be an amplification (entry ID reference).
-		// Try to find existing entry with this ID.
-		var entryID [32]byte
-		copy(entryID[:], contrib.Contribution)
-		for _, entry := range forge.Entries {
-			if entry.ID == entryID {
-				// This is an amplification.
-				var amplifierKey [32]byte
-				copy(amplifierKey[:], contrib.SpecterPubkey)
-				forge.AmplifyEntry(entryID, amplifierKey, 1.0) // Default weight.
-				return nil
-			}
+	var entryID [32]byte
+	copy(entryID[:], contrib.Contribution)
+
+	for _, entry := range forge.Entries {
+		if entry.ID == entryID {
+			var amplifierKey [32]byte
+			copy(amplifierKey[:], contrib.SpecterPubkey)
+			forge.AmplifyEntry(entryID, amplifierKey, 1.0) // Default weight.
+			return true
 		}
 	}
+	return false
+}
 
-	// It's a new entry.
+func (r *ForgeReceiver) addNewEntry(forge *Forge, forgeID [32]byte, contrib *pb.ForgeContribution) error {
 	var specterKey [32]byte
 	copy(specterKey[:], contrib.SpecterPubkey)
 
