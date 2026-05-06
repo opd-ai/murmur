@@ -348,4 +348,52 @@ For device security, keep your operating system and MURMUR client updated. Use f
 
 For key management, back up your private keys to a secure offline location (encrypted USB drive, paper backup in a secure location). If you suspect key compromise, generate a new identity immediately and notify your contacts through out-of-band channels.
 
+---
+
+## Application-Layer Abuse Mitigations
+
+MURMUR's decentralized architecture creates unique abuse surfaces beyond the cryptographic adversaries described above. The network implements layered defenses against spam, harassment, griefing, and future tunnel abuse.
+
+### Spam & Flooding Resistance
+
+All Waves require SHA-256 Proof of Work with difficulty 20 (2–5 seconds per Wave). GossipSub peer scoring prunes low-quality peers from the mesh. Bloom filters deduplicate Waves at ingress. Per-peer rate limiting enforces a maximum of 10 Waves/minute from any single peer.
+
+Low-Resonance Specters face increased PoW difficulty: unranked Specters (<25 Resonance) compute difficulty 24 (8–20 seconds per Wave) and have Waves limited to 1-hop propagation. This prevents throwaway account spam while allowing legitimate users to progress naturally.
+
+### Denial of Service Mitigation
+
+Connection limits enforce a maximum of 500 inbound and 50 outbound libp2p connections. Shroud circuit quotas limit each peer to 10 concurrent circuits and 3 new circuit requests per minute. PoW nonce validation performs fast rejection for invalid Waves before expensive SHA-256 verification.
+
+### Harassment Controls
+
+Users can block Surface identities at the identity layer (see `pkg/identity/`). Blocked peers' Waves are invisible to the blocker. Temporary mute lists (7/30 days) provide non-permanent filtering. Privacy modes (Guarded/Fortress) reject Waves from non-connection identities.
+
+Specters can block other Specters starting at Resonance 50 to prevent evasion via new Specter creation. Fortress-mode users only see Waves from connections or high-Resonance (≥100) Specters, limiting exposure to unknown actors.
+
+### Game Griefing Mitigation
+
+Mini-games enforce Resonance thresholds: basic games require Resonance ≥25, Shadow Play requires ≥200. Early disconnection from games incurs a -5 Resonance penalty. Content filtering validates UTF-8, enforces length limits, and applies optional profanity filters. Game state validation detects cheating via server-side coordination.
+
+### Progressive Trust via Resonance
+
+The Resonance system implements progressive trust: new Specters face restrictions (higher PoW, limited propagation, no game access) that relax as Resonance increases. Zero-knowledge Bulletproofs allow Specters to prove Resonance thresholds without revealing exact scores or interaction history.
+
+Resonance progression is designed for ~4 weeks of normal activity to reach Phantom tier (100 Resonance), preventing throwaway accounts while allowing legitimate participation. See `RESONANCE_SYSTEM.md` for scoring details and `ABUSE_MODEL.md` for complete abuse category enumeration and mitigation mapping.
+
+### Host Rights & Anonymity-Preserving Refusal
+
+Relay operators may refuse traffic based on resource limits, published content policies, or abuse signatures detected via timing/volume analysis. Refusal is performed without de-anonymizing traffic sources. Operators publish machine-readable `host-policy.json` files specifying refusal policies, allowing circuit initiators to route around restrictive relays.
+
+Operators must not attempt de-anonymization, collude to correlate traffic, or selectively censor beyond published policies. This framework protects operators from legal liability while preserving user anonymity. See `ABUSE_MODEL.md` for complete host rights specification.
+
+### Tunnel Abuse Mitigations (Future)
+
+When the tunneling feature launches (Phase 6, v1.1+), additional mitigations will enforce content-type allowlists, hostname allowlists, per-tunnel bandwidth quotas, and automated takedown protocols. Tunneling will be disabled by default; operators must explicitly opt in and accept legal risk. See `ABUSE_MODEL.md` §5 for tunnel abuse threat analysis.
+
+---
+
+## Security Recommendations for Users
+
+Users seeking the strongest privacy and security posture should adopt the following practices.
+
 For operational security, be aware that your activity patterns (publication timing, response latency, topic interests) can be used to correlate your identities across layers or across platforms. Vary your behavior if you want strong unlinkability. Do not discuss information on the Anonymous Layer that uniquely identifies you on the Surface Layer.

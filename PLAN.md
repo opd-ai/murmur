@@ -185,6 +185,7 @@ Make the primary user path match the product identity.
 [ ] 1.3  A/B the two surfaces internally with 10+ testers
          - Measure time-to-first-message and time-to-first-game
          - Decide based on data, not aesthetics
+         - **BLOCKED**: Requires actual user testing infrastructure not available in current environment
 
 [x] 1.4  Design empty-state and low-population states for Pulse Map
          - What does a 5-node graph look like?
@@ -275,32 +276,37 @@ PHASE 4: ANTI-ABUSE FRAMEWORK (Weeks 10–16)
 Required before public launch. Anonymous + games + tunneling =
 attractive target for abuse. Design the levers now.
 
-[ ] 4.1  Enumerate abuse categories
+[x] 4.1  Enumerate abuse categories
          - Spam / flood / DoS
          - Harassment within conversations/games
          - Griefing in games (quitting, cheating, slur injection)
          - Tunnel abuse (when tunneling is live): malware C2,
            phishing, CSAM distribution
+         - **COMPLETED 2026-05-06**: Created ABUSE_MODEL.md §1 with comprehensive enumeration of 5 abuse categories: (1) Spam & Flooding (HIGH risk: Surface/Specter spam, Gossip flooding, DHT pollution), (2) Denial of Service (MEDIUM risk: connection exhaustion, Shroud circuit abuse, PoW verification bomb), (3) Harassment & Targeted Abuse (HIGH risk: direct message harassment, Specter stalking, doxxing, coordinated brigading), (4) Game Griefing (MEDIUM risk: rage quitting, cheating, slur injection, Sybil gaming), (5) Tunnel Abuse (CRITICAL risk: malware C2, phishing, CSAM, network scanning). Each category includes attack vectors, risk levels, active mitigations, and planned enhancements.
 
-[ ] 4.2  Map each abuse category to a mitigation lever
+[x] 4.2  Map each abuse category to a mitigation lever
          - PoW (spam)
          - Resonance gating (new-account griefing)
          - Per-circuit rate limits (flood)
          - Host-level refusal policies (tunnel abuse)
          - Block/mute at identity layer
          - Community-moderated game rooms
+         - **COMPLETED 2026-05-06**: Created ABUSE_MODEL.md §2 with comprehensive mitigation matrix mapping each abuse category to primary/secondary mitigations and residual risks. Key mappings: Spam → PoW (20-24) + GossipSub scoring + deduplication + rate limits; DoS → Connection limits + circuit quotas + fast-fail validation; Harassment → Identity blocking + mute lists + privacy modes + Resonance visibility; Game Griefing → Resonance gates (25/200) + quit penalties + content filtering + state validation; Tunnel Abuse → Content-Type/Hostname allowlists + bandwidth quotas + takedown protocol + operator opt-in. Documented layered defense principle: no single mitigation sufficient, each layer reduces attack surface.
 
-[ ] 4.3  Design ZK-Resonance-based progressive trust
+[x] 4.3  Design ZK-Resonance-based progressive trust
          - Low-Resonance Specters: limited mechanics, higher PoW
          - Milestones unlock new capabilities (already in v0.1)
          - Ensure ZK proofs don't leak identity across layers
+         - **COMPLETED 2026-05-06**: Created ABUSE_MODEL.md §3 with complete ZK-Resonance progressive trust specification. Defined 6 Resonance tiers (Shade 25, Wraith 50, Shade-Wraith 75, Phantom 100, Council-Eligible 200, Abyss 500) with capability unlocks and abuse mitigation at each tier. Specified low-Resonance restrictions: <25 Resonance faces PoW difficulty 24 (8-20s/Wave), 2-hop circuits, 1-hop propagation, no games, 5 Waves/hour; 25-49 faces PoW 22, 3-hop circuits, 2-hop propagation, basic games only, 10 Waves/hour. Designed ZK Resonance proofs using Bulletproofs + Pedersen commitments over Ristretto255 (proof size ~700 bytes, verification ~5ms, computational soundness + zero-knowledge). Progression rate: ~4 weeks to Phantom (100), ~12 weeks to Council (200). Implementation status: ZK infrastructure complete, game integration complete.
 
-[ ] 4.4  Design an abuse-response model that preserves anonymity
+[x] 4.4  Design an abuse-response model that preserves anonymity
          - Hosts can refuse specific traffic patterns without
            deanonymizing the source
          - Publish a "host rights" document: what operators may refuse
+         - **COMPLETED 2026-05-06**: Created ABUSE_MODEL.md §4 with complete anonymity-preserving abuse-response framework. Defined Host Rights Framework: operators MAY refuse traffic based on resource limits, content policies, abuse signatures, or peer scores; operators MUST NOT attempt de-anonymization, collude across hops, selectively censor beyond policies, or refuse based on destination identity; operators MUST publish machine-readable policies, provide refusal reasons, delete logs after 7 days. Designed abuse signature detection using timing/volume analysis only (example: malware C2 detected via periodic beacon patterns; bandwidth abuse via per-circuit accounting) without decrypting Shroud layers. Specified machine-readable host-policy.json format with max_concurrent_circuits, max_bandwidth_per_circuit, allowed_tunnel_content_types, allowed_tunnel_destinations, abuse_detection thresholds, refusal_reasons, contact, last_updated fields. Circuit initiators fetch policies via DHT before construction; can route around restrictive relays.
 
-[ ] 4.5  Write ABUSE_MODEL.md and integrate into SECURITY_PRIVACY.md
+[x] 4.5  Write ABUSE_MODEL.md and integrate into SECURITY_PRIVACY.md
+         - **COMPLETED 2026-05-06**: Created ABUSE_MODEL.md (23KB, 7 sections) with comprehensive abuse framework: §1 Abuse Categories (5 categories, attack vectors, risk levels, mitigations), §2 Mitigation Lever Mapping (matrix with residual risks), §3 ZK-Resonance Progressive Trust (6 tiers, low-Resonance restrictions, Bulletproofs specification), §4 Abuse-Response Model (Host Rights Framework, signature detection, machine-readable policies), §5 Integration with SECURITY_PRIVACY.md (cross-references), §6 Roadmap & Open Questions (v1.0 requirements, tunnel mitigations, long-term enhancements), §7 Conclusion (layered defense philosophy). Integrated into SECURITY_PRIVACY.md by adding new section "Application-Layer Abuse Mitigations" (§10, after "Known Limitations") summarizing spam resistance, DoS mitigation, harassment controls, game griefing, progressive trust, host rights, and future tunnel mitigations. Cross-referenced ABUSE_MODEL.md for complete specification.
 
 
 =====================================
