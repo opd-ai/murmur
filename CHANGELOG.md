@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — Social Recovery Implementation (2026-05-06)
+- **Shamir Secret Sharing (SSS) based M-of-N threshold recovery** for Master Keys
+  - New package `pkg/identity/recovery/` with enrollment, validation, and reconstruction logic
+  - Extended `proto/identity.proto` with 4 new messages: `RecoveryShareEnrollment`, `RecoveryRequest`, `RecoveryResponse`, `RecoveryShareRecord`
+  - Integrated `github.com/hashicorp/vault/shamir` library for SSS cryptography
+  - Comprehensive test suite: 3-of-5 and 2-of-3 threshold reconstruction, M-1 share security validation, full enrollment/recovery cycle, protobuf validation, signature verification
+  - All tests pass with `-race` detector (zero race conditions)
+  - **Test count**: 63 packages total (was 62 before recovery addition)
+- **Security properties**: Threshold security (M shares required, M-1 reveals nothing), X25519 ECDH + XChaCha20-Poly1305 encryption, Ed25519 signatures, replay prevention with challenge nonces, separate Surface/Specter SSS schemes
+- **Implementation phases completed**: Phase 1 (Shamir library integration), Phase 2 (Protobuf schema), Phase 3 (enrollment logic), Phase 4 (recovery/reconstruction logic)
+- **Documentation**: Updated `ROADMAP.md` to mark social recovery implementation complete
+- **Future work deferred**: Phase 5 (Bbolt storage layer), Phase 6 (UI flows), Phase 7 (cross-layer enforcement), Phase 8 (libp2p integration tests)
+
 ### Validated
 - **Performance Targets at Scale** (2026-05-06)
   - Executed 1000-node simulation test (`TestGossipPropagation1000NodesWithProfiling`) validating all TECHNICAL_IMPLEMENTATION.md §9 targets

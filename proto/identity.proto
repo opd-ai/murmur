@@ -367,3 +367,49 @@ message AuthorizedDevice {
   // Revocation timestamp. 0 if not revoked.
   int64 revoked_at_unix = 6;
 }
+
+// RecoveryShareEnrollment distributes encrypted Shamir secret shares to contacts.
+// Per SOCIAL_RECOVERY.md, enables M-of-N threshold recovery.
+message RecoveryShareEnrollment {
+  bytes master_public_key = 1;      // User's identity root
+  bytes recipient_public_key = 2;   // Contact's X25519 public key
+  bytes encrypted_share = 3;        // XChaCha20-Poly1305 encrypted SSS share
+  bytes nonce = 4;                  // 24-byte nonce for XChaCha20
+  uint32 share_index = 5;           // Share index (1 to N)
+  uint32 threshold = 6;             // M (required for reconstruction)
+  uint32 total_shares = 7;          // N (total shares distributed)
+  int64 timestamp_unix = 8;
+  bytes enrollment_signature = 9;   // Ed25519 signature over fields 1-8
+  string recovery_label = 10;       // "Surface Recovery" or "Specter Recovery"
+}
+
+// RecoveryRequest requests shares from contacts to reconstruct Master Key.
+message RecoveryRequest {
+  bytes master_public_key = 1;      // User's identity root
+  bytes requester_public_key = 2;   // User's current device key or ephemeral key
+  bytes challenge_nonce = 3;        // 32-byte random nonce (replay prevention)
+  int64 timestamp_unix = 4;
+  bytes request_signature = 5;      // Signed by requester_public_key
+  string recovery_label = 6;        // "Surface Recovery" or "Specter Recovery"
+}
+
+// RecoveryResponse provides encrypted share to User upon request verification.
+message RecoveryResponse {
+  bytes master_public_key = 1;      // User's identity root
+  bytes encrypted_share = 2;        // XChaCha20-Poly1305 encrypted SSS share
+  bytes nonce = 3;                  // Fresh nonce for this response
+  uint32 share_index = 4;           // Original share index (for Lagrange interpolation)
+  int64 timestamp_unix = 5;
+  bytes contact_signature = 6;      // Signed by Contact's Ed25519 key
+}
+
+// RecoveryShareRecord stores a contact's secret share in local Bbolt.
+message RecoveryShareRecord {
+  bytes encrypted_share = 1;        // Still encrypted with recipient's passphrase
+  uint32 share_index = 2;
+  uint32 threshold = 3;
+  uint32 total_shares = 4;
+  int64 enrolled_at_unix = 5;
+  string recovery_label = 6;        // "Surface Recovery" or "Specter Recovery"
+  bytes enrollment_signature = 7;   // Original signature from User (verification)
+}
