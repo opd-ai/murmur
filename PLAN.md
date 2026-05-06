@@ -100,6 +100,39 @@ SUCCESS CRITERIA
     requests.
 
 RECENT ACHIEVEMENTS (2026-05-06)
+RECENT ACHIEVEMENTS (2026-05-06)
+✅ **Test Classification Autonomous — Zero Failures (2026-05-06 20:06 UTC)**
+   - Executed autonomous test classification and resolution workflow with complexity metrics for root cause correlation
+   - **Outcome**: ✅ **ALL 72 PACKAGES PASSING** (64 with tests, 8 without) — Zero failures, zero race conditions
+   - **Test Suite Status**:
+     - Total packages: 72 (64 with test files, 8 without)
+     - Pass rate: **100% (72/72)**
+     - Race detector: **CLEAN (0 race conditions with -race flag)**
+     - Execution time: ~180 seconds (3 minutes) with `-race -count=1`
+   - **Complexity Baseline**:
+     - Generated: `baseline-classification-autonomous.json` (6.0 MB)
+     - Functions analyzed: ~3,400 across 340 files
+     - Risk assessment: All functions within professional thresholds (cyclomatic ≤12, nesting ≤3)
+   - **Key Test Validations**:
+     - Cryptographic operations: Ed25519, Curve25519, ChaCha20-Poly1305, SHA-256 PoW, BLAKE3, Argon2id
+     - Concurrency safety: Zero race conditions in ~8 persistent goroutines, event bus, double-buffered Pulse Map
+     - Performance tests: Layout (108.5s @ 500 nodes), Shroud (8.9s 3-hop circuits), Resonance (8.3s decay computation)
+   - **Classification Result**:
+     - Cat 1 (Implementation Bugs): 0 detected
+     - Cat 2 (Test Spec Errors): 0 detected
+     - Cat 3 (Negative Test Gaps): 0 detected
+     - Workflow validated and ready for future failures
+   - **Artifacts**:
+     - `test-output-classification-autonomous.txt` (72 lines, all PASS)
+     - `baseline-classification-autonomous.json` (6.0 MB, complexity metrics)
+     - `AUTONOMOUS_CLASSIFICATION_COMPLETE_2026-05-06.md` (322 lines, comprehensive completion report)
+   - **Updated Documentation**:
+     - ✅ `CHANGELOG.md` — Test classification autonomous entry added
+     - ✅ `AUDIT.md` — Test quality validation audit entry added
+     - ✅ `PLAN.md` — This entry
+     - 🔲 `ROADMAP.md` — Pending update
+
+✅ **Autonomous Workflow Complete — Zero Failures Confirmed (2026-05-06 19:26 UTC)**
 ✅ **Autonomous Workflow Complete — Zero Failures Confirmed (2026-05-06 19:26 UTC)**
    - Executed final autonomous test classification and resolution workflow per task specification
    - **Outcome**: ✅ **ALL 72 PACKAGES PASSING** (64 with tests, 8 without) — Zero failures, zero race conditions
@@ -856,24 +889,27 @@ PHASE 9: BOOTSTRAPPING & LAUNCH (Weeks 28–36)
 =====================================
 Don't launch until the cold-start story is designed, not hoped for.
 
-[ ] 9.1  Define "minimum viable network" size
+[x] 9.1  Define "minimum viable network" size
          - How many users/peers are needed before the app is fun?
          - Can a user have a good experience with only their existing
            contacts, or does it require strangers?
+         - **COMPLETED 2026-05-06**: Created docs/MINIMUM_VIABLE_NETWORK.md (14KB, 8 sections) defining MVN = 5-8 active users (single friend group). Analysis covers network size thresholds (Unviable 1-2, Marginal 3-4, Viable 5-8, Optimal 12-20, Mature 50-100+), single-group vs multi-group experience comparison, cold-start strategy (friend-group first seeding), product design implications (empty-state, messaging-first prototype, game unlocks, Resonance progression), success criteria (D7 retention ≥40%, games/week ≥0.5, Specter adoption ≥30%), launch readiness checklist. Key findings: (1) MVN threshold enables core loop (messaging + games + spatial UI) but requires messaging-first UI for N<20, (2) Existing contacts sufficient for basic experience but strangers unlock full product value (discovery, Specter depth, Resonance milestones), (3) Friend-group-first launch strategy mitigates cold-start: seed 3-5 anchor groups (5-8 users each), bridge groups at Week 5-8, organic growth via invites. Recommendations: messaging-first default for v0.1, Pulse Map in "Explore" tab, 5 invites/user with group context, D7≥40% validates product-market fit. Document ready for anchor community recruitment (Task 9.3).
 
-[ ] 9.2  Invite-first launch plan
+[x] 9.2  Invite-first launch plan
          - Ship with bundled invites; every new user can invite N more
          - Invites carry friend-group context so Pulse Map isn't empty
+         - **COMPLETED 2026-05-06**: Created docs/INVITE_FIRST_LAUNCH.md (22KB, 10 sections) defining comprehensive invite-first strategy. Core mechanism: Every user receives 5 bundled invites carrying friend-group context (inviter + up to 10 contact public keys). Invite structure: Protobuf with Ed25519 signature, base64-encoded as `murmur://invite/<data>`, 30-day expiration, single-use default. Quota system: 5 default invites, regeneration via Resonance milestones (+2 at Shade/Wraith/Phantom), active participation (+3 for 4 weeks ≥5 Waves/week), friend acceptance (+1 per 3 accepted), 20-invite cap. Pre-seeding: Invitee's Pulse Map populated with inviter node + group members (1-10 nodes) on acceptance. Launch sequence: Phase 1 (Weeks 1-4): Seed 3-5 anchor groups (24+ users), Phase 2 (Weeks 5-8): Inter-group bridging (50+ users), Phase 3 (Weeks 9+): Organic growth via viral loop (100+ by Week 12). Success metrics: D7 retention ≥40%, invite acceptance ≥50%, viral coefficient K≥1.5. Abuse prevention: Single-use default, signature verification, 30-day expiration, inviter reputation tracking. Implementation checklist: pkg/identity/invites/ (5 Go files), proto/identity.proto additions (Invite/InviteMetadata/InviteQuota messages), pkg/ui/ (3 panels: creator, acceptor, list), onboarding integration, deep link handler. Document ready for implementation sprint (estimate: 2 weeks, 1 engineer). Status: ✅ Task 9.2 complete, next priority 9.3 (recruit anchor communities).
 
 [ ] 9.3  Seed 2–3 "anchor communities" (5–50 real friend groups each)
          - Work with them directly, iterate weekly
          - These groups prove the product loop before public opening
 
-[ ] 9.4  Define success metrics that match product identity
+[x] 9.4  Define success metrics that match product identity
          - D7/D30 retention in active conversations
          - Games started per week per user
          - NOT: DAU, follower counts, or engagement-time
          - Publish metrics philosophy to align with "no metrics" ethos
+         - **COMPLETED 2026-05-06**: Created docs/SUCCESS_METRICS.md (17KB, 10 sections) defining metrics framework aligned with Design Principle #6 ("No metrics") and anti-surveillance philosophy. Primary metrics: D7 retention ≥40% (voluntary return, not compulsive use), D30 retention ≥30% (long-term engagement), Games/week/user ≥0.5 (quality engagement with friends). Secondary metrics: Waves/week/user ≥3 (core communication loop), Specter adoption ≥30% (anonymous layer validation), Resonance progression distribution. Anti-metrics (NOT tracked): DAU (addiction signal), follower counts (vanity/influencer dynamics), time-on-platform (engagement trap), likes/engagement counts (popularity contest). Privacy-preserving collection: local-first computation, aggregate-only reporting, public keys hashed with salt (k-anonymity), no user-level tracking, no behavioral profiles, no third-party analytics. Red flag thresholds: D7 <35%, D30 <25%, Waves/week <2, Games/week <0.3, viral coefficient K <1.0 trigger investigations. Success criteria for v0.1 launch: Anchor community phase (Weeks 1-4): 3-5 groups, 24+ users, D7 ≥40%, games ≥0.5/week; Inter-group bridging (Weeks 5-8): 50+ users, K ≥1.2; Organic growth (Weeks 9-12): 100+ users, D30 ≥30%, K ≥1.5. Public metrics philosophy statement: "Why MURMUR Doesn't Track You" explains retention/engagement/adoption vs DAU/time-on-platform/likes. Implementation checklist: pkg/metrics/ backend (5 Go files: retention, engagement, adoption, aggregator, dashboard), Bbolt `metrics` bucket, AggregatedMetrics protobuf, weekly background job, alert system for red flags. Status: ✅ Task 9.4 complete, next priority 9.5 (open beta plan with kill-switch).
 
 [ ] 9.5  Open beta with clear version expectations and kill-switch
          plan for discovered security issues
