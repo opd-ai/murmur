@@ -4,6 +4,10 @@ import (
 	"fmt"
 	"testing"
 	"time"
+
+	"github.com/opd-ai/murmur/pkg/content/waves"
+	"github.com/opd-ai/murmur/pkg/identity/keys"
+	pb "github.com/opd-ai/murmur/proto"
 )
 
 // BenchmarkWavePropagationLatency measures latency tracking for 3-hop propagation.
@@ -103,5 +107,69 @@ func BenchmarkThreeHopPropagationTracking(b *testing.B) {
 		if threeHopLatency == 0 {
 			b.Fatal("3-hop latency not recorded")
 		}
+	}
+}
+
+// BenchmarkRelayReceive measures the relay hot path processing overhead.
+func BenchmarkRelayReceive(b *testing.B) {
+	kp, _ := keys.GenerateKeyPair()
+	relay := NewRelay()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		wave, _ := waves.CreateSurface([]byte(fmt.Sprintf("test content %d", i)), kp)
+		b.StartTimer()
+
+		_, _ = relay.Receive(wave)
+	}
+}
+
+// BenchmarkRelayDuplicateCheck measures duplicate detection performance.
+func BenchmarkRelayDuplicateCheck(b *testing.B) {
+	kp, _ := keys.GenerateKeyPair()
+	relay := NewRelay()
+
+	// Pre-populate with 10k waves
+	for i := 0; i < 10000; i++ {
+		wave, _ := waves.CreateSurface([]byte(fmt.Sprintf("content %d", i)), kp)
+		relay.markSeen(string(wave.WaveId))
+	}
+
+	// Create a test wave
+	testWave, _ := waves.CreateSurface([]byte("benchmark test"), kp)
+	waveID := string(testWave.WaveId)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = relay.hasSeen(waveID)
+	}
+}
+
+// BenchmarkRelayIncrementHop measures hop increment performance.
+func BenchmarkRelayIncrementHop(b *testing.B) {
+	kp, _ := keys.GenerateKeyPair()
+	wave, _ := waves.CreateSurface([]byte("test content"), kp)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = waves.IncrementHop(wave)
+	}
+}
+
+// BenchmarkRelayCacheLRU measures LRU eviction overhead when cache is full.
+func BenchmarkRelayCacheLRU(b *testing.B) {
+	relay := NewRelayWithConfig(RelayConfig{
+		CacheMaxSize: 1000, // Small cache to trigger evictions
+	})
+	kp, _ := keys.GenerateKeyPair()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		wave, _ := waves.CreateSurface([]byte(fmt.Sprintf("content %d", i)), kp)
+		b.StartTimer()
+
+		relay.markSeen(string(wave.WaveId))
 	}
 }

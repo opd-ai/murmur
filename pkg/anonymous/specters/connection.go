@@ -4,12 +4,12 @@
 package specters
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"sync"
 	"time"
 
+	"github.com/opd-ai/murmur/pkg/encoding"
 	"github.com/opd-ai/murmur/proto"
 	"golang.org/x/crypto/curve25519"
 	pb "google.golang.org/protobuf/proto"
@@ -232,15 +232,8 @@ func (c *SpecterConnection) signingPayload() []byte {
 
 	buf = append(buf, c.InitiatorPublicKey[:]...)
 	buf = append(buf, c.ResponderPublicKey[:]...)
-
-	tsBuf := make([]byte, 8)
-	binary.BigEndian.PutUint64(tsBuf, uint64(c.CreatedAt))
-	buf = append(buf, tsBuf...)
-
-	typeBuf := make([]byte, 4)
-	binary.BigEndian.PutUint32(typeBuf, uint32(c.ConnectionType))
-	buf = append(buf, typeBuf...)
-
+	buf = encoding.AppendInt64BE(buf, c.CreatedAt)
+	buf = encoding.AppendUint32BE(buf, uint32(c.ConnectionType))
 	buf = append(buf, c.SharedSecretHash...)
 
 	return buf
@@ -386,14 +379,8 @@ func (r *SpecterConnectionRevocation) signingPayload() []byte {
 
 	buf = append(buf, r.RevokerPublicKey[:]...)
 	buf = append(buf, r.TargetPublicKey[:]...)
-
-	tsBuf := make([]byte, 8)
-	binary.BigEndian.PutUint64(tsBuf, uint64(r.RevokedAt))
-	buf = append(buf, tsBuf...)
-
-	typeBuf := make([]byte, 4)
-	binary.BigEndian.PutUint32(typeBuf, uint32(r.ConnectionType))
-	buf = append(buf, typeBuf...)
+	buf = encoding.AppendInt64BE(buf, r.RevokedAt)
+	buf = encoding.AppendUint32BE(buf, uint32(r.ConnectionType))
 
 	return buf
 }

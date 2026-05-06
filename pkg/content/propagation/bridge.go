@@ -53,6 +53,10 @@ type BridgeConfig struct {
 
 	// DeduplicationTTL is how long to track injected wave IDs.
 	DeduplicationTTL time.Duration
+
+	// CacheMaxSize is the maximum number of injected wave IDs to track.
+	// When exceeded, oldest entries are evicted. Default: 50,000.
+	CacheMaxSize int
 }
 
 // Bridge handles cross-layer Veiled Wave injection.
@@ -65,9 +69,13 @@ type Bridge struct {
 	anonymousPublisher Publisher
 	injected           map[string]time.Time // Wave ID -> injection time
 	deduplicationTTL   time.Duration
+	cacheMaxSize       int
 	rateLimiter        *bridgeRateLimiter
 	stats              BridgeStats
 }
+
+// DefaultBridgeCacheSize is the default maximum number of injected wave IDs to track.
+const DefaultBridgeCacheSize = 50000
 
 // BridgeStats tracks bridge injection statistics.
 type BridgeStats struct {
@@ -95,10 +103,15 @@ func NewBridge(cfg BridgeConfig) *Bridge {
 		deduplicationTTL:   cfg.DeduplicationTTL,
 		surfacePublisher:   cfg.SurfacePublisher,
 		anonymousPublisher: cfg.AnonymousPublisher,
+		cacheMaxSize:       cfg.CacheMaxSize,
 	}
 
 	if cfg.DeduplicationTTL == 0 {
 		b.deduplicationTTL = 24 * time.Hour
+	}
+
+	if b.cacheMaxSize == 0 {
+		b.cacheMaxSize = DefaultBridgeCacheSize
 	}
 
 	b.enabled.Store(cfg.Enabled)
@@ -309,10 +322,39 @@ func (b *Bridge) hasInjected(waveID string) bool {
 }
 
 // markInjected records a Wave ID as injected.
+// If cache is full, evicts oldest entry first (simple LRU).
 func (b *Bridge) markInjected(waveID string) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+
+	// If at capacity, evict oldest entry before adding new one.
+	if len(b.injected) >= b.cacheMaxSize {
+		b.evictOldestInjectedUnsafe()
+	}
+
 	b.injected[waveID] = time.Now()
+}
+
+// evictOldestInjectedUnsafe removes the oldest entry from the injection cache.
+// MUST be called with b.mu held.
+func (b *Bridge) evictOldestInjectedUnsafe() {
+	if len(b.injected) == 0 {
+		return
+	}
+
+	var oldestID string
+	var oldestTime time.Time
+	first := true
+
+	for id, t := range b.injected {
+		if first || t.Before(oldestTime) {
+			oldestID = id
+			oldestTime = t
+			first = false
+		}
+	}
+
+	delete(b.injected, oldestID)
 }
 
 // CleanExpiredInjections removes old entries from the injection cache.

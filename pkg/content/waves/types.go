@@ -297,20 +297,13 @@ func IncrementHop(wave *pb.Wave) *pb.Wave {
 		return nil
 	}
 
-	// Create a new Wave with incremented hop count.
-	// We manually copy fields to avoid copying the protobuf internal state.
-	return &pb.Wave{
-		WaveType:     wave.WaveType,
-		Content:      wave.Content,
-		AuthorPubkey: wave.AuthorPubkey,
-		Signature:    wave.Signature,
-		CreatedAt:    wave.CreatedAt,
-		TtlSeconds:   wave.TtlSeconds,
-		PowNonce:     wave.PowNonce,
-		ParentHash:   wave.ParentHash,
-		HopCount:     wave.HopCount + 1,
-		WaveId:       wave.WaveId,
-	}
+	// Use protobuf Clone for efficient shallow copy, then update hop count.
+	// This is faster than manual field copying and preserves all fields including
+	// device_public_key and any future protobuf extensions.
+	newWave := wave.ProtoReflect().New().Interface().(*pb.Wave)
+	*newWave = *wave
+	newWave.HopCount = wave.HopCount + 1
+	return newWave
 }
 
 // int64ToBytes converts an int64 to an 8-byte big-endian array.
@@ -352,7 +345,8 @@ func computeWaveID(wave *pb.Wave) []byte {
 
 // signatureData returns the data to be signed for a Wave.
 func signatureData(wave *pb.Wave) []byte {
-	var data []byte
+	// Pre-allocate: 1 byte (type) + content length + 8 (timestamp) + 8 (ttl)
+	data := make([]byte, 0, 1+len(wave.Content)+16)
 
 	// wave_type || content || created_at || ttl
 	data = append(data, byte(wave.WaveType))
@@ -369,7 +363,8 @@ func signatureData(wave *pb.Wave) []byte {
 
 // powData returns the data to be used for PoW computation.
 func powData(wave *pb.Wave) []byte {
-	var data []byte
+	// Pre-allocate: wave_id (32 bytes) + signature (64 bytes for Ed25519)
+	data := make([]byte, 0, len(wave.WaveId)+len(wave.Signature))
 
 	// Include wave ID and signature.
 	data = append(data, wave.WaveId...)

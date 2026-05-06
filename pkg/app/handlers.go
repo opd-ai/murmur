@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/ed25519"
-	"encoding/binary"
 	"errors"
 	"sync"
 	"time"
@@ -19,6 +18,7 @@ import (
 	"github.com/opd-ai/murmur/pkg/content/pow"
 	"github.com/opd-ai/murmur/pkg/content/storage"
 	"github.com/opd-ai/murmur/pkg/content/waves"
+	"github.com/opd-ai/murmur/pkg/encoding"
 	"github.com/opd-ai/murmur/pkg/networking/gossip"
 	"github.com/opd-ai/murmur/pkg/networking/metrics"
 	pb "github.com/opd-ai/murmur/proto"
@@ -610,22 +610,12 @@ func (h *Handlers) relayAdSignatureData(ad *pb.RelayAdvertisement) []byte {
 	}
 
 	for _, role := range ad.Roles {
-		r := make([]byte, 4)
-		binary.BigEndian.PutUint32(r, uint32(role))
-		data = append(data, r...)
+		data = encoding.AppendUint32BE(data, uint32(role))
 	}
 
-	bw := make([]byte, 8)
-	binary.BigEndian.PutUint64(bw, ad.Bandwidth)
-	data = append(data, bw...)
-
-	ts := make([]byte, 8)
-	binary.BigEndian.PutUint64(ts, uint64(ad.Timestamp))
-	data = append(data, ts...)
-
-	exp := make([]byte, 8)
-	binary.BigEndian.PutUint64(exp, uint64(ad.ExpiresAt))
-	data = append(data, exp...)
+	data = encoding.AppendUint64BE(data, ad.Bandwidth)
+	data = encoding.AppendInt64BE(data, ad.Timestamp)
+	data = encoding.AppendInt64BE(data, ad.ExpiresAt)
 
 	return data
 }

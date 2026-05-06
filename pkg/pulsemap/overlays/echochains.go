@@ -552,19 +552,16 @@ func (o *EchoChainOverlay) ChainCount() int {
 	return len(o.chains)
 }
 
+// GetExpiresAt implements Expires interface for EchoChainInfo.
+func (c *EchoChainInfo) GetExpiresAt() time.Time {
+	return c.ExpiresAt
+}
+
 // ActiveChainCount returns the number of non-expired chains.
 func (o *EchoChainOverlay) ActiveChainCount() int {
 	o.mu.RLock()
 	defer o.mu.RUnlock()
-
-	now := time.Now()
-	count := 0
-	for _, c := range o.chains {
-		if now.Before(c.ExpiresAt) {
-			count++
-		}
-	}
-	return count
+	return CountNonExpiredInMap(o.chains)
 }
 
 // ShimmeringChainCount returns the number of chains with shimmer effect.

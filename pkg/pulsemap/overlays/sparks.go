@@ -694,19 +694,16 @@ func (o *SparkOverlay) ActiveSparkCount() int {
 	return count
 }
 
+// GetExpiresAt implements Expires interface for CrownHolder.
+func (c *CrownHolder) GetExpiresAt() time.Time {
+	return c.ExpiresAt
+}
+
 // CrownCount returns the number of active crown holders.
 func (o *SparkOverlay) CrownCount() int {
 	o.mu.RLock()
 	defer o.mu.RUnlock()
-
-	now := time.Now()
-	count := 0
-	for _, h := range o.crownHolders {
-		if now.Before(h.ExpiresAt) {
-			count++
-		}
-	}
-	return count
+	return CountNonExpiredInMap(o.crownHolders)
 }
 
 // ClearExpired removes expired sparks older than a threshold.

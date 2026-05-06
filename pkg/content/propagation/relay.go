@@ -21,6 +21,10 @@ const MaxHops = 20
 // DefaultCacheDuration is how long to retain wave IDs for deduplication.
 const DefaultCacheDuration = 24 * time.Hour
 
+// DefaultCacheMaxSize is the maximum number of wave IDs to cache before evicting oldest.
+// At ~32 bytes per wave ID + overhead, 100k entries = ~4 MB memory.
+const DefaultCacheMaxSize = 100000
+
 // DefaultDifficulty is the PoW difficulty for Wave validation.
 const DefaultDifficulty = 8 // Lower for testing; production uses 20
 
@@ -34,10 +38,11 @@ var (
 
 // Relay handles Wave propagation through the gossip network.
 type Relay struct {
-	mu       sync.RWMutex
-	seen     map[string]time.Time // wave ID -> first seen time
-	maxHops  uint32
-	cacheTTL time.Duration
+	mu           sync.RWMutex
+	seen         map[string]time.Time // wave ID -> first seen time
+	maxHops      uint32
+	cacheTTL     time.Duration
+	cacheMaxSize int
 
 	// Handler is called for each valid Wave received.
 	Handler func(wave *pb.Wave)
@@ -46,17 +51,19 @@ type Relay struct {
 // NewRelay creates a new propagation relay.
 func NewRelay() *Relay {
 	return &Relay{
-		seen:     make(map[string]time.Time),
-		maxHops:  MaxHops,
-		cacheTTL: DefaultCacheDuration,
+		seen:         make(map[string]time.Time),
+		maxHops:      MaxHops,
+		cacheTTL:     DefaultCacheDuration,
+		cacheMaxSize: DefaultCacheMaxSize,
 	}
 }
 
 // RelayConfig configures the relay behavior.
 type RelayConfig struct {
-	MaxHops  uint32
-	CacheTTL time.Duration
-	Handler  func(wave *pb.Wave)
+	MaxHops      uint32
+	CacheTTL     time.Duration
+	CacheMaxSize int
+	Handler      func(wave *pb.Wave)
 }
 
 // NewRelayWithConfig creates a relay with custom configuration.
@@ -71,11 +78,17 @@ func NewRelayWithConfig(cfg RelayConfig) *Relay {
 		cacheTTL = DefaultCacheDuration
 	}
 
+	cacheMaxSize := cfg.CacheMaxSize
+	if cacheMaxSize == 0 {
+		cacheMaxSize = DefaultCacheMaxSize
+	}
+
 	return &Relay{
-		seen:     make(map[string]time.Time),
-		maxHops:  maxHops,
-		cacheTTL: cacheTTL,
-		Handler:  cfg.Handler,
+		seen:         make(map[string]time.Time),
+		maxHops:      maxHops,
+		cacheTTL:     cacheTTL,
+		cacheMaxSize: cacheMaxSize,
+		Handler:      cfg.Handler,
 	}
 }
 
@@ -136,11 +149,39 @@ func (r *Relay) hasSeen(waveID string) bool {
 }
 
 // markSeen records a Wave ID as seen.
+// If cache is full, evicts oldest entry first (simple LRU).
 func (r *Relay) markSeen(waveID string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	// If at capacity, evict oldest entry before adding new one.
+	if len(r.seen) >= r.cacheMaxSize {
+		r.evictOldestUnsafe()
+	}
+
 	r.seen[waveID] = time.Now()
+}
+
+// evictOldestUnsafe removes the oldest entry from the cache.
+// MUST be called with r.mu held.
+func (r *Relay) evictOldestUnsafe() {
+	if len(r.seen) == 0 {
+		return
+	}
+
+	var oldestID string
+	var oldestTime time.Time
+	first := true
+
+	for id, t := range r.seen {
+		if first || t.Before(oldestTime) {
+			oldestID = id
+			oldestTime = t
+			first = false
+		}
+	}
+
+	delete(r.seen, oldestID)
 }
 
 // CleanExpired removes expired entries from the seen cache.
