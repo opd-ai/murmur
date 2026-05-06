@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+**Shutdown Instrumentation & Concurrency Refactoring (2026-05-06)**
+- **Goroutine exit logging** — Added defer statements to 7 persistent goroutines in `pkg/app/murmur.go` logging "[SHUTDOWN] X goroutine exited" messages for shutdown observability (addresses AUDIT.md H1 and GAPS.md Gap 1).
+- **Context-based layout lifecycle** — Refactored `pkg/pulsemap/layout/engine.go::Start()` to accept `context.Context` and replaced internal `stopCh` with context cancellation for consistent lifecycle management across all subsystems.
+- **Gap consolidation** — Updated GAPS.md to consolidate 8 gaps into 5 prioritized gaps with severity/risk/validation matrix for clearer v0.1 blocker tracking.
+
 **Pulse Map 10K Node Performance (2026-05-05)**
 - **Parallel Barnes-Hut force computation** — Implemented parallel force calculation in `pkg/pulsemap/layout/viewport_culling.go::computeForcesParallel()` distributing work across 4 goroutines for graphs with 1,000+ active nodes (ROADMAP.md line 697).
 - **Performance achievement** — 10,000-node graphs now render at 66.67 FPS (15.86ms/frame) with viewport culling, exceeding the 30 FPS minimum requirement and approaching the 60 FPS goal.

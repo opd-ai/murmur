@@ -4,6 +4,7 @@
 package layout
 
 import (
+	"context"
 	"math"
 	"sync"
 	"sync/atomic"
@@ -91,7 +92,8 @@ type Engine struct {
 	params      LayoutParams
 	frontBuffer *PositionBuffer
 	running     bool
-	stopCh      chan struct{}
+	ctx         context.Context
+	cancel      context.CancelFunc
 	centerX     float64
 	centerY     float64
 }
@@ -190,14 +192,15 @@ func (e *Engine) Tick() {
 // Start begins the background layout goroutine that runs at TicksPerSecond.
 // Per TECHNICAL_IMPLEMENTATION.md §8, this runs layout updates independently
 // of the render loop, with double-buffered position swaps.
-func (e *Engine) Start() {
+// The goroutine exits when the provided context is canceled.
+func (e *Engine) Start(ctx context.Context) {
 	e.mu.Lock()
 	if e.running {
 		e.mu.Unlock()
 		return
 	}
 	e.running = true
-	e.stopCh = make(chan struct{})
+	e.ctx, e.cancel = context.WithCancel(ctx)
 	tickRate := e.params.TicksPerSecond
 	e.mu.Unlock()
 
@@ -212,7 +215,9 @@ func (e *Engine) Stop() {
 		return
 	}
 	e.running = false
-	close(e.stopCh)
+	if e.cancel != nil {
+		e.cancel()
+	}
 	e.mu.Unlock()
 }
 
@@ -231,7 +236,7 @@ func (e *Engine) runLayoutLoop(tickRate int) {
 
 	for {
 		select {
-		case <-e.stopCh:
+		case <-e.ctx.Done():
 			return
 		case <-ticker.C:
 			e.Tick()

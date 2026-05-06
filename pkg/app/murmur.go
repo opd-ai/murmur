@@ -305,6 +305,7 @@ func (a *App) initEventBus() {
 	a.wg.Add(1)
 	go func() {
 		defer a.wg.Done()
+		defer fmt.Println("[SHUTDOWN] Event bus goroutine exited")
 		a.subsystems.EventBus.Start(a.ctx)
 	}()
 }
@@ -473,6 +474,7 @@ func (a *App) initContent() error {
 	a.wg.Add(1)
 	go func() {
 		defer a.wg.Done()
+		defer fmt.Println("[SHUTDOWN] Deduplication rotation goroutine exited")
 		handlers.StartDedupRotation(a.ctx)
 	}()
 
@@ -480,6 +482,7 @@ func (a *App) initContent() error {
 	a.wg.Add(1)
 	go func() {
 		defer a.wg.Done()
+		defer fmt.Println("[SHUTDOWN] GC goroutine exited")
 		cache.StartGC(a.ctx, storage.GCInterval)
 	}()
 
@@ -489,6 +492,7 @@ func (a *App) initContent() error {
 	a.wg.Add(1)
 	go func() {
 		defer a.wg.Done()
+		defer fmt.Println("[SHUTDOWN] Memory monitor goroutine exited")
 		a.runMemoryMonitor(cache)
 	}()
 
@@ -499,6 +503,7 @@ func (a *App) initContent() error {
 	a.wg.Add(1)
 	go func() {
 		defer a.wg.Done()
+		defer fmt.Println("[SHUTDOWN] Nudge loop goroutine exited")
 		a.runNudgeLoop()
 	}()
 
@@ -528,6 +533,7 @@ func (a *App) initBeacon() error {
 		a.wg.Add(1)
 		go func() {
 			defer a.wg.Done()
+			defer fmt.Println("[SHUTDOWN] Beacon loop goroutine exited")
 			a.runBeaconLoop()
 		}()
 	}
@@ -556,6 +562,7 @@ func (a *App) initBeacon() error {
 	a.wg.Add(1)
 	go func() {
 		defer a.wg.Done()
+		defer fmt.Println("[SHUTDOWN] Relay prune loop goroutine exited")
 		a.runRelayPruneLoop()
 	}()
 
@@ -569,6 +576,7 @@ func (a *App) initBeacon() error {
 	a.wg.Add(1)
 	go func() {
 		defer a.wg.Done()
+		defer fmt.Println("[SHUTDOWN] Circuit rotation goroutine exited")
 		a.subsystems.CircuitManager.StartRotation(a.ctx)
 	}()
 
