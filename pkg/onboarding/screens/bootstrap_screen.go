@@ -80,31 +80,44 @@ func NewBootstrapScreen(controller *flow.Controller, callbacks BootstrapScreenCa
 
 // Update advances animations and handles state transitions.
 func (s *BootstrapScreen) Update() error {
+	s.updateAnimationPhase()
+	s.handleMouseInput()
+	s.handleWaveTextInput()
+	return nil
+}
+
+// updateAnimationPhase advances the animation phase.
+func (s *BootstrapScreen) updateAnimationPhase() {
 	dt := 1.0 / 60.0
 	s.animPhase += dt * 0.5
 	if s.animPhase > 1 {
 		s.animPhase -= 1
 	}
+}
 
-	// Handle mouse clicks.
+// handleMouseInput processes mouse click events.
+func (s *BootstrapScreen) handleMouseInput() {
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		x, y := ebiten.CursorPosition()
 		s.HandleClick(x, y)
 	}
+}
 
-	// Handle text input and backspace for the first Wave compose field.
-	if s.state == BootstrapStateFirstWavePrompt {
-		for _, ch := range ebiten.AppendInputChars(nil) {
-			if len(s.firstWaveText) < 2048 {
-				s.firstWaveText += string(ch)
-			}
-		}
-		if inpututil.IsKeyJustPressed(ebiten.KeyBackspace) && len(s.firstWaveText) > 0 {
-			s.firstWaveText = s.firstWaveText[:len(s.firstWaveText)-1]
+// handleWaveTextInput processes text input for Wave composition.
+func (s *BootstrapScreen) handleWaveTextInput() {
+	if s.state != BootstrapStateFirstWavePrompt {
+		return
+	}
+
+	for _, ch := range ebiten.AppendInputChars(nil) {
+		if len(s.firstWaveText) < 2048 {
+			s.firstWaveText += string(ch)
 		}
 	}
 
-	return nil
+	if inpututil.IsKeyJustPressed(ebiten.KeyBackspace) && len(s.firstWaveText) > 0 {
+		s.firstWaveText = s.firstWaveText[:len(s.firstWaveText)-1]
+	}
 }
 
 // Draw renders the bootstrap screen.

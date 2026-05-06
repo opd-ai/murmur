@@ -794,20 +794,33 @@ func wrapText(s string, lineLen int) []string {
 
 	var lines []string
 	for len(s) > lineLen {
-		// Find a good break point.
-		breakPoint := lineLen
-		for i := lineLen; i > 0; i-- {
-			if s[i] == ' ' {
-				breakPoint = i
-				break
-			}
-		}
+		breakPoint := findBreakPoint(s, lineLen)
 		lines = append(lines, s[:breakPoint])
-		s = s[breakPoint:]
-		if len(s) > 0 && s[0] == ' ' {
-			s = s[1:]
+		s = trimLeadingSpace(s[breakPoint:])
+	}
+	return appendRemainder(lines, s)
+}
+
+// findBreakPoint locates the best line break position.
+func findBreakPoint(s string, lineLen int) int {
+	for i := lineLen; i > 0; i-- {
+		if s[i] == ' ' {
+			return i
 		}
 	}
+	return lineLen
+}
+
+// trimLeadingSpace removes leading space from a string.
+func trimLeadingSpace(s string) string {
+	if len(s) > 0 && s[0] == ' ' {
+		return s[1:]
+	}
+	return s
+}
+
+// appendRemainder adds remaining text if non-empty.
+func appendRemainder(lines []string, s string) []string {
 	if len(s) > 0 {
 		lines = append(lines, s)
 	}

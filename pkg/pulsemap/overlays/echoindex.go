@@ -111,38 +111,64 @@ func (o *EchoIndexOverlay) Render(dst *ebiten.Image, cameraX, cameraY, scale flo
 		return
 	}
 
-	screenW := float32(dst.Bounds().Dx())
-	screenH := float32(dst.Bounds().Dy())
-	halfW := screenW / 2
-	halfH := screenH / 2
+	screenW, screenH, halfW, halfH := o.computeScreenDimensions(dst)
+	o.renderClusterTints(dst, cameraX, cameraY, scale, halfW, halfH)
+	o.renderClusterBadges(dst, cameraX, cameraY, scale, halfW, halfH, screenW, screenH, time)
+}
 
-	// Draw each cluster's boundary and badge.
+// computeScreenDimensions calculates screen dimensions for rendering.
+func (o *EchoIndexOverlay) computeScreenDimensions(dst *ebiten.Image) (screenW, screenH, halfW, halfH float32) {
+	screenW = float32(dst.Bounds().Dx())
+	screenH = float32(dst.Bounds().Dy())
+	halfW = screenW / 2
+	halfH = screenH / 2
+	return screenW, screenH, halfW, halfH
+}
+
+// renderClusterTints draws colored tints for all clusters.
+func (o *EchoIndexOverlay) renderClusterTints(dst *ebiten.Image, cameraX, cameraY, scale, halfW, halfH float32) {
+	if !o.ShowTint {
+		return
+	}
+
 	for clusterID, boundary := range o.ClusterBoundaries {
+		if len(boundary) < 6 {
+			continue
+		}
 		echoIndex := o.getClusterEchoIndex(clusterID)
 		clusterColor := colorForEchoIndex(echoIndex)
+		o.renderClusterTint(dst, boundary, clusterColor, cameraX, cameraY, scale, halfW, halfH)
+	}
+}
 
-		if o.ShowTint && len(boundary) >= 6 {
-			o.renderClusterTint(dst, boundary, clusterColor, cameraX, cameraY, scale, halfW, halfH)
-		}
+// renderClusterBadges draws Echo Index badges at cluster centers.
+func (o *EchoIndexOverlay) renderClusterBadges(dst *ebiten.Image, cameraX, cameraY, scale, halfW, halfH, screenW, screenH float32, time float64) {
+	if !o.ShowBadges {
+		return
 	}
 
-	// Draw badges on top of tints.
-	if o.ShowBadges {
-		for clusterID, center := range o.ClusterCenters {
-			echoIndex := o.getClusterEchoIndex(clusterID)
-			clusterColor := colorForEchoIndex(echoIndex)
-
-			screenX := (center[0]-cameraX)*scale + halfW
-			screenY := (center[1]-cameraY)*scale + halfH
-
-			// Skip if off-screen.
-			if screenX < -50 || screenX > screenW+50 || screenY < -50 || screenY > screenH+50 {
-				continue
-			}
-
-			o.renderBadge(dst, screenX, screenY, clusterColor, echoIndex, time)
+	for clusterID, center := range o.ClusterCenters {
+		screenX, screenY := o.transformToScreen(center, cameraX, cameraY, scale, halfW, halfH)
+		if o.isOffScreen(screenX, screenY, screenW, screenH) {
+			continue
 		}
+
+		echoIndex := o.getClusterEchoIndex(clusterID)
+		clusterColor := colorForEchoIndex(echoIndex)
+		o.renderBadge(dst, screenX, screenY, clusterColor, echoIndex, time)
 	}
+}
+
+// transformToScreen converts world coordinates to screen coordinates.
+func (o *EchoIndexOverlay) transformToScreen(center [2]float32, cameraX, cameraY, scale, halfW, halfH float32) (float32, float32) {
+	screenX := (center[0]-cameraX)*scale + halfW
+	screenY := (center[1]-cameraY)*scale + halfH
+	return screenX, screenY
+}
+
+// isOffScreen checks if coordinates are outside visible area.
+func (o *EchoIndexOverlay) isOffScreen(x, y, screenW, screenH float32) bool {
+	return x < -50 || x > screenW+50 || y < -50 || y > screenH+50
 }
 
 // getClusterEchoIndex retrieves the Echo Index for a cluster.

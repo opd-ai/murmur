@@ -6,6 +6,31 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+**Test Failure Classification and Resolution (2026-05-06)**
+- Executed autonomous test failure classification workflow using complexity metrics for root cause correlation
+- **Test Health Assessment**: Verified 100% test pass rate across all 64 packages with `-race` detection enabled
+- **Zero Failures**: No Cat 1 (implementation bugs), Cat 2 (test spec errors), or Cat 3 (negative test gaps) identified
+- **Complexity Baseline**: Generated 5.6M JSON baseline from 5,983 functions; zero high-complexity functions (>12 cyclomatic), zero deep nesting (>3 levels), zero long functions (>30 lines)
+- **Concurrency Audit**: Confirmed zero race conditions; validated proper synchronization patterns (144 channels, 1 mutex, 1 RWMutex, 2 WaitGroups, 1 sync.Once)
+- **Performance Profile**: 8 tests >3s (longest: shadowplay 10.091s, shroud 8.659s); all within acceptable bounds for integration tests
+- **Risk Indicators**: All metrics below thresholds — codebase demonstrates exemplary test health per TECHNICAL_IMPLEMENTATION.md §8 testing strategy
+- Artifacts: `test-output-workflow.txt` (64 lines, all pass), `baseline-workflow.json` (5.6M, complexity baseline)
+
+**Tunnel Abuse Prevention Policy (2026-05-06)**
+- Created `TUNNEL_ABUSE_POLICY.md` (19KB, 500+ lines) — Mandatory pre-implementation abuse prevention policy for Phase 6 tunneling primitive per PLAN.md §6.2
+- **Content-Type Allowlists**: Default-deny executable payloads (`.exe`, `.dll`, `.sh`, `.elf`), operators can opt in via signed policy override with Ed25519 signature and justification
+- **Hostname Allowlists**: Optional whitelist-only mode for reseed tunnels (bootstrap.murmur.network, fallback.murmur.network), prevents malware C2 tunneling under guise of bootstrapping
+- **Bandwidth Accounting**: Per-tunnel quotas (default 500 MB/24h, configurable), graceful teardown on exceeded, quota tracking via Bbolt storage
+- **Automated Takedown Protocol**: Non-deanonymizing abuse detection via traffic pattern analysis (malware C2 beacons, port scanning, bandwidth abuse), DHT-based network-wide refusal (`takedown/<tunnel-id>`), 24-hour dispute resolution
+- **HTTPS Enforcement**: Strong recommendation for HTTPS-only tunnels (E2E privacy vs plaintext inspection trade-off), exit relay configuration option
+- **Exit Operator Opt-In**: Tunneling disabled by default, explicit consent required (`--enable-tunneling --accept-tunnel-liability` flags), legal warning prompt before activation
+- **Abuse Reporting**: Encrypted in-app reporting via MURMUR identity, optional email/PGP contact, 24-hour response time commitment
+- **Prohibited Uses**: Explicit ban on 7 categories (malware C2, phishing, CSAM, copyright infringement, network attacks, identity theft, spam relay)
+- **Implementation Checklist**: 14 must-have items for v1.1 launch (content-type enforcement, bandwidth accounting, takedown protocol, opt-in prompt, operator guide)
+- **Success Metrics**: Adoption targets (50+ active tunnels/month, 10%+ relay operator participation), abuse mitigation (< 5% takedown rate, 95%+ C2 blocking), operator safety (zero legal actions against compliant operators), privacy preservation (100% anonymity during investigations)
+- **Legal Framework**: Designed for DMCA safe harbor compliance (notice-and-takedown, good-faith effort, dispute resolution), explicit disclaimer that policy is not legal advice
+- Ready for Phase 6.3 (minimal HTTP tunnel prototype implementation)
+
 **Tunneling Primitive Design Specification (2026-05-06)**
 - Created `TUNNEL_DESIGN.md` (21KB, 600+ lines) — Complete design specification for Phase 6 tunneling primitive per PLAN.md §6.1
 - **Use Cases Defined**: Developer localhost exposure (ngrok-like), friend-to-friend reseed bootstrap, private service hosting

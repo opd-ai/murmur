@@ -459,23 +459,33 @@ func (g *Game) computeNetworkBounds(positions map[string]layout.Position) (minX,
 	first := true
 	for _, pos := range positions {
 		if first {
-			minX, maxX = pos.X, pos.X
-			minY, maxY = pos.Y, pos.Y
+			minX, maxX, minY, maxY = g.initializeBounds(pos)
 			first = false
 		} else {
-			if pos.X < minX {
-				minX = pos.X
-			}
-			if pos.X > maxX {
-				maxX = pos.X
-			}
-			if pos.Y < minY {
-				minY = pos.Y
-			}
-			if pos.Y > maxY {
-				maxY = pos.Y
-			}
+			minX, maxX, minY, maxY = g.updateBounds(pos, minX, maxX, minY, maxY)
 		}
+	}
+	return minX, maxX, minY, maxY
+}
+
+// initializeBounds sets initial boundary values from first position.
+func (g *Game) initializeBounds(pos layout.Position) (minX, maxX, minY, maxY float64) {
+	return pos.X, pos.X, pos.Y, pos.Y
+}
+
+// updateBounds extends bounds to include new position.
+func (g *Game) updateBounds(pos layout.Position, minX, maxX, minY, maxY float64) (float64, float64, float64, float64) {
+	if pos.X < minX {
+		minX = pos.X
+	}
+	if pos.X > maxX {
+		maxX = pos.X
+	}
+	if pos.Y < minY {
+		minY = pos.Y
+	}
+	if pos.Y > maxY {
+		maxY = pos.Y
 	}
 	return minX, maxX, minY, maxY
 }

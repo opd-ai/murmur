@@ -230,27 +230,44 @@ func (b *BatchRenderer) flushEdges(dst *ebiten.Image) {
 		if len(batch) == 0 {
 			continue
 		}
-
-		edgeColor := color.RGBA{R: key.r, G: key.g, B: key.b, A: key.a}
-
-		// Draw all edges in this batch
-		for _, cmd := range batch {
-			vector.StrokeLine(dst, cmd.x1, cmd.y1, cmd.x2, cmd.y2, cmd.thickness, edgeColor, true)
-		}
-
-		// Draw activity pulses if active
-		if key.active {
-			pulseColor := color.RGBA{255, 255, 255, 180}
-			if key.isSpecter {
-				pulseColor = color.RGBA{200, 220, 255, 140}
-			}
-			for _, cmd := range batch {
-				mx := (cmd.x1 + cmd.x2) / 2
-				my := (cmd.y1 + cmd.y2) / 2
-				vector.DrawFilledCircle(dst, mx, my, 3, pulseColor, true)
-			}
-		}
+		edgeColor := colorFromKey(key)
+		b.drawEdgeBatch(dst, batch, edgeColor)
+		b.drawActivityPulses(dst, batch, key)
 	}
+}
+
+// colorFromKey converts edge style key to RGBA color.
+func colorFromKey(key edgeStyleKey) color.RGBA {
+	return color.RGBA{R: key.r, G: key.g, B: key.b, A: key.a}
+}
+
+// drawEdgeBatch draws all edges in a batch with same color.
+func (b *BatchRenderer) drawEdgeBatch(dst *ebiten.Image, batch []edgeDrawCommand, edgeColor color.RGBA) {
+	for _, cmd := range batch {
+		vector.StrokeLine(dst, cmd.x1, cmd.y1, cmd.x2, cmd.y2, cmd.thickness, edgeColor, true)
+	}
+}
+
+// drawActivityPulses draws pulse indicators for active edges.
+func (b *BatchRenderer) drawActivityPulses(dst *ebiten.Image, batch []edgeDrawCommand, key edgeStyleKey) {
+	if !key.active {
+		return
+	}
+
+	pulseColor := b.getPulseColor(key.isSpecter)
+	for _, cmd := range batch {
+		mx := (cmd.x1 + cmd.x2) / 2
+		my := (cmd.y1 + cmd.y2) / 2
+		vector.DrawFilledCircle(dst, mx, my, 3, pulseColor, true)
+	}
+}
+
+// getPulseColor returns pulse color based on edge type.
+func (b *BatchRenderer) getPulseColor(isSpecter bool) color.RGBA {
+	if isSpecter {
+		return color.RGBA{200, 220, 255, 140}
+	}
+	return color.RGBA{255, 255, 255, 180}
 }
 
 // flushNodes draws all batched nodes with halos, rings, and selection highlights.

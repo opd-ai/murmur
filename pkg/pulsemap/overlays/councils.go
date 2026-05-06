@@ -166,32 +166,44 @@ func (co *CouncilOverlay) Update(dt float64) {
 	defer co.mu.Unlock()
 
 	for key, info := range co.councils {
-		// Advance council animation phase.
-		info.AnimationPhase += dt * 0.5
-		if info.AnimationPhase > 2*math.Pi {
-			info.AnimationPhase -= 2 * math.Pi
-		}
+		co.updateCouncilAnimation(info, dt)
+		co.updateCouncilPulse(key, info, dt)
+		co.updateMemberStars(key, info, dt)
+	}
+}
 
-		// Advance pulse phase for active councils.
-		if info.IsActive {
-			phase := co.pulsePhase[key]
-			phase += dt * 2.0 // Faster pulse when active.
-			if phase > 2*math.Pi {
-				phase -= 2 * math.Pi
-			}
-			co.pulsePhase[key] = phase
-		}
+// updateCouncilAnimation advances the council's animation phase.
+func (co *CouncilOverlay) updateCouncilAnimation(info *CouncilInfo, dt float64) {
+	info.AnimationPhase += dt * 0.5
+	if info.AnimationPhase > 2*math.Pi {
+		info.AnimationPhase -= 2 * math.Pi
+	}
+}
 
-		// Advance star twinkle phases.
-		for _, member := range info.Members {
-			memberKey := memberStarKey(info.ID, member.SpecterKey)
-			phase := co.starPhase[memberKey]
-			phase += dt * (1.0 + 0.3*math.Sin(float64(member.SpecterKey[0]))) // Slightly different rates.
-			if phase > 2*math.Pi {
-				phase -= 2 * math.Pi
-			}
-			co.starPhase[memberKey] = phase
+// updateCouncilPulse advances pulse phase for active councils.
+func (co *CouncilOverlay) updateCouncilPulse(key string, info *CouncilInfo, dt float64) {
+	if !info.IsActive {
+		return
+	}
+
+	phase := co.pulsePhase[key]
+	phase += dt * 2.0
+	if phase > 2*math.Pi {
+		phase -= 2 * math.Pi
+	}
+	co.pulsePhase[key] = phase
+}
+
+// updateMemberStars advances star twinkle phases for council members.
+func (co *CouncilOverlay) updateMemberStars(councilID string, info *CouncilInfo, dt float64) {
+	for _, member := range info.Members {
+		memberKey := memberStarKey(info.ID, member.SpecterKey)
+		phase := co.starPhase[memberKey]
+		phase += dt * (1.0 + 0.3*math.Sin(float64(member.SpecterKey[0])))
+		if phase > 2*math.Pi {
+			phase -= 2 * math.Pi
 		}
+		co.starPhase[memberKey] = phase
 	}
 }
 

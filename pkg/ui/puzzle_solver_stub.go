@@ -7,6 +7,7 @@
 package ui
 
 import (
+	"fmt"
 	"sync"
 	"time"
 )
@@ -102,31 +103,58 @@ func (p *PuzzleSolverPanel) Submit() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
+	if err := p.validateSubmission(); err != nil {
+		p.errorMessage = err.Error()
+		return
+	}
+
+	p.processSolution()
+	p.clearSolutionInput()
+}
+
+// validateSubmission checks if submission is valid.
+func (p *PuzzleSolverPanel) validateSubmission() error {
 	if len(p.solution) == 0 {
-		p.errorMessage = "Solution cannot be empty"
-		return
+		return fmt.Errorf("Solution cannot be empty")
 	}
-
 	if time.Now().After(p.expiresAt) {
-		p.errorMessage = "Puzzle has expired"
+		return fmt.Errorf("Puzzle has expired")
+	}
+	return nil
+}
+
+// processSolution submits solution and updates status messages.
+func (p *PuzzleSolverPanel) processSolution() {
+	if p.onSubmit == nil {
 		return
 	}
 
-	if p.onSubmit != nil {
-		success, msg := p.onSubmit(p.puzzleID, p.solution)
-		if success {
-			p.successMsg = msg
-			if p.successMsg == "" {
-				p.successMsg = "Solution accepted!"
-			}
-		} else {
-			p.errorMessage = msg
-			if p.errorMessage == "" {
-				p.errorMessage = "Incorrect solution"
-			}
-		}
+	success, msg := p.onSubmit(p.puzzleID, p.solution)
+	if success {
+		p.successMsg = p.getSuccessMessage(msg)
+	} else {
+		p.errorMessage = p.getErrorMessage(msg)
 	}
+}
 
+// getSuccessMessage returns success message with fallback.
+func (p *PuzzleSolverPanel) getSuccessMessage(msg string) string {
+	if msg == "" {
+		return "Solution accepted!"
+	}
+	return msg
+}
+
+// getErrorMessage returns error message with fallback.
+func (p *PuzzleSolverPanel) getErrorMessage(msg string) string {
+	if msg == "" {
+		return "Incorrect solution"
+	}
+	return msg
+}
+
+// clearSolutionInput resets solution input state.
+func (p *PuzzleSolverPanel) clearSolutionInput() {
 	p.solution = ""
 	p.cursorPos = 0
 }

@@ -190,39 +190,48 @@ func ValidateWithDeviceStore(wave *pb.Wave, difficulty uint8, deviceStore Device
 	}
 
 	sigData := signatureData(wave)
-
-	// Determine which key to use for signature verification
-	var signingKey []byte
-	multiDevice := len(wave.DevicePublicKey) > 0
-
-	if multiDevice {
-		// Multi-device mode: signature is from device key
-		signingKey = wave.DevicePublicKey
-
-		// Verify device is authorized by master
-		if deviceStore != nil {
-			authorized, err := deviceStore.IsDeviceAuthorizedWithGracePeriod(
-				wave.AuthorPubkey,
-				wave.DevicePublicKey,
-				wave.CreatedAt,
-			)
-			if err != nil {
-				return fmt.Errorf("checking device authorization: %w", err)
-			}
-			if !authorized {
-				return fmt.Errorf("device key not authorized by master key")
-			}
-		}
-	} else {
-		// Single-device mode: signature is from author (master = device)
-		signingKey = wave.AuthorPubkey
+	signingKey, err := determineSigningKey(wave, deviceStore)
+	if err != nil {
+		return err
 	}
 
-	// Verify signature
 	if !keys.Verify(signingKey, sigData, wave.Signature) {
 		return ErrInvalidSig
 	}
 
+	return nil
+}
+
+// determineSigningKey selects the correct public key for signature verification.
+func determineSigningKey(wave *pb.Wave, deviceStore DeviceAuthorizer) ([]byte, error) {
+	multiDevice := len(wave.DevicePublicKey) > 0
+	if !multiDevice {
+		return wave.AuthorPubkey, nil
+	}
+
+	if err := verifyDeviceAuthorization(wave, deviceStore); err != nil {
+		return nil, err
+	}
+	return wave.DevicePublicKey, nil
+}
+
+// verifyDeviceAuthorization checks if device is authorized by master key.
+func verifyDeviceAuthorization(wave *pb.Wave, deviceStore DeviceAuthorizer) error {
+	if deviceStore == nil {
+		return nil
+	}
+
+	authorized, err := deviceStore.IsDeviceAuthorizedWithGracePeriod(
+		wave.AuthorPubkey,
+		wave.DevicePublicKey,
+		wave.CreatedAt,
+	)
+	if err != nil {
+		return fmt.Errorf("checking device authorization: %w", err)
+	}
+	if !authorized {
+		return fmt.Errorf("device key not authorized by master key")
+	}
 	return nil
 }
 

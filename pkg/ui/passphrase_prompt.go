@@ -86,7 +86,21 @@ func (p *PassphrasePromptPanel) Update() bool {
 		return false
 	}
 
-	// Handle Escape to cancel
+	if p.handleEscapeKey() {
+		return true
+	}
+	if p.handleEnterKey() {
+		return true
+	}
+	if p.handleBackspaceKey() {
+		return true
+	}
+	p.handleTextInput()
+	return true
+}
+
+// handleEscapeKey processes Escape key for cancel action.
+func (p *PassphrasePromptPanel) handleEscapeKey() bool {
 	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
 		p.visible = false
 		if p.onCancel != nil {
@@ -94,8 +108,11 @@ func (p *PassphrasePromptPanel) Update() bool {
 		}
 		return true
 	}
+	return false
+}
 
-	// Handle Enter to submit
+// handleEnterKey processes Enter key for submit action.
+func (p *PassphrasePromptPanel) handleEnterKey() bool {
 	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) || inpututil.IsKeyJustPressed(ebiten.KeyNumpadEnter) {
 		if p.passphrase != "" && p.onSubmit != nil {
 			if err := p.onSubmit(p.passphrase); err != nil {
@@ -106,19 +123,23 @@ func (p *PassphrasePromptPanel) Update() bool {
 		}
 		return true
 	}
+	return false
+}
 
-	// Handle backspace
+// handleBackspaceKey processes Backspace key for character deletion.
+func (p *PassphrasePromptPanel) handleBackspaceKey() bool {
 	if inpututil.IsKeyJustPressed(ebiten.KeyBackspace) {
 		if len(p.passphrase) > 0 {
 			p.passphrase = p.passphrase[:len(p.passphrase)-1]
 		}
 		return true
 	}
+	return false
+}
 
-	// Handle text input
+// handleTextInput appends typed characters to passphrase.
+func (p *PassphrasePromptPanel) handleTextInput() {
 	p.passphrase += string(ebiten.AppendInputChars(nil))
-
-	return true
 }
 
 // Draw renders the panel.
