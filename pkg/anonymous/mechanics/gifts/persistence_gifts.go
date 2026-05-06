@@ -124,18 +124,14 @@ func (ps *PersistentGiftStore) persistGift(gift *Gift) error {
 
 // GarbageCollect removes expired gifts from both memory and database.
 func (ps *PersistentGiftStore) GarbageCollect() int {
-	// Get list of expired gift IDs before cleanup.
-	ps.GiftStore.mu.RLock()
-	expiredIDs := mechanics.CollectExpiredFromMap(ps.GiftStore.gifts)
-	ps.GiftStore.mu.RUnlock()
-
-	// Call parent garbage collection.
-	removed := ps.GiftStore.GarbageCollect()
-
-	// Remove from database.
-	mechanics.DeleteFromDB(ps.db, store.BucketGifts, expiredIDs)
-
-	return removed
+	return mechanics.GarbageCollectWithDB(
+		ps.GiftStore,
+		ps.db,
+		store.BucketGifts,
+		func() map[[32]byte]*Gift { return ps.GiftStore.gifts },
+		ps.GiftStore.mu.RLock,
+		ps.GiftStore.mu.RUnlock,
+	)
 }
 
 // giftToProto converts a Gift to its protobuf representation.

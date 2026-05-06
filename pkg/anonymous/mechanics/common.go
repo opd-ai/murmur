@@ -124,3 +124,33 @@ func DeleteFromDB(db *store.DB, bucket []byte, ids [][32]byte) {
 		_ = db.Delete(bucket, id[:])
 	}
 }
+
+// StoreWithGC represents an in-memory store that supports garbage collection.
+type StoreWithGC interface {
+	GarbageCollect() int
+}
+
+// GarbageCollectWithDB performs GC on an in-memory store and syncs deletions to DB.
+// itemsGetter retrieves the items map for expired item detection (under read lock).
+// This consolidates the persistent GC pattern used across gifts, marks, and other mechanics.
+func GarbageCollectWithDB[T Expirable](
+	store StoreWithGC,
+	db *store.DB,
+	bucket []byte,
+	itemsGetter func() map[[32]byte]T,
+	lockFn func(),
+	unlockFn func(),
+) int {
+	// Get list of expired item IDs before cleanup.
+	lockFn()
+	expiredIDs := CollectExpiredFromMap(itemsGetter())
+	unlockFn()
+
+	// Call parent garbage collection.
+	removed := store.GarbageCollect()
+
+	// Remove from database.
+	DeleteFromDB(db, bucket, expiredIDs)
+
+	return removed
+}

@@ -361,25 +361,7 @@ func (so *ShadowPlayOverlay) drawRing(
 	cx, cy, radius, strokeWidth float64,
 	col color.RGBA,
 ) {
-	if col.A == 0 {
-		return
-	}
-
-	// Draw circle using line segments.
-	numSegments := int(math.Max(32, radius/2))
-	angleStep := 2 * math.Pi / float64(numSegments)
-
-	for i := 0; i < numSegments; i++ {
-		angle1 := float64(i) * angleStep
-		angle2 := float64(i+1) * angleStep
-
-		x1 := float32(cx + radius*math.Cos(angle1))
-		y1 := float32(cy + radius*math.Sin(angle1))
-		x2 := float32(cx + radius*math.Cos(angle2))
-		y2 := float32(cy + radius*math.Sin(angle2))
-
-		vector.StrokeLine(screen, x1, y1, x2, y2, float32(strokeWidth), col, false)
-	}
+	drawSegmentedCircle(screen, cx, cy, radius, strokeWidth, col)
 }
 
 // drawLightning renders a lightning bolt effect.
