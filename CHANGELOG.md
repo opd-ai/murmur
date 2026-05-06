@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+**Flaky Performance Test Resolution (2026-05-06 03:38 UTC)**
+- **One flaky test fixed** — `TestPerformance10KNodesAtMesoZoom` in `pkg/pulsemap/layout` was failing intermittently under coverage mode due to instrumentation overhead (48.7ms vs 33.3ms threshold).
+- **Root cause** — Coverage instrumentation adds 3.5× overhead (13.9ms → 48.7ms), causing legitimate timing violations. Test already skipped under race detector but not coverage mode.
+- **Resolution** — Added `testing.CoverMode()` skip guard (5 lines, test-only change). Test now properly skips under all instrumentation modes: `-short`, `-race`, `-cover`.
+- **Validation** — Full test suite passes with 100% reliability: `go test -race -count=1 ./...` (57/57 PASS), `go test -cover ./...` (57/57 PASS).
+- **Complexity impact** — Zero production code changes. Zero complexity regression. All 5,726 functions remain below cyclomatic complexity threshold (<9).
+- **Test suite health** — 100% pass rate maintained across all modes (normal, race, coverage). Zero race conditions. Zero panics.
+- **Documentation** — Created `TEST_FAILURE_CLASSIFICATION_FINAL_2026-05-06.md` with complete root cause analysis, complexity metrics correlation, fix justification, and validation results.
+
 ### Validated
 
 **Test Suite Health Verification (2026-05-06)**

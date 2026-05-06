@@ -137,6 +137,11 @@ func TestPerformance10KNodesAtMesoZoom(t *testing.T) {
 		t.Skip("Skipping performance test with race detector enabled")
 	}
 
+	// Skip under coverage mode as instrumentation adds significant overhead
+	if testing.CoverMode() != "" {
+		t.Skip("Skipping performance test with coverage instrumentation enabled")
+	}
+
 	const (
 		nodeCount      = 10000
 		edgesPerNode   = 4

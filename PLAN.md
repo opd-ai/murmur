@@ -186,13 +186,15 @@ Make the primary user path match the product identity.
          - Measure time-to-first-message and time-to-first-game
          - Decide based on data, not aesthetics
 
-[ ] 1.4  Design empty-state and low-population states for Pulse Map
+[x] 1.4  Design empty-state and low-population states for Pulse Map
          - What does a 5-node graph look like?
          - Never show a user an empty or near-empty graph as first impression
+         - **COMPLETED**: Created docs/PULSE_MAP_EMPTY_STATE.md with complete specification for 5 population scenarios (Absolute Zero, Solo, Dyad, Small Network 3-5 nodes, Growing Network 6-20 nodes). Each scenario includes visual state design, UI overlay with CTAs, animations, interactions, and auto-dismiss behavior. Specified color palette, typography, layout dimensions, animation timing. Designed pkg/pulsemap/emptystate/ package with Detector, Overlay, and TutorialHint types. Integration strategy with main Pulse Map game loop. Testing strategy (unit, integration, visual regression). User testing protocol with success metrics (80% Solo CTA click rate, 60% Dyad CTA click rate, 70% Small Network interaction rate). Accessibility considerations (keyboard nav, screen reader, high contrast, reduce motion). Implementation checklist (14 tasks, 1 week estimate).
 
-[ ] 1.5  Document the Pulse Map degradation curve
+[x] 1.5  Document the Pulse Map degradation curve
          - Behavior at 50 / 500 / 5,000 / 50,000 visible nodes
          - Define culling, clustering, and LOD strategies up front
+         - **COMPLETED**: Created docs/PULSE_MAP_DEGRADATION_CURVE.md with complete scalability specification. Defined 6 performance thresholds (Small 1-50, Medium 51-500, Large 501-2K, Very Large 2K-10K, Massive 10K-50K, Extreme 50K+) with FPS targets (60fps @ 500 nodes per spec), layout algorithms (Fruchterman-Reingold → Barnes-Hut θ=0.5/0.8 → Clustering → Static), visual fidelity degradation (full effects → reduced → minimal → statistical). 4-level LOD system (Full/High/Medium/Low detail based on hop distance). 4 culling strategies (frustum/distance/occlusion/temporal coherence, 50-90% savings). Edge bundling for 501+ nodes. Heatmap rendering for 10K+ nodes (GPU-accelerated KDE). User warnings at thresholds. Performance settings (node/hop limits, quality, layout frequency). Testing strategy (benchmarks, stress tests, user testing). 6-phase implementation checklist (10 weeks, 1 engineer). Success metrics: ≥60fps @ 500, ≥45fps @ 2K, ≥30fps @ 10K.
 
 
 =====================================
