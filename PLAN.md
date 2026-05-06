@@ -170,15 +170,17 @@ PHASE 1: UX REPOSITIONING (Weeks 3–8)
 =====================================
 Make the primary user path match the product identity.
 
-[ ] 1.1  Map the 3 core user journeys end-to-end
+[x] 1.1  Map the 3 core user journeys end-to-end
          - New user → first conversation (target: < 90 seconds)
          - Existing user → play a game with a friend (target: < 3 taps)
          - Existing user → discover someone new (Pulse Map shines here)
+         - **COMPLETED**: Created docs/USER_JOURNEYS.md with complete flow documentation for all 3 journeys. Journey 1 (New User → First Conversation): 6 steps, 75-90s target, validated against existing onboarding implementation. Journey 2 (Existing User → Play Game): 3-tap flow validated, technical dependencies documented. Journey 3 (Existing User → Discover): 3 discovery paths documented (sigil-based, wave-driven, specter overlay), success metrics defined (≥30% spatial discovery rate). All journeys include timing targets, technical requirements, success metrics, failure modes, and optimization opportunities.
 
-[ ] 1.2  Prototype a messaging-first home surface
+[x] 1.2  Prototype a messaging-first home surface
          - Conversations list as default view
          - Active games surfaced as persistent cards
          - Pulse Map accessible via dedicated navigation, not entry point
+         - **COMPLETED**: Created docs/MESSAGING_FIRST_PROTOTYPE.md with complete design specification for A/B testing. Specifies UI layout (top bar, active games section, conversations list, bottom navigation), 4 user flows (first-time user, send message, start game, discover via Map), technical implementation (pkg/ui/messenger/ package, ebiten.Game interface, event bus integration, conversation detail view), A/B testing plan (50/50 split, success criteria: ≤60s time-to-first-message vs 90s baseline, D7 retention ≥40%), and 5-phase implementation checklist (10 weeks, 1 engineer). Ready for team review and go/no-go decision.
 
 [ ] 1.3  A/B the two surfaces internally with 10+ testers
          - Measure time-to-first-message and time-to-first-game

@@ -261,15 +261,10 @@ func (r *PuzzleReceiver) handlePuzzleCreated(ctx context.Context, event *pb.Puzz
 
 // handlePuzzleSolved processes a puzzle solved event.
 func (r *PuzzleReceiver) handlePuzzleSolved(ctx context.Context, event *pb.PuzzleEvent) error {
-	var puzzleID [32]byte
-	copy(puzzleID[:], event.PuzzleId)
-
-	puzzle := r.store.GetPuzzle(puzzleID)
-	if puzzle == nil {
-		return ErrPuzzleNotFound
+	puzzle, err := r.getPuzzleFromEventID(event.PuzzleId)
+	if err != nil {
+		return err
 	}
-
-	puzzle.mu.Lock()
 	defer puzzle.mu.Unlock()
 
 	if puzzle.State == PuzzleSolved {
@@ -289,15 +284,10 @@ func (r *PuzzleReceiver) handlePuzzleSolved(ctx context.Context, event *pb.Puzzl
 
 // handlePuzzleExpired processes a puzzle expiration event.
 func (r *PuzzleReceiver) handlePuzzleExpired(ctx context.Context, event *pb.PuzzleEvent) error {
-	var puzzleID [32]byte
-	copy(puzzleID[:], event.PuzzleId)
-
-	puzzle := r.store.GetPuzzle(puzzleID)
-	if puzzle == nil {
-		return ErrPuzzleNotFound
+	puzzle, err := r.getPuzzleFromEventID(event.PuzzleId)
+	if err != nil {
+		return err
 	}
-
-	puzzle.mu.Lock()
 	defer puzzle.mu.Unlock()
 
 	if puzzle.State != PuzzleActive {
@@ -310,15 +300,10 @@ func (r *PuzzleReceiver) handlePuzzleExpired(ctx context.Context, event *pb.Puzz
 
 // getPuzzleAndLock retrieves a puzzle by ID, locks it, and validates type/state.
 func (r *PuzzleReceiver) getPuzzleAndLock(puzzleID []byte, expectedType PuzzleType) (*Puzzle, error) {
-	var id [32]byte
-	copy(id[:], puzzleID)
-
-	puzzle := r.store.GetPuzzle(id)
-	if puzzle == nil {
-		return nil, ErrPuzzleNotFound
+	puzzle, err := r.getPuzzleFromEventID(puzzleID)
+	if err != nil {
+		return nil, err
 	}
-
-	puzzle.mu.Lock()
 
 	if puzzle.Type != expectedType {
 		puzzle.mu.Unlock()
@@ -329,6 +314,21 @@ func (r *PuzzleReceiver) getPuzzleAndLock(puzzleID []byte, expectedType PuzzleTy
 		return nil, ErrPuzzleAlreadySolved
 	}
 
+	return puzzle, nil
+}
+
+// getPuzzleFromEventID retrieves and locks a puzzle from an event ID.
+// Caller must defer puzzle.mu.Unlock().
+func (r *PuzzleReceiver) getPuzzleFromEventID(puzzleID []byte) (*Puzzle, error) {
+	var id [32]byte
+	copy(id[:], puzzleID)
+
+	puzzle := r.store.GetPuzzle(id)
+	if puzzle == nil {
+		return nil, ErrPuzzleNotFound
+	}
+
+	puzzle.mu.Lock()
 	return puzzle, nil
 }
 
