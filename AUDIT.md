@@ -2153,7 +2153,7 @@ Negligible. All extracted helpers are inline candidates (most <10 lines). Go com
 
 - [x] Added GoDoc comments to all 40 extracted helpers
 - [x] Preserved specification references in comments (e.g., "Per PULSE_MAP.md §Macro View")
-- [ ] Update TECHNICAL_IMPLEMENTATION.md §8 with new helper function inventory (deferred to next major documentation pass)
+- [x] Update TECHNICAL_IMPLEMENTATION.md §8 with new helper function inventory — **COMPLETED 2026-05-06**: Added §8.1 "Helper Function Inventory" documenting all 40+ helper functions extracted during complexity refactoring across 5 subsystems (identity recovery, application lifecycle, wave synchronization, pulse map rendering). Organized by package with functional grouping (enrollment/reconstruction, initialization/content setup/shutdown, session management/protocol handling, drawing). Documented refactoring impact (max CC reduced from 18 to 7, 100% test pass rate maintained, zero race conditions).
 
 ## [2026-05-06] Test Classification Workflow Validation
 
@@ -2197,4 +2197,94 @@ Baseline metrics captured for monthly regression checks:
 2. Add tests before implementing tunneling stub packages
 3. Monitor test execution time (flag tests >10s for optimization)
 4. Run monthly complexity diff against baseline-workflow-classification.json
+
+
+---
+
+## [2026-05-06T14:54:00Z] Autonomous Test Classification Workflow Execution — Pristine Baseline Validation
+
+### Audit Type
+**Code Quality Validation — Autonomous Test Health Assessment with Complexity-Driven Failure Correlation**
+
+### Decision
+Executed autonomous test classification workflow to identify, classify, and resolve test failures using complexity metrics for root cause correlation. **Result: ZERO FAILURES DETECTED — All 64 test packages pass with race detection enabled.**
+
+### Implementation
+**Workflow Configuration**:
+- **Mode**: Autonomous action (analyze failures, fix root causes, validate with tests)
+- **Risk Indicators**: Cyclomatic complexity >12 (high-risk for bugs), nesting depth >3 (logic errors), function length >30 (untested paths), concurrency primitives (race conditions)
+- **Tiebreaker**: Fix failures in highest-complexity functions first
+- **Fix Rules**: Cat 1 (fix production code), Cat 2 (fix test expectations), Cat 3 (convert to proper error tests)
+
+**Phase 0: Codebase Understanding**
+- Project domain: MURMUR decentralized P2P social network, dual-layer identity (Surface + Anonymous)
+- Test framework: Go built-in `testing` package (no external frameworks like `testify`, `gomock`)
+- Error handling: Custom `pkg/murerr` package for domain errors, explicit error returns, context cancellation
+- Assertion style: Standard Go `t.Error`, `t.Fatal`, table-driven tests
+- Mocking patterns: In-memory stores, mock libp2p hosts, no external mocking framework
+- Concurrency model: ~8 persistent goroutines (main, network, layout, expiry, heartbeat, Shroud, event bus, DHT), channel-based communication, atomic pointer swaps for Pulse Map rendering
+
+**Phase 1: Test Execution & Complexity Baseline**
+- Command: `go test -race -count=1 ./... 2>&1 | tee test-output-workflow-autonomous.txt`
+- Results:
+  - **Total Packages**: 72 (64 with tests, 8 with no test files)
+  - **Passed**: 64 packages (100% pass rate)
+  - **Failed**: 0 packages
+  - **Race Conditions**: 0 detected
+  - **Test Duration**: ~90 seconds total
+- Complexity baseline: `go-stats-generator analyze . --skip-tests --format json --output baseline-autonomous-workflow.json --sections functions,patterns`
+  - **Files Processed**: 336 Go source files
+  - **Analysis Time**: 5.17 seconds
+  - **Output Size**: 5.8 MB JSON
+  - **Sections**: functions (cyclomatic complexity, line counts, nesting depth), patterns (concurrency patterns, error handling)
+
+**Phase 2: Classification & Resolution**
+- **Classification Categories**:
+  | Category | Description | Fix Strategy |
+  |----------|-------------|-------------|
+  | Cat 1: Implementation Bug | Test correct, code wrong | Fix production code |
+  | Cat 2: Test Spec Error | Code correct, test expectation wrong | Fix test |
+  | Cat 3: Negative Test Gap | Test expects success but should test error path | Convert to proper error test |
+- **Resolution Order**: Cat 1 (implementation bugs) → Cat 2 (test spec errors) → Cat 3 (negative test gaps)
+- **Actual Execution**: No failures detected, classification step skipped
+
+**Phase 3: Validation**
+- **Concurrency Safety**: All 64 test packages pass race detection without errors
+- **High-Concurrency Tests Verified**:
+  - `pkg/anonymous/mechanics/shadowplay` — 10.086s (multi-turn game state mutations)
+  - `pkg/anonymous/shroud` — 8.626s (onion circuit construction)
+  - `pkg/app` — 6.485s (event bus fan-out)
+  - `pkg/anonymous/resonance` — 6.031s (reputation decay simulation)
+  - `pkg/networking/gossip` — 5.665s (GossipSub message routing)
+  - `pkg/onboarding/bootstrap` — 5.411s (initial peer connection)
+  - `pkg/networking/mesh` — 4.596s (peer scoring, mesh health)
+  - `pkg/networking/discovery` — 4.002s (DHT bootstrap)
+- **Packages Without Tests (8)**: `github.com/opd-ai/murmur/proto`, `pkg/encoding`, `pkg/networking/transport/onramp`, `pkg/tunneling/{accounting,client,initiator,relay}`, `proto/proto`
+
+### Artifacts Generated
+1. **`test-output-workflow-autonomous.txt`** — Full test output with race detection (72 packages)
+2. **`baseline-autonomous-workflow.json`** — Complexity metrics (5.8 MB, 336 files, function-level analysis)
+3. **`TEST_CLASSIFICATION_WORKFLOW_AUTONOMOUS_RESULT_2026-05-06.md`** — 291-line comprehensive execution report with test suite breakdown, concurrency safety validation, and workflow configuration
+
+### Rationale
+The autonomous test classification workflow serves as both a validation tool (confirming pristine baseline) and a future failure resolution framework. By generating complexity metrics alongside test execution, the workflow enables complexity-driven root cause correlation for any future test failures. The workflow is designed to:
+1. **Understand the codebase** before fixing failures (prevents mismatched conventions)
+2. **Identify failures** with race detection enabled (catches concurrency issues)
+3. **Classify failures** by category (implementation bug vs. test spec error vs. negative test gap)
+4. **Fix in priority order** (highest-complexity functions first, implementation bugs before test fixes)
+5. **Validate with metrics** (confirm no complexity regressions)
+
+### Security Impact
+**Positive — Concurrency Safety Validated**:
+- Zero race conditions detected across all 64 test packages with `-race` flag
+- High-concurrency subsystems verified: Anonymous Layer (Shroud circuits, Shadow Play), Networking (GossipSub, mesh scoring), Pulse Map (force-directed layout)
+- Cryptographic operations tested: Ed25519 signing, Curve25519 key exchange, ChaCha20-Poly1305 encryption, SHA-256 PoW, BLAKE3 identity hashing, Argon2id key derivation
+
+### Future Review
+- **Test Coverage Expansion**: 8 packages have no test files (mostly generated code, transport abstractions, placeholder packages)
+- **Simulation Tests**: Consider adding `//go:build simulation` tag tests for 10–100 node network scenarios (per TECHNICAL_IMPLEMENTATION.md testing strategy)
+- **Ebitengine Rendering Tests**: Current tests avoid Ebitengine dependency; consider headless mode screenshot comparison tests for Pulse Map rendering validation
+
+### Status
+✅ **COMPLETE** — All tests passing, zero failures, pristine baseline confirmed. Workflow ready for future executions when test failures are introduced.
 
