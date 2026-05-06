@@ -7,7 +7,6 @@ import (
 
 	"github.com/opd-ai/murmur/pkg/content/waves"
 	"github.com/opd-ai/murmur/pkg/identity/keys"
-	pb "github.com/opd-ai/murmur/proto"
 )
 
 // BenchmarkWavePropagationLatency measures latency tracking for 3-hop propagation.
@@ -115,30 +114,28 @@ func BenchmarkRelayReceive(b *testing.B) {
 	kp, _ := keys.GenerateKeyPair()
 	relay := NewRelay()
 
+	// Create a single wave outside the benchmark loop to avoid PoW overhead
+	wave, _ := waves.CreateSurface([]byte("test content"), kp)
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		b.StopTimer()
-		wave, _ := waves.CreateSurface([]byte(fmt.Sprintf("test content %d", i)), kp)
-		b.StartTimer()
-
-		_, _ = relay.Receive(wave)
+		// Create unique wave IDs by incrementing hop count
+		testWave := waves.IncrementHop(wave)
+		testWave.WaveId = []byte(fmt.Sprintf("wave-%d", i))
+		_, _ = relay.Receive(testWave)
 	}
 }
 
 // BenchmarkRelayDuplicateCheck measures duplicate detection performance.
 func BenchmarkRelayDuplicateCheck(b *testing.B) {
-	kp, _ := keys.GenerateKeyPair()
 	relay := NewRelay()
 
 	// Pre-populate with 10k waves
 	for i := 0; i < 10000; i++ {
-		wave, _ := waves.CreateSurface([]byte(fmt.Sprintf("content %d", i)), kp)
-		relay.markSeen(string(wave.WaveId))
+		relay.markSeen(fmt.Sprintf("wave-%d", i))
 	}
 
-	// Create a test wave
-	testWave, _ := waves.CreateSurface([]byte("benchmark test"), kp)
-	waveID := string(testWave.WaveId)
+	waveID := "wave-5000"
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -162,14 +159,9 @@ func BenchmarkRelayCacheLRU(b *testing.B) {
 	relay := NewRelayWithConfig(RelayConfig{
 		CacheMaxSize: 1000, // Small cache to trigger evictions
 	})
-	kp, _ := keys.GenerateKeyPair()
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		b.StopTimer()
-		wave, _ := waves.CreateSurface([]byte(fmt.Sprintf("content %d", i)), kp)
-		b.StartTimer()
-
-		relay.markSeen(string(wave.WaveId))
+		relay.markSeen(fmt.Sprintf("wave-%d", i))
 	}
 }

@@ -297,13 +297,22 @@ func IncrementHop(wave *pb.Wave) *pb.Wave {
 		return nil
 	}
 
-	// Use protobuf Clone for efficient shallow copy, then update hop count.
-	// This is faster than manual field copying and preserves all fields including
-	// device_public_key and any future protobuf extensions.
-	newWave := wave.ProtoReflect().New().Interface().(*pb.Wave)
-	*newWave = *wave
-	newWave.HopCount = wave.HopCount + 1
-	return newWave
+	// Manually copy fields to avoid copying the protobuf internal lock state.
+	// While slightly more verbose than protobuf Clone, this is safer and
+	// preserves all fields including device_public_key.
+	return &pb.Wave{
+		WaveType:        wave.WaveType,
+		Content:         wave.Content,
+		AuthorPubkey:    wave.AuthorPubkey,
+		Signature:       wave.Signature,
+		CreatedAt:       wave.CreatedAt,
+		TtlSeconds:      wave.TtlSeconds,
+		PowNonce:        wave.PowNonce,
+		ParentHash:      wave.ParentHash,
+		HopCount:        wave.HopCount + 1,
+		WaveId:          wave.WaveId,
+		DevicePublicKey: wave.DevicePublicKey,
+	}
 }
 
 // int64ToBytes converts an int64 to an 8-byte big-endian array.
