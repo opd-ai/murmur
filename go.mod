@@ -8,6 +8,8 @@ require (
 	github.com/bits-and-blooms/bloom/v3 v3.7.1
 	github.com/bwesterb/go-ristretto v1.2.3
 	github.com/coinbase/kryptology v1.8.0
+	github.com/cretz/bine v0.2.0
+	github.com/go-i2p/onramp v0.33.92
 	github.com/gtank/merlin v0.1.1
 	github.com/hajimehoshi/ebiten/v2 v2.9.9
 	github.com/ipfs/go-cid v0.6.0
@@ -17,6 +19,7 @@ require (
 	github.com/libp2p/go-libp2p-pubsub v0.15.0
 	github.com/multiformats/go-multiaddr v0.16.1
 	github.com/prometheus/client_golang v1.23.2
+	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/stretchr/testify v1.11.1
 	github.com/tyler-smith/go-bip39 v1.1.0
 	github.com/zeebo/blake3 v0.2.4
@@ -52,6 +55,8 @@ require (
 	github.com/ebitengine/purego v0.9.0 // indirect
 	github.com/filecoin-project/go-clock v0.1.0 // indirect
 	github.com/flynn/noise v1.1.0 // indirect
+	github.com/go-i2p/i2pkeys v0.33.10-0.20241113193422-e10de5e60708 // indirect
+	github.com/go-i2p/sam3 v0.33.9 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-text/typesetting v0.3.0 // indirect
@@ -129,7 +134,7 @@ require (
 	github.com/quic-go/quic-go v0.59.0 // indirect
 	github.com/quic-go/webtransport-go v0.10.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
-	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e // indirect
+	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/whyrusleeping/go-keyspace v0.0.0-20160322163242-5b898ac5add1 // indirect
 	github.com/wlynxg/anet v0.0.5 // indirect

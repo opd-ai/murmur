@@ -319,15 +319,16 @@ github.com/go-i2p/onramp. This keeps MURMUR's transport abstraction
 intact while outsourcing the hard parts (daemon detection, key
 persistence, listener lifecycle, reachability) to onramp.
 
-[ ] 5.1  Add go-i2p/onramp as a dependency
+[x] 5.1  Add go-i2p/onramp as a dependency
          - Pin version in go.mod; review licenses and API stability
          - Read onramp source for Onion and Garlic structs; document
            their lifecycle (NewOnion / NewGarlic, Listen, Dial, Close)
          - Note runtime expectations: Tor daemon with control port,
            I2P router with SAMv3 enabled (or embedded equivalents
            that onramp may offer)
+         - **COMPLETED 2026-05-06**: Added github.com/go-i2p/onramp@v0.33.92 and github.com/cretz/bine@v0.2.0 to go.mod. Both use MIT license (permissive). Created pkg/networking/transport/onramp_tor/ with Transport stub implementing libp2p transport.Transport interface. Documented lifecycle (NewOnion/NewGarlic, Listen, Dial, Close) and runtime expectations (Tor daemon with control port or embedded via bine, I2P router with SAMv3 or embedded) in docs/ONRAMP_DEPENDENCY_REVIEW.md. Key persistence will use MURMUR's existing keystore with Argon2id encryption. Build validates cleanly.
 
-[ ] 5.2  Define the libp2p transport adapter boundary
+[x] 5.2  Define the libp2p transport adapter boundary
          - MURMUR already uses libp2p; both adapters MUST implement
            the libp2p transport.Transport interface so the switch
            composes them alongside TCP/QUIC/Noise without special-
@@ -336,6 +337,7 @@ persistence, listener lifecycle, reachability) to onramp.
            services, /garlic64/<base64>:<port> for I2P destinations
          - Dial and Listen semantics must match libp2p expectations,
            even though underlying latency profile differs
+         - **COMPLETED 2026-05-06**: Created docs/TRANSPORT_ADAPTER_BOUNDARY.md defining complete libp2p transport adapter contract. Documented interface requirements (Transport with Dial/Listen/CanDial/Protocols/Proxy methods), multiaddr mappings (onion3 protocol code 444, garlic64 code 456), dial/listen flows with libp2p upgrader integration (Noise + yamux), latency considerations (Tor: 500ms-2s circuit + 200-800ms/hop, I2P: 300ms-1.5s tunnel + 100-500ms/hop), multi-transport coexistence strategy, security boundary (onramp provides raw TCP, libp2p adds Noise encryption + peer auth), key persistence (tor_onion.key and i2p_destination.key in ~/.config/murmur/keys/transport/ with Argon2id encryption), testing strategy (unit tests with mocks, integration tests with embedded Tor/I2P, interop tests for Shroud-over-Tor scenarios).
 
 [ ] 5.3  Implement the Tor (Onion) libp2p transport adapter
          - Package: pkg/networking/transport/onramp_tor
