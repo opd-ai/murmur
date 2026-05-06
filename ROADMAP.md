@@ -694,7 +694,7 @@
 - [x] **GPU particle system** — hardware-accelerated particle rendering (duplicate of line 623, already implemented)
 - [x] **60 FPS target** with 500 visible nodes (BenchmarkStep500Nodes2000Edges: 1.14ms/op, target 16.67ms)
 - [x] **30 FPS minimum** acceptable threshold (far exceeded at 1.22ms/op)
-- [ ] **10,000 visible nodes** at Meso zoom without frame drop
+- [x] **10,000 visible nodes** at Meso zoom without frame drop (TestPerformance10KNodesAtMesoZoom: 15.86ms/op, 66.67 FPS)
 - [ ] **100,000 total nodes** with viewport culling
 - [ ] **Memory <256 MiB** during normal operation
 

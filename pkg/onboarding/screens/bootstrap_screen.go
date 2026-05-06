@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 	"github.com/opd-ai/murmur/pkg/onboarding/flow"
 )
@@ -83,6 +84,24 @@ func (s *BootstrapScreen) Update() error {
 	s.animPhase += dt * 0.5
 	if s.animPhase > 1 {
 		s.animPhase -= 1
+	}
+
+	// Handle mouse clicks.
+	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+		x, y := ebiten.CursorPosition()
+		s.HandleClick(x, y)
+	}
+
+	// Handle text input and backspace for the first Wave compose field.
+	if s.state == BootstrapStateFirstWavePrompt {
+		for _, ch := range ebiten.AppendInputChars(nil) {
+			if len(s.firstWaveText) < 2048 {
+				s.firstWaveText += string(ch)
+			}
+		}
+		if inpututil.IsKeyJustPressed(ebiten.KeyBackspace) && len(s.firstWaveText) > 0 {
+			s.firstWaveText = s.firstWaveText[:len(s.firstWaveText)-1]
+		}
 	}
 
 	return nil

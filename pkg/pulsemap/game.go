@@ -473,12 +473,20 @@ func (g *Game) handleZoom() {
 
 func (g *Game) handleDragging() {
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
-		g.dragStartX, g.dragStartY = ebiten.CursorPosition()
-		g.isDragging = true
+		mx, my := ebiten.CursorPosition()
+		// Perform node hit-testing via the renderer; this sets SelectedNodeID if
+		// a node was clicked, or starts the renderer's drag state if not.
+		g.renderer.HandleMouseDown(float64(mx), float64(my))
+		// Only begin the camera-pan drag when no node was selected.
+		if g.input.SelectedNodeID == "" {
+			g.dragStartX, g.dragStartY = mx, my
+			g.isDragging = true
+		}
 	}
 
 	if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {
 		g.isDragging = false
+		g.renderer.HandleMouseUp()
 	}
 
 	if g.isDragging && ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {

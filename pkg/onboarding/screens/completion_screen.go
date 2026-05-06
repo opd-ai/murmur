@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 	"github.com/opd-ai/murmur/pkg/identity/keys"
 	"github.com/opd-ai/murmur/pkg/identity/modes"
@@ -89,6 +90,13 @@ func (s *CompletionScreen) Update() error {
 	if s.animPhase > 1 {
 		s.animPhase -= 1
 	}
+
+	// Handle mouse clicks.
+	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+		x, y := ebiten.CursorPosition()
+		s.HandleClick(x, y)
+	}
+
 	return nil
 }
 

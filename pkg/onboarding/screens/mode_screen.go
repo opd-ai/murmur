@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 	"github.com/opd-ai/murmur/pkg/identity/keys"
 	"github.com/opd-ai/murmur/pkg/identity/modes"
@@ -101,6 +102,15 @@ func (s *ModeScreen) Update() error {
 	// Introduction animation timing (5 seconds per ONBOARDING.md)
 	if s.state == ModeStateIntro {
 		s.introProgress = math.Min(1.0, time.Since(s.introStart).Seconds()/5.0)
+	}
+
+	// Update hover state for mode cards.
+	mx, my := ebiten.CursorPosition()
+	s.HandleMouseMove(mx, my)
+
+	// Handle mouse clicks.
+	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+		s.HandleClick(mx, my)
 	}
 
 	return nil

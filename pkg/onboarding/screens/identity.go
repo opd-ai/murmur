@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 	"github.com/opd-ai/murmur/pkg/identity/keys"
 	"github.com/opd-ai/murmur/pkg/identity/sigils"
@@ -119,6 +120,22 @@ func (s *Screen) Update() error {
 		if index != s.philosophyIndex && index < len(s.philosophyTexts) {
 			s.philosophyIndex = index
 		}
+	}
+
+	// Handle mouse clicks.
+	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+		x, y := ebiten.CursorPosition()
+		s.HandleClick(x, y)
+	}
+
+	// Handle text input for display name entry.
+	for _, ch := range ebiten.AppendInputChars(nil) {
+		s.HandleKeyInput(ch)
+	}
+
+	// Handle backspace.
+	if inpututil.IsKeyJustPressed(ebiten.KeyBackspace) {
+		s.HandleBackspace()
 	}
 
 	return nil
