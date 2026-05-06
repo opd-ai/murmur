@@ -405,52 +405,76 @@ func (m *MaskedEventManager) PublishToEvent(ctx context.Context, eventID [32]byt
 
 // HandleEventMessage processes a message from an event topic.
 func (m *MaskedEventManager) HandleEventMessage(ctx context.Context, eventID [32]byte, msg *pubsub.Message) error {
-	m.mu.RLock()
-	handler := m.handler
-	m.mu.RUnlock()
-
+	handler := m.getHandler()
 	if handler == nil {
 		return nil
 	}
 
-	// Parse envelope.
-	env, err := ValidateEnvelope(msg.Data, time.Now())
+	env, err := m.validateAndDedupMessage(msg)
 	if err != nil {
 		return err
 	}
 
-	// Check dedup.
+	senderKey := extractSenderKey(env)
+	if err := m.validateEventParticipation(eventID, senderKey); err != nil {
+		return err
+	}
+
+	wave := createMaskedEventWave(eventID, senderKey, env)
+	return handler.HandleWave(ctx, wave)
+}
+
+// getHandler returns the current handler under read lock.
+func (m *MaskedEventManager) getHandler() MaskedEventHandler {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.handler
+}
+
+// validateAndDedupMessage validates the envelope and checks for duplicates.
+func (m *MaskedEventManager) validateAndDedupMessage(msg *pubsub.Message) (*Envelope, error) {
+	env, err := ValidateEnvelope(msg.Data, time.Now())
+	if err != nil {
+		return nil, err
+	}
+
 	if m.dedup.IsSeen(env.MessageID) {
-		return ErrDuplicateMessage
+		return nil, ErrDuplicateMessage
 	}
 	m.dedup.MarkSeen(env.MessageID)
 
-	// Convert sender pubkey to [32]byte.
+	return env, nil
+}
+
+// extractSenderKey extracts the sender public key from the envelope.
+func extractSenderKey(env *Envelope) [32]byte {
 	var senderKey [32]byte
 	if len(env.SenderPubkey) >= 32 {
 		copy(senderKey[:], env.SenderPubkey[:32])
 	}
+	return senderKey
+}
 
-	// Verify the sender's Masked key is registered.
+// validateEventParticipation verifies the sender is registered and the event is active.
+func (m *MaskedEventManager) validateEventParticipation(eventID, senderKey [32]byte) error {
 	if !m.IsKeyRegistered(eventID, senderKey) {
 		return ErrMaskedKeyNotRegistered
 	}
-
-	// Verify event is active.
 	if !m.IsEventActive(eventID) {
 		return ErrMaskedEventNotActive
 	}
+	return nil
+}
 
-	// Dispatch to handler.
-	wave := &MaskedEventWaveWrapper{
+// createMaskedEventWave creates a MaskedEventWaveWrapper from validated data.
+func createMaskedEventWave(eventID, senderKey [32]byte, env *Envelope) *MaskedEventWaveWrapper {
+	return &MaskedEventWaveWrapper{
 		EventID:      eventID,
 		MaskedPubKey: senderKey,
 		WaveData:     env.Payload,
 		Signature:    env.Signature,
 		SentAt:       time.Unix(env.TimestampUnix, 0),
 	}
-
-	return handler.HandleWave(ctx, wave)
 }
 
 // BroadcastAnnouncement sends an event announcement to the anonymous beacons topic.

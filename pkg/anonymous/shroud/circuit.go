@@ -671,12 +671,8 @@ func (c *Circuit) DecryptLayerWithReplayCheck(data []byte, hopIndex int) ([]byte
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if c.closed {
-		return nil, ErrCircuitClosed
-	}
-
-	if hopIndex < 0 || hopIndex >= CircuitLength {
-		return nil, ErrRelayNotFound
+	if err := c.validateDecryptionRequest(hopIndex); err != nil {
+		return nil, err
 	}
 
 	cipher, err := chacha20poly1305.NewX(c.sharedKeys[hopIndex][:])
@@ -684,20 +680,12 @@ func (c *Circuit) DecryptLayerWithReplayCheck(data []byte, hopIndex int) ([]byte
 		return nil, ErrDecryptionFailed
 	}
 
-	if len(data) < cipher.NonceSize() {
-		return nil, ErrInvalidPacket
+	nonce, ciphertext, err := splitNonceAndCiphertext(data, cipher.NonceSize())
+	if err != nil {
+		return nil, err
 	}
 
-	nonce := data[:cipher.NonceSize()]
-	ciphertext := data[cipher.NonceSize():]
-
-	// Extract sequence from nonce (bytes 8-15, big-endian).
-	seq := uint64(nonce[8])<<56 | uint64(nonce[9])<<48 |
-		uint64(nonce[10])<<40 | uint64(nonce[11])<<32 |
-		uint64(nonce[12])<<24 | uint64(nonce[13])<<16 |
-		uint64(nonce[14])<<8 | uint64(nonce[15])
-
-	// Check for replay.
+	seq := extractSequenceFromNonce(nonce)
 	if !c.replayDetectors[hopIndex].Check(seq) {
 		return nil, ErrReplayDetected
 	}
@@ -708,6 +696,33 @@ func (c *Circuit) DecryptLayerWithReplayCheck(data []byte, hopIndex int) ([]byte
 	}
 
 	return plaintext, nil
+}
+
+// validateDecryptionRequest validates circuit state and hop index.
+func (c *Circuit) validateDecryptionRequest(hopIndex int) error {
+	if c.closed {
+		return ErrCircuitClosed
+	}
+	if hopIndex < 0 || hopIndex >= CircuitLength {
+		return ErrRelayNotFound
+	}
+	return nil
+}
+
+// splitNonceAndCiphertext splits data into nonce and ciphertext components.
+func splitNonceAndCiphertext(data []byte, nonceSize int) ([]byte, []byte, error) {
+	if len(data) < nonceSize {
+		return nil, nil, ErrInvalidPacket
+	}
+	return data[:nonceSize], data[nonceSize:], nil
+}
+
+// extractSequenceFromNonce extracts the 64-bit sequence number from nonce bytes 8-15.
+func extractSequenceFromNonce(nonce []byte) uint64 {
+	return uint64(nonce[8])<<56 | uint64(nonce[9])<<48 |
+		uint64(nonce[10])<<40 | uint64(nonce[11])<<32 |
+		uint64(nonce[12])<<24 | uint64(nonce[13])<<16 |
+		uint64(nonce[14])<<8 | uint64(nonce[15])
 }
 
 // NonceSequence returns the current nonce sequence for this circuit.

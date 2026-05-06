@@ -4,6 +4,94 @@ This document tracks security-relevant decisions, code quality validations, devi
 
 ---
 
+## [2026-05-06T19:15:00Z] Keystore Separation Implementation
+
+### Audit Type
+**Security Enhancement — Key Storage Isolation**
+
+### Decision
+Implemented keystore separation per ROADMAP.md Security Hardening milestone. Surface and Specter keys are now stored in separate encrypted files to enhance security isolation and prevent compromise of one from revealing the other.
+
+### Implementation Summary
+**Files Created**:
+- `pkg/identity/keys/keystore.go` (398 lines) — Core keystore separation implementation
+- `pkg/identity/keys/keystore_test.go` (454 lines) — Comprehensive test suite (27 tests)
+
+**Key Functions**:
+- `SaveIdentityBundle(bundle, paths, passphrase)` — Saves Surface/Specter/Fortress keys to separate files
+- `LoadIdentityBundle(paths, passphrase)` — Loads keys from separate files
+- `SaveSurfaceKeyPair`, `LoadSurfaceKeyPair` — Individual Surface key operations
+- `SaveSpecterKeyPair`, `LoadSpecterKeyPair` — Individual Specter key operations
+- `VerifyKeystoreSeparation(paths)` — Defensive check ensuring path separation
+- `KeystoreExists(paths)` — Check if keystore files exist
+- `DeleteKeystore(paths)` — Secure deletion of all keystore files
+
+**File Structure**:
+- `surface.keystore` — Ed25519 keypair for Surface Layer (64 bytes + encryption overhead)
+- `specter.keystore` — Curve25519 keypair for Anonymous Layer (64 bytes + encryption overhead)
+- `fortress.keystore` — Optional Ed25519 keypair for Fortress mode (64 bytes + encryption overhead)
+
+**Encryption**:
+- Each keystore independently encrypted with Argon2id+XChaCha20-Poly1305
+- File permissions: 0600 (owner read/write only)
+- Passphrase-derived key with Argon2id (time=3, memory=64 MiB, threads=4, output=32 bytes)
+- XChaCha20-Poly1305 AEAD for encryption
+- Format: salt (16 bytes) || nonce (24 bytes) || ciphertext
+
+### Security Implications
+**Positive**:
+1. **Isolation Enhancement**: Compromising one keystore file (e.g., Surface) no longer reveals the other (Specter). Each file requires independent passphrase decryption.
+2. **Selective Backup**: Users can backup Surface and Specter keys separately, enabling different backup strategies (e.g., surface in cloud, specter offline-only).
+3. **Fortress Mode Support**: Optional third keystore for Fortress mode transport key, ensuring complete key isolation across all three identity layers.
+4. **File System Security**: 0600 permissions prevent other users on the same system from reading keystore files.
+5. **Defense in Depth**: Even if file system permissions fail, each keystore still requires passphrase decryption to extract key material.
+
+**Attack Surface**:
+- Three files vs one file increases file management complexity (more failure points during save/load).
+- All three keystores share the same passphrase in current implementation. Future enhancement could support per-keystore passphrases.
+- Legacy keystore migration not yet implemented (placeholder function returns "not implemented" error).
+
+### Compliance
+- ✅ ROADMAP.md Security Hardening: "Keystore separation — Surface and Specter keys in separate encrypted files"
+- ✅ SECURITY_PRIVACY.md §2: "Surface and Specter keys are cryptographically independent — compromising one MUST NOT reveal the other"
+- ✅ TECHNICAL_IMPLEMENTATION.md §1.4: "Argon2id + XChaCha20-Poly1305 keystore encryption"
+- ✅ SHADOW_GRADIENT.md: Fortress mode support with separate transport key
+- ✅ All 27 new tests pass with zero race conditions
+- ✅ go vet clean
+
+### Test Coverage
+**27 new tests covering**:
+- Save/load round-trip for Surface+Specter bundle
+- Save/load round-trip for Surface+Specter+Fortress bundle
+- Wrong passphrase rejection
+- Missing file error handling
+- Empty passphrase rejection
+- Nil bundle rejection
+- Path separation verification (detects same-file violations)
+- Individual key save/load (Surface only, Specter only)
+- Keystore existence checking
+- Secure keystore deletion
+- Export/import format validation
+- File permissions (0600 verification)
+- Nested directory creation
+- Legacy keystore detection (size-based heuristic)
+- Key separation security (verifies files contain different encrypted data, no cross-contamination)
+
+### Recommendations
+1. **Future Enhancement**: Support per-keystore passphrases for maximum isolation (e.g., strong passphrase for Surface, ultra-strong for Specter).
+2. **Legacy Migration**: Implement `MigrateLegacyKeystore` function to automatically convert pre-separation combined keystores to separated format on app startup.
+3. **Backup Documentation**: Update user documentation to explain keystore separation and backup strategies (e.g., "back up `surface.keystore` to cloud, keep `specter.keystore` offline-only").
+4. **Monitoring**: Add telemetry for keystore file I/O errors to detect disk failures or permission issues in production.
+
+### Audit Conclusion
+**Status**: ✅ **Security Enhancement Complete**
+
+Keystore separation successfully implemented and tested. The change enhances security isolation between Surface and Specter keys without breaking existing functionality (backward compatibility not required since this is pre-v0.1 implementation). All tests pass, no regressions detected. Ready for integration with app initialization logic.
+
+**Next Review**: Before v0.2 release, after legacy migration implementation.
+
+---
+
 ## [2026-05-06T18:54:00Z] Autonomous Test Classification - Production Readiness Validation
 
 ### Audit Type

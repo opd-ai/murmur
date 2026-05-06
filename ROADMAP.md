@@ -850,7 +850,7 @@
 
 - [x] `pkg/security/` — security audit trail and threat assessment
 - [x] **Key material zeroing** — zero sensitive bytes before GC eligibility (pkg/identity/keys/keypair.go, backup.go, pkg/anonymous/shroud/circuit.go per AUDIT.md CRITICAL resolution 2026-05-04)
-- [ ] **Keystore separation** — Surface and Specter keys in separate encrypted files
+- [x] **Keystore separation** — Surface and Specter keys in separate encrypted files (pkg/identity/keys/keystore.go with SaveIdentityBundle/LoadIdentityBundle, 0600 file permissions, independent Argon2id+XChaCha20-Poly1305 encryption per key, validated 2026-05-06)
 - [x] **PoW verification before signature** — ordering per SECURITY_PRIVACY.md
 - [x] **Signed DHT records** — prevent DHT poisoning (pkg/networking/discovery/dht.go enables ValidateRecords)
 - [ ] **Multi-region connection diversity** — eclipse attack resistance

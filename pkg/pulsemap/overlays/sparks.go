@@ -258,34 +258,33 @@ func (o *SparkOverlay) Draw(screen *ebiten.Image, cameraX, cameraY, zoom float64
 	}
 
 	screenW, screenH, centerX, centerY := getCameraSetup(screen)
+	o.drawAllSparks(screen, cameraX, cameraY, centerX, centerY, zoom, screenW, screenH)
+	o.drawAllCrowns(screen, cameraX, cameraY, centerX, centerY, zoom, screenW, screenH)
+}
 
-	// Draw sparks.
+// drawAllSparks renders all spark events on screen.
+func (o *SparkOverlay) drawAllSparks(screen *ebiten.Image, cameraX, cameraY, centerX, centerY, zoom, screenW, screenH float64) {
 	for _, spark := range o.sparks {
 		sx, sy := worldToScreen(spark.X, spark.Y, cameraX, cameraY, centerX, centerY, zoom)
-
-		// Skip if off-screen.
 		if isOffScreen(sx, sy, screenW, screenH, 100) {
 			continue
 		}
-
 		o.drawSpark(screen, float32(sx), float32(sy), float32(zoom), spark)
 	}
+}
 
-	// Draw crowns.
+// drawAllCrowns renders all crown holders on screen.
+func (o *SparkOverlay) drawAllCrowns(screen *ebiten.Image, cameraX, cameraY, centerX, centerY, zoom, screenW, screenH float64) {
 	now := time.Now()
 	for _, holder := range o.crownHolders {
 		if now.After(holder.ExpiresAt) {
 			continue
 		}
-
 		sx := centerX + (holder.X-cameraX)*zoom
 		sy := centerY + (holder.Y-cameraY)*zoom
-
-		// Skip if off-screen.
 		if sx < -100 || sx > screenW+100 || sy < -100 || sy > screenH+100 {
 			continue
 		}
-
 		o.drawCrown(screen, float32(sx), float32(sy), float32(zoom))
 	}
 }

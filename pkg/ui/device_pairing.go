@@ -78,31 +78,23 @@ func DecodePairingToken(encoded string) (*PairingToken, error) {
 
 	buf := bytes.NewReader(data)
 
-	// Read IP address
-	var ipLen uint16
-	if err := binary.Read(buf, binary.BigEndian, &ipLen); err != nil {
-		return nil, err
-	}
-	ipBytes := make([]byte, ipLen)
-	if _, err := buf.Read(ipBytes); err != nil {
+	ipBytes, err := readIPAddress(buf)
+	if err != nil {
 		return nil, err
 	}
 
-	// Read token
-	var token [32]byte
-	if _, err := buf.Read(token[:]); err != nil {
+	token, err := readToken(buf)
+	if err != nil {
 		return nil, err
 	}
 
-	// Read expiry
-	var expiryUnix int64
-	if err := binary.Read(buf, binary.BigEndian, &expiryUnix); err != nil {
+	expiryUnix, err := readExpiry(buf)
+	if err != nil {
 		return nil, err
 	}
 
-	// Read master key
-	masterKey := make([]byte, ed25519.PublicKeySize)
-	if _, err := buf.Read(masterKey); err != nil {
+	masterKey, err := readMasterKey(buf)
+	if err != nil {
 		return nil, err
 	}
 
@@ -112,6 +104,46 @@ func DecodePairingToken(encoded string) (*PairingToken, error) {
 		ExpiresAt: time.Unix(expiryUnix, 0),
 		MasterKey: masterKey,
 	}, nil
+}
+
+// readIPAddress reads the variable-length IP address field.
+func readIPAddress(buf *bytes.Reader) ([]byte, error) {
+	var ipLen uint16
+	if err := binary.Read(buf, binary.BigEndian, &ipLen); err != nil {
+		return nil, err
+	}
+	ipBytes := make([]byte, ipLen)
+	if _, err := buf.Read(ipBytes); err != nil {
+		return nil, err
+	}
+	return ipBytes, nil
+}
+
+// readToken reads the 32-byte token field.
+func readToken(buf *bytes.Reader) ([32]byte, error) {
+	var token [32]byte
+	if _, err := buf.Read(token[:]); err != nil {
+		return token, err
+	}
+	return token, nil
+}
+
+// readExpiry reads the 64-bit expiry timestamp.
+func readExpiry(buf *bytes.Reader) (int64, error) {
+	var expiryUnix int64
+	if err := binary.Read(buf, binary.BigEndian, &expiryUnix); err != nil {
+		return 0, err
+	}
+	return expiryUnix, nil
+}
+
+// readMasterKey reads the Ed25519 public key field.
+func readMasterKey(buf *bytes.Reader) ([]byte, error) {
+	masterKey := make([]byte, ed25519.PublicKeySize)
+	if _, err := buf.Read(masterKey); err != nil {
+		return nil, err
+	}
+	return masterKey, nil
 }
 
 // DevicePairingPanel displays device pairing UI.
