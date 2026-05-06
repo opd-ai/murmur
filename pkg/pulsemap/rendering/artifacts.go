@@ -14,6 +14,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
+	pb "github.com/opd-ai/murmur/proto"
 )
 
 // drawSpecterMarks renders Specter Marks as orbiting icons around a node.
@@ -21,12 +22,12 @@ import (
 // that orbit the target node and decay over their lifetime.
 func (r *Renderer) drawSpecterMarks(screen *ebiten.Image, nodeData *NodeData, nodeX, nodeY float32) {
 	if len(nodeData.PublicKey) == 0 {
-		return // No pubkey, can't query
+		return
 	}
 
 	marks, err := r.store.ListMarksForTarget(nodeData.PublicKey)
 	if err != nil || len(marks) == 0 {
-		return // No marks or query failed
+		return
 	}
 
 	for i, mark := range marks {
@@ -34,53 +35,72 @@ func (r *Renderer) drawSpecterMarks(screen *ebiten.Image, nodeData *NodeData, no
 			continue
 		}
 
-		// Calculate age for visibility decay (marks decay over 30 days).
-		createdAt := time.Unix(mark.CreatedAt, 0)
-		expiresAt := time.Unix(mark.ExpiresAt, 0)
-		age := time.Since(createdAt)
-		lifetime := expiresAt.Sub(createdAt)
-
-		// Skip expired marks.
-		if time.Now().After(expiresAt) {
+		visibility, shouldSkip := r.calculateMarkVisibility(mark)
+		if shouldSkip {
 			continue
 		}
 
-		// Calculate visibility (1.0 → 0.0 linear decay over lifetime).
-		visibility := float32(1.0 - (float64(age) / float64(lifetime)))
-		if visibility < 0 {
-			visibility = 0
-		}
-
-		// Stack orbits for multiple marks.
-		orbitRadius := 24.0 + float32(i)*6.0
-
-		// Orbit angle based on elapsed time and mark ID for variety.
-		orbitSpeed := 0.5 + float32(mark.Id[0]%64)/128.0 // 0.5 to 1.0 rad/sec
-		orbitAngle := float32(r.time) * orbitSpeed
-
-		// Calculate orbit position.
-		x := nodeX + float32(math.Cos(float64(orbitAngle)))*orbitRadius
-		y := nodeY + float32(math.Sin(float64(orbitAngle)))*orbitRadius
-
-		// Draw mark icon as a small circle with pulsing glow.
-		alpha := uint8(visibility * 200)
-		markColor := color.RGBA{
-			R: 100 + mark.SpecterPubkey[0]%100,
-			G: 150,
-			B: 200 + mark.SpecterPubkey[1]%55,
-			A: alpha,
-		}
-
-		// Draw outer glow (pulsing).
-		pulsePhase := float32(math.Sin(float64(r.time) * 2))
-		glowRadius := 5.0 + pulsePhase*2.0
-		glowAlpha := uint8(float32(alpha) * 0.3)
-		glowColor := color.RGBA{markColor.R, markColor.G, markColor.B, glowAlpha}
-		vector.DrawFilledCircle(screen, x, y, glowRadius, glowColor, false)
-
-		// Draw core icon.
-		vector.DrawFilledCircle(screen, x, y, 3.0, markColor, false)
+		r.drawSingleMark(screen, mark, i, nodeX, nodeY, visibility)
 	}
+}
+
+// calculateMarkVisibility determines if a mark should be shown and its opacity.
+func (r *Renderer) calculateMarkVisibility(mark *pb.SpecterMark) (float32, bool) {
+	createdAt := time.Unix(mark.CreatedAt, 0)
+	expiresAt := time.Unix(mark.ExpiresAt, 0)
+
+	if time.Now().After(expiresAt) {
+		return 0, true
+	}
+
+	age := time.Since(createdAt)
+	lifetime := expiresAt.Sub(createdAt)
+	visibility := float32(1.0 - (float64(age) / float64(lifetime)))
+	if visibility < 0 {
+		visibility = 0
+	}
+
+	return visibility, false
+}
+
+// drawSingleMark renders one Specter Mark with orbital animation.
+func (r *Renderer) drawSingleMark(screen *ebiten.Image, mark *pb.SpecterMark, index int, nodeX, nodeY, visibility float32) {
+	orbitRadius := 24.0 + float32(index)*6.0
+	x, y := r.calculateOrbitPosition(mark, nodeX, nodeY, orbitRadius)
+	markColor := r.getMarkColor(mark, visibility)
+
+	r.renderMarkCircle(screen, x, y, markColor)
+}
+
+// calculateOrbitPosition computes the current orbital position of a mark.
+func (r *Renderer) calculateOrbitPosition(mark *pb.SpecterMark, nodeX, nodeY, orbitRadius float32) (float32, float32) {
+	orbitSpeed := 0.5 + float32(mark.Id[0]%64)/128.0
+	orbitAngle := float32(r.time) * orbitSpeed
+
+	x := nodeX + float32(math.Cos(float64(orbitAngle)))*orbitRadius
+	y := nodeY + float32(math.Sin(float64(orbitAngle)))*orbitRadius
+	return x, y
+}
+
+// getMarkColor derives a color from the mark's Specter identity.
+func (r *Renderer) getMarkColor(mark *pb.SpecterMark, visibility float32) color.RGBA {
+	alpha := uint8(visibility * 200)
+	return color.RGBA{
+		R: 100 + mark.SpecterPubkey[0]%100,
+		G: 150,
+		B: 200 + mark.SpecterPubkey[1]%55,
+		A: alpha,
+	}
+}
+
+// renderMarkCircle draws a mark as a pulsing circle with glow.
+func (r *Renderer) renderMarkCircle(screen *ebiten.Image, x, y float32, markColor color.RGBA) {
+	pulsePhase := float32(math.Sin(float64(r.time) * 2))
+	glowRadius := 5.0 + pulsePhase*2.0
+	glowAlpha := uint8(float32(markColor.A) * 0.3)
+	glowColor := color.RGBA{markColor.R, markColor.G, markColor.B, glowAlpha}
+	vector.DrawFilledCircle(screen, x, y, glowRadius, glowColor, false)
+	vector.DrawFilledCircle(screen, x, y, 3.0, markColor, false)
 }
 
 // drawPhantomGifts renders Phantom Gifts as floating particles around a node.

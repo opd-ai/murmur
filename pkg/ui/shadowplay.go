@@ -502,36 +502,43 @@ func (sp *ShadowPlayPanel) drawPlayerList(
 
 	for i, player := range sp.game.Players {
 		playerY := y + float32(i)*25
-
-		// Status indicator.
-		var status string
-		statusColor := sp.theme.TextSecondary
-		if player.IsEliminated {
-			status = "[X]"
-			statusColor = sp.theme.TextError
-		} else if player.HasVoted {
-			status = "[✓]"
-			statusColor = sp.theme.Success
-		} else {
-			status = "[ ]"
-		}
-
-		// Name and status.
-		name := player.Name
-		if name == "" {
-			name = fmt.Sprintf("Specter %d", i+1)
-		}
-
-		lineText := fmt.Sprintf("%s %s", status, name)
-		if player.VoteCount > 0 && sp.game.State == ShadowPlayStateVoting {
-			lineText += fmt.Sprintf(" (%d votes)", player.VoteCount)
-		}
-
-		opts := &text.DrawOptions{}
-		opts.GeoM.Translate(float64(x), float64(playerY))
-		opts.ColorScale.ScaleWithColor(statusColor)
-		text.Draw(screen, lineText, defaultFont, opts)
+		status, statusColor := sp.getPlayerStatus(&player)
+		lineText := sp.formatPlayerLine(&player, i, status)
+		sp.drawPlayerLine(screen, lineText, statusColor, x, playerY)
 	}
+}
+
+// getPlayerStatus returns the status indicator and color for a player.
+func (sp *ShadowPlayPanel) getPlayerStatus(player *ShadowPlayPlayer) (string, color.Color) {
+	if player.IsEliminated {
+		return "[X]", sp.theme.TextError
+	}
+	if player.HasVoted {
+		return "[✓]", sp.theme.Success
+	}
+	return "[ ]", sp.theme.TextSecondary
+}
+
+// formatPlayerLine creates the display text for a player entry.
+func (sp *ShadowPlayPanel) formatPlayerLine(player *ShadowPlayPlayer, index int, status string) string {
+	name := player.Name
+	if name == "" {
+		name = fmt.Sprintf("Specter %d", index+1)
+	}
+
+	lineText := fmt.Sprintf("%s %s", status, name)
+	if player.VoteCount > 0 && sp.game.State == ShadowPlayStateVoting {
+		lineText += fmt.Sprintf(" (%d votes)", player.VoteCount)
+	}
+	return lineText
+}
+
+// drawPlayerLine renders a single player line with the given color.
+func (sp *ShadowPlayPanel) drawPlayerLine(screen *ebiten.Image, lineText string, statusColor color.Color, x, y float32) {
+	opts := &text.DrawOptions{}
+	opts.GeoM.Translate(float64(x), float64(y))
+	opts.ColorScale.ScaleWithColor(statusColor)
+	text.Draw(screen, lineText, defaultFont, opts)
 }
 
 // drawVoteMode renders the vote casting screen.

@@ -56,7 +56,7 @@ func (c *Client) do(ctx context.Context, method, path string, body io.Reader) (*
 	// Build HTTP request with tunnel path
 	// Format: GET /tunnel/<tunnel-id><path> HTTP/1.1
 	// e.g., "/tunnel/test-abc123def/" for root path
-	tunnelPath := fmt.Sprintf("/tunnel/%s%s", c.tunnelID, path)
+	tunnelPath := fmt.Sprintf("/tunnel/%s%s", string(c.tunnelID), path)
 	req := fmt.Sprintf("%s %s HTTP/1.1\r\nHost: tunnel\r\nConnection: close\r\n\r\n", method, tunnelPath)
 
 	// Send request

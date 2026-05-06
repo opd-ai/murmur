@@ -138,22 +138,41 @@ func (r *Relay) handleUnregister(msg string) {
 
 // handleClientRequest forwards a client's HTTP request to the tunnel operator.
 func (r *Relay) handleClientRequest(ctx context.Context, clientConn net.Conn, firstLine string, reader *bufio.Reader) {
-	// Parse tunnel ID from HTTP request path
-	// Expected format: "GET /tunnel/<tunnel-id> HTTP/1.1" or "GET /tunnel/<tunnel-id>/<path> HTTP/1.1"
+	tunnelID, err := r.parseTunnelID(firstLine, clientConn)
+	if err != nil {
+		return
+	}
+
+	operatorConn, ok := r.lookupTunnel(tunnelID)
+	if !ok {
+		clientConn.Write([]byte("HTTP/1.1 502 Bad Gateway\r\nContent-Type: text/plain\r\n\r\nTunnel not found\n"))
+		return
+	}
+
+	fullRequest := r.reconstructHTTPRequest(firstLine, reader)
+
+	if !r.forwardRequestToOperator(operatorConn, fullRequest, clientConn) {
+		return
+	}
+
+	r.forwardResponseToClient(operatorConn, clientConn)
+}
+
+// parseTunnelID extracts and validates the tunnel ID from the HTTP request path.
+func (r *Relay) parseTunnelID(firstLine string, clientConn net.Conn) (tunneling.TunnelID, error) {
 	parts := strings.Fields(firstLine)
 	if len(parts) < 2 {
 		clientConn.Write([]byte("HTTP/1.1 400 Bad Request\r\n\r\n"))
-		return
+		return "", fmt.Errorf("malformed request")
 	}
 
 	path := parts[1]
 	const prefix = "/tunnel/"
 	if !strings.HasPrefix(path, prefix) {
 		clientConn.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
-		return
+		return "", fmt.Errorf("invalid path")
 	}
 
-	// Extract tunnel ID from path (format: /tunnel/<id> or /tunnel/<id>/...)
 	pathAfterPrefix := strings.TrimPrefix(path, prefix)
 	tunnelIDStr := pathAfterPrefix
 	if idx := strings.Index(pathAfterPrefix, "/"); idx != -1 {
@@ -162,26 +181,24 @@ func (r *Relay) handleClientRequest(ctx context.Context, clientConn net.Conn, fi
 
 	tunnelID := tunneling.TunnelID(tunnelIDStr)
 	if err := tunnelID.Validate(); err != nil {
-		// DEBUG: log validation failure
-		fmt.Printf("DEBUG: Tunnel ID validation failed for %q: %v\n", tunnelIDStr, err)
 		clientConn.Write([]byte("HTTP/1.1 400 Bad Request\r\n\r\n"))
-		return
+		return "", err
 	}
 
-	// Lookup tunnel connection
+	return tunnelID, nil
+}
+
+// lookupTunnel retrieves the operator connection for a tunnel ID.
+func (r *Relay) lookupTunnel(tunnelID tunneling.TunnelID) (net.Conn, bool) {
 	r.mu.RLock()
+	defer r.mu.RUnlock()
 	operatorConn, ok := r.tunnels[tunnelID]
-	r.mu.RUnlock()
+	return operatorConn, ok
+}
 
-	if !ok {
-		clientConn.Write([]byte("HTTP/1.1 502 Bad Gateway\r\nContent-Type: text/plain\r\n\r\nTunnel not found\n"))
-		return
-	}
-
-	// Reconstruct full HTTP request
+// reconstructHTTPRequest rebuilds the full HTTP request from first line and headers.
+func (r *Relay) reconstructHTTPRequest(firstLine string, reader *bufio.Reader) string {
 	fullRequest := firstLine + "\r\n"
-
-	// Read remaining headers
 	for {
 		line, err := reader.ReadString('\n')
 		if err != nil || line == "\r\n" {
@@ -190,14 +207,20 @@ func (r *Relay) handleClientRequest(ctx context.Context, clientConn net.Conn, fi
 		}
 		fullRequest += line
 	}
+	return fullRequest
+}
 
-	// Forward to operator
+// forwardRequestToOperator sends the HTTP request to the operator connection.
+func (r *Relay) forwardRequestToOperator(operatorConn net.Conn, fullRequest string, clientConn net.Conn) bool {
 	if _, err := operatorConn.Write([]byte(fullRequest)); err != nil {
 		clientConn.Write([]byte("HTTP/1.1 502 Bad Gateway\r\n\r\n"))
-		return
+		return false
 	}
+	return true
+}
 
-	// Read response from operator and forward to client
+// forwardResponseToClient reads the operator's response and forwards it to the client.
+func (r *Relay) forwardResponseToClient(operatorConn, clientConn net.Conn) {
 	respBuf := make([]byte, 65536)
 	operatorConn.SetReadDeadline(time.Now().Add(10 * time.Second))
 	n, err := operatorConn.Read(respBuf)
@@ -205,7 +228,6 @@ func (r *Relay) handleClientRequest(ctx context.Context, clientConn net.Conn, fi
 		clientConn.Write([]byte("HTTP/1.1 502 Bad Gateway\r\n\r\n"))
 		return
 	}
-
 	clientConn.Write(respBuf[:n])
 }
 

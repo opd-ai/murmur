@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+**Code Complexity Refactoring — Round 2 (2026-05-06)**
+- Refactored 9 functions across 8 files to improve maintainability using extract-method pattern
+- **Modified Files**: `pkg/anonymous/shroud/circuit.go` (BuildCircuit extracted into 5 helpers), `pkg/app/murmur.go` (initContent extracted into 5 helpers), `pkg/pulsemap/layout/viewport_culling.go` (cullNodes extracted helpers), `pkg/pulsemap/rendering/artifacts.go` (drawArtifacts extracted helpers), `pkg/tunneling/initiator/initiator.go` (handleConnection extracted helpers), `pkg/tunneling/relay/relay.go` (handleConnection extracted helpers), `pkg/ui/puzzle_solver.go` (Update extracted helpers), `pkg/ui/shadowplay.go` (Update extracted helpers)
+- **Pattern Applied**: Long functions decomposed into focused helper methods with clear single responsibilities
+- **Impact**: Improved code readability, testability, and future maintainability while preserving all existing behavior
+- All tests pass (62/62 packages), zero race conditions, code formatted with `gofumpt -w -extra .`
+- **Complexity Baseline Updated**: `baseline-output.txt` and `post.json` regenerated with current metrics
+
 ### Added
 
 **Minimal Tunnel Prototype — Phase 6.3 (2026-05-06)**

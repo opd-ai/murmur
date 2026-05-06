@@ -529,19 +529,39 @@ func pickRandomUnusedIndex(max int, used map[int]bool) int {
 
 // BuildCircuit creates a new Shroud circuit through the selected relays.
 func (b *Beacon) BuildCircuit(relays [CircuitLength]*RelayInfo) (*Circuit, error) {
-	// Instrument build duration per AUDIT.md M4
-	start := time.Now()
-	defer func() {
-		duration := time.Since(start).Seconds()
-		metrics.ShroudCircuitBuildDurationSeconds.Observe(duration)
-	}()
+	defer b.recordBuildDuration(time.Now())
 
-	var circuitID [16]byte
-	if _, err := rand.Read(circuitID[:]); err != nil {
+	circuitID, err := b.generateCircuitID()
+	if err != nil {
 		return nil, err
 	}
 
-	// Replay window size: 1000 packets is reasonable for a 10-minute circuit lifetime.
+	circuit := b.initializeCircuit(circuitID, relays)
+
+	if err := b.performKeyAgreements(circuit, relays); err != nil {
+		return nil, err
+	}
+
+	return circuit, nil
+}
+
+// recordBuildDuration tracks circuit build time for metrics.
+func (b *Beacon) recordBuildDuration(start time.Time) {
+	duration := time.Since(start).Seconds()
+	metrics.ShroudCircuitBuildDurationSeconds.Observe(duration)
+}
+
+// generateCircuitID creates a random 16-byte circuit identifier.
+func (b *Beacon) generateCircuitID() ([16]byte, error) {
+	var circuitID [16]byte
+	if _, err := rand.Read(circuitID[:]); err != nil {
+		return circuitID, err
+	}
+	return circuitID, nil
+}
+
+// initializeCircuit creates a Circuit with replay detectors.
+func (b *Beacon) initializeCircuit(circuitID [16]byte, relays [CircuitLength]*RelayInfo) *Circuit {
 	const replayWindowSize = 1000
 
 	circuit := &Circuit{
@@ -551,40 +571,47 @@ func (b *Beacon) BuildCircuit(relays [CircuitLength]*RelayInfo) (*Circuit, error
 		nonceSeq:  NewNonceSequencer(),
 	}
 
-	// Initialize replay detectors for each hop.
 	for i := 0; i < CircuitLength; i++ {
 		circuit.replayDetectors[i] = NewReplayDetector(replayWindowSize)
 	}
 
-	// Perform key agreement with each hop.
+	return circuit
+}
+
+// performKeyAgreements establishes shared keys with each hop.
+func (b *Beacon) performKeyAgreements(circuit *Circuit, relays [CircuitLength]*RelayInfo) error {
 	for i, relay := range relays {
 		if relay == nil {
-			return nil, ErrRelayNotFound
+			return ErrRelayNotFound
 		}
 
-		// X25519 key agreement.
-		var shared [32]byte
-		curve25519.ScalarMult(&shared, &b.secretKey, &relay.PublicKey)
-
-		// Derive encryption key using BLAKE3.
-		h := blake3.New()
-		h.Write(shared[:])
-		h.Write([]byte("shroud-hop-key"))
-		h.Write([]byte{byte(i)})
-		key := h.Sum(nil)
-
-		copy(circuit.sharedKeys[i][:], key[:32])
-
-		// Zero shared secret and derived key per SECURITY_PRIVACY.md §2.1.
-		for j := range shared {
-			shared[j] = 0
-		}
-		for j := range key {
-			key[j] = 0
-		}
+		sharedKey := b.deriveHopKey(relay, i)
+		copy(circuit.sharedKeys[i][:], sharedKey[:32])
+		b.zeroSensitiveData(sharedKey)
 	}
+	return nil
+}
 
-	return circuit, nil
+// deriveHopKey performs X25519 key agreement and derives the hop encryption key.
+func (b *Beacon) deriveHopKey(relay *RelayInfo, hopIndex int) []byte {
+	var shared [32]byte
+	curve25519.ScalarMult(&shared, &b.secretKey, &relay.PublicKey)
+
+	h := blake3.New()
+	h.Write(shared[:])
+	h.Write([]byte("shroud-hop-key"))
+	h.Write([]byte{byte(hopIndex)})
+	key := h.Sum(nil)
+
+	b.zeroSensitiveData(shared[:])
+	return key
+}
+
+// zeroSensitiveData overwrites key material before GC.
+func (b *Beacon) zeroSensitiveData(data []byte) {
+	for j := range data {
+		data[j] = 0
+	}
 }
 
 // Encrypt wraps data in three layers of encryption (onion skin).

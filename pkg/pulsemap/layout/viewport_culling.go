@@ -10,6 +10,13 @@ import (
 	"sync"
 )
 
+// forceResult holds the computed force for a single node.
+type forceResult struct {
+	id string
+	fx float64
+	fy float64
+}
+
 // ViewportCulling handles visibility determination for layout optimization.
 type ViewportCulling struct {
 	mu sync.RWMutex
@@ -429,44 +436,65 @@ func (ce *CulledEngine) computeForcesBarnesHutFiltered(forces map[string][2]floa
 // computeForcesParallel computes Barnes-Hut forces in parallel across goroutines.
 func (ce *CulledEngine) computeForcesParallel(qt *quadtree, forces map[string][2]float64) {
 	nodeCount := len(forces)
-	numWorkers := 4
-	chunkSize := (nodeCount + numWorkers - 1) / numWorkers
-
-	ids := make([]string, 0, nodeCount)
-	for id := range forces {
-		ids = append(ids, id)
-	}
-
-	type forceResult struct {
-		id string
-		fx float64
-		fy float64
-	}
+	ids := ce.collectNodeIDs(forces)
 
 	resultsCh := make(chan forceResult, nodeCount)
 	var wg sync.WaitGroup
 
+	ce.dispatchWorkers(&wg, ids, qt, resultsCh)
+	ce.collectResults(&wg, resultsCh, forces)
+}
+
+// collectNodeIDs extracts node IDs from the forces map.
+func (ce *CulledEngine) collectNodeIDs(forces map[string][2]float64) []string {
+	ids := make([]string, 0, len(forces))
+	for id := range forces {
+		ids = append(ids, id)
+	}
+	return ids
+}
+
+// dispatchWorkers starts parallel workers to compute forces.
+func (ce *CulledEngine) dispatchWorkers(wg *sync.WaitGroup, ids []string, qt *quadtree, resultsCh chan<- forceResult) {
+	numWorkers := 4
+	chunkSize := (len(ids) + numWorkers - 1) / numWorkers
+
 	for i := 0; i < numWorkers; i++ {
-		start := i * chunkSize
-		end := start + chunkSize
-		if end > nodeCount {
-			end = nodeCount
-		}
-		if start >= nodeCount {
+		chunk := ce.getWorkerChunk(ids, i, chunkSize)
+		if len(chunk) == 0 {
 			break
 		}
 
 		wg.Add(1)
-		go func(chunk []string) {
-			defer wg.Done()
-			for _, id := range chunk {
-				pos := ce.Engine.positions[id]
-				fx, fy := qt.computeForce(pos.X, pos.Y, id, ce.Engine.params.RepulsionConstant, 0.5)
-				resultsCh <- forceResult{id: id, fx: fx, fy: fy}
-			}
-		}(ids[start:end])
+		go ce.computeChunkForces(wg, chunk, qt, resultsCh)
 	}
+}
 
+// getWorkerChunk returns the slice of node IDs for a worker.
+func (ce *CulledEngine) getWorkerChunk(ids []string, workerIndex, chunkSize int) []string {
+	start := workerIndex * chunkSize
+	end := start + chunkSize
+	if end > len(ids) {
+		end = len(ids)
+	}
+	if start >= len(ids) {
+		return nil
+	}
+	return ids[start:end]
+}
+
+// computeChunkForces calculates forces for a chunk of nodes.
+func (ce *CulledEngine) computeChunkForces(wg *sync.WaitGroup, chunk []string, qt *quadtree, resultsCh chan<- forceResult) {
+	defer wg.Done()
+	for _, id := range chunk {
+		pos := ce.Engine.positions[id]
+		fx, fy := qt.computeForce(pos.X, pos.Y, id, ce.Engine.params.RepulsionConstant, 0.5)
+		resultsCh <- forceResult{id: id, fx: fx, fy: fy}
+	}
+}
+
+// collectResults gathers computed forces from workers.
+func (ce *CulledEngine) collectResults(wg *sync.WaitGroup, resultsCh chan forceResult, forces map[string][2]float64) {
 	go func() {
 		wg.Wait()
 		close(resultsCh)

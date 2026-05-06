@@ -441,83 +441,110 @@ func (a *App) initHealthServer() error {
 // initContent initializes the content subsystem (Wave cache and GossipSub handlers).
 // Per TECHNICAL_IMPLEMENTATION.md §3.1, handlers are registered for all core topics.
 func (a *App) initContent() error {
-	// Create Wave cache.
+	cache, handlers, err := a.setupContentComponents()
+	if err != nil {
+		return err
+	}
+
+	if err := a.registerContentHandlers(handlers); err != nil {
+		return err
+	}
+
+	a.startContentGoroutines(cache, handlers)
+	return nil
+}
+
+// setupContentComponents creates the cache and message handlers.
+func (a *App) setupContentComponents() (*storage.Cache, *Handlers, error) {
 	cache, err := storage.NewCache(a.subsystems.Storage)
 	if err != nil {
-		return fmt.Errorf("creating wave cache: %w", err)
+		return nil, nil, fmt.Errorf("creating wave cache: %w", err)
 	}
 	a.subsystems.WaveCache = cache
 
-	// Restore persisted difficulty from previous session.
-	// Per AUDIT.md HIGH finding remediation.
+	a.restorePersistedDifficulty(cache)
+
+	handlers, err := NewHandlers(HandlersConfig{
+		Cache:  cache,
+		Beacon: a.subsystems.Beacon,
+	})
+	if err != nil {
+		return nil, nil, fmt.Errorf("creating handlers: %w", err)
+	}
+	a.subsystems.Handlers = handlers
+
+	return cache, handlers, nil
+}
+
+// restorePersistedDifficulty loads and applies the saved PoW difficulty.
+func (a *App) restorePersistedDifficulty(cache *storage.Cache) {
 	if persistedDifficulty := cache.LoadPersistedDifficulty(); persistedDifficulty > 0 {
 		cfg := pow.GetGlobalConfig()
 		if cfg.SetStandard(persistedDifficulty) {
 			fmt.Printf("Restored persisted PoW difficulty: %d bits\n", persistedDifficulty)
 		}
 	}
+}
 
-	// Create message handlers with Beacon for relay discovery.
-	handlers, err := NewHandlers(HandlersConfig{
-		Cache:  cache,
-		Beacon: a.subsystems.Beacon,
-	})
-	if err != nil {
-		return fmt.Errorf("creating handlers: %w", err)
-	}
-	a.subsystems.Handlers = handlers
-
-	// Register handlers for all core topics.
+// registerContentHandlers registers all content-related GossipSub handlers.
+func (a *App) registerContentHandlers(handlers *Handlers) error {
 	if err := handlers.RegisterAll(a.ctx, a.subsystems.PubSub); err != nil {
 		return fmt.Errorf("registering handlers: %w", err)
 	}
 
-	// Per AUDIT.md remediation: Register anonymous mechanics topics.
-	// All nodes can receive anonymous events (Shadow Gradient visibility).
-	// Even Open-mode users see anonymous artifacts as incentive to upgrade.
 	if err := handlers.RegisterAnonymousMechanics(a.ctx, a.subsystems.PubSub); err != nil {
 		return fmt.Errorf("registering anonymous mechanics: %w", err)
 	}
 
-	// Start deduplication filter rotation goroutine.
-	// Per AUDIT.md, Bloom filter is rotated every 30 days to prevent unbounded growth.
+	return nil
+}
+
+// startContentGoroutines launches background workers for content management.
+func (a *App) startContentGoroutines(cache *storage.Cache, handlers *Handlers) {
+	a.startDedupRotation(handlers)
+	a.startGarbageCollection(cache)
+	a.startMemoryMonitor(cache)
+	a.startFirstWeekNudges()
+}
+
+// startDedupRotation launches the deduplication filter rotation goroutine.
+func (a *App) startDedupRotation(handlers *Handlers) {
 	a.wg.Add(1)
 	go func() {
 		defer a.wg.Done()
 		defer fmt.Println("[SHUTDOWN] Deduplication rotation goroutine exited")
 		handlers.StartDedupRotation(a.ctx)
 	}()
+}
 
-	// Start garbage collection goroutine.
+// startGarbageCollection launches the cache garbage collection goroutine.
+func (a *App) startGarbageCollection(cache *storage.Cache) {
 	a.wg.Add(1)
 	go func() {
 		defer a.wg.Done()
 		defer fmt.Println("[SHUTDOWN] GC goroutine exited")
 		cache.StartGC(a.ctx, storage.GCInterval)
 	}()
+}
 
-	// Start memory budget enforcement goroutine.
-	// Per AUDIT.md HIGH "No memory budget enforcement", this monitors memory
-	// usage every 60 seconds and evicts content if exceeding 200 MiB target.
+// startMemoryMonitor launches the memory budget enforcement goroutine.
+func (a *App) startMemoryMonitor(cache *storage.Cache) {
 	a.wg.Add(1)
 	go func() {
 		defer a.wg.Done()
 		defer fmt.Println("[SHUTDOWN] Memory monitor goroutine exited")
 		a.runMemoryMonitor(cache)
 	}()
+}
 
-	// Start first-week nudges goroutine.
-	// Per PLAN.md Step 3.8, this encourages new users to explore features during
-	// their first week: Wave publishing (Day 1), connections (Day 2), Anonymous
-	// Layer exploration (Day 3), Resonance milestones (Days 5-7).
+// startFirstWeekNudges launches the first-week user onboarding nudges goroutine.
+func (a *App) startFirstWeekNudges() {
 	a.wg.Add(1)
 	go func() {
 		defer a.wg.Done()
 		defer fmt.Println("[SHUTDOWN] Nudge loop goroutine exited")
 		a.runNudgeLoop()
 	}()
-
-	return nil
 }
 
 // initBeacon initializes the Shroud beacon and circuit manager.

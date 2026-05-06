@@ -8,6 +8,7 @@
 package ui
 
 import (
+	"fmt"
 	"image/color"
 	"sync"
 	"time"
@@ -247,36 +248,65 @@ func (p *PuzzleSolverPanel) handleCursorMovement() {
 
 // submit validates and submits the solution.
 func (p *PuzzleSolverPanel) submit() {
+	if err := p.validateSubmission(); err != nil {
+		p.setError(err.Error())
+		return
+	}
+
+	p.processSolution()
+	p.clearSolution()
+}
+
+// validateSubmission checks if the solution can be submitted.
+func (p *PuzzleSolverPanel) validateSubmission() error {
 	if len(p.solution) == 0 {
-		p.errorMessage = "Solution cannot be empty"
-		p.feedbackTime = 0
-		return
+		return fmt.Errorf("Solution cannot be empty")
 	}
-
-	// Check if puzzle has expired.
 	if time.Now().After(p.expiresAt) {
-		p.errorMessage = "Puzzle has expired"
-		p.feedbackTime = 0
+		return fmt.Errorf("Puzzle has expired")
+	}
+	return nil
+}
+
+// setError sets an error message and resets feedback time.
+func (p *PuzzleSolverPanel) setError(msg string) {
+	p.errorMessage = msg
+	p.feedbackTime = 0
+}
+
+// processSolution submits the solution and handles the result.
+func (p *PuzzleSolverPanel) processSolution() {
+	if p.onSubmit == nil {
 		return
 	}
 
-	if p.onSubmit != nil {
-		success, msg := p.onSubmit(p.puzzleID, p.solution)
-		if success {
-			p.successMsg = msg
-			if p.successMsg == "" {
-				p.successMsg = "Solution accepted!"
-			}
-		} else {
-			p.errorMessage = msg
-			if p.errorMessage == "" {
-				p.errorMessage = "Incorrect solution"
-			}
-		}
-		p.feedbackTime = 0
+	success, msg := p.onSubmit(p.puzzleID, p.solution)
+	if success {
+		p.setSuccessMessage(msg)
+	} else {
+		p.setErrorMessage(msg)
 	}
+	p.feedbackTime = 0
+}
 
-	// Clear solution on any submit.
+// setSuccessMessage sets the success message with a default fallback.
+func (p *PuzzleSolverPanel) setSuccessMessage(msg string) {
+	p.successMsg = msg
+	if p.successMsg == "" {
+		p.successMsg = "Solution accepted!"
+	}
+}
+
+// setErrorMessage sets the error message with a default fallback.
+func (p *PuzzleSolverPanel) setErrorMessage(msg string) {
+	p.errorMessage = msg
+	if p.errorMessage == "" {
+		p.errorMessage = "Incorrect solution"
+	}
+}
+
+// clearSolution resets the solution input.
+func (p *PuzzleSolverPanel) clearSolution() {
 	p.solution = ""
 	p.cursorPos = 0
 }
