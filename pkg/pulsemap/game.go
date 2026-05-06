@@ -58,6 +58,10 @@ type Game struct {
 	// viewportControls provides zoom preset buttons.
 	viewportControls *ui.ViewportControls
 
+	// radialMenu is the right-click context menu for node actions.
+	// Per AUDIT.md HIGH finding: this was previously instantiated but not wired.
+	radialMenu *ui.RadialMenu
+
 	// keypair is the Surface Layer identity for signing Waves.
 	keypair *keys.KeyPair
 
@@ -178,6 +182,12 @@ func NewGame(ctx context.Context, keypair *keys.KeyPair, pubsub *gossip.PubSub, 
 		OnMicro: func() { camera.SetZoomPresetMicro() },
 	})
 
+	// Create radial menu with action callbacks for all 6 actions.
+	// Per AUDIT.md HIGH finding: radial menu was implemented but not wired.
+	game.radialMenu = ui.NewRadialMenu(theme, ui.RadialMenuCallbacks{
+		OnAction: game.handleRadialMenuAction,
+	})
+
 	return game, nil
 }
 
@@ -238,6 +248,10 @@ func (g *Game) updateActivePanels() bool {
 		return true
 	}
 	if g.composePanel.Visible() && g.composePanel.Update() {
+		return true
+	}
+	// Radial menu is updated after the panel chain; it closes if Escape or right-click is pressed.
+	if g.radialMenu.Visible() && g.radialMenu.Update() {
 		return true
 	}
 	if g.viewportControls.Update() {
@@ -524,6 +538,14 @@ func (g *Game) handleZoom() {
 }
 
 func (g *Game) handleDragging() {
+	// Guard: clear orphaned drag state if the left button is no longer held.
+	// This handles the case where the user dragged outside the window and
+	// released the button there — Ebitengine never fires a just-released event.
+	if g.isDragging && !ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
+		g.isDragging = false
+		g.renderer.HandleMouseUp()
+	}
+
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		mx, my := ebiten.CursorPosition()
 		// Perform node hit-testing via the renderer; this sets SelectedNodeID if
@@ -544,6 +566,16 @@ func (g *Game) handleDragging() {
 	if g.isDragging && ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
 		g.updatePanPosition()
 	}
+
+	// Right-click opens the radial menu on the hovered node.
+	// Guard: do not open while a modal panel is visible.
+	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonRight) {
+		nodeID := g.input.SelectedNodeID
+		if nodeID != "" && !g.anyModalVisible() {
+			mx, my := ebiten.CursorPosition()
+			g.radialMenu.Show(float64(mx), float64(my), nodeID)
+		}
+	}
 }
 
 func (g *Game) updatePanPosition() {
@@ -562,6 +594,11 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	// Draw viewport controls (always visible, bottom layer of UI).
 	g.viewportControls.Draw(screen)
+
+	// Draw radial menu above the graph layer, below modal panels.
+	if g.radialMenu.Visible() {
+		g.radialMenu.Draw(screen)
+	}
 
 	// Draw node detail panel overlay if visible.
 	if g.nodeDetailPanel.Visible() {
@@ -768,6 +805,33 @@ func (g *Game) handleNodeDetailSendWhisper(nodeID string) {
 func (g *Game) handleNodeDetailClose() {
 	log.Printf("Node detail panel closed")
 	g.input.ClearSelection()
+}
+
+// anyModalVisible returns true if any modal panel that should block the radial menu is open.
+func (g *Game) anyModalVisible() bool {
+	return g.composePanel.Visible() || g.searchBar.Visible() || g.nodeDetailPanel.Visible()
+}
+
+// handleRadialMenuAction dispatches radial menu action callbacks.
+// Per AUDIT.md HIGH finding: all 6 RadialMenuAction cases are handled here.
+func (g *Game) handleRadialMenuAction(action ui.RadialMenuAction, nodeID string) {
+	switch action {
+	case ui.ActionComposeWave:
+		g.handleNodeDetailComposeWave(nodeID)
+	case ui.ActionSendGift:
+		g.handleNodeDetailSendGift(nodeID)
+	case ui.ActionPlaceMark:
+		g.handleNodeDetailPlaceMark(nodeID)
+	case ui.ActionSendWhisper:
+		g.handleNodeDetailSendWhisper(nodeID)
+	case ui.ActionJoinGame:
+		// TODO: Open active mini-game for this node (see ANONYMOUS_GAME_MECHANICS.md).
+		log.Printf("Join game with node %s (not yet implemented)", nodeID)
+	case ui.ActionViewDetail:
+		if nodeInfo := g.buildNodeInfo(nodeID); nodeInfo != nil {
+			g.nodeDetailPanel.Show(nodeInfo)
+		}
+	}
 }
 
 // handleSearch is called when user types in the search bar.

@@ -21,7 +21,7 @@
 
 ---
 
-### [CRITICAL] Compose panel Submit and Cancel buttons have no mouse click handler
+### [CRITICAL][FIXED] Compose panel Submit and Cancel buttons have no mouse click handler
 
 - **File**: `pkg/ui/compose.go` (lines 116–233 `Update()`, lines 375–385 `drawButtons()`)
 - **Category**: Input
@@ -46,13 +46,13 @@
   }
   ```
 - **Remediation checklist**:
-  - [ ] Store panel top-left (`p.x`, `p.y`) so `Update()` can compute button rects without recalculating position independently of `Draw()`.
-  - [ ] Add `handleMouseClick()` sub-method called from `Update()`.
-  - [ ] Add test: simulate left-click at submit button coords and assert `onSubmit` was called.
+  - [x] Store panel top-left (`p.x`, `p.y`) so `Update()` can compute button rects without recalculating position independently of `Draw()`.
+  - [x] Add `handleMouseClick()` sub-method called from `Update()`.
+  - [x] Add test: simulate left-click at submit button coords and assert `onSubmit` was called.
 
 ---
 
-### [HIGH] Radial menu is never wired into the game loop
+### [HIGH][FIXED] Radial menu is never wired into the game loop
 
 - **File**: `pkg/pulsemap/game.go` (entire file, no `RadialMenu` reference); `pkg/ui/radial_menu.go`
 - **Category**: Input
@@ -65,12 +65,12 @@
   3. In `handleDragging()`, handle `MouseButtonRight` just-pressed: convert cursor to screen coords, call `g.radialMenu.Show(float64(mx), float64(my), selectedNodeID)`.
   4. Call `g.radialMenu.Update()` and `g.radialMenu.Draw(screen)` each tick with appropriate panel-priority ordering.
 - **Remediation checklist**:
-  - [ ] Add `radialMenu` field to `Game`.
-  - [ ] Wire `OnAction` callbacks for all 6 actions (`ActionComposeWave`, `ActionSendGift`, etc.).
-  - [ ] Handle `ebiten.MouseButtonRight` just-pressed in `handleDragging()`.
-  - [ ] Guard: do not open radial menu while another modal panel is visible.
-  - [ ] Add radial menu to `updateActivePanels()` priority chain.
-  - [ ] Draw radial menu above graph layer, below compose panel.
+  - [x] Add `radialMenu` field to `Game`.
+  - [x] Wire `OnAction` callbacks for all 6 actions (`ActionComposeWave`, `ActionSendGift`, etc.).
+  - [x] Handle `ebiten.MouseButtonRight` just-pressed in `handleDragging()`.
+  - [x] Guard: do not open radial menu while another modal panel is visible.
+  - [x] Add radial menu to `updateActivePanels()` priority chain.
+  - [x] Draw radial menu above graph layer, below compose panel.
 
 ---
 
@@ -120,7 +120,7 @@
 
 ---
 
-### [HIGH] `isDragging` state orphaned on mouse button released outside window
+### [HIGH][FIXED] `isDragging` state orphaned on mouse button released outside window
 
 - **File**: `pkg/pulsemap/game.go` (lines 525–549 `handleDragging()`)
 - **Category**: Input
@@ -135,7 +135,7 @@
   }
   ```
 - **Remediation checklist**:
-  - [ ] Add the guard at the top of `handleDragging()`.
+  - [x] Add the guard at the top of `handleDragging()`.
   - [ ] Apply same pattern to `InputState.Dragging` inside `renderer.HandleMouseDown` / `HandleMouseUp`.
   - [ ] Write a test that calls `Update()` with `Dragging=true` but `MouseButtonLeft` not pressed and asserts `isDragging` becomes false.
 
@@ -490,7 +490,7 @@
 
 ---
 
-### [LOW] Viewport control buttons are 70×30 px — below 44 px minimum touch target
+### [LOW][FIXED] Viewport control buttons are 70×30 px — below 44 px minimum touch target
 
 - **File**: `pkg/ui/viewport_controls.go` (line 60: `buttonHeight: 30`)
 - **Category**: Convenience
@@ -501,8 +501,8 @@
   buttonHeight: 44,
   ```
 - **Remediation checklist**:
-  - [ ] Set `buttonHeight = 44` in `NewViewportControls`.
-  - [ ] Verify three stacked buttons + 2 gaps still fit within a 200px top margin.
+  - [x] Set `buttonHeight = 44` in `NewViewportControls`.
+  - [x] Verify three stacked buttons + 2 gaps still fit within a 200px top margin.
 
 ---
 

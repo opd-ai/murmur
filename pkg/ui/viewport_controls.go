@@ -53,11 +53,11 @@ type ViewportCallbacks struct {
 // NewViewportControls creates a new viewport control widget.
 func NewViewportControls(theme Theme, callbacks ViewportCallbacks) *ViewportControls {
 	return &ViewportControls{
-		theme:        theme,
-		onMacro:      callbacks.OnMacro,
-		onMeso:       callbacks.OnMeso,
-		onMicro:      callbacks.OnMicro,
-		buttonWidth:  70,
+		theme:       theme,
+		onMacro:     callbacks.OnMacro,
+		onMeso:      callbacks.OnMeso,
+		onMicro:     callbacks.OnMicro,
+		buttonWidth: 70,
 		// Per AUDIT.md LOW finding: minimum 44px touch target (WCAG 2.5.5 / Apple HIG).
 		buttonHeight: 44,
 		buttonGap:    5,

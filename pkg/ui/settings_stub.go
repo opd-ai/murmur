@@ -97,6 +97,13 @@ func NewSettingsPanel(theme Theme, onChange SettingsChangeCallback) *SettingsPan
 					{Key: "auto_amplify", Label: "Auto-Amplify", Type: SettingTypeToggle, Value: false},
 				},
 			},
+			{
+				Name: "Devices",
+				Settings: []Setting{
+					{Key: "device_count", Label: "Authorized Devices", Type: SettingTypeText, Value: "1"},
+					{Key: "device_sync", Label: "Sync Identity Across Devices", Type: SettingTypeToggle, Value: true},
+				},
+			},
 		},
 	}
 }

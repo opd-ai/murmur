@@ -24,11 +24,17 @@ type DeviceInfo struct {
 type DeviceManagementPanel struct {
 	visible       bool
 	confirmRevoke bool
+	devices       []DeviceInfo
+	selectedIdx   int
+	onRevoke      func(ed25519.PublicKey) error
 }
 
 // NewDeviceManagementPanel creates a new device management panel (stub).
 func NewDeviceManagementPanel(theme Theme, onRevoke func(ed25519.PublicKey) error, onAddDevice, onClose func()) *DeviceManagementPanel {
-	return &DeviceManagementPanel{}
+	return &DeviceManagementPanel{
+		selectedIdx: -1,
+		onRevoke:    onRevoke,
+	}
 }
 
 // Visible returns true if the panel is shown (stub).
@@ -39,6 +45,9 @@ func (p *DeviceManagementPanel) Visible() bool {
 // Show displays the panel (stub).
 func (p *DeviceManagementPanel) Show(devices []DeviceInfo) {
 	p.visible = true
+	p.devices = devices
+	p.selectedIdx = -1
+	p.confirmRevoke = false
 }
 
 // Hide hides the panel (stub).
@@ -58,12 +67,19 @@ func (p *DeviceManagementPanel) Draw(screen image.Image) {
 
 // RequestRevoke initiates revocation (stub).
 func (p *DeviceManagementPanel) RequestRevoke(deviceIndex int) {
+	p.selectedIdx = deviceIndex
 	p.confirmRevoke = true
 }
 
 // ConfirmRevoke executes revocation (stub).
 func (p *DeviceManagementPanel) ConfirmRevoke() error {
+	if !p.confirmRevoke || p.selectedIdx < 0 || p.selectedIdx >= len(p.devices) {
+		return nil
+	}
 	p.confirmRevoke = false
+	if p.onRevoke != nil {
+		return p.onRevoke(p.devices[p.selectedIdx].PublicKey)
+	}
 	return nil
 }
 

@@ -1,7 +1,6 @@
 MURMUR STRATEGIC EXECUTION CHECKLIST
 =====================================
 
-=====================================
 GOAL STATEMENT
 =====================================
 
@@ -519,8 +518,6 @@ roughly sequential but overlap deliberately; priority ordering at
 the end identifies which items are mandatory before any public
 release versus which may ship later.
 
-
-=====================================
 PHASE 0: FOUNDATIONAL DECISIONS (Weeks 1–3)
 =====================================
 Lock in the strategic choices that shape everything downstream.
@@ -560,8 +557,6 @@ Do not skip — retrofitting these later is 10x more expensive.
          - Commit in writing; this decision gates UX work
          - **COMPLETED**: Created PULSE_MAP_ROLE_DECISION.md committing to Pulse Map as PRIMARY surface. Rationale: aligns with Design Principle #4 "The network is the interface", provides unique differentiation from chat-first apps (Discord/Telegram/Signal), enables spatial discovery and dual-layer visualization. Documented new-user path (< 90s: welcome → identity creation → bootstrap → first content → first interaction), mitigation strategies for graph literacy barrier (onboarding Phase 5 tutorial, empty-state design, contextual hints), success criteria (≥80% onboarding completion, ≥50% D7 Pulse Map engagement, ≥30% spatial discovery rate), and red flags triggering UX reassessment (>40% drop-off, >80% conversation panel usage). Decision locked for v1.0.
 
-
-=====================================
 PHASE 1: UX REPOSITIONING (Weeks 3–8)
 =====================================
 Make the primary user path match the product identity.
@@ -593,8 +588,6 @@ Make the primary user path match the product identity.
          - Define culling, clustering, and LOD strategies up front
          - **COMPLETED**: Created docs/PULSE_MAP_DEGRADATION_CURVE.md with complete scalability specification. Defined 6 performance thresholds (Small 1-50, Medium 51-500, Large 501-2K, Very Large 2K-10K, Massive 10K-50K, Extreme 50K+) with FPS targets (60fps @ 500 nodes per spec), layout algorithms (Fruchterman-Reingold → Barnes-Hut θ=0.5/0.8 → Clustering → Static), visual fidelity degradation (full effects → reduced → minimal → statistical). 4-level LOD system (Full/High/Medium/Low detail based on hop distance). 4 culling strategies (frustum/distance/occlusion/temporal coherence, 50-90% savings). Edge bundling for 501+ nodes. Heatmap rendering for 10K+ nodes (GPU-accelerated KDE). User warnings at thresholds. Performance settings (node/hop limits, quality, layout frequency). Testing strategy (benchmarks, stress tests, user testing). 6-phase implementation checklist (10 weeks, 1 engineer). Success metrics: ≥60fps @ 500, ≥45fps @ 2K, ≥30fps @ 10K.
 
-
-=====================================
 PHASE 2: GAME LIBRARY DIFFERENTIATION (Weeks 6–14)
 =====================================
 Games are the retention engine. Curate, don't accumulate.
@@ -632,8 +625,6 @@ Games are the retention engine. Curate, don't accumulate.
          - Surface relevant warnings to users before first play
          - **COMPLETED**: Created docs/privacy/GAME_PRIVACY_DATASHEETS.md with complete privacy disclosures for all 10 games. Each datasheet includes: (1) Metadata collected (timing, interactions, patterns), (2) Anonymity guarantees (what is protected), (3) Known limitations (leak surfaces), (4) Recommended precautions (Tor transport, behavioral variation, Fortress-mode considerations). Ratings: 4 Zero-Leak, 5 Low-Leak, 1 Medium-Leak (Shadow Play), 1 High-Leak (Surface Sparks, Surface-only). Designed in-app privacy modal for first participation. Implementation: integrate modals into pkg/anonymous/mechanics/ CreateMatch() flows.
 
-
-=====================================
 PHASE 3: IDENTITY RECOVERY & CONTINUITY (Weeks 8–14)
 =====================================
 In a messaging+games network, losing identity = losing friendships.
@@ -665,8 +656,6 @@ Treat recovery as a first-class feature, not a checkbox.
 [x] 3.5  Write RECOVERY.md with user-facing flows and failure handling
          - **COMPLETED**: Created RECOVERY.md as comprehensive user-facing guide covering all four recovery methods: BIP-39 recovery phrase (90-200s, keys only), Multi-Device Identity (30-60s, full continuity), Social Recovery (5-15min, requires 3-of-5 contacts), Key Rotation (30-60s, proactive security). Each method includes: step-by-step user flows, what gets recovered vs lost, when to use, security notes, timing expectations. Comparison table shows speed/recovery/requirements. Failure modes section covers: lost phrase + all devices (social recovery fallback), failed social recovery (not enough contacts), unauthorized rotation (revocation flow), device conflicts. Troubleshooting for common issues. Best practices for maximum security (annual rotation, 5-of-7 threshold), convenience (password manager), paranoid users (quarterly rotation, paper-only backup). FAQ covers 8 common questions. References technical specs (MULTI_DEVICE_IDENTITY.md, SOCIAL_RECOVERY.md, KEY_ROTATION.md). User-ready documentation for v1.0 launch.
 
-
-=====================================
 PHASE 4: ANTI-ABUSE FRAMEWORK (Weeks 10–16)
 =====================================
 Required before public launch. Anonymous + games + tunneling =
@@ -704,8 +693,6 @@ attractive target for abuse. Design the levers now.
 [x] 4.5  Write ABUSE_MODEL.md and integrate into SECURITY_PRIVACY.md
          - **COMPLETED 2026-05-06**: Created ABUSE_MODEL.md (23KB, 7 sections) with comprehensive abuse framework: §1 Abuse Categories (5 categories, attack vectors, risk levels, mitigations), §2 Mitigation Lever Mapping (matrix with residual risks), §3 ZK-Resonance Progressive Trust (6 tiers, low-Resonance restrictions, Bulletproofs specification), §4 Abuse-Response Model (Host Rights Framework, signature detection, machine-readable policies), §5 Integration with SECURITY_PRIVACY.md (cross-references), §6 Roadmap & Open Questions (v1.0 requirements, tunnel mitigations, long-term enhancements), §7 Conclusion (layered defense philosophy). Integrated into SECURITY_PRIVACY.md by adding new section "Application-Layer Abuse Mitigations" (§10, after "Known Limitations") summarizing spam resistance, DoS mitigation, harassment controls, game griefing, progressive trust, host rights, and future tunnel mitigations. Cross-referenced ABUSE_MODEL.md for complete specification.
 
-
-=====================================
 PHASE 5: TOR / I2P TRANSPORT VIA go-i2p/onramp (Weeks 12–18)
 =====================================
 Ship the escape hatch for users who need stronger anonymity.
@@ -814,8 +801,6 @@ persistence, listener lifecycle, reachability) to onramp.
            from 0.2 to reference the new transport options
          - **COMPLETED 2026-05-06**: Created TRANSPORT_ANONYMITY.md (18KB, 600+ lines) as comprehensive technical documentation for transport layer anonymity. Sections: (1) Architecture Overview — libp2p foundation, transport coexistence, Shroud layering, (2) Adapter Model — libp2p Transport interface, Tor/I2P adapter implementation details, multiaddr formats (onion3/garlic64), (3) go-i2p/onramp Dependency — library rationale, Onion/Garlic struct lifecycles, runtime expectations (Tor daemon port 9051, I2P SAM bridge port 7656), (4) Shroud vs. Tor/I2P — distinct guarantees table, layering benefits, threat model alignment, (5) Transport Modes — Mode A/B/C/D comparison with latency/privacy/requirements, (6) When to Use Each Mode — decision trees for typical use cases (friend groups, activists, journalists, I2P community), (7) Implementation Details — host construction, startup diagnostics, key persistence, (8) Security Considerations — threat model alignment, attack surfaces, key management, DoS/censorship, (9) References — MURMUR docs, external resources (torproject.org, geti2p.net, i2pd.website), academic papers (Tor Design 2004, I2P Network Database 2011, Traffic Analysis 2005). Updated SECURITY_PRIVACY.md with new "Transport Layer Anonymity" section after "Privacy Guarantees by Mode" (§201-233). Documented all four modes (A/B/C/D) with threat model alignment, implementation pointers, and key management separation guarantees. Cross-referenced TRANSPORT_ANONYMITY.md for complete technical details.
 
-
-=====================================
 PHASE 6: TUNNELING PRIMITIVE (PageKite/ngrok) (Weeks 16–26)
 =====================================
 Major new capability. Requires architectural care and abuse planning
@@ -852,8 +837,6 @@ BEFORE code. Do not start before Phase 4 completes.
 [ ] 6.6  Write operator-facing documentation and a "tunnel host"
          configuration profile
 
-
-=====================================
 PHASE 7: FRIEND-TO-FRIEND RESEED (Weeks 20–30)
 =====================================
 Shares infrastructure with tunneling. Build second, learn from Phase 6.
@@ -876,8 +859,6 @@ Shares infrastructure with tunneling. Build second, learn from Phase 6.
 [ ] 7.4  Document RESEED.md with threat model (compromised
          reseed host, coerced friend, etc.)
 
-
-=====================================
 PHASE 8: EXTENSION SURFACE HARDENING (Weeks 24–32)
 =====================================
 Turn the Extension Contract from 0.3 into a stable, documented API.
@@ -903,8 +884,6 @@ Turn the Extension Contract from 0.3 into a stable, documented API.
          - Lightweight — a folder with numbered markdown files
          - Community can propose new extension points without core fork
 
-
-=====================================
 PHASE 9: BOOTSTRAPPING & LAUNCH (Weeks 28–36)
 =====================================
 Don't launch until the cold-start story is designed, not hoped for.
@@ -934,8 +913,6 @@ Don't launch until the cold-start story is designed, not hoped for.
 [ ] 9.5  Open beta with clear version expectations and kill-switch
          plan for discovered security issues
 
-
-=====================================
 ONGOING / CROSS-PHASE
 =====================================
 
@@ -977,8 +954,6 @@ ONGOING / CROSS-PHASE
          - Keeps contributors aligned
          - Makes the "backbone primitive" claim credible
 
-
-=====================================
 PRIORITY ORDERING IF RESOURCES ARE TIGHT
 =====================================
 Must-do before any public release:

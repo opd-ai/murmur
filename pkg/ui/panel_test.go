@@ -165,10 +165,10 @@ func TestNewSettingsPanel(t *testing.T) {
 		t.Fatal("NewSettingsPanel returned nil")
 	}
 
-	// Verify default categories.
+	// Verify default categories (Network, Privacy, Devices, Display, Waves).
 	cats := panel.Categories()
-	if len(cats) != 4 {
-		t.Errorf("Expected 4 categories, got %d", len(cats))
+	if len(cats) != 5 {
+		t.Errorf("Expected 5 categories, got %d", len(cats))
 	}
 
 	_ = changedKey // Used in real tests.
