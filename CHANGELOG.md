@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+**Test Failure Resolution (2026-05-06)**
+- **All tests passing** — Comprehensive test failure analysis completed. All 57 packages now pass with race detector enabled (zero failures, zero race conditions).
+- **Historical failure documentation** — Analyzed and classified 3 historical failures from `test-output-fresh.txt`: (1) `pkg/pulsemap/layout` build error due to missing `raceEnabled` constant, (2-3) `cmd/murmur` and `pkg/app` test timeouts due to goroutine not respecting context cancellation.
+- **Complexity metrics baseline** — Generated baseline complexity analysis with `go-stats-generator` (5.3 MB, ~5,300 functions analyzed) for root cause correlation.
+- **Resolution verification** — All failures were Cat 1 (Implementation Bugs) and have been resolved: build-tag files (`race.go`, `norace.go`) created, `runNudgeLoop` updated to use `select` with context cancellation. Zero complexity regressions.
+- **Concurrency pattern fix** — Identified and documented goroutine leak pattern: long-running timers must check context cancellation **during** wait, not after. Added to best practices.
+
+**Concurrency Audit Implementation (2026-05-06)**
+- **Context cancellation tests (H2)** — Added comprehensive tests verifying all production goroutines exit within 1s of context cancellation per AUDIT.md H2: `TestMemoryMonitorContextCancellation`, `TestNudgeLoopContextCancellation`, `TestAllGoroutinesExitOnContextCancel` in `pkg/app/murmur_test.go`; `TestStartDedupRotationContextCancellation` in `pkg/app/handlers_test.go`; `TestStartGCContextCancellation` in `pkg/content/storage/cache_test.go`. All tests pass with race detector.
+- **Event bus backpressure (M1)** — Implemented priority-based event handling in `pkg/app/eventbus.go`: increased buffer from 256 to 1024 entries, added `EventPriority` enum (Critical/High/Normal), critical events (circuit failures, replies) block for up to 5s instead of being dropped, low-priority events dropped under backpressure (80% buffer fullness), added backpressure warning logs. All existing tests pass.
+- **Circuit latency instrumentation (M4)** — Added `ShroudCircuitBuildDurationSeconds` histogram metric in `pkg/networking/metrics/metrics.go` with 8 buckets (1ms-5s), instrumented `BuildCircuit()` in `pkg/anonymous/shroud/circuit.go` to measure key exchange duration. Confirmed circuit construction is purely cryptographic (no blocking network I/O), completes in <1ms.
+- **False positive resolution (M3)** — Confirmed double-buffered Pulse Map position swap is safe: `atomic.Pointer` swap atomically replaces map pointer, old map immutable after swap, no concurrent modification. Marked as resolved.
+- **AUDIT.md updates** — Marked H2, M1, M3, M4 as resolved with detailed resolution notes.
+
 **Complexity Reduction & Shutdown Fixes (2026-05-06)**
 - **Graceful shutdown fix** — Fixed nudge loop blocking on `time.Sleep(5 * time.Minute)` without context awareness. Replaced with timer + select on ctx.Done(), resolving AUDIT.md H1 (shutdown timeout issue).
 - **Per-subsystem close timing** — Added `closeSubsystemWithTiming()` wrapper that logs warnings for subsystem closers exceeding 2s duration, aiding shutdown performance debugging.

@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/opd-ai/murmur/pkg/networking/metrics"
 	"github.com/zeebo/blake3"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/curve25519"
@@ -528,6 +529,13 @@ func pickRandomUnusedIndex(max int, used map[int]bool) int {
 
 // BuildCircuit creates a new Shroud circuit through the selected relays.
 func (b *Beacon) BuildCircuit(relays [CircuitLength]*RelayInfo) (*Circuit, error) {
+	// Instrument build duration per AUDIT.md M4
+	start := time.Now()
+	defer func() {
+		duration := time.Since(start).Seconds()
+		metrics.ShroudCircuitBuildDurationSeconds.Observe(duration)
+	}()
+
 	var circuitID [16]byte
 	if _, err := rand.Read(circuitID[:]); err != nil {
 		return nil, err

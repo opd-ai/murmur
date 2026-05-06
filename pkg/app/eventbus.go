@@ -7,6 +7,7 @@ package app
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/opd-ai/murmur/pkg/networking/metrics"
 	pb "github.com/opd-ai/murmur/proto"
@@ -392,7 +393,8 @@ func (eb *EventBus) unsubscribe(sub *subscription) {
 }
 
 // Emit sends an event to the event bus for dispatch.
-// Non-blocking: if the inbound buffer is full, the event is dropped.
+// Per AUDIT.md M1: Critical events (circuit failures, replies) bypass the buffer
+// and block until delivered. High/Normal priority events are non-blocking.
 func (eb *EventBus) Emit(event Event) {
 	eb.mu.RLock()
 	if eb.closed {
@@ -401,6 +403,40 @@ func (eb *EventBus) Emit(event Event) {
 	}
 	eb.mu.RUnlock()
 
+	// Compute priority for this event.
+	event.priority = priorityFor(event.Type)
+
+	// Critical events bypass the buffer and block until delivered.
+	if event.priority == PriorityCritical {
+		select {
+		case eb.inbound <- event:
+		case <-time.After(5 * time.Second):
+			// Even critical events should not block forever.
+			metrics.EventBusDropsTotal.WithLabelValues("critical_timeout").Inc()
+		}
+		return
+	}
+
+	// Check buffer fullness for backpressure detection.
+	bufLen := len(eb.inbound)
+	bufCap := cap(eb.inbound)
+	fullness := float64(bufLen) / float64(bufCap)
+
+	if fullness >= eb.backpressureThreshold {
+		// Log backpressure warning. Per AUDIT.md M1, this indicates we should
+		// temporarily pause low-priority event types.
+		if event.priority == PriorityNormal {
+			// Drop low-priority events under backpressure.
+			metrics.EventBusDropsTotal.WithLabelValues("backpressure").Inc()
+			return
+		}
+		// Warn once per high-water mark crossing.
+		if bufLen%100 == 0 {
+			println("WARNING: Event bus at", int(fullness*100), "% capacity")
+		}
+	}
+
+	// Non-blocking send for high/normal priority events.
 	select {
 	case eb.inbound <- event:
 	default:

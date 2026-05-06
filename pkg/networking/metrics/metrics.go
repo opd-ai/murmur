@@ -93,6 +93,16 @@ var (
 		},
 	)
 
+	// ShroudCircuitBuildDurationSeconds tracks circuit construction latency.
+	// Per AUDIT.md M4, this histogram instruments circuit build time.
+	ShroudCircuitBuildDurationSeconds = promauto.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "murmur_shroud_circuit_build_duration_seconds",
+			Help:    "Time taken to build a Shroud circuit (key exchange only)",
+			Buckets: []float64{0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0, 5.0},
+		},
+	)
+
 	// DHTBootstrapAttemptsTotal counts DHT bootstrap attempts.
 	DHTBootstrapAttemptsTotal = promauto.NewCounter(
 		prometheus.CounterOpts{
