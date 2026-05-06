@@ -25,6 +25,10 @@ type Config struct {
 	EnableHealthEndpoint bool          // Enable HTTP health check endpoint (default false for privacy)
 	HealthEndpointPort   int           // Port for health check endpoint (default 8080)
 	HeartbeatInterval    time.Duration // Interval for sending heartbeat pings (default 30s)
+	EnableTor            bool          // Enable Tor transport adapter for /onion3 addresses
+	EnableI2P            bool          // Enable I2P transport adapter for /garlic64 addresses
+	TorControlAddr       string        // Tor control port address (default: 127.0.0.1:9051)
+	I2PSAMAddr           string        // I2P SAMv3 address (default: 127.0.0.1:7656)
 }
 
 // LoadConfig loads configuration from defaults and applies overrides.
@@ -45,6 +49,10 @@ func LoadConfig(overrides Config) (*Config, error) {
 		EnableHealthEndpoint: overrides.EnableHealthEndpoint,
 		HealthEndpointPort:   overrides.HealthEndpointPort,
 		HeartbeatInterval:    overrides.HeartbeatInterval,
+		EnableTor:            overrides.EnableTor,
+		EnableI2P:            overrides.EnableI2P,
+		TorControlAddr:       overrides.TorControlAddr,
+		I2PSAMAddr:           overrides.I2PSAMAddr,
 	}
 
 	if err := cfg.applyDefaults(); err != nil {
@@ -64,6 +72,8 @@ func (cfg *Config) applyDefaults() error {
 	cfg.applyRelayBandwidthDefault()
 	cfg.applyHealthEndpointPortDefault()
 	cfg.applyHeartbeatIntervalDefault()
+	cfg.applyTorControlAddrDefault()
+	cfg.applyI2PSAMAddrDefault()
 	return nil
 }
 
@@ -117,6 +127,20 @@ func (cfg *Config) applyHeartbeatIntervalDefault() {
 	}
 }
 
+// applyTorControlAddrDefault sets Tor control address to 127.0.0.1:9051 if Tor is enabled and unspecified.
+func (cfg *Config) applyTorControlAddrDefault() {
+	if cfg.EnableTor && cfg.TorControlAddr == "" {
+		cfg.TorControlAddr = "127.0.0.1:9051"
+	}
+}
+
+// applyI2PSAMAddrDefault sets I2P SAM address to 127.0.0.1:7656 if I2P is enabled and unspecified.
+func (cfg *Config) applyI2PSAMAddrDefault() {
+	if cfg.EnableI2P && cfg.I2PSAMAddr == "" {
+		cfg.I2PSAMAddr = "127.0.0.1:7656"
+	}
+}
+
 // DefaultConfig returns a configuration with all default values.
 func DefaultConfig() *Config {
 	homeDir, _ := os.UserHomeDir()
@@ -138,6 +162,10 @@ func DefaultConfig() *Config {
 		EnableRelay:       false,
 		RelayBandwidth:    10 * 1024 * 1024,
 		HeartbeatInterval: 30 * time.Second,
+		EnableTor:         false,
+		EnableI2P:         false,
+		TorControlAddr:    "127.0.0.1:9051",
+		I2PSAMAddr:        "127.0.0.1:7656",
 	}
 }
 

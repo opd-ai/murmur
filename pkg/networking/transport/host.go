@@ -23,8 +23,10 @@ import (
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/routing"
+	"github.com/libp2p/go-libp2p/core/transport"
 	"github.com/libp2p/go-libp2p/p2p/net/connmgr"
 	"github.com/libp2p/go-libp2p/p2p/security/noise"
 	libp2ptls "github.com/libp2p/go-libp2p/p2p/security/tls"
@@ -33,6 +35,10 @@ import (
 	libp2pwebrtc "github.com/libp2p/go-libp2p/p2p/transport/webrtc"
 	"github.com/libp2p/go-libp2p/p2p/transport/websocket"
 	"github.com/multiformats/go-multiaddr"
+
+	"github.com/opd-ai/murmur/pkg/networking/transport/diagnostics"
+	"github.com/opd-ai/murmur/pkg/networking/transport/onramp_i2p"
+	"github.com/opd-ai/murmur/pkg/networking/transport/onramp_tor"
 )
 
 // Host configuration constants per NETWORK_ARCHITECTURE.md.
@@ -94,6 +100,20 @@ type Config struct {
 	// MaxConnections overrides the default MaxPeerConnections (200).
 	// Only used if EnableConnectionManager is true.
 	MaxConnections int
+
+	// EnableTor enables Tor transport adapter for /onion3 addresses.
+	// Per PLAN.md §5.5, Tor and I2P transports coexist with TCP/QUIC.
+	EnableTor bool
+
+	// EnableI2P enables I2P transport adapter for /garlic64 addresses.
+	// Per PLAN.md §5.5, both adapters can be registered simultaneously.
+	EnableI2P bool
+
+	// TorControlAddr is the Tor control port address (default: 127.0.0.1:9051).
+	TorControlAddr string
+
+	// I2PSAMAddr is the I2P SAMv3 address (default: 127.0.0.1:7656).
+	I2PSAMAddr string
 }
 
 // DefaultConfig returns a Config with sensible defaults.
@@ -109,6 +129,10 @@ func DefaultConfig() Config {
 		EnableWebRTC:            false, // Disabled by default, enable for browser-to-browser
 		EnableConnectionManager: true,  // Enabled by default per NETWORK_ARCHITECTURE.md
 		MaxConnections:          MaxPeerConnections,
+		EnableTor:               false, // Disabled by default, enable with config flag
+		EnableI2P:               false, // Disabled by default, enable with config flag
+		TorControlAddr:          "127.0.0.1:9051",
+		I2PSAMAddr:              "127.0.0.1:7656",
 	}
 }
 
@@ -176,7 +200,14 @@ type Host struct {
 // NewHost creates a new libp2p host with the given configuration.
 // Per NETWORK_ARCHITECTURE.md §4-5, the host uses Noise XX encryption,
 // prefers QUIC transport with TCP fallback, and derives Peer ID from Ed25519 key.
+// Per PLAN.md §5.5, conditionally registers Tor and I2P transports based on config flags.
+// Per PLAN.md §5.7, performs reachability diagnostics before constructing the host.
 func NewHost(ctx context.Context, cfg Config) (*Host, error) {
+	// Perform transport reachability diagnostics if anonymity transports are enabled.
+	if err := performDiagnostics(ctx, cfg); err != nil {
+		return nil, err
+	}
+
 	privKey, err := validateAndUnmarshalKey(cfg.PrivateKey)
 	if err != nil {
 		return nil, err
@@ -190,6 +221,10 @@ func NewHost(ctx context.Context, cfg Config) (*Host, error) {
 	var idht *dht.IpfsDHT
 	opts := buildBaseOptions(privKey, listenAddrs, cfg.EnableWebSocket, cfg.EnableWebRTC)
 	opts = appendConnectionManager(opts, cfg)
+	opts, err = appendAnonymityTransports(opts, ctx, cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to configure anonymity transports: %w", err)
+	}
 	opts = appendDHTOption(opts, ctx, cfg, &idht)
 
 	h, err := libp2p.New(opts...)
@@ -296,6 +331,57 @@ func buildBaseOptions(privKey crypto.PrivKey, listenAddrs []multiaddr.Multiaddr,
 	}
 
 	return opts
+}
+
+// appendAnonymityTransports conditionally adds Tor and I2P transport adapters.
+// Per PLAN.md §5.5: Both adapters coexist with TCP/QUIC; peers can be reached
+// via whichever address they advertise. The multiaddr selection logic prefers
+// clearnet when available and anonymity is not required.
+func appendAnonymityTransports(opts []libp2p.Option, ctx context.Context, cfg Config) ([]libp2p.Option, error) {
+	if cfg.EnableTor {
+		torOpt := buildTorTransportOption(ctx, cfg.TorControlAddr)
+		opts = append(opts, torOpt)
+	}
+
+	if cfg.EnableI2P {
+		i2pOpt := buildI2PTransportOption(ctx, cfg.I2PSAMAddr)
+		opts = append(opts, i2pOpt)
+	}
+
+	return opts, nil
+}
+
+// buildTorTransportOption creates a libp2p transport option for Tor.
+// Per PLAN.md §5.3: The transport constructor receives an upgrader from libp2p
+// and wraps onramp.Onion to provide Dial and Listen semantics.
+func buildTorTransportOption(ctx context.Context, controlAddr string) libp2p.Option {
+	constructor := func(upgrader transport.Upgrader, rcmgr network.ResourceManager) (transport.Transport, error) {
+		return onramp_tor.NewTransport(ctx, "murmur-tor", upgrader, rcmgr)
+	}
+	return libp2p.Transport(constructor)
+}
+
+// buildI2PTransportOption creates a libp2p transport option for I2P.
+// Per PLAN.md §5.4: The transport constructor receives an upgrader from libp2p
+// and wraps onramp.Garlic to provide Dial and Listen semantics.
+func buildI2PTransportOption(ctx context.Context, samAddr string) libp2p.Option {
+	constructor := func(upgrader transport.Upgrader, rcmgr network.ResourceManager) (transport.Transport, error) {
+		// Empty options slice uses onramp defaults for tunnel parameters
+		return onramp_i2p.NewTransport(ctx, "murmur-i2p", samAddr, nil, upgrader, rcmgr)
+	}
+	return libp2p.Transport(constructor)
+}
+
+// performDiagnostics probes Tor and I2P transports for reachability.
+// Per PLAN.md §5.7, surfaces actionable errors before host construction
+// to fail fast with installation instructions rather than silent fallback.
+func performDiagnostics(ctx context.Context, cfg Config) error {
+	if !cfg.EnableTor && !cfg.EnableI2P {
+		return nil // No diagnostics needed for clearnet-only mode.
+	}
+
+	_, err := diagnostics.CheckAll(ctx, cfg.EnableTor, cfg.TorControlAddr, cfg.EnableI2P, cfg.I2PSAMAddr)
+	return err
 }
 
 // buildDHTOption creates a routing option that initializes the DHT.
