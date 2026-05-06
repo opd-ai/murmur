@@ -150,27 +150,33 @@ func (f *Filter) ShouldFilter(wave *pb.Wave) bool {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 
-	// Check author mute list.
-	if len(wave.AuthorPubkey) > 0 {
-		if _, muted := f.mutedAuthors[hex.EncodeToString(wave.AuthorPubkey)]; muted {
-			return true
-		}
+	if f.isAuthorMuted(wave.AuthorPubkey) {
+		return true
 	}
 
-	// Check keyword filters.
 	if f.containsMutedKeyword(wave.Content) {
 		return true
 	}
 
-	// Check Resonance threshold.
-	if f.minResonance > 0 && f.resonanceLookup != nil {
-		authorResonance := f.resonanceLookup(wave.AuthorPubkey)
-		if authorResonance < f.minResonance {
-			return true
-		}
-	}
+	return f.isResonanceBelowThreshold(wave.AuthorPubkey)
+}
 
-	return false
+// isAuthorMuted checks if wave author is in mute list.
+func (f *Filter) isAuthorMuted(authorPubkey []byte) bool {
+	if len(authorPubkey) == 0 {
+		return false
+	}
+	_, muted := f.mutedAuthors[hex.EncodeToString(authorPubkey)]
+	return muted
+}
+
+// isResonanceBelowThreshold checks if author's Resonance is below minimum.
+func (f *Filter) isResonanceBelowThreshold(authorPubkey []byte) bool {
+	if f.minResonance <= 0 || f.resonanceLookup == nil {
+		return false
+	}
+	authorResonance := f.resonanceLookup(authorPubkey)
+	return authorResonance < f.minResonance
 }
 
 // containsMutedKeyword checks if content matches any muted keyword pattern.

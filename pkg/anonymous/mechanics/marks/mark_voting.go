@@ -120,19 +120,33 @@ func (s *MarkVoteStore) CanVote(voterKey, markID [32]byte, resonance int) error 
 		return ErrVoteInsufficientResonance
 	}
 
-	// Check mark exists.
-	if s.markStore != nil {
-		mark, err := s.markStore.GetMark(markID)
-		if err != nil {
-			return ErrMarkNotFound
-		}
-		// Cannot vote on own mark.
-		if mark.MarkerKey == voterKey {
-			return ErrVoteOnOwnMark
-		}
+	if err := s.validateMarkForVoting(voterKey, markID); err != nil {
+		return err
 	}
 
-	// Check if already voted.
+	return s.checkVoteNotAlreadyCast(voterKey, markID)
+}
+
+// validateMarkForVoting checks mark exists and voter is not the marker.
+func (s *MarkVoteStore) validateMarkForVoting(voterKey, markID [32]byte) error {
+	if s.markStore == nil {
+		return nil
+	}
+
+	mark, err := s.markStore.GetMark(markID)
+	if err != nil {
+		return ErrMarkNotFound
+	}
+
+	if mark.MarkerKey == voterKey {
+		return ErrVoteOnOwnMark
+	}
+
+	return nil
+}
+
+// checkVoteNotAlreadyCast verifies voter hasn't already voted on this mark.
+func (s *MarkVoteStore) checkVoteNotAlreadyCast(voterKey, markID [32]byte) error {
 	voterHex := mechanics.KeyToHex(voterKey[:])
 	s.mu.RLock()
 	defer s.mu.RUnlock()

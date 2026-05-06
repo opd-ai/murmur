@@ -222,30 +222,43 @@ func buildBeaconMetadata(opts BeaconOptions) map[string][]byte {
 
 	switch opts.Type {
 	case BeaconEventAnnouncement:
-		metadata[BeaconEventIDKey] = []byte(opts.EventID)
-		if opts.EventName != "" {
-			metadata[BeaconEventNameKey] = []byte(opts.EventName)
-		}
-		if opts.EventStart > 0 {
-			metadata[BeaconEventStartKey] = int64ToSlice(opts.EventStart)
-		}
-		if opts.EventEnd > 0 {
-			metadata[BeaconEventEndKey] = int64ToSlice(opts.EventEnd)
-		}
-
+		addEventAnnouncementMetadata(metadata, opts)
 	case BeaconEventSummary:
-		metadata[BeaconEventIDKey] = []byte(opts.EventID)
-		if len(opts.SummaryStats) > 0 {
-			metadata[BeaconSummaryStatsKey] = opts.SummaryStats
-		}
-
+		addEventSummaryMetadata(metadata, opts)
 	case BeaconNetworkHealth:
-		if len(opts.HealthMetrics) > 0 {
-			metadata[BeaconHealthMetricsKey] = opts.HealthMetrics
-		}
+		addNetworkHealthMetadata(metadata, opts)
 	}
 
 	return metadata
+}
+
+// addEventAnnouncementMetadata adds event announcement fields to metadata.
+func addEventAnnouncementMetadata(metadata map[string][]byte, opts BeaconOptions) {
+	metadata[BeaconEventIDKey] = []byte(opts.EventID)
+	if opts.EventName != "" {
+		metadata[BeaconEventNameKey] = []byte(opts.EventName)
+	}
+	if opts.EventStart > 0 {
+		metadata[BeaconEventStartKey] = int64ToSlice(opts.EventStart)
+	}
+	if opts.EventEnd > 0 {
+		metadata[BeaconEventEndKey] = int64ToSlice(opts.EventEnd)
+	}
+}
+
+// addEventSummaryMetadata adds event summary fields to metadata.
+func addEventSummaryMetadata(metadata map[string][]byte, opts BeaconOptions) {
+	metadata[BeaconEventIDKey] = []byte(opts.EventID)
+	if len(opts.SummaryStats) > 0 {
+		metadata[BeaconSummaryStatsKey] = opts.SummaryStats
+	}
+}
+
+// addNetworkHealthMetadata adds network health metrics to metadata.
+func addNetworkHealthMetadata(metadata map[string][]byte, opts BeaconOptions) {
+	if len(opts.HealthMetrics) > 0 {
+		metadata[BeaconHealthMetricsKey] = opts.HealthMetrics
+	}
 }
 
 // int64ToSlice converts an int64 to a byte slice (wraps int64ToBytes).

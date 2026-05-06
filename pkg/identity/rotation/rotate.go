@@ -147,42 +147,72 @@ func ValidateDeclaration(decl *pb.ContinuityDeclaration) error {
 		return errors.New("rotation: nil declaration")
 	}
 
-	// Validate key sizes
+	if err := validateDeclarationKeys(decl); err != nil {
+		return err
+	}
+
+	if err := validateDeclarationSignatures(decl); err != nil {
+		return err
+	}
+
+	if err := validateDeclarationGracePeriod(decl); err != nil {
+		return err
+	}
+
+	if err := validateDeclarationTimestamp(decl); err != nil {
+		return err
+	}
+
+	return verifyDeclarationSignatures(decl)
+}
+
+// validateDeclarationKeys checks public key sizes.
+func validateDeclarationKeys(decl *pb.ContinuityDeclaration) error {
 	if len(decl.OldPublicKey) != Ed25519PublicKeySize {
 		return ErrInvalidOldKey
 	}
 	if len(decl.NewPublicKey) != Ed25519PublicKeySize {
 		return ErrInvalidNewKey
 	}
+	return nil
+}
 
-	// Validate signatures exist
+// validateDeclarationSignatures checks signature sizes.
+func validateDeclarationSignatures(decl *pb.ContinuityDeclaration) error {
 	if len(decl.OldKeySignature) != ed25519.SignatureSize {
 		return errors.New("rotation: invalid old key signature")
 	}
 	if len(decl.NewKeySignature) != ed25519.SignatureSize {
 		return errors.New("rotation: invalid new key signature")
 	}
+	return nil
+}
 
-	// Validate grace period
+// validateDeclarationGracePeriod checks grace period is within bounds.
+func validateDeclarationGracePeriod(decl *pb.ContinuityDeclaration) error {
 	if decl.GracePeriodDays < MinGracePeriodDays || decl.GracePeriodDays > MaxGracePeriodDays {
 		return ErrGracePeriodInvalid
 	}
+	return nil
+}
 
-	// Validate timestamp (must be within ±300 seconds, per Wave validation)
+// validateDeclarationTimestamp checks timestamp is within ±300 seconds.
+func validateDeclarationTimestamp(decl *pb.ContinuityDeclaration) error {
 	now := time.Now().Unix()
 	if decl.RotationTimestampUnix < now-300 || decl.RotationTimestampUnix > now+300 {
 		return fmt.Errorf("rotation: timestamp out of range (now=%d, decl=%d)", now, decl.RotationTimestampUnix)
 	}
+	return nil
+}
 
-	// Reconstruct signature data
+// verifyDeclarationSignatures cryptographically verifies both key signatures.
+func verifyDeclarationSignatures(decl *pb.ContinuityDeclaration) error {
 	sigData := buildSignatureData(decl)
 
-	// Verify old key signature
 	if !ed25519.Verify(decl.OldPublicKey, sigData, decl.OldKeySignature) {
 		return errors.New("rotation: old key signature verification failed")
 	}
 
-	// Verify new key signature
 	if !ed25519.Verify(decl.NewPublicKey, sigData, decl.NewKeySignature) {
 		return errors.New("rotation: new key signature verification failed")
 	}
@@ -196,33 +226,42 @@ func ValidateDeclaration(decl *pb.ContinuityDeclaration) error {
 // Returns true if key is valid at the given timestamp.
 func IsKeyValidForTimestamp(key []byte, timestamp int64, chain *pb.ContinuityChain) bool {
 	if chain == nil || len(chain.Declarations) == 0 {
-		// No rotation history; key must match identity root
-		return len(key) == Ed25519PublicKeySize && len(chain.IdentityRootKey) == Ed25519PublicKeySize &&
-			bytesEqual(key, chain.IdentityRootKey)
+		return isKeyMatchingRoot(key, chain)
 	}
 
-	// Check if key is current active key (fast path)
 	if bytesEqual(key, chain.CurrentActiveKey) {
 		return true
 	}
 
-	// Walk chain to find matching declaration
-	for _, decl := range chain.Declarations {
-		// Check if key is the new key (always valid after rotation)
+	return isKeyValidInDeclarations(key, timestamp, chain.Declarations)
+}
+
+// isKeyMatchingRoot checks if key matches identity root when no rotations exist.
+func isKeyMatchingRoot(key []byte, chain *pb.ContinuityChain) bool {
+	return len(key) == Ed25519PublicKeySize && len(chain.IdentityRootKey) == Ed25519PublicKeySize &&
+		bytesEqual(key, chain.IdentityRootKey)
+}
+
+// isKeyValidInDeclarations walks declarations to find matching key.
+func isKeyValidInDeclarations(key []byte, timestamp int64, declarations []*pb.ContinuityDeclaration) bool {
+	for _, decl := range declarations {
 		if bytesEqual(key, decl.NewPublicKey) {
 			return true
 		}
-
-		// Check if key is old key within grace period
-		if bytesEqual(key, decl.OldPublicKey) {
-			graceExpiry := decl.RotationTimestampUnix + (decl.GracePeriodDays * 86400)
-			if timestamp <= graceExpiry {
-				return true // Old key still within grace period
-			}
+		if isOldKeyWithinGrace(key, timestamp, decl) {
+			return true
 		}
 	}
-
 	return false
+}
+
+// isOldKeyWithinGrace checks if old key is still within grace period.
+func isOldKeyWithinGrace(key []byte, timestamp int64, decl *pb.ContinuityDeclaration) bool {
+	if !bytesEqual(key, decl.OldPublicKey) {
+		return false
+	}
+	graceExpiry := decl.RotationTimestampUnix + (decl.GracePeriodDays * 86400)
+	return timestamp <= graceExpiry
 }
 
 // bytesEqual performs constant-time comparison of byte slices.

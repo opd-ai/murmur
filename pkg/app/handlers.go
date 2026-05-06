@@ -221,16 +221,15 @@ func (h *Handlers) RegisterAnonymousMechanics(ctx context.Context, ps *gossip.Pu
 
 // handleWaveMessage processes incoming Wave messages from /murmur/waves/1.
 func (h *Handlers) handleWaveMessage(ctx context.Context, msg *pubsub.Message) {
-	// Increment gossip messages received counter
 	metrics.GossipMessagesReceivedTotal.WithLabelValues(gossip.TopicWaves).Inc()
 
 	envelope, err := h.validateEnvelope(msg.Data, pb.MessageType_MESSAGE_TYPE_WAVE)
 	if err != nil {
-		return // Silently drop invalid messages
+		return
 	}
 
-	wave := &pb.Wave{}
-	if err := proto.Unmarshal(envelope.Payload, wave); err != nil {
+	wave, err := h.unmarshalWave(envelope.Payload)
+	if err != nil {
 		return
 	}
 
@@ -238,17 +237,30 @@ func (h *Handlers) handleWaveMessage(ctx context.Context, msg *pubsub.Message) {
 		return
 	}
 
-	// Increment Waves received counter
 	metrics.WavesReceivedTotal.Inc()
 
-	// Store in cache if available.
-	if h.cache != nil {
-		if err := h.cache.Put(wave); err != nil {
-			// Log error but don't fail - message was valid
-		}
-	}
+	h.storeWaveIfCacheAvailable(wave)
+	h.invokeWaveCallback(wave)
+}
 
-	// Invoke callback if set.
+// unmarshalWave deserializes wave payload from envelope.
+func (h *Handlers) unmarshalWave(payload []byte) (*pb.Wave, error) {
+	wave := &pb.Wave{}
+	if err := proto.Unmarshal(payload, wave); err != nil {
+		return nil, err
+	}
+	return wave, nil
+}
+
+// storeWaveIfCacheAvailable stores wave in cache if cache is configured.
+func (h *Handlers) storeWaveIfCacheAvailable(wave *pb.Wave) {
+	if h.cache != nil {
+		_ = h.cache.Put(wave)
+	}
+}
+
+// invokeWaveCallback invokes the registered wave callback if set.
+func (h *Handlers) invokeWaveCallback(wave *pb.Wave) {
 	h.mu.RLock()
 	callback := h.onWaveReceived
 	h.mu.RUnlock()
