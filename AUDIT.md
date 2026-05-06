@@ -87,7 +87,7 @@ The `-race` detector is the authoritative source for concurrency bugs. **All fin
     4. Change layout engine to use `select { case <-stopCh: case <-ctx.Done(): }` instead of separate stop channel.
   - **Verification:** `go test -v -run TestGracefulShutdown ./cmd/murmur` should complete in <3s.
 
-- [ ] **H2: 20/28 production goroutines lack explicit context cancellation handling in loops** — various files
+- [x] **H2: 20/28 production goroutines lack explicit context cancellation handling in loops** — various files
   - **Evidence:** Only 8/28 goroutines explicitly `select` on `ctx.Done()` in their main loop. The remaining 20 either:
     1. Exit on channel closure (safe if channel is closed on context cancel)
     2. Use blocking operations without timeout (e.g., `sub.Next(ctx)` relies on libp2p respecting context)
