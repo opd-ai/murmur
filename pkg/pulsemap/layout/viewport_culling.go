@@ -411,13 +411,73 @@ func (ce *CulledEngine) computeForcesBarnesHutFiltered(forces map[string][2]floa
 
 	qt := newQuadtree(activePositions, ce.Engine.centerX, ce.Engine.centerY, 2000.0)
 
-	for id := range forces {
-		pos := ce.Engine.positions[id]
-		fx, fy := qt.computeForce(pos.X, pos.Y, id, ce.Engine.params.RepulsionConstant, 0.5)
-		forces[id] = [2]float64{forces[id][0] + fx, forces[id][1] + fy}
+	// Parallelize force computation for better performance with large node counts.
+	const minNodesForParallel = 1000
+	if len(forces) < minNodesForParallel {
+		for id := range forces {
+			pos := ce.Engine.positions[id]
+			fx, fy := qt.computeForce(pos.X, pos.Y, id, ce.Engine.params.RepulsionConstant, 0.5)
+			forces[id] = [2]float64{forces[id][0] + fx, forces[id][1] + fy}
+		}
+	} else {
+		ce.computeForcesParallel(qt, forces)
 	}
 
 	ce.applySpringForcesFiltered(forces)
+}
+
+// computeForcesParallel computes Barnes-Hut forces in parallel across goroutines.
+func (ce *CulledEngine) computeForcesParallel(qt *quadtree, forces map[string][2]float64) {
+	nodeCount := len(forces)
+	numWorkers := 4
+	chunkSize := (nodeCount + numWorkers - 1) / numWorkers
+
+	ids := make([]string, 0, nodeCount)
+	for id := range forces {
+		ids = append(ids, id)
+	}
+
+	type forceResult struct {
+		id string
+		fx float64
+		fy float64
+	}
+
+	resultsCh := make(chan forceResult, nodeCount)
+	var wg sync.WaitGroup
+
+	for i := 0; i < numWorkers; i++ {
+		start := i * chunkSize
+		end := start + chunkSize
+		if end > nodeCount {
+			end = nodeCount
+		}
+		if start >= nodeCount {
+			break
+		}
+
+		wg.Add(1)
+		go func(chunk []string) {
+			defer wg.Done()
+			for _, id := range chunk {
+				pos := ce.Engine.positions[id]
+				fx, fy := qt.computeForce(pos.X, pos.Y, id, ce.Engine.params.RepulsionConstant, 0.5)
+				resultsCh <- forceResult{id: id, fx: fx, fy: fy}
+			}
+		}(ids[start:end])
+	}
+
+	go func() {
+		wg.Wait()
+		close(resultsCh)
+	}()
+
+	for result := range resultsCh {
+		forces[result.id] = [2]float64{
+			forces[result.id][0] + result.fx,
+			forces[result.id][1] + result.fy,
+		}
+	}
 }
 
 // applySpringForcesFiltered applies spring forces for edges with active nodes.
