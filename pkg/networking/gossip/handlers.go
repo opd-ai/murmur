@@ -120,7 +120,8 @@ func extractEnvelopeFields(env *Envelope, msg *pb.GossipMessage) error {
 	case *pb.GossipMessage_Wave, *pb.GossipMessage_Reply, *pb.GossipMessage_Amplification:
 		env.Type = MessageTypeWave
 		extractWaveFields(env, msg)
-	case *pb.GossipMessage_IdentityDeclaration, *pb.GossipMessage_ConnectionAnnouncement:
+	case *pb.GossipMessage_IdentityDeclaration, *pb.GossipMessage_ConnectionAnnouncement,
+		*pb.GossipMessage_DeviceAuthorization, *pb.GossipMessage_DeviceRevocation:
 		env.Type = MessageTypeIdentity
 		extractIdentityFields(env, msg)
 	case *pb.GossipMessage_Heartbeat:
@@ -162,6 +163,14 @@ func extractIdentityFields(env *Envelope, msg *pb.GossipMessage) {
 		env.SenderPubkey = conn.GetPublicKey()
 		env.Signature = conn.GetSignature()
 		env.TimestampUnix = conn.GetTimestamp()
+	} else if devAuth := msg.GetDeviceAuthorization(); devAuth != nil {
+		env.SenderPubkey = devAuth.GetMasterPublicKey()
+		env.Signature = devAuth.GetMasterSignature()
+		env.TimestampUnix = devAuth.GetTimestampUnix()
+	} else if devRev := msg.GetDeviceRevocation(); devRev != nil {
+		env.SenderPubkey = devRev.GetMasterPublicKey()
+		env.Signature = devRev.GetMasterSignature()
+		env.TimestampUnix = devRev.GetTimestampUnix()
 	}
 }
 

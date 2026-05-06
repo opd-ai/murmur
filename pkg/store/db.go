@@ -32,6 +32,7 @@ var (
 	BucketCouncils     = []byte("councils")
 	BucketDailyLimits  = []byte("daily_limits")
 	BucketMaskedEvents = []byte("masked_events")
+	BucketDevices      = []byte("devices")
 )
 
 // DB wraps a Bbolt database with MURMUR-specific operations.
@@ -91,6 +92,7 @@ func (db *DB) initBuckets() error {
 		BucketCouncils,
 		BucketDailyLimits,
 		BucketMaskedEvents,
+		BucketDevices,
 	}
 
 	return db.bolt.Update(func(tx *bbolt.Tx) error {

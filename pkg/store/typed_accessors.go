@@ -979,3 +979,43 @@ func (db *DB) GetCouncilsWithMember(memberKey []byte) ([]*pb.PhantomCouncil, err
 	})
 	return councils, err
 }
+
+// Device accessors for multi-device identity
+
+// GetDeviceList retrieves the authorized device list for a master identity.
+func (db *DB) GetDeviceList(masterPubkey []byte) (*pb.DeviceList, error) {
+	data, err := db.Get(BucketDevices, masterPubkey)
+	if err != nil {
+		return nil, err
+	}
+	if data == nil {
+		return &pb.DeviceList{Devices: []*pb.AuthorizedDevice{}}, nil
+	}
+
+	list := &pb.DeviceList{}
+	if err := proto.Unmarshal(data, list); err != nil {
+		return nil, fmt.Errorf("unmarshaling device list: %w", err)
+	}
+	return list, nil
+}
+
+// PutDeviceList stores the authorized device list for a master identity.
+func (db *DB) PutDeviceList(masterPubkey []byte, list *pb.DeviceList) error {
+	if list == nil {
+		return fmt.Errorf("nil device list")
+	}
+	if len(masterPubkey) == 0 {
+		return fmt.Errorf("empty master pubkey")
+	}
+
+	data, err := proto.Marshal(list)
+	if err != nil {
+		return fmt.Errorf("marshaling device list: %w", err)
+	}
+	return db.Put(BucketDevices, masterPubkey, data)
+}
+
+// DeleteDeviceList removes the device list for a master identity.
+func (db *DB) DeleteDeviceList(masterPubkey []byte) error {
+	return db.Delete(BucketDevices, masterPubkey)
+}

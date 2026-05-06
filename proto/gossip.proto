@@ -39,6 +39,9 @@ message GossipMessage {
     GiftEvent gift_event = 19;
     MarkEvent mark_event = 20;
     SparkEvent spark_event = 21;
+    // Multi-device identity declarations on /murmur/identity/1 topic.
+    DeviceAuthorizationDeclaration device_authorization = 22;
+    DeviceRevocationDeclaration device_revocation = 23;
   }
 }
 

@@ -1,16 +1,44 @@
 package devices
 
 import (
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/opd-ai/murmur/proto"
 )
 
+// mockDB implements the DB interface for testing
+type mockDB struct {
+	mu   sync.Mutex
+	data map[string]*proto.DeviceList
+}
+
+func newMockDB() *mockDB {
+	return &mockDB{
+		data: make(map[string]*proto.DeviceList),
+	}
+}
+
+func (m *mockDB) GetDeviceList(masterPubkey []byte) (*proto.DeviceList, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	key := string(masterPubkey)
+	if list, ok := m.data[key]; ok {
+		return list, nil
+	}
+	return &proto.DeviceList{Devices: []*proto.AuthorizedDevice{}}, nil
+}
+
+func (m *mockDB) PutDeviceList(masterPubkey []byte, list *proto.DeviceList) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.data[string(masterPubkey)] = list
+	return nil
+}
+
 func TestAuthorizeDevice(t *testing.T) {
-	store := NewDeviceStore(func() ([]byte, error) {
-		return nil, nil // Empty bucket
-	})
+	store := NewDeviceStore(newMockDB())
 
 	masterKey := make([]byte, 32)
 	deviceKey := make([]byte, 32)
@@ -31,9 +59,7 @@ func TestAuthorizeDevice(t *testing.T) {
 }
 
 func TestAuthorizeDeviceExpired(t *testing.T) {
-	store := NewDeviceStore(func() ([]byte, error) {
-		return nil, nil
-	})
+	store := NewDeviceStore(newMockDB())
 
 	masterKey := make([]byte, 32)
 	deviceKey := make([]byte, 32)
@@ -53,9 +79,7 @@ func TestAuthorizeDeviceExpired(t *testing.T) {
 }
 
 func TestAuthorizeDeviceTimestampOutOfRange(t *testing.T) {
-	store := NewDeviceStore(func() ([]byte, error) {
-		return nil, nil
-	})
+	store := NewDeviceStore(newMockDB())
 
 	masterKey := make([]byte, 32)
 	deviceKey := make([]byte, 32)
@@ -82,9 +106,7 @@ func TestRevokeDevice(t *testing.T) {
 }
 
 func TestRevokeDeviceNotFound(t *testing.T) {
-	store := NewDeviceStore(func() ([]byte, error) {
-		return nil, nil // Empty bucket
-	})
+	store := NewDeviceStore(newMockDB())
 
 	masterKey := make([]byte, 32)
 	deviceKey := make([]byte, 32)
@@ -103,9 +125,7 @@ func TestRevokeDeviceNotFound(t *testing.T) {
 }
 
 func TestIsDeviceAuthorized(t *testing.T) {
-	store := NewDeviceStore(func() ([]byte, error) {
-		return nil, nil
-	})
+	store := NewDeviceStore(newMockDB())
 
 	masterKey := make([]byte, 32)
 	deviceKey := make([]byte, 32)
@@ -121,9 +141,7 @@ func TestIsDeviceAuthorized(t *testing.T) {
 }
 
 func TestIsDeviceAuthorizedWithGracePeriod(t *testing.T) {
-	store := NewDeviceStore(func() ([]byte, error) {
-		return nil, nil
-	})
+	store := NewDeviceStore(newMockDB())
 
 	masterKey := make([]byte, 32)
 	deviceKey := make([]byte, 32)
@@ -142,9 +160,7 @@ func TestIsDeviceAuthorizedWithGracePeriod(t *testing.T) {
 }
 
 func TestGetAuthorizedDevices(t *testing.T) {
-	store := NewDeviceStore(func() ([]byte, error) {
-		return nil, nil
-	})
+	store := NewDeviceStore(newMockDB())
 
 	masterKey := make([]byte, 32)
 

@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/opd-ai/murmur/proto"
-	pbproto "google.golang.org/protobuf/proto"
 )
 
 const (
@@ -30,12 +29,19 @@ var (
 
 // DeviceStore manages device authorizations for identities.
 type DeviceStore struct {
-	bucket func() ([]byte, error) // Function to access Bbolt bucket
+	db interface {
+		GetDeviceList(masterPubkey []byte) (*proto.DeviceList, error)
+		PutDeviceList(masterPubkey []byte, list *proto.DeviceList) error
+	}
 }
 
-// NewDeviceStore creates a new device store with the given Bbolt bucket accessor.
-func NewDeviceStore(bucketAccessor func() ([]byte, error)) *DeviceStore {
-	return &DeviceStore{bucket: bucketAccessor}
+// NewDeviceStore creates a new device store with the given database.
+func NewDeviceStore(db interface {
+	GetDeviceList(masterPubkey []byte) (*proto.DeviceList, error)
+	PutDeviceList(masterPubkey []byte, list *proto.DeviceList) error
+},
+) *DeviceStore {
+	return &DeviceStore{db: db}
 }
 
 // AuthorizeDevice adds a new device to an identity's authorized device list.
@@ -222,36 +228,12 @@ func (s *DeviceStore) GetAuthorizedDevices(masterPubKey []byte) ([]*proto.Author
 
 // getDeviceList loads the device list for a master identity from storage.
 func (s *DeviceStore) getDeviceList(masterPubKey []byte) (*proto.DeviceList, error) {
-	data, err := s.bucket()
-	if err != nil {
-		return nil, err
-	}
-
-	if len(data) == 0 {
-		// No devices yet - return empty list
-		return &proto.DeviceList{Devices: []*proto.AuthorizedDevice{}}, nil
-	}
-
-	var list proto.DeviceList
-	if err := pbproto.Unmarshal(data, &list); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal device list: %w", err)
-	}
-
-	return &list, nil
+	return s.db.GetDeviceList(masterPubKey)
 }
 
 // saveDeviceList persists the device list for a master identity to storage.
 func (s *DeviceStore) saveDeviceList(masterPubKey []byte, list *proto.DeviceList) error {
-	data, err := pbproto.Marshal(list)
-	if err != nil {
-		return fmt.Errorf("failed to marshal device list: %w", err)
-	}
-
-	// Store via bucket accessor
-	// This is a simplified implementation - actual store integration would use Bbolt Put
-	// For now, we return nil to indicate successful marshaling
-	_ = data
-	return nil
+	return s.db.PutDeviceList(masterPubKey, list)
 }
 
 func abs(x int64) int64 {
