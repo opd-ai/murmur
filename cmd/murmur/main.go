@@ -16,6 +16,9 @@ import (
 // Version is the current version of MURMUR. Set by build flags.
 var Version = "0.0.0-alpha"
 
+// Commit is the git commit hash. Set by build flags.
+var Commit = "unknown"
+
 // appNew is a variable to allow testing with a mock app creator.
 var appNew = app.New
 
@@ -25,6 +28,7 @@ var (
 	enableHealth = flag.Bool("enable-health", false, "Enable HTTP health check endpoint (for bootstrap nodes)")
 	healthPort   = flag.Int("health-port", 8080, "Port for health check endpoint")
 	invite       = flag.String("invite", "", "Accept an invitation (murmur://invite/... URI)")
+	version      = flag.Bool("version", false, "Print version and exit")
 )
 
 func main() {
@@ -45,6 +49,12 @@ func run() error {
 	// Parse command-line flags (only if not already parsed, to support test scenarios).
 	if !flag.Parsed() {
 		flag.Parse()
+	}
+
+	// Handle --version flag
+	if *version {
+		fmt.Printf("MURMUR %s (commit %s)\n", Version, Commit)
+		return nil
 	}
 
 	return runWithConfig(app.Config{

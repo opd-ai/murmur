@@ -10,8 +10,9 @@ GOFMT=gofumpt
 BINARY_NAME=murmur
 BINARY_DIR=bin
 VERSION=$(shell cat VERSION 2>/dev/null || echo "0.0.0-dev")
-LDFLAGS=-ldflags "-X main.Version=$(VERSION)"
-LDFLAGS_STATIC=-ldflags "-X main.Version=$(VERSION) -s -w"
+COMMIT=$(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+LDFLAGS=-ldflags "-X main.Version=$(VERSION) -X main.Commit=$(COMMIT)"
+LDFLAGS_STATIC=-ldflags "-X main.Version=$(VERSION) -X main.Commit=$(COMMIT) -s -w"
 
 # Protobuf parameters
 PROTOC=protoc

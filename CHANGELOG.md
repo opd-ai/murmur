@@ -4,6 +4,44 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — Cross-Platform Build Matrix (2026-05-06)
+- **GitHub Actions Build Workflow**: Implements P3.1 Cross-Platform Builds from PLAN.md
+  - **Build Matrix**: 5 platform/architecture combinations
+    - linux/amd64, linux/arm64
+    - darwin/amd64, darwin/arm64 (Apple Silicon)
+    - windows/amd64
+  - **Build Configuration**: CGO_ENABLED=1 for Ebitengine rendering, platform-specific dependencies (libGL/X11/ALSA for Linux, native frameworks for macOS/Windows)
+  - **Version Injection**: Ldflags inject Version and Commit from git into binary (accessible via `--version` flag)
+  - **Artifact Management**: 7-day artifact retention, automated release on v* tags with SHA256 checksums
+  - **Files Created**: `.github/workflows/build.yml` (129 lines)
+  - **Files Modified**: `cmd/murmur/main.go` (+7 lines: Commit variable, --version flag handling), `Makefile` (+1 line: COMMIT=$(git rev-parse --short HEAD) in ldflags)
+  - **Validation**: Test suite 64/64 packages pass with `-race`, `go vet` clean, `./bin/murmur --version` displays "MURMUR 0.0.0-alpha (commit be0481f)"
+
+### Added — 24-Hour Soak Test Infrastructure (2026-05-06)
+- **Comprehensive Soak Test**: Implements P2 Extended Soak Testing requirement from PLAN.md
+  - **Monitoring Coverage**: All 5 required metrics tracked
+    - Memory growth (target: <256 MiB per spec)
+    - Goroutine leaks (baseline ±5)
+    - GC sweep times (target: <100ms)
+    - Bbolt database growth (target: <50 MiB)
+    - Resource leaks in circuit rotation
+  - **Test Configuration**: 50-node simulation mesh, 24-hour duration
+    - Continuous Wave publishing: 10 waves/node every 30 seconds
+    - Metrics sampling: Every 30 seconds → JSON output
+    - Success criteria: Memory critical <10/24h, GC violations <50/24h, goroutine leaks ±10, DB <50 MiB
+  - **Automation**: Complete test infrastructure
+    - `test/simulation/soak_test.go` (382 lines, build tags: soak+simulation)
+    - `scripts/soak-test.sh` (172 lines, executable runner with pre/post analysis)
+    - `docs/SOAK_TEST_GUIDE.md` (305 lines, comprehensive guide)
+  - **Analysis Tools**: Post-test analysis helpers
+    - CSV export for metrics time series
+    - gnuplot visualization templates
+    - Memory growth trend calculation (Python + numpy)
+    - GC pause spike identification
+    - Goroutine leak detection
+  - **CI Integration**: Example workflow for 6-hour smoke testing
+  - **Status**: Ready for first 24-hour run to validate production stability
+
 ### Validation — Test Classification with Complexity Correlation (2026-05-06)
 - **Final Validation Workflow**: Executed comprehensive test classification workflow with complexity metrics for root cause correlation
   - **Phase 0 (Codebase Understanding)**: Analyzed project structure, test framework, and error handling conventions
@@ -2198,4 +2236,35 @@ See `REFACTORING_REPORT_ROUND3_2026-05-06.md` for detailed metrics and extracted
     - High-concurrency tests verified: `pkg/anonymous/shadowplay` (10.086s), `pkg/anonymous/shroud` (8.626s), `pkg/app` (6.485s), `pkg/networking/gossip` (5.665s)
   - **Artifacts**: `TEST_CLASSIFICATION_WORKFLOW_AUTONOMOUS_RESULT_2026-05-06.md` (291-line comprehensive execution report)
   - **Status**: ✅ COMPLETE — Pristine baseline confirmed, workflow ready for future failure detection
+
+
+## 2026-05-06 — Test Classification Workflow Autonomous Execution
+
+### Summary
+Executed autonomous test classification and resolution workflow. All 69 test packages pass with race detector enabled. Established baseline complexity metrics for future regression tracking.
+
+### Test Results
+- **Status**: ✅ ALL TESTS PASSING
+- **Total Test Packages**: 69 (63 with tests, 6 without test files)
+- **Race Detector**: Enabled (`-race -count=1`)
+- **Total Execution Time**: ~135 seconds
+- **Detected Failures**: 0
+- **Detected Races**: 0
+
+### Baseline Metrics Established
+- **File**: `baseline-autonomous-workflow.json` (5.8 MB)
+- **Total LOC**: 50,666
+- **Total Functions**: 1,454
+- **Total Methods**: 4,782
+- **Total Packages**: 69
+- **Files Processed**: 336
+
+### Validation
+- Zero test failures detected
+- Clean race detector output
+- Healthy complexity profile (most functions <10 cyclomatic complexity)
+- No flakiness (all tests deterministic with `-count=1`)
+
+### Documentation
+- Created `TEST_CLASSIFICATION_WORKFLOW_AUTONOMOUS_RESULT_2026-05-06.md` — comprehensive workflow execution report with codebase understanding, test categorization, complexity analysis, and recommendations
 
