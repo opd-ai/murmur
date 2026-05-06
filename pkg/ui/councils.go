@@ -511,14 +511,19 @@ func (cp *CouncilPanel) handleMembersInput() {
 
 // handleProposalsInput handles input in proposals view mode.
 func (cp *CouncilPanel) handleProposalsInput() {
-	// Scroll and select.
+	cp.handleScrollInput()
+	cp.handleVoteInput()
+}
+
+// handleScrollInput processes up/down arrow keys for scrolling.
+func (cp *CouncilPanel) handleScrollInput() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyUp) && cp.scrollOffset > 0 {
 		cp.scrollOffset--
 	}
 	if inpututil.IsKeyJustPressed(ebiten.KeyDown) {
 		cp.scrollOffset++
 	}
-	// Clamp to list length so the view cannot scroll past the last proposal.
+
 	if cp.currentCouncil != nil {
 		maxScroll := len(cp.currentCouncil.Proposals) - 1
 		if maxScroll < 0 {
@@ -528,19 +533,26 @@ func (cp *CouncilPanel) handleProposalsInput() {
 			cp.scrollOffset = maxScroll
 		}
 	}
+}
 
-	// Enter to vote on selected proposal.
-	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) && cp.currentCouncil != nil {
-		if cp.scrollOffset < len(cp.currentCouncil.Proposals) {
-			prop := &cp.currentCouncil.Proposals[cp.scrollOffset]
-			if !prop.Resolved {
-				cp.voteTarget = prop
-				cp.voteType = VoteTypeProposal
-				cp.selectedVote = VoteValueAbstain
-				cp.mode = CouncilModeVote
-			}
-		}
+// handleVoteInput processes Enter key to vote on selected proposal.
+func (cp *CouncilPanel) handleVoteInput() {
+	if !inpututil.IsKeyJustPressed(ebiten.KeyEnter) || cp.currentCouncil == nil {
+		return
 	}
+	if cp.scrollOffset >= len(cp.currentCouncil.Proposals) {
+		return
+	}
+
+	prop := &cp.currentCouncil.Proposals[cp.scrollOffset]
+	if prop.Resolved {
+		return
+	}
+
+	cp.voteTarget = prop
+	cp.voteType = VoteTypeProposal
+	cp.selectedVote = VoteValueAbstain
+	cp.mode = CouncilModeVote
 }
 
 // handleInviteInput handles input in invite mode.

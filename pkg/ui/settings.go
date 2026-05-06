@@ -152,31 +152,39 @@ func (p *SettingsPanel) Update() bool {
 
 	p.animTime += 1.0 / 60.0
 
-	// Handle escape to close.
 	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
 		p.visible = false
 		return true
 	}
 
-	// Handle category navigation.
-	if inpututil.IsKeyJustPressed(ebiten.KeyTab) {
-		if ebiten.IsKeyPressed(ebiten.KeyShift) {
-			p.selected = (p.selected - 1 + len(p.categories)) % len(p.categories)
-		} else {
-			p.selected = (p.selected + 1) % len(p.categories)
-		}
-	}
+	p.handleCategoryNavigation()
+	p.handleScrolling()
 
-	// Handle scrolling.
+	return true
+}
+
+// handleCategoryNavigation processes Tab/Shift+Tab for category switching.
+func (p *SettingsPanel) handleCategoryNavigation() {
+	if !inpututil.IsKeyJustPressed(ebiten.KeyTab) {
+		return
+	}
+	if ebiten.IsKeyPressed(ebiten.KeyShift) {
+		p.selected = (p.selected - 1 + len(p.categories)) % len(p.categories)
+	} else {
+		p.selected = (p.selected + 1) % len(p.categories)
+	}
+}
+
+// handleScrolling processes mouse wheel scrolling with bounds clamping.
+func (p *SettingsPanel) handleScrolling() {
 	_, dy := ebiten.Wheel()
 	p.scrollY -= int(dy * 30)
 	if p.scrollY < 0 {
 		p.scrollY = 0
 	}
-	// Clamp scrollY to the maximum scroll offset so the list cannot scroll
-	// past the last setting item (per audit MEDIUM finding: missing upper bound).
+
 	const (
-		titleAreaH = 50 + 40 // title bar + tab strip
+		titleAreaH = 50 + 40
 		settingH   = 50
 	)
 	if p.selected < len(p.categories) {
@@ -188,8 +196,6 @@ func (p *SettingsPanel) Update() bool {
 			p.scrollY = maxScroll
 		}
 	}
-
-	return true
 }
 
 // Draw renders the panel.

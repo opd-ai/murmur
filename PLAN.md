@@ -121,35 +121,39 @@ PHASE 0: FOUNDATIONAL DECISIONS (Weeks 1–3)
 Lock in the strategic choices that shape everything downstream.
 Do not skip — retrofitting these later is 10x more expensive.
 
-[ ] 0.1  Write a one-page Product Identity Statement
+[x] 0.1  Write a one-page Product Identity Statement
          - Who is the target user? (e.g., "friend groups wanting
            private, playful communication without platform surveillance")
          - What is the core loop in 1 sentence?
          - What is explicitly NOT in scope? (e.g., public broadcast,
            influencer mechanics, algorithmic feed)
+         - **COMPLETED**: Created PRODUCT_IDENTITY.md defining target users (privacy-conscious friend groups 4-8 people), core loop (connect, exchange ephemeral Waves, play games with metadata unlinkability), explicit non-goals (influencer mechanics, permanent archives, cryptocurrency, competing with Tor), unique differentiators (anonymous layer as first-class, spatial UI, ephemeral-by-default), and success metrics (D7 retention, games per week, Specter adoption).
 
-[ ] 0.2  Write a one-page Threat Model Statement
+[x] 0.2  Write a one-page Threat Model Statement
          - Primary adversary: network-level metadata observer
          - Secondary adversary: malicious peers / griefers
          - Explicitly NOT in scope: global passive adversary,
            state-level traffic analysis (defer to Tor/I2P bridging)
          - Document what Shroud guarantees vs. what Tor/I2P bridging
            guarantees — users must be able to choose correctly
+         - **COMPLETED**: Created THREAT_MODEL.md defining primary adversary (network-level metadata observer with passive traffic observation), secondary adversary (malicious peers attempting spam/flooding/griefing), explicit out-of-scope threats (global passive adversary, state-level traffic analysis, majority relay control, endpoint compromise, side-channels), detailed mitigations for in-scope threats (Shroud onion routing, Resonance rate limiting, peer scoring, PoW), and Tor/I2P integration modes with plain-language tradeoffs for users.
 
-[ ] 0.3  Define the Extension Contract v0
+[x] 0.3  Define the Extension Contract v0
          - List every point where downstream networks can extend:
            custom Wave types, custom game modules, custom Resonance
            hooks, custom transports, custom UI overlays
          - Mark each as "stable", "experimental", or "private"
          - Document in EXTENSION_CONTRACT.md
+         - **COMPLETED**: Created EXTENSION_CONTRACT.md defining 7 extension points: Custom Wave Types (STABLE), Custom Game Modules (STABLE), Custom Resonance Hooks (EXPERIMENTAL), Custom Transport Adapters (STABLE), Custom UI Overlays (EXPERIMENTAL), Custom Identity Providers (PRIVATE/future), Custom Storage Backends (PRIVATE/future). Documented API surfaces, compatibility requirements, stability guarantees (STABLE=backward compatible, EXPERIMENTAL=may change, PRIVATE=not yet exposed), protocol version negotiation, MEP process for proposing extensions, and compatibility testing requirements.
 
-[ ] 0.4  Decide Pulse Map's role: PRIMARY or SECONDARY surface
+[x] 0.4  Decide Pulse Map's role: PRIMARY or SECONDARY surface
          - If PRIMARY: justify why graph-first beats chat-first for
            messaging+games; prototype a new-user path that doesn't
            require graph literacy
          - If SECONDARY: promote messaging/games surfaces to default;
            keep Pulse Map as "Explore" tab
          - Commit in writing; this decision gates UX work
+         - **COMPLETED**: Created PULSE_MAP_ROLE_DECISION.md committing to Pulse Map as PRIMARY surface. Rationale: aligns with Design Principle #4 "The network is the interface", provides unique differentiation from chat-first apps (Discord/Telegram/Signal), enables spatial discovery and dual-layer visualization. Documented new-user path (< 90s: welcome → identity creation → bootstrap → first content → first interaction), mitigation strategies for graph literacy barrier (onboarding Phase 5 tutorial, empty-state design, contextual hints), success criteria (≥80% onboarding completion, ≥50% D7 Pulse Map engagement, ≥30% spatial discovery rate), and red flags triggering UX reassessment (>40% drop-off, >80% conversation panel usage). Decision locked for v1.0.
 
 
 =====================================

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+**Strategic Planning Documentation (2026-05-06)**
+- **Product Identity Statement** — Created `PRODUCT_IDENTITY.md` defining target users (privacy-conscious friend groups 4-8 people), core loop (connect, exchange ephemeral Waves, play games with metadata unlinkability), explicit non-goals (influencer mechanics, permanent archives, cryptocurrency, competing with Tor), unique differentiators (anonymous layer as first-class, spatial UI, ephemeral-by-default), and success metrics (D7 retention, games per week, Specter adoption). Completes PLAN.md 0.1.
+- **Threat Model Statement** — Created `THREAT_MODEL.md` defining in-scope adversaries (network-level metadata observer, malicious peers/griefers) with detailed mitigations (Shroud onion routing, Resonance rate limiting, peer scoring, PoW), out-of-scope threats (global passive adversary, state-level traffic analysis, majority relay control, endpoint compromise, side-channels) delegated to Tor/I2P integration, and four transport modes (Shroud only, Shroud over Tor, Shroud over I2P, hybrid) with plain-language tradeoffs for users. Completes PLAN.md 0.2.
+- **Extension Contract v0** — Created `EXTENSION_CONTRACT.md` defining 7 extension points for third-party networks: Custom Wave Types (STABLE), Custom Game Modules (STABLE), Custom Resonance Hooks (EXPERIMENTAL), Custom Transport Adapters (STABLE), Custom UI Overlays (EXPERIMENTAL), Custom Identity Providers (PRIVATE/future), Custom Storage Backends (PRIVATE/future). Documented API surfaces, compatibility requirements, stability guarantees (STABLE=backward compatible, EXPERIMENTAL=may change, PRIVATE=not yet exposed), protocol version negotiation, MEP process for proposing extensions, and compatibility testing requirements. Completes PLAN.md 0.3.
+- **Audit Resolution** — Completed all LOW-priority audit findings from AUDIT.md: L1 (WaitGroup.Add placement verified correct via automated analysis), L2 (Prometheus atomic operations verified correct), L3 (onboarding flow synchronization verified correct with sync.RWMutex). All findings were already resolved or non-issues. AUDIT.md deleted per completion protocol.
+
 ### Changed
 
 **Test Failure Resolution (2026-05-06)**
@@ -15,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Complexity metrics baseline** — Generated baseline complexity analysis with `go-stats-generator` (5.3 MB, ~5,300 functions analyzed) for root cause correlation.
 - **Resolution verification** — All failures were Cat 1 (Implementation Bugs) and have been resolved: build-tag files (`race.go`, `norace.go`) created, `runNudgeLoop` updated to use `select` with context cancellation. Zero complexity regressions.
 - **Concurrency pattern fix** — Identified and documented goroutine leak pattern: long-running timers must check context cancellation **during** wait, not after. Added to best practices.
+- **Autonomous analysis (2026-05-06 02:46 UTC)** — Executed full complexity-metric-driven test failure analysis workflow. Confirmed zero failures across all 57 packages (exit code 0). Identified 9 high-complexity functions (>100% increase since baseline): `overlays.Update` (+715%), `ui.drawCreateMode` (+338%), `mesh.Status` (+276%), `ui.Submit` (+241%) — all related to recent Phantom Council/Masked Event implementations. All high-complexity functions have test coverage. Generated `TEST_FAILURE_ANALYSIS_2026-05-06.md` with full complexity diff, risk assessment, and refactoring recommendations. Quality Score: 55.9/100 (improving trend).
 
 **Concurrency Audit Implementation (2026-05-06)**
 - **Context cancellation tests (H2)** — Added comprehensive tests verifying all production goroutines exit within 1s of context cancellation per AUDIT.md H2: `TestMemoryMonitorContextCancellation`, `TestNudgeLoopContextCancellation`, `TestAllGoroutinesExitOnContextCancel` in `pkg/app/murmur_test.go`; `TestStartDedupRotationContextCancellation` in `pkg/app/handlers_test.go`; `TestStartGCContextCancellation` in `pkg/content/storage/cache_test.go`. All tests pass with race detector.
@@ -1127,3 +1136,10 @@ This changelog was established 2026-04-13 to track implementation progress. Prio
   - Cyclomatic complexity reduced from 34 to <15 per PLAN.md Step 6 requirements
   - Each anonymous game mechanic now has dedicated rendering function for improved testability
   - Completes PLAN.md Step 6 acceptance criteria (inline comment references PLAN.md refactoring rationale)
+
+**Phase 0 Strategic Planning Complete (2026-05-06)**
+- **Product Identity Statement** — Completed PLAN.md 0.1, defining target users, core loop, non-goals, unique differentiators, and success metrics in PRODUCT_IDENTITY.md.
+- **Threat Model Statement** — Completed PLAN.md 0.2, defining in-scope adversaries, mitigations, out-of-scope threats, and Tor/I2P integration modes in THREAT_MODEL.md.
+- **Extension Contract v0** — Completed PLAN.md 0.3, defining 7 extension points with stability guarantees in EXTENSION_CONTRACT.md.
+- **Pulse Map Role Decision** — Completed PLAN.md 0.4, committing to Pulse Map as PRIMARY surface with justification, new-user path, and success criteria in PULSE_MAP_ROLE_DECISION.md.
+- **Phase 0 status** — All 4 foundational decision tasks complete. Ready for Phase 1 UX Repositioning.

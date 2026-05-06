@@ -403,44 +403,55 @@ func (eb *EventBus) Emit(event Event) {
 	}
 	eb.mu.RUnlock()
 
-	// Compute priority for this event.
 	event.priority = priorityFor(event.Type)
 
-	// Critical events bypass the buffer and block until delivered.
 	if event.priority == PriorityCritical {
-		select {
-		case eb.inbound <- event:
-		case <-time.After(5 * time.Second):
-			// Even critical events should not block forever.
-			metrics.EventBusDropsTotal.WithLabelValues("critical_timeout").Inc()
-		}
+		eb.emitCritical(event)
 		return
 	}
 
-	// Check buffer fullness for backpressure detection.
+	if eb.shouldDropEvent(event) {
+		return
+	}
+
+	eb.emitNonBlocking(event)
+}
+
+// emitCritical sends critical events with blocking semantics.
+func (eb *EventBus) emitCritical(event Event) {
+	select {
+	case eb.inbound <- event:
+	case <-time.After(5 * time.Second):
+		metrics.EventBusDropsTotal.WithLabelValues("critical_timeout").Inc()
+	}
+}
+
+// shouldDropEvent checks backpressure and determines if event should be dropped.
+func (eb *EventBus) shouldDropEvent(event Event) bool {
 	bufLen := len(eb.inbound)
 	bufCap := cap(eb.inbound)
 	fullness := float64(bufLen) / float64(bufCap)
 
-	if fullness >= eb.backpressureThreshold {
-		// Log backpressure warning. Per AUDIT.md M1, this indicates we should
-		// temporarily pause low-priority event types.
-		if event.priority == PriorityNormal {
-			// Drop low-priority events under backpressure.
-			metrics.EventBusDropsTotal.WithLabelValues("backpressure").Inc()
-			return
-		}
-		// Warn once per high-water mark crossing.
-		if bufLen%100 == 0 {
-			println("WARNING: Event bus at", int(fullness*100), "% capacity")
-		}
+	if fullness < eb.backpressureThreshold {
+		return false
 	}
 
-	// Non-blocking send for high/normal priority events.
+	if event.priority == PriorityNormal {
+		metrics.EventBusDropsTotal.WithLabelValues("backpressure").Inc()
+		return true
+	}
+
+	if bufLen%100 == 0 {
+		println("WARNING: Event bus at", int(fullness*100), "% capacity")
+	}
+	return false
+}
+
+// emitNonBlocking attempts non-blocking send for high/normal priority events.
+func (eb *EventBus) emitNonBlocking(event Event) {
 	select {
 	case eb.inbound <- event:
 	default:
-		// Buffer full, drop event.
 		metrics.EventBusDropsTotal.WithLabelValues("inbound_full").Inc()
 	}
 }

@@ -188,42 +188,17 @@ func (g *Game) Update() error {
 		return ebiten.Termination
 	}
 
-	// Handle window resize per AUDIT.md LOW finding.
-	// Query Ebitengine for current window size and update if changed.
-	w, h := ebiten.WindowSize()
-	if w != g.screenWidth || h != g.screenHeight {
-		g.screenWidth, g.screenHeight = w, h
-	}
-
+	g.handleWindowResize()
 	g.handleComposePanelToggle()
 	g.handleSearchBarToggle()
 
-	// Only fire navigation hotkeys when no text-input panel is active.
-	// Prevents H/Home/N from hijacking camera while typing in search, compose, or detail.
 	panelActive := g.searchBar.Visible() || g.nodeDetailPanel.Visible() || g.composePanel.Visible()
 	if !panelActive {
-		g.handleFindSelf()
-		g.handleNetworkView()
-		g.handleBookmarkKeys()
+		g.handleNavigationHotkeys()
 	}
 	g.handleNodeSelection()
 
-	// Update search bar first (highest priority if visible).
-	if g.searchBar.Visible() && g.searchBar.Update() {
-		return nil
-	}
-
-	// Update node detail panel first (if visible, it consumes input).
-	if g.nodeDetailPanel.Visible() && g.nodeDetailPanel.Update() {
-		return nil
-	}
-
-	if g.composePanel.Visible() && g.composePanel.Update() {
-		return nil
-	}
-
-	// Update viewport controls (buttons are always visible).
-	if g.viewportControls.Update() {
+	if g.updateActivePanels() {
 		return nil
 	}
 
@@ -237,6 +212,38 @@ func (g *Game) Update() error {
 	g.frameCount++
 
 	return nil
+}
+
+// handleWindowResize checks for window size changes and updates screen dimensions.
+func (g *Game) handleWindowResize() {
+	w, h := ebiten.WindowSize()
+	if w != g.screenWidth || h != g.screenHeight {
+		g.screenWidth, g.screenHeight = w, h
+	}
+}
+
+// handleNavigationHotkeys processes H/Home/N keys when no text panel is active.
+func (g *Game) handleNavigationHotkeys() {
+	g.handleFindSelf()
+	g.handleNetworkView()
+	g.handleBookmarkKeys()
+}
+
+// updateActivePanels updates visible panels and returns true if input was consumed.
+func (g *Game) updateActivePanels() bool {
+	if g.searchBar.Visible() && g.searchBar.Update() {
+		return true
+	}
+	if g.nodeDetailPanel.Visible() && g.nodeDetailPanel.Update() {
+		return true
+	}
+	if g.composePanel.Visible() && g.composePanel.Update() {
+		return true
+	}
+	if g.viewportControls.Update() {
+		return true
+	}
+	return false
 }
 
 func (g *Game) shouldShutdown() bool {
@@ -279,36 +286,53 @@ func (g *Game) handleFindSelf() {
 // Ctrl+1-9: Navigate to bookmark by index
 func (g *Game) handleBookmarkKeys() {
 	if g.bookmarkManager == nil {
-		return // Bookmarks disabled
+		return
 	}
 
 	ctrlPressed := ebiten.IsKeyPressed(ebiten.KeyControl) || ebiten.IsKeyPressed(ebiten.KeyMeta)
 	shiftPressed := ebiten.IsKeyPressed(ebiten.KeyShift)
 
-	// Ctrl+B: Add bookmark for selected node
+	if g.handleAddBookmark(ctrlPressed, shiftPressed) {
+		return
+	}
+	if g.handleRemoveBookmark(ctrlPressed, shiftPressed) {
+		return
+	}
+	g.handleNavigateToBookmark(ctrlPressed)
+}
+
+// handleAddBookmark handles Ctrl+B to add bookmark for selected node.
+func (g *Game) handleAddBookmark(ctrlPressed, shiftPressed bool) bool {
 	if ctrlPressed && !shiftPressed && inpututil.IsKeyJustPressed(ebiten.KeyB) {
 		if g.input.SelectedNodeID != "" {
 			g.addBookmarkForSelectedNode()
 		}
-		return
+		return true
 	}
+	return false
+}
 
-	// Ctrl+Shift+B: Remove bookmark for selected node
+// handleRemoveBookmark handles Ctrl+Shift+B to remove bookmark for selected node.
+func (g *Game) handleRemoveBookmark(ctrlPressed, shiftPressed bool) bool {
 	if ctrlPressed && shiftPressed && inpututil.IsKeyJustPressed(ebiten.KeyB) {
 		if g.input.SelectedNodeID != "" {
 			g.removeBookmarkForSelectedNode()
 		}
+		return true
+	}
+	return false
+}
+
+// handleNavigateToBookmark handles Ctrl+1-9 to navigate to bookmark by index.
+func (g *Game) handleNavigateToBookmark(ctrlPressed bool) {
+	if !ctrlPressed {
 		return
 	}
-
-	// Ctrl+1-9: Navigate to bookmark by index
-	if ctrlPressed {
-		for i := ebiten.Key1; i <= ebiten.Key9; i++ {
-			if inpututil.IsKeyJustPressed(i) {
-				index := int(i - ebiten.Key1)
-				g.navigateToBookmark(index)
-				return
-			}
+	for i := ebiten.Key1; i <= ebiten.Key9; i++ {
+		if inpututil.IsKeyJustPressed(i) {
+			index := int(i - ebiten.Key1)
+			g.navigateToBookmark(index)
+			return
 		}
 	}
 }
@@ -392,14 +416,48 @@ func (g *Game) centerOnNetwork() {
 		return
 	}
 
-	// Calculate network centroid and bounds.
-	var sumX, sumY float64
-	var minX, maxX, minY, maxY float64
-	first := true
+	centroidX, centroidY := g.computeNetworkCentroid(positions)
+	targetScale := g.computeFitZoom(positions)
+	g.camera.AnimateToWithZoom(centroidX, centroidY, targetScale)
+}
 
+// computeNetworkCentroid calculates the average position of all nodes.
+func (g *Game) computeNetworkCentroid(positions map[string]layout.Position) (float64, float64) {
+	var sumX, sumY float64
 	for _, pos := range positions {
 		sumX += pos.X
 		sumY += pos.Y
+	}
+	return sumX / float64(len(positions)), sumY / float64(len(positions))
+}
+
+// computeFitZoom calculates zoom level to fit the entire network in view with margin.
+func (g *Game) computeFitZoom(positions map[string]layout.Position) float64 {
+	minX, maxX, minY, maxY := g.computeNetworkBounds(positions)
+
+	networkWidth := maxX - minX
+	networkHeight := maxY - minY
+	if networkWidth < 1 {
+		networkWidth = 1
+	}
+	if networkHeight < 1 {
+		networkHeight = 1
+	}
+
+	scaleX := float64(g.screenWidth) * 0.8 / networkWidth
+	scaleY := float64(g.screenHeight) * 0.8 / networkHeight
+	targetScale := scaleX
+	if scaleY < targetScale {
+		targetScale = scaleY
+	}
+
+	return constrainZoom(targetScale)
+}
+
+// computeNetworkBounds finds the bounding box of all node positions.
+func (g *Game) computeNetworkBounds(positions map[string]layout.Position) (minX, maxX, minY, maxY float64) {
+	first := true
+	for _, pos := range positions {
 		if first {
 			minX, maxX = pos.X, pos.X
 			minY, maxY = pos.Y, pos.Y
@@ -419,42 +477,20 @@ func (g *Game) centerOnNetwork() {
 			}
 		}
 	}
+	return minX, maxX, minY, maxY
+}
 
-	// Centroid is the average position.
-	centroidX := sumX / float64(len(positions))
-	centroidY := sumY / float64(len(positions))
-
-	// Calculate zoom level to fit the entire network in view.
-	// Use 80% of screen dimensions to leave margin.
-	networkWidth := maxX - minX
-	networkHeight := maxY - minY
-	if networkWidth < 1 {
-		networkWidth = 1
-	}
-	if networkHeight < 1 {
-		networkHeight = 1
-	}
-
-	// Calculate scale to fit network into screen with margin.
-	scaleX := float64(g.screenWidth) * 0.8 / networkWidth
-	scaleY := float64(g.screenHeight) * 0.8 / networkHeight
-	targetScale := scaleX
-	if scaleY < targetScale {
-		targetScale = scaleY
-	}
-
-	// Constrain to valid zoom range.
+// constrainZoom clamps zoom level to valid range.
+func constrainZoom(scale float64) float64 {
 	const minZoom = 0.1
 	const maxZoom = 2.0
-	if targetScale < minZoom {
-		targetScale = minZoom
+	if scale < minZoom {
+		return minZoom
 	}
-	if targetScale > maxZoom {
-		targetScale = maxZoom
+	if scale > maxZoom {
+		return maxZoom
 	}
-
-	// Animate to network centroid with calculated zoom.
-	g.camera.AnimateToWithZoom(centroidX, centroidY, targetScale)
+	return scale
 }
 
 // handleNetworkView centers the camera on the network centroid when 'N' key is pressed.

@@ -262,52 +262,61 @@ func (b *BatchRenderer) flushNodes(dst *ebiten.Image) {
 
 		coreColor := color.RGBA{R: key.r, G: key.g, B: key.b, A: key.a}
 
-		// Draw halos first (underneath nodes)
-		if key.hasHalo {
-			for _, cmd := range batch {
-				haloAlpha := uint8(float32(80) * cmd.haloAlpha)
-				haloColor := color.RGBA{
-					R: coreColor.R,
-					G: coreColor.G,
-					B: coreColor.B,
-					A: haloAlpha,
-				}
-				vector.DrawFilledCircle(dst, cmd.x, cmd.y, cmd.radius*2.0, haloColor, true)
-			}
-		}
+		b.drawNodeHalos(dst, key, batch, coreColor)
+		b.drawNodeCores(dst, key, batch, coreColor)
+		b.drawNodeRings(dst, key, batch)
+		b.drawSelectionHighlights(dst, key, batch)
+	}
+}
 
-		// Draw node cores
-		if key.isSpecter {
-			// Specter nodes with translucency
-			alpha := uint8(float64(coreColor.A) * SpecterBaseAlpha)
-			translucentCore := color.RGBA{R: coreColor.R, G: coreColor.G, B: coreColor.B, A: alpha}
-			for _, cmd := range batch {
-				vector.DrawFilledCircle(dst, cmd.x, cmd.y, cmd.radius, translucentCore, true)
-			}
-		} else {
-			// Surface nodes opaque
-			for _, cmd := range batch {
-				vector.DrawFilledCircle(dst, cmd.x, cmd.y, cmd.radius, coreColor, true)
-			}
-		}
+// drawNodeHalos renders halos underneath nodes.
+func (b *BatchRenderer) drawNodeHalos(dst *ebiten.Image, key nodeStyleKey, batch []nodeDrawCommand, coreColor color.RGBA) {
+	if !key.hasHalo {
+		return
+	}
+	for _, cmd := range batch {
+		haloAlpha := uint8(float32(80) * cmd.haloAlpha)
+		haloColor := color.RGBA{R: coreColor.R, G: coreColor.G, B: coreColor.B, A: haloAlpha}
+		vector.DrawFilledCircle(dst, cmd.x, cmd.y, cmd.radius*2.0, haloColor, true)
+	}
+}
 
-		// Draw rings if present
-		if key.hasRing {
-			for _, cmd := range batch {
-				vector.StrokeCircle(dst, cmd.x, cmd.y, cmd.radius+cmd.ringThickness, cmd.ringThickness, cmd.ringColor, true)
-			}
-		}
-
-		// Draw selection highlights
+// drawNodeCores renders the main node circles with appropriate translucency.
+func (b *BatchRenderer) drawNodeCores(dst *ebiten.Image, key nodeStyleKey, batch []nodeDrawCommand, coreColor color.RGBA) {
+	if key.isSpecter {
+		alpha := uint8(float64(coreColor.A) * SpecterBaseAlpha)
+		translucentCore := color.RGBA{R: coreColor.R, G: coreColor.G, B: coreColor.B, A: alpha}
 		for _, cmd := range batch {
-			if cmd.selected {
-				selectColor := color.RGBA{255, 255, 255, 128}
-				if key.isSpecter {
-					selectColor = color.RGBA{200, 220, 255, 100}
-				}
-				vector.StrokeCircle(dst, cmd.x, cmd.y, cmd.radius+6, 2.0, selectColor, true)
-			}
+			vector.DrawFilledCircle(dst, cmd.x, cmd.y, cmd.radius, translucentCore, true)
 		}
+	} else {
+		for _, cmd := range batch {
+			vector.DrawFilledCircle(dst, cmd.x, cmd.y, cmd.radius, coreColor, true)
+		}
+	}
+}
+
+// drawNodeRings renders ring outlines around nodes.
+func (b *BatchRenderer) drawNodeRings(dst *ebiten.Image, key nodeStyleKey, batch []nodeDrawCommand) {
+	if !key.hasRing {
+		return
+	}
+	for _, cmd := range batch {
+		vector.StrokeCircle(dst, cmd.x, cmd.y, cmd.radius+cmd.ringThickness, cmd.ringThickness, cmd.ringColor, true)
+	}
+}
+
+// drawSelectionHighlights renders highlight rings for selected nodes.
+func (b *BatchRenderer) drawSelectionHighlights(dst *ebiten.Image, key nodeStyleKey, batch []nodeDrawCommand) {
+	for _, cmd := range batch {
+		if !cmd.selected {
+			continue
+		}
+		selectColor := color.RGBA{255, 255, 255, 128}
+		if key.isSpecter {
+			selectColor = color.RGBA{200, 220, 255, 100}
+		}
+		vector.StrokeCircle(dst, cmd.x, cmd.y, cmd.radius+6, 2.0, selectColor, true)
 	}
 }
 

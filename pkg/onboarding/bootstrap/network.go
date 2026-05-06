@@ -401,38 +401,40 @@ func (m *Manager) recordError(err error) {
 // Per ROADMAP.md lines 789-790, invitations provide bootstrap advantage and warm start.
 // Returns error if invitation decoding or connection fails.
 func (m *Manager) connectToInviter(ctx context.Context) error {
-	// Decode the invitation.
 	inv, err := AcceptInvitation(m.config.InvitationURI)
 	if err != nil {
 		return fmt.Errorf("accepting invitation: %w", err)
 	}
 
-	// Build bootstrap address from invitation.
 	addr := BuildBootstrapAddrFromInvitation(inv)
 
-	// Attempt connection with retries (prioritize inviter).
+	if err := m.connectWithRetries(ctx, addr); err != nil {
+		return err
+	}
+
+	if m.callbacks.OnPeerConnected != nil {
+		go m.callbacks.OnPeerConnected(inv.PeerID.String())
+	}
+	return nil
+}
+
+// connectWithRetries attempts connection with retries until success or context cancellation.
+func (m *Manager) connectWithRetries(ctx context.Context, addr string) error {
 	for attempt := 0; attempt < m.config.MaxRetries; attempt++ {
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
 
 		if m.attemptConnection(ctx, addr) {
-			// Successfully connected to inviter.
-			if m.callbacks.OnPeerConnected != nil {
-				go m.callbacks.OnPeerConnected(inv.PeerID.String())
-			}
 			return nil
 		}
 
-		// Wait before retry.
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-time.After(m.config.RetryInterval):
-			// Continue to next retry.
 		}
 	}
-
 	return fmt.Errorf("failed to connect to inviter after %d attempts", m.config.MaxRetries)
 }
 
