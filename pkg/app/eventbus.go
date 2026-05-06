@@ -7,6 +7,7 @@ package app
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/opd-ai/murmur/pkg/networking/metrics"
 	pb "github.com/opd-ai/murmur/proto"
@@ -227,14 +228,49 @@ type EventBus struct {
 // EventBusConfig holds configuration for the event bus.
 type EventBusConfig struct {
 	// BufferSize is the size of the inbound event buffer.
-	// Defaults to 256 if not specified.
+	// Defaults to 1024 if not specified.
 	BufferSize int
+}
+
+// EventPriority defines the priority level of an event type.
+type EventPriority uint8
+
+const (
+	// PriorityLow for non-critical events that can be dropped under load.
+	PriorityLow EventPriority = iota
+	// PriorityNormal for typical events (default).
+	PriorityNormal
+	// PriorityCritical for events that must never be dropped.
+	PriorityCritical
+)
+
+// eventPriority maps event types to their priority levels.
+var eventPriority = map[EventType]EventPriority{
+	// Critical events - must never be dropped.
+	EventReplyReceived:       PriorityCritical,
+	EventShroudCircuitFailed: PriorityCritical,
+	EventShroudCircuitBuilt:  PriorityCritical,
+
+	// Low priority events - can be dropped under load.
+	EventHeartbeatReceived: PriorityLow,
+
+	// Normal priority (default) for all others.
+	EventWaveReceived:            PriorityNormal,
+	EventWaveCreated:             PriorityNormal,
+	EventPeerConnected:           PriorityNormal,
+	EventPeerDisconnected:        PriorityNormal,
+	EventIdentityUpdated:         PriorityNormal,
+	EventShroudRelayDiscovered:   PriorityNormal,
+	EventResonanceUpdated:        PriorityNormal,
+	EventMechanicStateChanged:    PriorityNormal,
+	EventTimerExpired:            PriorityNormal,
+	EventUserAction:              PriorityNormal,
 }
 
 // NewEventBus creates a new event bus with the given configuration.
 func NewEventBus(cfg EventBusConfig) *EventBus {
 	if cfg.BufferSize <= 0 {
-		cfg.BufferSize = 256
+		cfg.BufferSize = 1024 // Increased from 256 per AUDIT.md M1.
 	}
 
 	return &EventBus{
@@ -343,7 +379,8 @@ func (eb *EventBus) unsubscribe(sub *subscription) {
 }
 
 // Emit sends an event to the event bus for dispatch.
-// Non-blocking: if the inbound buffer is full, the event is dropped.
+// Critical events (priority=PriorityCritical) block until delivered.
+// Normal/low priority events are non-blocking and may be dropped if buffer is full.
 func (eb *EventBus) Emit(event Event) {
 	eb.mu.RLock()
 	if eb.closed {
@@ -352,11 +389,33 @@ func (eb *EventBus) Emit(event Event) {
 	}
 	eb.mu.RUnlock()
 
+	// Determine event priority.
+	priority, ok := eventPriority[event.Type]
+	if !ok {
+		priority = PriorityNormal // Default to normal if not explicitly set.
+	}
+
+	// Critical events block until delivered.
+	if priority == PriorityCritical {
+		select {
+		case eb.inbound <- event:
+		case <-time.After(5 * time.Second):
+			// Even critical events timeout after 5s to prevent deadlock.
+			metrics.EventBusDropsTotal.WithLabelValues("critical_timeout").Inc()
+		}
+		return
+	}
+
+	// Normal/low priority events are non-blocking.
 	select {
 	case eb.inbound <- event:
 	default:
 		// Buffer full, drop event.
-		metrics.EventBusDropsTotal.WithLabelValues("inbound_full").Inc()
+		if priority == PriorityLow {
+			metrics.EventBusDropsTotal.WithLabelValues("low_priority_dropped").Inc()
+		} else {
+			metrics.EventBusDropsTotal.WithLabelValues("inbound_full").Inc()
+		}
 	}
 }
 

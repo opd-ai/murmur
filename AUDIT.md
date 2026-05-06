@@ -120,7 +120,7 @@ The `-race` detector is the authoritative source for concurrency bugs. **All fin
 
 ### MEDIUM
 
-- [ ] **M1: Event bus non-blocking sends may drop critical events under load** — `pkg/app/eventbus.go:347-360`
+- [x] **M1: Event bus non-blocking sends may drop critical events under load** — `pkg/app/eventbus.go:347-360`
   - **Evidence:** The `Emit()` method uses a non-blocking `select` with `default:` case that silently drops events if the inbound buffer (256 entries) is full. The `dispatch()` method similarly drops events for slow subscribers.
   - **Execution path:** High message rate → inbound buffer fills → `Emit()` drops event → subscriber never receives it.
   - **Impact:** Under heavy Wave propagation (e.g., viral content spike), critical events like `EventReplyReceived` or `EventShroudCircuitFailed` may be silently dropped, leading to broken UI state or failed circuit recovery.
