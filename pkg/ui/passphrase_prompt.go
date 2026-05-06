@@ -147,22 +147,12 @@ func (p *PassphrasePromptPanel) Draw(screen *ebiten.Image) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	if !p.visible {
+	px, py, w, h, shouldRender := CheckPanelVisibilityAndCenter(screen, p.visible, p.width, p.height)
+	if !shouldRender {
 		return
 	}
 
-	w, h := screen.Bounds().Dx(), screen.Bounds().Dy()
-	px := (w - p.width) / 2
-	py := (h - p.height) / 2
-
-	// Draw overlay
-	vector.DrawFilledRect(screen, 0, 0, float32(w), float32(h), p.theme.PanelBackground, true)
-
-	// Draw panel background
-	vector.DrawFilledRect(screen, float32(px), float32(py),
-		float32(p.width), float32(p.height), p.theme.PanelBackground, true)
-	vector.StrokeRect(screen, float32(px), float32(py),
-		float32(p.width), float32(p.height), 2.0, p.theme.PanelBorder, true)
+	DrawModalOverlayAndPanel(screen, px, py, w, h, p.width, p.height, p.theme)
 
 	// Draw title
 	titleY := py + 30

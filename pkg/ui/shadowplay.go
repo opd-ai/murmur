@@ -424,21 +424,23 @@ func (sp *ShadowPlayPanel) drawPanelBackground(
 	vector.StrokeRect(screen, x, y, w, h, 2, sp.theme.PanelBorder, false)
 }
 
+// drawTitle renders a centered title with the panel theme.
+func (sp *ShadowPlayPanel) drawTitle(screen *ebiten.Image, title string, x, y, w, offsetX float32) {
+	if defaultFont == nil {
+		return
+	}
+	titleOpts := &text.DrawOptions{}
+	titleOpts.GeoM.Translate(float64(x+w/2+offsetX), float64(y+20))
+	titleOpts.ColorScale.ScaleWithColor(sp.theme.TextPrimary)
+	text.Draw(screen, title, defaultFont, titleOpts)
+}
+
 // drawOverviewMode renders the game overview.
 func (sp *ShadowPlayPanel) drawOverviewMode(
 	screen *ebiten.Image,
 	x, y, w, h float32,
 ) {
-	if defaultFont == nil {
-		return
-	}
-
-	// Title.
-	title := "Shadow Play"
-	titleOpts := &text.DrawOptions{}
-	titleOpts.GeoM.Translate(float64(x+w/2-60), float64(y+20))
-	titleOpts.ColorScale.ScaleWithColor(sp.theme.TextPrimary)
-	text.Draw(screen, title, defaultFont, titleOpts)
+	sp.drawTitle(screen, "Shadow Play", x, y, w, -60)
 
 	// Game state.
 	stateText := fmt.Sprintf("Status: %s", ShadowPlayStateString(sp.game.State))
@@ -537,16 +539,7 @@ func (sp *ShadowPlayPanel) drawVoteMode(
 	screen *ebiten.Image,
 	x, y, w, h float32,
 ) {
-	if defaultFont == nil {
-		return
-	}
-
-	// Title.
-	title := "Cast Your Vote"
-	titleOpts := &text.DrawOptions{}
-	titleOpts.GeoM.Translate(float64(x+w/2-70), float64(y+20))
-	titleOpts.ColorScale.ScaleWithColor(sp.theme.TextPrimary)
-	text.Draw(screen, title, defaultFont, titleOpts)
+	sp.drawTitle(screen, "Cast Your Vote", x, y, w, -70)
 
 	// Instructions.
 	instructions := "Select a player to eliminate:"

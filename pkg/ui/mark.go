@@ -479,10 +479,14 @@ func (p *MarkPanel) drawBackground(screen *ebiten.Image) {
 		2, p.theme.PanelBorder, false)
 }
 
+// initDrawCoords returns the initial drawing coordinates with standard padding.
+func (p *MarkPanel) initDrawCoords() (x, y float32) {
+	return float32(p.panelX + 20), float32(p.panelY + 20)
+}
+
 // drawCategorySelect draws the category selection UI.
 func (p *MarkPanel) drawCategorySelect(screen *ebiten.Image) {
-	x := float32(p.panelX + 20)
-	y := float32(p.panelY + 20)
+	x, y := p.initDrawCoords()
 
 	// Title.
 	p.drawText(screen, "Select Mark Category", x, y, p.theme.TextPrimary)
@@ -678,8 +682,7 @@ func (p *MarkPanel) drawConfirm(screen *ebiten.Image) {
 
 // drawPlacing draws the "placing" progress indicator.
 func (p *MarkPanel) drawPlacing(screen *ebiten.Image) {
-	x := float32(p.panelX + 20)
-	y := float32(p.panelY + 20)
+	x, y := p.initDrawCoords()
 
 	p.drawText(screen, "Placing Mark", x, y, p.theme.TextPrimary)
 	y += 50

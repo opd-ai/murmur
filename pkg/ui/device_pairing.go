@@ -294,13 +294,10 @@ func (p *DevicePairingPanel) Draw(screen *ebiten.Image) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	if !p.visible {
+	px, py, w, h, shouldRender := CheckPanelVisibilityAndCenter(screen, p.visible, p.width, p.height)
+	if !shouldRender {
 		return
 	}
-
-	w, h := screen.Bounds().Dx(), screen.Bounds().Dy()
-	px := (w - p.width) / 2
-	py := (h - p.height) / 2
 
 	// Draw overlay
 	overlayColor := ebiten.ColorScale{}

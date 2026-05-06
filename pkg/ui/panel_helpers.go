@@ -95,3 +95,40 @@ func DrawCancelSubmitButtons(screen *ebiten.Image, px, py, panelWidth, panelHeig
 
 	return cancelX, submitX, buttonY
 }
+
+// CheckPanelVisibilityAndCenter checks if a panel is visible and calculates centered position.
+// Returns (px, py, w, h, shouldRender) where shouldRender=false means caller should return early.
+// Consolidates the common pattern:
+//
+//	if !p.visible {
+//	    return
+//	}
+//	w, h := screen.Bounds().Dx(), screen.Bounds().Dy()
+//	px := (w - p.width) / 2
+//	py := (h - p.height) / 2
+func CheckPanelVisibilityAndCenter(screen *ebiten.Image, visible bool, panelWidth, panelHeight int) (px, py, w, h int, shouldRender bool) {
+	if !visible {
+		return 0, 0, 0, 0, false
+	}
+	w, h = screen.Bounds().Dx(), screen.Bounds().Dy()
+	px = (w - panelWidth) / 2
+	py = (h - panelHeight) / 2
+	return px, py, w, h, true
+}
+
+// DrawModalOverlayAndPanel draws a semi-transparent overlay and centered panel.
+// Consolidates the pattern:
+//
+//	vector.DrawFilledRect(screen, 0, 0, float32(w), float32(h), theme.PanelBackground, true)
+//	vector.DrawFilledRect(screen, float32(px), float32(py), float32(width), float32(height), theme.PanelBackground, true)
+//	vector.StrokeRect(screen, float32(px), float32(py), float32(width), float32(height), 2.0, theme.PanelBorder, true)
+func DrawModalOverlayAndPanel(screen *ebiten.Image, px, py, w, h, panelWidth, panelHeight int, theme Theme) {
+	// Draw full-screen overlay
+	vector.DrawFilledRect(screen, 0, 0, float32(w), float32(h), theme.PanelBackground, true)
+
+	// Draw panel background and border
+	vector.DrawFilledRect(screen, float32(px), float32(py),
+		float32(panelWidth), float32(panelHeight), theme.PanelBackground, true)
+	vector.StrokeRect(screen, float32(px), float32(py),
+		float32(panelWidth), float32(panelHeight), 2.0, theme.PanelBorder, true)
+}
