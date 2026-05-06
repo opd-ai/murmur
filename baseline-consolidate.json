@@ -1,20 +1,20 @@
 {
   "metadata": {
     "repository": "/home/user/go/src/github.com/opd-ai/murmur",
-    "generated_at": "2026-05-06T03:55:07.468940496-04:00",
-    "analysis_time": 3502963436,
-    "files_processed": 314,
+    "generated_at": "2026-05-06T05:06:07.493345274-04:00",
+    "analysis_time": 4194630267,
+    "files_processed": 317,
     "tool_version": "1.0.0",
     "go_version": ""
   },
   "overview": {
-    "total_lines_of_code": 48643,
-    "total_functions": 1348,
-    "total_methods": 4513,
-    "total_structs": 774,
-    "total_interfaces": 37,
-    "total_packages": 60,
-    "total_files": 314
+    "total_lines_of_code": 48865,
+    "total_functions": 1357,
+    "total_methods": 4556,
+    "total_structs": 776,
+    "total_interfaces": 38,
+    "total_packages": 62,
+    "total_files": 317
   },
   "functions": null,
   "structs": null,
@@ -112,9 +112,9 @@
     "complexity_score": 0
   },
   "duplication": {
-    "clone_pairs": 50,
-    "duplicated_lines": 689,
-    "duplication_ratio": 0.006750401692988988,
+    "clone_pairs": 48,
+    "duplicated_lines": 641,
+    "duplication_ratio": 0.006246832729115503,
     "largest_clone_size": 44,
     "clones": [
       {
@@ -798,14 +798,14 @@
         "instances": [
           {
             "file": "pkg/networking/transport/onramp_i2p/transport.go",
-            "start_line": 164,
-            "end_line": 175,
+            "start_line": 134,
+            "end_line": 145,
             "node_count": 42
           },
           {
             "file": "pkg/networking/transport/onramp_tor/transport.go",
-            "start_line": 159,
-            "end_line": 170,
+            "start_line": 129,
+            "end_line": 140,
             "node_count": 42
           }
         ],
@@ -1072,67 +1072,25 @@
         "suggestion": "Extract 23-line duplicate code block into a shared function. Found in 2 locations"
       },
       {
-        "hash": "10a689c038fa9fd7",
-        "type": "renamed",
-        "instances": [
-          {
-            "file": "pkg/networking/transport/onramp_i2p/transport.go",
-            "start_line": 81,
-            "end_line": 104,
-            "node_count": 114
-          },
-          {
-            "file": "pkg/networking/transport/onramp_tor/transport.go",
-            "start_line": 71,
-            "end_line": 94,
-            "node_count": 114
-          }
-        ],
-        "line_count": 24,
-        "severity": "violation",
-        "suggestion": "Extract 24-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
-      },
-      {
         "hash": "24abfc9d63d0b562",
         "type": "exact",
         "instances": [
           {
             "file": "pkg/pulsemap/overlays/marks.go",
-            "start_line": 329,
-            "end_line": 352,
+            "start_line": 338,
+            "end_line": 361,
             "node_count": 87
           },
           {
             "file": "pkg/pulsemap/overlays/marks_stub.go",
-            "start_line": 168,
-            "end_line": 191,
+            "start_line": 177,
+            "end_line": 200,
             "node_count": 87
           }
         ],
         "line_count": 24,
         "severity": "violation",
         "suggestion": "Extract 24-line duplicate code block into a shared function. Found in 2 locations"
-      },
-      {
-        "hash": "f98ecaa263b553d4",
-        "type": "renamed",
-        "instances": [
-          {
-            "file": "pkg/networking/transport/onramp_i2p/transport.go",
-            "start_line": 119,
-            "end_line": 142,
-            "node_count": 102
-          },
-          {
-            "file": "pkg/networking/transport/onramp_tor/transport.go",
-            "start_line": 114,
-            "end_line": 137,
-            "node_count": 102
-          }
-        ],
-        "line_count": 24,
-        "severity": "violation",
-        "suggestion": "Extract 24-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
       },
       {
         "hash": "deceba632d0c9536",

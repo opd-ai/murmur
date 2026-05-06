@@ -126,18 +126,7 @@ func (t *Transport) Protocols() []int {
 // Per PLAN.md §5.3: ensure Onion.Close runs on host shutdown to release
 // control-port resources cleanly.
 func (t *Transport) Close() error {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	if t.closed {
-		return nil
-	}
-	t.closed = true
-
-	if t.onion != nil {
-		return t.onion.Close()
-	}
-	return nil
+	return transport.SafeClose(&t.mu, &t.closed, t.onion)
 }
 
 // parseOnion3Addr extracts the onion address and port from an onion3 multiaddr.

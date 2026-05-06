@@ -1,20 +1,20 @@
 {
   "metadata": {
     "repository": "/home/user/go/src/github.com/opd-ai/murmur",
-    "generated_at": "2026-05-06T02:31:10.985524671-04:00",
-    "analysis_time": 4085504210,
-    "files_processed": 312,
+    "generated_at": "2026-05-06T05:12:04.734771834-04:00",
+    "analysis_time": 4214396264,
+    "files_processed": 317,
     "tool_version": "1.0.0",
     "go_version": ""
   },
   "overview": {
-    "total_lines_of_code": 48119,
-    "total_functions": 1316,
-    "total_methods": 4481,
-    "total_structs": 769,
-    "total_interfaces": 37,
-    "total_packages": 58,
-    "total_files": 312
+    "total_lines_of_code": 48848,
+    "total_functions": 1359,
+    "total_methods": 4559,
+    "total_structs": 776,
+    "total_interfaces": 38,
+    "total_packages": 62,
+    "total_files": 317
   },
   "functions": null,
   "structs": null,
@@ -112,9 +112,9 @@
     "complexity_score": 0
   },
   "duplication": {
-    "clone_pairs": 48,
-    "duplicated_lines": 638,
-    "duplication_ratio": 0.0063065289378737704,
+    "clone_pairs": 46,
+    "duplicated_lines": 597,
+    "duplication_ratio": 0.005818032978598994,
     "largest_clone_size": 44,
     "clones": [
       {
@@ -165,20 +165,20 @@
         "instances": [
           {
             "file": "pkg/anonymous/resonance/specter.go",
-            "start_line": 425,
-            "end_line": 430,
+            "start_line": 423,
+            "end_line": 428,
             "node_count": 36
           },
           {
             "file": "pkg/anonymous/resonance/specter.go",
-            "start_line": 431,
-            "end_line": 436,
+            "start_line": 429,
+            "end_line": 434,
             "node_count": 36
           },
           {
             "file": "pkg/anonymous/resonance/surface.go",
-            "start_line": 405,
-            "end_line": 410,
+            "start_line": 403,
+            "end_line": 408,
             "node_count": 36
           }
         ],
@@ -234,20 +234,20 @@
         "instances": [
           {
             "file": "pkg/anonymous/resonance/specter.go",
-            "start_line": 425,
-            "end_line": 431,
+            "start_line": 423,
+            "end_line": 429,
             "node_count": 42
           },
           {
             "file": "pkg/anonymous/resonance/specter.go",
-            "start_line": 432,
-            "end_line": 438,
+            "start_line": 430,
+            "end_line": 436,
             "node_count": 42
           },
           {
             "file": "pkg/anonymous/resonance/surface.go",
-            "start_line": 405,
-            "end_line": 411,
+            "start_line": 403,
+            "end_line": 409,
             "node_count": 42
           }
         ],
@@ -261,14 +261,14 @@
         "instances": [
           {
             "file": "pkg/anonymous/specters/connection.go",
-            "start_line": 221,
-            "end_line": 227,
+            "start_line": 236,
+            "end_line": 242,
             "node_count": 52
           },
           {
             "file": "pkg/anonymous/specters/connection.go",
-            "start_line": 375,
-            "end_line": 381,
+            "start_line": 390,
+            "end_line": 396,
             "node_count": 52
           },
           {
@@ -351,20 +351,20 @@
         "instances": [
           {
             "file": "pkg/anonymous/resonance/specter.go",
-            "start_line": 425,
-            "end_line": 432,
+            "start_line": 423,
+            "end_line": 430,
             "node_count": 48
           },
           {
             "file": "pkg/anonymous/resonance/specter.go",
-            "start_line": 433,
-            "end_line": 440,
+            "start_line": 431,
+            "end_line": 438,
             "node_count": 48
           },
           {
             "file": "pkg/anonymous/resonance/surface.go",
-            "start_line": 405,
-            "end_line": 412,
+            "start_line": 403,
+            "end_line": 410,
             "node_count": 48
           }
         ],
@@ -504,14 +504,35 @@
         "instances": [
           {
             "file": "pkg/anonymous/specters/connection.go",
-            "start_line": 375,
-            "end_line": 383,
+            "start_line": 390,
+            "end_line": 398,
             "node_count": 54
           },
           {
             "file": "pkg/app/handlers.go",
             "start_line": 622,
             "end_line": 630,
+            "node_count": 54
+          }
+        ],
+        "line_count": 9,
+        "severity": "warning",
+        "suggestion": "Extract 9-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
+      },
+      {
+        "hash": "39747571e5b07e20",
+        "type": "renamed",
+        "instances": [
+          {
+            "file": "pkg/anonymous/resonance/specter.go",
+            "start_line": 423,
+            "end_line": 431,
+            "node_count": 54
+          },
+          {
+            "file": "pkg/anonymous/resonance/surface.go",
+            "start_line": 403,
+            "end_line": 411,
             "node_count": 54
           }
         ],
@@ -562,34 +583,13 @@
         "suggestion": "Extract 9-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
       },
       {
-        "hash": "517b48a09a656dd1",
-        "type": "exact",
-        "instances": [
-          {
-            "file": "pkg/pulsemap/overlays/masked_event.go",
-            "start_line": 272,
-            "end_line": 280,
-            "node_count": 83
-          },
-          {
-            "file": "pkg/pulsemap/overlays/shadowplay.go",
-            "start_line": 373,
-            "end_line": 381,
-            "node_count": 83
-          }
-        ],
-        "line_count": 9,
-        "severity": "warning",
-        "suggestion": "Extract 9-line duplicate code block into a shared function. Found in 2 locations"
-      },
-      {
         "hash": "533d9e4d195541ac",
         "type": "renamed",
         "instances": [
           {
             "file": "pkg/anonymous/specters/connection.go",
-            "start_line": 223,
-            "end_line": 231,
+            "start_line": 238,
+            "end_line": 246,
             "node_count": 42
           },
           {
@@ -672,8 +672,8 @@
         "instances": [
           {
             "file": "pkg/anonymous/mechanics/forge/forge_publisher.go",
-            "start_line": 397,
-            "end_line": 406,
+            "start_line": 414,
+            "end_line": 423,
             "node_count": 42
           },
           {
@@ -814,33 +814,6 @@
         "suggestion": "Extract 11-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
       },
       {
-        "hash": "7b1caf46e49ea3b3",
-        "type": "renamed",
-        "instances": [
-          {
-            "file": "pkg/anonymous/resonance/score.go",
-            "start_line": 233,
-            "end_line": 244,
-            "node_count": 47
-          },
-          {
-            "file": "pkg/anonymous/resonance/specter.go",
-            "start_line": 417,
-            "end_line": 428,
-            "node_count": 47
-          },
-          {
-            "file": "pkg/anonymous/resonance/surface.go",
-            "start_line": 397,
-            "end_line": 408,
-            "node_count": 47
-          }
-        ],
-        "line_count": 12,
-        "severity": "warning",
-        "suggestion": "Extract 12-line duplicate code block into a shared function. Found in 3 locations. Consider using generics or interface-based abstraction"
-      },
-      {
         "hash": "7dc80999288b7def",
         "type": "renamed",
         "instances": [
@@ -967,27 +940,6 @@
         "suggestion": "Extract 17-line duplicate code block into a shared function. Found in 2 locations"
       },
       {
-        "hash": "54b197147ee92a76",
-        "type": "renamed",
-        "instances": [
-          {
-            "file": "pkg/anonymous/resonance/specter.go",
-            "start_line": 417,
-            "end_line": 433,
-            "node_count": 77
-          },
-          {
-            "file": "pkg/anonymous/resonance/surface.go",
-            "start_line": 397,
-            "end_line": 413,
-            "node_count": 77
-          }
-        ],
-        "line_count": 17,
-        "severity": "warning",
-        "suggestion": "Extract 17-line duplicate code block into a shared function. Found in 2 locations. Consider using generics or interface-based abstraction"
-      },
-      {
         "hash": "b8aff240fe0c64a2",
         "type": "exact",
         "instances": [
@@ -1077,14 +1029,14 @@
         "instances": [
           {
             "file": "pkg/pulsemap/overlays/marks.go",
-            "start_line": 329,
-            "end_line": 352,
+            "start_line": 338,
+            "end_line": 361,
             "node_count": 87
           },
           {
             "file": "pkg/pulsemap/overlays/marks_stub.go",
-            "start_line": 168,
-            "end_line": 191,
+            "start_line": 177,
+            "end_line": 200,
             "node_count": 87
           }
         ],

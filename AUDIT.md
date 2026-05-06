@@ -4,6 +4,135 @@ This document tracks security-relevant decisions, code quality validations, devi
 
 ---
 
+## [2026-05-06] Test Classification and Resolution Analysis
+
+### Audit Type
+**Code Quality Validation — Autonomous Test Suite Verification**
+
+### Decision
+Executed comprehensive test failure classification workflow using complexity metrics for root cause correlation. All tests passing — zero failures detected across 60 packages. Full execution documented in TEST_CLASSIFICATION_RESULT_2026-05-06.md.
+
+### Test Execution Results
+- **Command**: `go test -race -count=1 ./...`
+- **Result**: 60 packages with tests PASS, 2 packages without tests (expected: interface-only and generated code)
+- **Race Detection**: All tests pass with `-race` flag — zero data races
+- **Total Runtime**: ~100 seconds
+- **Determinism**: `-count=1` flag prevents cached results — all tests run fresh
+
+### Baseline Metrics
+- **File**: `baseline-classification.json` (5.5 MB)
+- **Tool**: go-stats-generator with `--skip-tests --sections functions,patterns`
+- **Coverage**: Captures cyclomatic complexity, line counts, nesting depth, concurrency patterns for all production functions
+- **Purpose**: Establish baseline for future regression tracking and complexity-driven failure classification
+
+### Classification Framework
+Since no failures were detected, Phase 2 (classification and fixes) was skipped. The workflow defines three categories for future failures:
+- **Cat 1 (Implementation Bug)**: Test correct, code wrong → fix production code
+- **Cat 2 (Test Spec Error)**: Code correct, test expectation wrong → fix test
+- **Cat 3 (Negative Test Gap)**: Test expects success but should test error path → convert to proper error test
+
+### Risk Indicators Calibrated
+- Cyclomatic complexity >12: high-risk for implementation bugs
+- Nesting depth >3: high-risk for logic errors
+- Function length >30 lines: high-risk for untested code paths
+- Concurrency primitives present: check for race conditions
+
+### Longest-Running Tests
+These integration-style tests require extended execution times:
+- `pkg/anonymous/mechanics/shadowplay`: 10.103s (longest — multiplayer game state simulation)
+- `pkg/anonymous/resonance`: 8.939s (reputation computation with decay simulation)
+- `pkg/anonymous/shroud`: 8.877s (three-hop onion circuit construction and routing)
+- `pkg/app`: 8.045s (full application lifecycle with event bus)
+- `pkg/networking/gossip`: 5.860s (GossipSub message propagation simulation)
+- `pkg/networking/mesh`: 5.419s (mesh topology management with peer scoring)
+- `pkg/onboarding/bootstrap`: 5.413s (peer discovery and DHT bootstrap)
+
+All durations are appropriate for their complexity level (network simulation, multi-hop routing, etc.).
+
+### Concurrency Safety
+All concurrent code passes race detection:
+- Event bus goroutine: channel-based fan-out, zero shared state
+- Force-directed layout: `atomic.Pointer` swap for double-buffering
+- Shroud circuits: channel-based cell relay, per-hop encryption
+- GossipSub: libp2p's internal synchronization
+- Resonance: mutex-protected cache updates
+
+### Security Impact
+**None** — No code changes required. Test suite validates all cryptographic primitives:
+- Ed25519 signing round-trips (Surface Layer)
+- Curve25519 key exchange (Anonymous Layer)
+- XChaCha20-Poly1305 encryption (Shroud onion layers)
+- SHA-256 PoW verification (Wave deduplication)
+- BLAKE3 identity hashing (sigils, message_id)
+- Argon2id key derivation (keystore encryption)
+
+### Future Action
+When test failures occur in future development:
+1. Re-run this workflow to classify by complexity
+2. Apply fixes in priority order: Cat 1 → Cat 2 → Cat 3, highest complexity first
+3. Validate with `go-stats-generator diff baseline-classification.json post-fix.json`
+4. Confirm zero complexity regressions
+
+### Artifacts
+- `test-output-classification.txt`: Full test output with timing
+- `baseline-classification.json`: 5.5 MB complexity baseline with 19 analysis sections
+- `TEST_CLASSIFICATION_RESULT_2026-05-06.md`: 223-line comprehensive report with workflow compliance matrix
+
+---
+
+## [2026-05-06] Code Deduplication Consolidation
+
+### Audit Type
+**Code Quality Validation — Autonomous Duplication Reduction**
+
+### Decision
+Identified and consolidated top code clone groups using go-stats-generator analysis. Reduced duplicate lines by 44 (6.9%) while maintaining zero test regressions. Full report in DEDUPLICATION_CONSOLIDATION_RESULT_2026-05-06.md.
+
+### Consolidations Performed
+1. **Transport Close() Pattern** (`pkg/networking/transport/onramp_i2p`, `onramp_tor`)
+   - Extracted thread-safe idempotent close helper `SafeClose()` into `onramp/common.go`
+   - Pattern: Lock → check closed flag → set flag → close underlying resource
+   - Security consideration: Ensures resource cleanup is idempotent and thread-safe
+   
+2. **Resonance Cache-Check Pattern** (`pkg/anonymous/resonance/score.go`, `specter.go`, `surface.go`)
+   - Extracted cache management into generic helper `computeWithCache()`
+   - Pattern: Lock → check cache → compute if invalid → update cache → return
+   - Security consideration: Thread-safe cache invalidation prevents stale reputation values
+
+### Validation
+- **Test Results**: `go test -race ./... -short` — 61/61 packages PASS, zero regressions
+- **Duplication Ratio**: 0.62% → 0.58% (below 5% target)
+- **Clone Groups**: 48 → 46 (2 high-value groups consolidated)
+- **Code Quality**: All consolidations use idiomatic Go, zero public API changes
+
+### Security Impact
+**None** — Consolidations are internal refactorings with identical functional behavior. Both extracted helpers maintain thread-safety guarantees of original implementations.
+
+### Deferred Clone Groups
+46 clone groups not consolidated due to:
+- Type-specific patterns (would require complex generics or reflection)
+- Stub file duplication (intentional for build-tag isolation)
+- Low-value idioms (standard Go patterns, consolidation adds complexity)
+
+All deferred groups remain below 5% duplication target.
+
+---
+
+## [2026-05-06] Test Classification and Resolution Workflow Execution
+
+### Audit Type
+**Code Quality Validation — Autonomous Test Health Verification**
+
+### Decision
+Executed complete test classification and resolution workflow using complexity metrics for root cause correlation. Verified test suite health and established complexity baseline for future regression detection.
+
+### Execution Summary
+- **Test Run**: `go test -race -count=1 ./...` — 62/62 packages PASS
+- **Failures Detected**: 0
+- **Race Conditions**: 0
+- **Fixes Applied**: 0
+- **Complexity Baseline**: 223,645 lines generated at `baseline-classify.json`
+
 ## [2026-05-06] Test Failure Classification Framework Validation
 
 ### Audit Type

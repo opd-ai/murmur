@@ -414,13 +414,11 @@ func (s *SpecterScore) invalidateCache() {
 // Compute calculates the current Specter Resonance score.
 // Per RESONANCE_SYSTEM.md, this sums all 16 weighted signal scores.
 func (s *SpecterScore) Compute() int {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	return computeWithCache(&s.mu, &s.cacheValid, &s.cachedScore, s.computeRawScore)
+}
 
-	if s.cacheValid {
-		return s.cachedScore
-	}
-
+// computeRawScore computes the raw score from all signal components.
+func (s *SpecterScore) computeRawScore() int {
 	// Calculate each signal component per spec formulas.
 	connectionScore := s.computeConnectionScore()
 	diversityScore := s.computeDiversityScore()
@@ -452,9 +450,6 @@ func (s *SpecterScore) Compute() int {
 	if finalScore < 0 {
 		finalScore = 0
 	}
-
-	s.cachedScore = finalScore
-	s.cacheValid = true
 
 	return finalScore
 }

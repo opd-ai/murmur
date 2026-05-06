@@ -230,13 +230,11 @@ func (s *Score) invalidateCache() {
 // Compute calculates the current Resonance score.
 // Per RESONANCE_SYSTEM.md, this is computed locally from activity signals.
 func (s *Score) Compute() int {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	return computeWithCache(&s.mu, &s.cacheValid, &s.cachedScore, s.computeRawScore)
+}
 
-	if s.cacheValid {
-		return s.cachedScore
-	}
-
+// computeRawScore computes the raw score from signal components.
+func (s *Score) computeRawScore() int {
 	// Calculate each signal component.
 	publicationScore := s.computePublicationScore()
 	miniGameScore := s.computeMiniGameScore()
@@ -257,9 +255,6 @@ func (s *Score) Compute() int {
 	if finalScore < 0 {
 		finalScore = 0
 	}
-
-	s.cachedScore = finalScore
-	s.cacheValid = true
 
 	return finalScore
 }
@@ -422,4 +417,21 @@ func (sc *Scorer) Count() int {
 	sc.mu.RLock()
 	defer sc.mu.RUnlock()
 	return len(sc.scores)
+}
+
+// computeWithCache is a thread-safe cached computation helper used by all Resonance score types.
+// It checks the cache under lock, and if invalid, calls computeFn to recompute the score.
+func computeWithCache(mu *sync.RWMutex, cacheValid *bool, cachedScore *int, computeFn func() int) int {
+	mu.Lock()
+	defer mu.Unlock()
+
+	if *cacheValid {
+		return *cachedScore
+	}
+
+	score := computeFn()
+	*cachedScore = score
+	*cacheValid = true
+
+	return score
 }

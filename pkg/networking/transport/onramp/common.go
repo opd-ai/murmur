@@ -4,7 +4,9 @@ package onramp
 import (
 	"context"
 	"fmt"
+	"io"
 	"net"
+	"sync"
 
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -80,4 +82,22 @@ type Listener struct {
 
 func (l *Listener) Multiaddr() ma.Multiaddr {
 	return l.multiaddr
+}
+
+// safeClose is a thread-safe idempotent close helper for transport implementations.
+// It ensures the transport's closed flag is set atomically and the underlying closer
+// is called exactly once. Returns nil if already closed.
+func SafeClose(mu *sync.Mutex, closed *bool, closer io.Closer) error {
+	mu.Lock()
+	defer mu.Unlock()
+
+	if *closed {
+		return nil
+	}
+	*closed = true
+
+	if closer != nil {
+		return closer.Close()
+	}
+	return nil
 }

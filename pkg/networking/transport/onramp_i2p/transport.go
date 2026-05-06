@@ -131,18 +131,7 @@ func (t *Transport) Protocols() []int {
 // Per PLAN.md §5.4: ensure Garlic.Close runs on host shutdown to release
 // SAM session resources cleanly.
 func (t *Transport) Close() error {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	if t.closed {
-		return nil
-	}
-	t.closed = true
-
-	if t.garlic != nil {
-		return t.garlic.Close()
-	}
-	return nil
+	return transport.SafeClose(&t.mu, &t.closed, t.garlic)
 }
 
 // parseGarlicAddr extracts the I2P destination from a garlic64 multiaddr.

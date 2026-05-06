@@ -394,13 +394,11 @@ func (s *SurfaceScore) invalidateCache() {
 // Per RESONANCE_SYSTEM.md, this sums all 8 weighted signal scores
 // plus connection age bonus, then applies temporal decay.
 func (s *SurfaceScore) Compute() int {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	return computeWithCache(&s.mu, &s.cacheValid, &s.cachedScore, s.computeRawScore)
+}
 
-	if s.cacheValid {
-		return s.cachedScore
-	}
-
+// computeRawScore computes the raw score from all signal components.
+func (s *SurfaceScore) computeRawScore() int {
 	// Calculate each signal component per spec formulas.
 	connectionScore := s.computeConnectionScore()
 	diversityScore := s.computeDiversityScore()
@@ -426,9 +424,6 @@ func (s *SurfaceScore) Compute() int {
 	if finalScore < 0 {
 		finalScore = 0
 	}
-
-	s.cachedScore = finalScore
-	s.cacheValid = true
 
 	return finalScore
 }
