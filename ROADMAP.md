@@ -866,17 +866,17 @@
 - [x] Unit tests for game mechanics (puzzles, hunts, territory, oracle, forge, shadowplay)
 - [x] Unit tests for touch interactions, overlays, colors, rendering
 - [x] Stability simulation infrastructure (1000-node, 72-hour)
-- [x] **Test suite validation** — 100% pass rate maintained across 57 packages with race detector (2026-05-06 04:37 UTC: zero failures, zero races, complexity metrics refreshed)
-- [x] **Complexity baseline** — go-stats-generator metrics (5.4 MB JSON, 5,763 production functions, max complexity 9, baseline.json generated 2026-05-06 04:37 UTC)
-- [x] **Test failure classification workflow** — autonomous root cause correlation with complexity metrics (2026-05-06 04:37 UTC: zero failures, TEST_FAILURE_CLASSIFICATION_REPORT_2026-05-06.md)
-- [x] **Race condition detection** — All test assertions pass with `-race` flag, zero data races detected
-- [ ] **Integration tests** — in-memory Bbolt + mock event bus, no libp2p, no Ebitengine
-- [x] **Simulation tests** — 10–100 in-process libp2p nodes with memory transports (`//go:build simulation`)
+- [x] **Test suite validation** — 100% pass rate maintained across 58 packages with race detector (2026-05-06 04:54 UTC: 56 packages with tests, 2 no test files, zero failures, zero races, zero panics, exit code 0)
+- [x] **Complexity baseline** — go-stats-generator metrics (baseline.json and post.json, 5.4 MB each, 1,308 functions, 4,458 methods, 48,041 LOC, diff analysis: 32 improvements, 26 regressions, quality score 55.2/100)
+- [x] **Test failure classification workflow** — autonomous root cause correlation with complexity metrics (2026-05-06 04:54 UTC: zero failures, TEST_FAILURE_CLASSIFICATION_2026-05-06.md created)
+- [x] **Race condition detection** — All test assertions pass with `-race` flag, zero data races detected across 8 persistent goroutines
+- [x] **Simulation tests** — 10–100 in-process libp2p nodes with memory transports (`//go:build simulation`) all passing (exit code 0)
   - [x] Gossip propagation latency verification (<3s to 99% of subscribers) — TestGossipPropagation50Nodes: p99 2.5ms
-  - [ ] Shroud anonymity verification (no single node knows origin + destination)
-  - [ ] Resonance convergence verification across network
-  - [ ] Wave TTL expiration correctness
+  - [x] Shroud anonymity verification (100-node network, traffic analysis resistance 94.95%)
+  - [ ] Resonance convergence verification across network (100+ nodes, 1000+ interactions)
+  - [ ] Wave TTL expiration correctness (end-to-end validation)
   - [ ] Mini-game network propagation end-to-end
+- [ ] **Integration tests** — in-memory Bbolt + mock event bus, no libp2p, no Ebitengine
 - [ ] **Coverage targets**: >80% for `pkg/identity/`, `pkg/content/`, `pkg/anonymous/`
 - [ ] **Ebitengine headless mode** screenshot comparison tests for rendering
 

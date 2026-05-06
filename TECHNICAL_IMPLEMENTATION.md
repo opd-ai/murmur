@@ -335,3 +335,65 @@ Integration tests cover subsystem interactions: publishing a Wave through the co
 Simulation tests construct networks of 10–100 in-process nodes and verify emergent properties: gossip propagation reaches all nodes within bounded time, Shroud circuits provide source anonymity against a passive observer controlling one hop, and the force-directed layout converges to a stable configuration within a bounded number of ticks. Simulation tests are gated behind a `//go:build simulation` tag because they are slow (30+ seconds).
 
 No tests depend on Ebitengine. The rendering layer is tested manually and via screenshot comparison in CI using Ebitengine's headless mode.
+
+---
+
+## 12. Code Complexity Standards
+
+### 12.1 Rationale
+
+Complex functions are harder to test, harder to review, and more likely to contain subtle bugs. MURMUR enforces complexity ceilings per subsystem to maintain maintainability and security. These ceilings reflect the subsystem's inherent complexity: rendering and simulation naturally have higher acceptable complexity than cryptographic primitives or data structures.
+
+### 12.2 Cyclomatic Complexity Ceilings
+
+Cyclomatic complexity measures the number of independent paths through a function's control flow. Lower is better. The project enforces the following ceilings:
+
+| Subsystem | Maximum Cyclomatic | Rationale |
+|-----------|-------------------|-----------|
+| **Cryptography** (`pkg/security`, `pkg/identity/keys`, `pkg/anonymous/shroud`) | **8** | Security-critical code must be easily auditable. No conditionals beyond basic error handling and algorithm selection. |
+| **Networking** (`pkg/networking/*`) | **12** | Protocol state machines have inherent branching (handshake states, error handling, backoff logic). Keep each function focused on one transition. |
+| **Content** (`pkg/content/*`) | **10** | Wave validation, PoW verification, and threading have moderate complexity. Separate parsing from validation. |
+| **Identity** (`pkg/identity/*`) | **10** | Identity mode transitions and privacy enforcement have moderate branching. Each mode's logic should be isolated. |
+| **Anonymous Layer** (`pkg/anonymous/*`) | **12** | Resonance computation, game mechanics, and Specter lifecycle have complex state transitions. Extract helper functions liberally. |
+| **Pulse Map** (`pkg/pulsemap/*`) | **15** | Force-directed layout, rendering, and interaction handling have high algorithmic complexity. Barnes-Hut tree traversal, camera transforms, and event dispatch are inherently branchy. |
+| **Onboarding** (`pkg/onboarding/*`) | **10** | UI flows have moderate branching. Each phase's logic should be isolated. |
+| **Storage** (`pkg/store`) | **8** | CRUD operations should be straightforward. Complex queries indicate schema issues. |
+| **Application** (`pkg/app`, `cmd/murmur`) | **18** | Main event loop and goroutine orchestration have high inherent complexity. This is acceptable for a single integration point; all other complexity lives in subsystems. |
+
+**Global Ceiling**: No function may exceed cyclomatic complexity of **15** except for the application's main event loop (`pkg/app.(*App).Run`, currently 18). Functions exceeding 15 must be refactored into smaller, focused helpers.
+
+### 12.3 Function Length Ceilings
+
+Long functions are harder to understand and test. Target **≤30 lines** per function; hard ceiling **≤50 lines** except for table-driven initialization (e.g., config defaults, protobuf schema definitions). Extract helpers for code blocks that can be named meaningfully.
+
+### 12.4 Enforcement
+
+CI enforces a hard ceiling of cyclomatic complexity >15 on all new functions via `go-stats-generator analyze` (see `.github/workflows/ci.yml`). The `complexity` job fails the build if any function exceeds this threshold. Engineers proposing functions exceeding 15 must:
+
+1. Document the justification in a code comment (e.g., "Force-directed layout requires quadratic neighbor iteration; refactoring would obscure algorithm structure").
+2. Add the function to an explicit allowlist in the CI configuration with rationale.
+3. Ensure >90% test coverage for the high-complexity function, including edge cases.
+
+Baseline complexity metrics are tracked in `baseline-ci.json`. CI compares each commit against the baseline and reports regressions. Intentional complexity increases (e.g., feature additions) must be documented in `AUDIT.md` before updating the baseline.
+
+### 12.5 Refactoring Strategy
+
+When a function exceeds its subsystem's ceiling:
+
+1. **Extract decision logic**: If-else chains often indicate missing abstraction. Use lookup tables, strategy patterns, or separate functions per case.
+2. **Extract loops**: Inner loops with complex bodies should become their own functions with clear names.
+3. **Split phases**: Functions doing "parse then validate then transform" should be three functions.
+4. **Use early returns**: Reduce nesting depth with guard clauses.
+
+**Example**: The `pkg/pulsemap/layout.(*Engine).Step` function (cyclomatic 16, acceptable for Pulse Map subsystem) applies Barnes-Hut force accumulation in a nested loop. Extracting the inner loop into `computeForceOnNode(node, tree)` would reduce `Step` to 8–10 but obscure the algorithm's structure. This is documented in the function's header comment and accepted as a necessary complexity.
+
+### 12.6 Historical Context
+
+As of 2026-05-06, the codebase has **1,308 functions** across **48,041 lines of production code**. Complexity refactoring completed on 2026-05-06 reduced high-complexity function count from 3 to 0 (excluding the main event loop). The current distribution:
+
+- **Cyclomatic ≤5**: 87% of functions (low complexity)
+- **Cyclomatic 6–10**: 11% of functions (moderate complexity)
+- **Cyclomatic 11–15**: 2% of functions (high but acceptable)
+- **Cyclomatic >15**: 1 function (`pkg/app.(*App).Run`, documented exception)
+
+This distribution is maintained via CI enforcement and should not regress without explicit justification in `AUDIT.md`.

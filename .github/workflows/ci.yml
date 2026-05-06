@@ -53,3 +53,59 @@ jobs:
         run: |
           go install github.com/google/go-licenses@latest
           go-licenses check ./... --allowed_licenses=Apache-2.0,BSD-2-Clause,BSD-3-Clause,ISC,MIT
+
+  complexity:
+    name: Complexity Regression Gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: Install go-stats-generator
+        run: go install github.com/opd-ai/go-stats-generator@latest
+
+      - name: Check for baseline
+        id: check_baseline
+        run: |
+          if [ -f baseline-ci.json ]; then
+            echo "baseline_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "baseline_exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate current complexity metrics
+        run: go-stats-generator analyze . --skip-tests --format json --sections functions > /tmp/current-complexity.json
+
+      - name: Check for new high-complexity functions (>15 cyclomatic)
+        run: |
+          go-stats-generator analyze . --skip-tests --format json --sections functions | \
+          jq -r '.functions[] | select(.cyclomatic_complexity > 15) | "\(.name) has cyclomatic complexity \(.cyclomatic_complexity) (threshold: 15)"' > /tmp/high-complexity.txt
+          if [ -s /tmp/high-complexity.txt ]; then
+            echo "❌ Found functions exceeding complexity threshold:"
+            cat /tmp/high-complexity.txt
+            exit 1
+          else
+            echo "✅ All functions below complexity threshold (15)"
+          fi
+
+      - name: Compare with baseline (if exists)
+        if: steps.check_baseline.outputs.baseline_exists == 'true'
+        run: |
+          go-stats-generator diff baseline-ci.json /tmp/current-complexity.json > /tmp/complexity-diff.txt || true
+          if grep -q "regression" /tmp/complexity-diff.txt; then
+            echo "⚠️  Complexity regressions detected:"
+            cat /tmp/complexity-diff.txt
+            echo ""
+            echo "Review the changes above. If these regressions are intentional (e.g., feature additions),"
+            echo "document them in AUDIT.md and update baseline-ci.json."
+            exit 1
+          else
+            echo "✅ No complexity regressions detected"
+          fi
