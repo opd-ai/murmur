@@ -411,24 +411,32 @@ func (c *Cache) StartGC(ctx context.Context, interval time.Duration) context.Can
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				start := time.Now()
-				count, err := c.GarbageCollect()
-				duration := time.Since(start)
-
-				if duration > GCTargetTime {
-					// Log warning if GC exceeds target duration (100ms per TECHNICAL_IMPLEMENTATION.md).
-					durationMs := duration.Milliseconds()
-					println("WARNING: GC sweep took", durationMs, "ms (target <100ms), collected", count, "waves")
-				}
-
-				if err != nil {
-					println("GC sweep error:", err.Error())
-				}
+				c.performGCCycle()
 			}
 		}
 	}()
 
 	return cancel
+}
+
+// performGCCycle executes one garbage collection cycle and reports performance.
+func (c *Cache) performGCCycle() {
+	start := time.Now()
+	count, err := c.GarbageCollect()
+	duration := time.Since(start)
+
+	c.reportGCPerformance(duration, count, err)
+}
+
+// reportGCPerformance logs GC performance if it exceeds target or encounters errors.
+func (c *Cache) reportGCPerformance(duration time.Duration, count int, err error) {
+	if duration > GCTargetTime {
+		durationMs := duration.Milliseconds()
+		println("WARNING: GC sweep took", durationMs, "ms (target <100ms), collected", count, "waves")
+	}
+	if err != nil {
+		println("GC sweep error:", err.Error())
+	}
 }
 
 // List returns up to limit Waves from the cache, sorted by timestamp (newest first).

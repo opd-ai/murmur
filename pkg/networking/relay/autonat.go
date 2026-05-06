@@ -164,32 +164,46 @@ func (a *AutoNATService) monitorReachability() {
 
 // handleReachabilityEvent processes a reachability change event.
 func (a *AutoNATService) handleReachabilityEvent(evt event.EvtLocalReachabilityChanged) {
-	var newReach Reachability
-
-	switch evt.Reachability {
-	case network.ReachabilityPublic:
-		newReach = ReachabilityPublic
-	case network.ReachabilityPrivate:
-		newReach = ReachabilityPrivate
-	default:
-		newReach = ReachabilityUnknown
-	}
+	newReach := a.convertToReachability(evt.Reachability)
 
 	a.mu.Lock()
 	oldReach := a.reachability
 	a.reachability = newReach
-	listeners := make([]chan Reachability, len(a.listeners))
-	copy(listeners, a.listeners)
+	listeners := a.copyListeners()
 	a.mu.Unlock()
 
-	// Notify listeners if changed
-	if newReach != oldReach {
-		for _, ch := range listeners {
-			select {
-			case ch <- newReach:
-			default:
-				// Non-blocking send
-			}
+	a.notifyIfChanged(oldReach, newReach, listeners)
+}
+
+// convertToReachability maps libp2p reachability to our type.
+func (a *AutoNATService) convertToReachability(reach network.Reachability) Reachability {
+	switch reach {
+	case network.ReachabilityPublic:
+		return ReachabilityPublic
+	case network.ReachabilityPrivate:
+		return ReachabilityPrivate
+	default:
+		return ReachabilityUnknown
+	}
+}
+
+// copyListeners creates a copy of listener slice while holding lock.
+func (a *AutoNATService) copyListeners() []chan Reachability {
+	listeners := make([]chan Reachability, len(a.listeners))
+	copy(listeners, a.listeners)
+	return listeners
+}
+
+// notifyIfChanged sends non-blocking notifications if reachability changed.
+func (a *AutoNATService) notifyIfChanged(old, new Reachability, listeners []chan Reachability) {
+	if new == old {
+		return
+	}
+
+	for _, ch := range listeners {
+		select {
+		case ch <- new:
+		default:
 		}
 	}
 }

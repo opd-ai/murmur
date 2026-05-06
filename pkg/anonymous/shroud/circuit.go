@@ -1016,23 +1016,10 @@ func (m *CircuitManager) notifyRotation() {
 
 // buildBackupCircuitLocked builds a backup circuit. Must be called with lock held.
 func (m *CircuitManager) buildBackupCircuitLocked() {
-	// Build backup with different relays than primary.
-	excludeForBackup := m.exclude
-	if m.primary != nil {
-		for _, hop := range m.primary.hops {
-			if hop != nil {
-				excludeForBackup = append(excludeForBackup, hop.PeerID)
-			}
-		}
-	}
-
-	relays, err := m.beacon.SelectRelays(excludeForBackup)
-	if err != nil {
-		// Not enough relays for diverse backup - try with original exclude list.
-		relays, err = m.beacon.SelectRelays(m.exclude)
-		if err != nil {
-			return // Can't build backup, continue without.
-		}
+	excludeForBackup := m.buildExcludeList()
+	relays := m.selectRelaysForBackup(excludeForBackup)
+	if relays == [CircuitLength]*RelayInfo{} {
+		return
 	}
 
 	backup, err := m.beacon.BuildCircuit(relays)
@@ -1041,6 +1028,31 @@ func (m *CircuitManager) buildBackupCircuitLocked() {
 	}
 
 	m.backup = backup
+}
+
+// buildExcludeList creates exclusion list including primary circuit hops.
+func (m *CircuitManager) buildExcludeList() []string {
+	exclude := m.exclude
+	if m.primary != nil {
+		for _, hop := range m.primary.hops {
+			if hop != nil {
+				exclude = append(exclude, hop.PeerID)
+			}
+		}
+	}
+	return exclude
+}
+
+// selectRelaysForBackup attempts to select diverse relays, falling back if needed.
+func (m *CircuitManager) selectRelaysForBackup(excludeForBackup []string) [CircuitLength]*RelayInfo {
+	relays, err := m.beacon.SelectRelays(excludeForBackup)
+	if err != nil {
+		relays, err = m.beacon.SelectRelays(m.exclude)
+		if err != nil {
+			return [CircuitLength]*RelayInfo{}
+		}
+	}
+	return relays
 }
 
 // buildBackupCircuitAsync builds a backup circuit asynchronously.

@@ -166,19 +166,24 @@ func (bg *BehavioralGuidance) assessTimingCorrelation() int {
 
 // findPeakHours finds the top 3 active hours.
 func (bg *BehavioralGuidance) findPeakHours(hours []int) []int {
-	type hourCount struct {
-		hour  int
-		count int
-	}
+	hourCounts := bg.buildHourCountList(hours)
+	bg.sortByCountDescending(hourCounts)
+	return bg.extractTopHours(hourCounts, 3)
+}
 
+// buildHourCountList creates list of non-zero hour counts.
+func (bg *BehavioralGuidance) buildHourCountList(hours []int) []hourCount {
 	var hc []hourCount
 	for i, c := range hours {
 		if c > 0 {
 			hc = append(hc, hourCount{i, c})
 		}
 	}
+	return hc
+}
 
-	// Simple sort (bubble for small array).
+// sortByCountDescending sorts hour counts in descending order.
+func (bg *BehavioralGuidance) sortByCountDescending(hc []hourCount) {
 	for i := 0; i < len(hc); i++ {
 		for j := i + 1; j < len(hc); j++ {
 			if hc[j].count > hc[i].count {
@@ -186,13 +191,28 @@ func (bg *BehavioralGuidance) findPeakHours(hours []int) []int {
 			}
 		}
 	}
+}
 
-	// Take top 3.
+// extractTopHours returns top N hours from sorted list.
+func (bg *BehavioralGuidance) extractTopHours(hc []hourCount, n int) []int {
 	var peaks []int
-	for i := 0; i < len(hc) && i < 3; i++ {
+	limit := min(len(hc), n)
+	for i := 0; i < limit; i++ {
 		peaks = append(peaks, hc[i].hour)
 	}
 	return peaks
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+type hourCount struct {
+	hour  int
+	count int
 }
 
 // countOverlap counts overlapping elements between two slices.

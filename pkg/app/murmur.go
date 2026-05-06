@@ -599,20 +599,29 @@ func (a *App) runBeaconLoop() {
 	ticker := time.NewTicker(shroud.BeaconInterval)
 	defer ticker.Stop()
 
-	// Broadcast immediately on startup.
-	if err := a.BroadcastRelayAdvertisement(a.ctx); err != nil && err != ErrNotRelay {
-		// Log error but continue.
-	}
+	a.broadcastOnStartup()
 
 	for {
 		select {
 		case <-a.ctx.Done():
 			return
 		case <-ticker.C:
-			if err := a.BroadcastRelayAdvertisement(a.ctx); err != nil && err != ErrNotRelay {
-				// Log error but continue.
-			}
+			a.broadcastPeriodically()
 		}
+	}
+}
+
+// broadcastOnStartup sends initial relay advertisement immediately.
+func (a *App) broadcastOnStartup() {
+	if err := a.BroadcastRelayAdvertisement(a.ctx); err != nil && err != ErrNotRelay {
+		// Log error but continue
+	}
+}
+
+// broadcastPeriodically sends relay advertisements on timer.
+func (a *App) broadcastPeriodically() {
+	if err := a.BroadcastRelayAdvertisement(a.ctx); err != nil && err != ErrNotRelay {
+		// Log error but continue
 	}
 }
 

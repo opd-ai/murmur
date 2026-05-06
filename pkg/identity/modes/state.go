@@ -187,31 +187,42 @@ func (m *Manager) Transition(target Mode) error {
 
 	old := m.current
 
-	// Per SHADOW_GRADIENT.md: when transitioning from a Specter-enabled mode
-	// to Open, the Specter keypair must be destroyed to prevent correlation.
-	if old.AllowsSpecter() && !target.AllowsSpecter() {
-		if m.specterDestroyer != nil {
-			if err := m.specterDestroyer(); err != nil {
-				return ErrSpecterDestructionFailed
-			}
-			m.hasSpecter = false
-		}
+	if err := m.handleSpecterDestruction(old, target); err != nil {
+		return err
 	}
 
-	// Handle traffic padding activation/deactivation per SHADOW_GRADIENT.md §Traffic Padding.
 	if err := m.handleTrafficPaddingTransition(old, target); err != nil {
 		return err
 	}
 
 	m.current = target
 	m.lastChange = time.Now()
+	m.notifyListeners(old, target)
 
-	// Notify listeners.
+	return nil
+}
+
+// handleSpecterDestruction destroys Specter when transitioning to Open.
+// Per SHADOW_GRADIENT.md: Specter must be destroyed to prevent correlation.
+func (m *Manager) handleSpecterDestruction(old, target Mode) error {
+	if !old.AllowsSpecter() || target.AllowsSpecter() {
+		return nil
+	}
+
+	if m.specterDestroyer != nil {
+		if err := m.specterDestroyer(); err != nil {
+			return ErrSpecterDestructionFailed
+		}
+		m.hasSpecter = false
+	}
+	return nil
+}
+
+// notifyListeners sends transition event to all registered listeners.
+func (m *Manager) notifyListeners(old, target Mode) {
 	for _, listener := range m.listeners {
 		go listener(old, target)
 	}
-
-	return nil
 }
 
 // handleTrafficPaddingTransition starts or stops traffic padding based on mode change.

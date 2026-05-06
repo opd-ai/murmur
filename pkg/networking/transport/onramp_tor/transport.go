@@ -167,27 +167,57 @@ func parseOnion3Addr(maddr ma.Multiaddr) (string, error) {
 func extractPort(maddr ma.Multiaddr) (string, error) {
 	parts := ma.Split(maddr)
 	for _, part := range parts {
-		proto := part.Protocols()[0]
-		if proto.Code == ma.P_ONION3 {
-			addr, err := part.ValueForProtocol(ma.P_ONION3)
-			if err != nil {
-				return "", err
-			}
-			if strings.Contains(addr, ":") {
-				components := strings.SplitN(addr, ":", 2)
-				return components[1], nil
-			}
-			return "0", nil
-		}
-		if proto.Code == ma.P_TCP {
-			port, err := part.ValueForProtocol(ma.P_TCP)
-			if err != nil {
-				return "", err
-			}
+		if port := tryExtractPortFromComponent(part); port != "" {
 			return port, nil
 		}
 	}
 	return "0", nil
+}
+
+// tryExtractPortFromComponent attempts to extract port from multiaddr component.
+func tryExtractPortFromComponent(part ma.Component) string {
+	proto := part.Protocols()[0]
+
+	if port := tryExtractOnion3Port(part, proto); port != "" {
+		return port
+	}
+
+	if port := tryExtractTCPPort(part, proto); port != "" {
+		return port
+	}
+
+	return ""
+}
+
+// tryExtractOnion3Port extracts port from onion3 protocol.
+func tryExtractOnion3Port(part ma.Component, proto ma.Protocol) string {
+	if proto.Code != ma.P_ONION3 {
+		return ""
+	}
+
+	addr, err := part.ValueForProtocol(ma.P_ONION3)
+	if err != nil {
+		return ""
+	}
+
+	if strings.Contains(addr, ":") {
+		components := strings.SplitN(addr, ":", 2)
+		return components[1]
+	}
+	return "0"
+}
+
+// tryExtractTCPPort extracts port from TCP protocol.
+func tryExtractTCPPort(part ma.Component, proto ma.Protocol) string {
+	if proto.Code != ma.P_TCP {
+		return ""
+	}
+
+	port, err := part.ValueForProtocol(ma.P_TCP)
+	if err != nil {
+		return ""
+	}
+	return port
 }
 
 // onionAddrToMultiaddr converts a Tor onion address to a multiaddr.

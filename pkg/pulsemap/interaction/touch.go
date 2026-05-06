@@ -111,32 +111,51 @@ func (t *TouchState) HandleTouchMove(id int, x, y float64) (dx, dy, zoomFactor f
 	touch.X = x
 	touch.Y = y
 
-	// Check if moved too far for tap
+	t.updateTapMovementState(x, y)
+
+	return t.computeGestureResult(prevX, prevY, x, y)
+}
+
+// updateTapMovementState checks if touch moved beyond tap threshold.
+func (t *TouchState) updateTapMovementState(x, y float64) {
 	if !t.tapMoved {
 		tapDist := math.Sqrt((x-t.tapStartX)*(x-t.tapStartX) + (y-t.tapStartY)*(y-t.tapStartY))
 		if tapDist > TapMaxDistance {
 			t.tapMoved = true
 		}
 	}
+}
 
+// computeGestureResult calculates deltas and zoom based on gesture type.
+func (t *TouchState) computeGestureResult(prevX, prevY, x, y float64) (dx, dy, zoomFactor float64) {
 	switch t.gestureType {
 	case GesturePan:
-		// Return delta for camera panning
-		return x - prevX, y - prevY, 1.0
-
+		return t.computePanDelta(prevX, prevY, x, y)
 	case GesturePinch:
-		// Calculate zoom factor from pinch distance change
-		if len(t.touches) == 2 {
-			currentDist := t.twoTouchDistance()
-			if t.pinchStartDist > 0 {
-				zoomFactor = currentDist / t.pinchStartDist
-				t.pinchStartDist = currentDist // Reset for incremental zoom
-				return 0, 0, zoomFactor
-			}
-		}
+		return t.computePinchZoom()
+	}
+	return 0, 0, 1.0
+}
+
+// computePanDelta returns camera pan delta.
+func (t *TouchState) computePanDelta(prevX, prevY, x, y float64) (dx, dy, zoomFactor float64) {
+	return x - prevX, y - prevY, 1.0
+}
+
+// computePinchZoom calculates zoom factor from pinch gesture.
+func (t *TouchState) computePinchZoom() (dx, dy, zoomFactor float64) {
+	if len(t.touches) != 2 {
+		return 0, 0, 1.0
 	}
 
-	return 0, 0, 1.0
+	currentDist := t.twoTouchDistance()
+	if t.pinchStartDist <= 0 {
+		return 0, 0, 1.0
+	}
+
+	zoomFactor = currentDist / t.pinchStartDist
+	t.pinchStartDist = currentDist
+	return 0, 0, zoomFactor
 }
 
 // HandleTouchEnd processes a touch end event.
