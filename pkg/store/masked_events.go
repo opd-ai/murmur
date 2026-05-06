@@ -428,12 +428,24 @@ func (s *MaskedEventStore) CleanupExpiredEvents(before time.Time) (int, error) {
 // Serialization helpers.
 // Simple binary format for storage efficiency.
 
+// writeFieldsAndString writes a sequence of uint32 fields followed by a length-prefixed string.
+func writeFieldsAndString(data []byte, offset int, fields []uint32, str string) int {
+	for _, field := range fields {
+		binary.BigEndian.PutUint32(data[offset:], field)
+		offset += 4
+	}
+	strBytes := []byte(str)
+	binary.BigEndian.PutUint16(data[offset:], uint16(len(strBytes)))
+	offset += 2
+	copy(data[offset:], strBytes)
+	return offset + len(strBytes)
+}
+
 func (s *MaskedEventStore) serializeEvent(e *StoredMaskedEvent) []byte {
 	// Format: ID(32) + CreatorKey(32) + StartTime(8) + EndTime(8) + Duration(8) +
 	//         MaxParticipants(4) + State(4) + CreatedAt(8) + ParticipantCount(4) +
 	//         TotalWaves(4) + TotalAmplifications(4) + TopicLen(2) + Topic
-	topicBytes := []byte(e.Topic)
-	size := 32 + 32 + 8 + 8 + 8 + 4 + 4 + 8 + 4 + 4 + 4 + 2 + len(topicBytes)
+	size := 32 + 32 + 8 + 8 + 8 + 4 + 4 + 8 + 4 + 4 + 4 + 2 + len(e.Topic)
 	data := make([]byte, size)
 
 	offset := 0
@@ -453,15 +465,11 @@ func (s *MaskedEventStore) serializeEvent(e *StoredMaskedEvent) []byte {
 	offset += 4
 	binary.BigEndian.PutUint64(data[offset:], uint64(e.CreatedAt.Unix()))
 	offset += 8
-	binary.BigEndian.PutUint32(data[offset:], uint32(e.ParticipantCount))
-	offset += 4
-	binary.BigEndian.PutUint32(data[offset:], uint32(e.TotalWaves))
-	offset += 4
-	binary.BigEndian.PutUint32(data[offset:], uint32(e.TotalAmplifications))
-	offset += 4
-	binary.BigEndian.PutUint16(data[offset:], uint16(len(topicBytes)))
-	offset += 2
-	copy(data[offset:], topicBytes)
+	writeFieldsAndString(data, offset, []uint32{
+		uint32(e.ParticipantCount),
+		uint32(e.TotalWaves),
+		uint32(e.TotalAmplifications),
+	}, e.Topic)
 
 	return data
 }
@@ -508,8 +516,7 @@ func (s *MaskedEventStore) deserializeEvent(data []byte) *StoredMaskedEvent {
 func (s *MaskedEventStore) serializeParticipant(p *StoredMaskedParticipant) []byte {
 	// Format: EventID(32) + MaskedKey(32) + JoinedAt(8) + WaveCount(4) +
 	//         AmplificationsReceived(4) + PseudonymLen(2) + Pseudonym
-	pseudonymBytes := []byte(p.Pseudonym)
-	size := 32 + 32 + 8 + 4 + 4 + 2 + len(pseudonymBytes)
+	size := 32 + 32 + 8 + 4 + 4 + 2 + len(p.Pseudonym)
 	data := make([]byte, size)
 
 	offset := 0
@@ -519,13 +526,10 @@ func (s *MaskedEventStore) serializeParticipant(p *StoredMaskedParticipant) []by
 	offset += 32
 	binary.BigEndian.PutUint64(data[offset:], uint64(p.JoinedAt.Unix()))
 	offset += 8
-	binary.BigEndian.PutUint32(data[offset:], uint32(p.WaveCount))
-	offset += 4
-	binary.BigEndian.PutUint32(data[offset:], uint32(p.AmplificationsReceived))
-	offset += 4
-	binary.BigEndian.PutUint16(data[offset:], uint16(len(pseudonymBytes)))
-	offset += 2
-	copy(data[offset:], pseudonymBytes)
+	writeFieldsAndString(data, offset, []uint32{
+		uint32(p.WaveCount),
+		uint32(p.AmplificationsReceived),
+	}, p.Pseudonym)
 
 	return data
 }

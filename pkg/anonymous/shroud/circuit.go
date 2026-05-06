@@ -961,23 +961,33 @@ func (m *CircuitManager) RotateCircuit() (*Circuit, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	// Build new primary circuit.
+	newPrimary, err := m.buildNewPrimaryCircuit()
+	if err != nil {
+		return nil, err
+	}
+
+	m.rotateCircuits(newPrimary)
+	m.ensureBackupCircuit()
+	m.notifyRotation()
+
+	return newPrimary, nil
+}
+
+// buildNewPrimaryCircuit selects relays and constructs a new circuit.
+func (m *CircuitManager) buildNewPrimaryCircuit() (*Circuit, error) {
 	relays, err := m.beacon.SelectRelays(m.exclude)
 	if err != nil {
 		return nil, err
 	}
+	return m.beacon.BuildCircuit(relays)
+}
 
-	newPrimary, err := m.beacon.BuildCircuit(relays)
-	if err != nil {
-		return nil, err
-	}
-
-	// Close old backup if it exists.
+// rotateCircuits promotes new circuit to primary, demotes old primary to backup, and closes old backup.
+func (m *CircuitManager) rotateCircuits(newPrimary *Circuit) {
 	if m.backup != nil {
 		m.backup.Close()
 	}
 
-	// Old primary becomes new backup (if still valid).
 	if m.primary != nil && !m.primary.IsExpired() {
 		m.backup = m.primary
 	} else if m.primary != nil {
@@ -985,22 +995,23 @@ func (m *CircuitManager) RotateCircuit() (*Circuit, error) {
 		m.backup = nil
 	}
 
-	// New circuit becomes primary.
 	m.primary = newPrimary
 	m.rotationCount++
 	m.lastRotation = time.Now()
+}
 
-	// Build backup circuit if we don't have one.
+// ensureBackupCircuit builds a backup circuit if none exists.
+func (m *CircuitManager) ensureBackupCircuit() {
 	if m.backup == nil {
 		m.buildBackupCircuitLocked()
 	}
+}
 
-	// Notify callback if set.
+// notifyRotation invokes the rotation callback if set.
+func (m *CircuitManager) notifyRotation() {
 	if m.onRotation != nil {
 		go m.onRotation(m.primary, m.backup)
 	}
-
-	return newPrimary, nil
 }
 
 // buildBackupCircuitLocked builds a backup circuit. Must be called with lock held.

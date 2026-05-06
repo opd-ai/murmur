@@ -61,52 +61,59 @@ func (a *App) runNudgeLoop() {
 
 // checkAndSendNudges queries account creation time and sends appropriate nudges.
 func (a *App) checkAndSendNudges() {
-	// Get own identity declaration to determine account age.
-	if a.subsystems == nil || a.subsystems.Identity == nil || a.subsystems.Storage == nil {
-		return // Subsystems not initialized yet
+	if !a.areSubsystemsReady() {
+		return
 	}
 
+	accountAgeDays, ok := a.getAccountAgeDays()
+	if !ok || accountAgeDays > 7 {
+		return
+	}
+
+	currentMode := a.getCurrentMode()
+	a.processNudgeSchedule(accountAgeDays, currentMode)
+}
+
+// areSubsystemsReady returns true if all required subsystems are initialized.
+func (a *App) areSubsystemsReady() bool {
+	return a.subsystems != nil && a.subsystems.Identity != nil && a.subsystems.Storage != nil
+}
+
+// getAccountAgeDays retrieves the account age in days from the identity declaration.
+func (a *App) getAccountAgeDays() (int, bool) {
 	pubKey := a.subsystems.Identity.PublicKey
 	decl, err := a.subsystems.Storage.GetIdentityDeclaration(pubKey)
 	if err != nil || decl == nil {
-		// No declaration yet (should not happen after onboarding, but handle gracefully).
-		return
+		return 0, false
 	}
 
 	accountAge := time.Since(time.Unix(decl.CreatedAt, 0))
-	accountAgeDays := int(accountAge.Hours() / 24)
+	return int(accountAge.Hours() / 24), true
+}
 
-	// Only process nudges during first week.
-	if accountAgeDays > 7 {
-		return
-	}
-
-	// Get current privacy mode to filter nudges.
-	currentMode := a.getCurrentMode()
-
-	// Check each nudge in schedule.
+// processNudgeSchedule checks each scheduled nudge and sends if applicable.
+func (a *App) processNudgeSchedule(accountAgeDays int, currentMode modes.Mode) {
 	for _, nudge := range nudgeSchedule {
-		if accountAgeDays < nudge.Day {
-			continue // Not time yet
+		if a.shouldSendNudge(nudge, accountAgeDays, currentMode) {
+			nudgeKey := fmt.Sprintf("nudge_day%d_mode%d", nudge.Day, nudge.Mode)
+			a.sendNudge(nudge)
+			a.markNudgeShown(nudgeKey)
 		}
-
-		// Mode filtering: zero value (Open) matches all modes.
-		if nudge.Mode != modes.Open && nudge.Mode != currentMode {
-			continue // Nudge not applicable to current mode
-		}
-
-		// Check if this nudge was already shown.
-		nudgeKey := fmt.Sprintf("nudge_day%d_mode%d", nudge.Day, nudge.Mode)
-		if a.wasNudgeShown(nudgeKey) {
-			continue // Already shown
-		}
-
-		// Dispatch nudge via event bus (UI will display as notification).
-		a.sendNudge(nudge)
-
-		// Mark as shown.
-		a.markNudgeShown(nudgeKey)
 	}
+}
+
+// shouldSendNudge returns true if the nudge should be sent based on timing, mode, and prior display.
+func (a *App) shouldSendNudge(nudge Nudge, accountAgeDays int, currentMode modes.Mode) bool {
+	if accountAgeDays < nudge.Day {
+		return false // Not time yet
+	}
+
+	if nudge.Mode != modes.Open && nudge.Mode != currentMode {
+		return false // Nudge not applicable to current mode
+	}
+
+	nudgeKey := fmt.Sprintf("nudge_day%d_mode%d", nudge.Day, nudge.Mode)
+	return !a.wasNudgeShown(nudgeKey)
 }
 
 // getCurrentMode returns the user's current privacy mode from config.

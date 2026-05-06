@@ -166,52 +166,73 @@ func RenderSigilWithGlow(dst, sigilImg *ebiten.Image, x, y, nodeRadius float32, 
 // The rendered glow image is cached by (size, colour, intensity) to avoid
 // allocating a new GPU texture on every call (per the audit HIGH finding).
 func drawGlowCircle(dst *ebiten.Image, cx, cy, radius float32, c color.RGBA, intensity float32) {
-	// Create a temporary image for the glow effect.
 	size := int(radius * 2)
 	if size < 1 {
 		return
 	}
 
-	key := glowCacheKey{
+	key := buildGlowCacheKey(size, c, intensity)
+	glowImg := getOrCreateGlowImage(key, size, c, intensity)
+	drawGlowImage(dst, glowImg, cx, cy, size)
+}
+
+// buildGlowCacheKey creates a cache key for the given glow parameters.
+func buildGlowCacheKey(size int, c color.RGBA, intensity float32) glowCacheKey {
+	return glowCacheKey{
 		size:      size,
 		r:         c.R,
 		g:         c.G,
 		b:         c.B,
 		intensity: uint8(intensity * 255),
 	}
+}
 
-	// Fast path: check cache under read lock.
+// getOrCreateGlowImage retrieves a cached glow image or creates and caches a new one.
+func getOrCreateGlowImage(key glowCacheKey, size int, c color.RGBA, intensity float32) *ebiten.Image {
 	glowCacheMu.RLock()
 	glowImg, ok := glowImages[key]
 	glowCacheMu.RUnlock()
 
 	if !ok {
-		// Slow path: build and store the glow image.
-		glow := image.NewRGBA(image.Rect(0, 0, size, size))
-		center := float32(size) / 2
-
-		for y := 0; y < size; y++ {
-			for x := 0; x < size; x++ {
-				dx := float32(x) - center
-				dy := float32(y) - center
-				dist := dx*dx + dy*dy
-				maxDist := center * center
-
-				if dist < maxDist {
-					falloff := 1.0 - dist/maxDist
-					alpha := uint8(float32(c.A) * falloff * intensity)
-					glow.SetRGBA(x, y, color.RGBA{R: c.R, G: c.G, B: c.B, A: alpha})
-				}
-			}
-		}
-
-		glowImg = ebiten.NewImageFromImage(glow)
-
+		glowImg = createGlowImage(size, c, intensity)
 		glowCacheMu.Lock()
 		glowImages[key] = glowImg
 		glowCacheMu.Unlock()
 	}
 
+	return glowImg
+}
+
+// createGlowImage generates a new glow image with radial falloff.
+func createGlowImage(size int, c color.RGBA, intensity float32) *ebiten.Image {
+	glow := image.NewRGBA(image.Rect(0, 0, size, size))
+	center := float32(size) / 2
+	maxDist := center * center
+
+	for y := 0; y < size; y++ {
+		for x := 0; x < size; x++ {
+			setGlowPixel(glow, x, y, center, maxDist, c, intensity)
+		}
+	}
+
+	return ebiten.NewImageFromImage(glow)
+}
+
+// setGlowPixel sets a single glow pixel with radial falloff.
+func setGlowPixel(glow *image.RGBA, x, y int, center, maxDist float32, c color.RGBA, intensity float32) {
+	dx := float32(x) - center
+	dy := float32(y) - center
+	dist := dx*dx + dy*dy
+
+	if dist < maxDist {
+		falloff := 1.0 - dist/maxDist
+		alpha := uint8(float32(c.A) * falloff * intensity)
+		glow.SetRGBA(x, y, color.RGBA{R: c.R, G: c.G, B: c.B, A: alpha})
+	}
+}
+
+// drawGlowImage draws the cached glow image at the specified position.
+func drawGlowImage(dst, glowImg *ebiten.Image, cx, cy float32, size int) {
 	center := float32(size) / 2
 	opts := &ebiten.DrawImageOptions{}
 	opts.GeoM.Translate(float64(cx-center), float64(cy-center))

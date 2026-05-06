@@ -49,34 +49,42 @@ func NewRecoveryScreen() *RecoveryScreen {
 
 // Update handles input and state updates for the recovery screen.
 func (s *RecoveryScreen) Update() error {
-	// Handle method selection if not chosen yet.
 	if s.method == RecoveryMethodNone {
 		s.updateMethodSelection()
 		return nil
 	}
 
-	// Handle mnemonic entry.
+	s.updateSelectedMethod()
+	return nil
+}
+
+// updateSelectedMethod handles input for the currently selected recovery method.
+func (s *RecoveryScreen) updateSelectedMethod() {
 	if s.method == RecoveryMethodMnemonic {
 		s.updateMnemonicEntry()
+	} else if s.method == RecoveryMethodKeyFile {
+		s.updateKeyFileMethod()
 	}
+}
 
-	// Handle key file: back button is available even before a file is loaded.
-	if s.method == RecoveryMethodKeyFile {
-		if s.passphraseMode {
-			s.updatePassphraseEntry()
-		} else {
-			// No file loaded yet — only the back button is interactive.
-			if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
-				x, y := ebiten.CursorPosition()
-				if isInButton(float32(x), float32(y), 200, 500, 120, 40) {
-					s.method = RecoveryMethodNone
-					s.errorMsg = ""
-				}
-			}
+// updateKeyFileMethod handles key file recovery UI, including passphrase entry and back button.
+func (s *RecoveryScreen) updateKeyFileMethod() {
+	if s.passphraseMode {
+		s.updatePassphraseEntry()
+	} else {
+		s.handleKeyFileBackButton()
+	}
+}
+
+// handleKeyFileBackButton processes the back button when no file is loaded yet.
+func (s *RecoveryScreen) handleKeyFileBackButton() {
+	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+		x, y := ebiten.CursorPosition()
+		if isInButton(float32(x), float32(y), 200, 500, 120, 40) {
+			s.method = RecoveryMethodNone
+			s.errorMsg = ""
 		}
 	}
-
-	return nil
 }
 
 // updateMethodSelection handles the recovery method selection UI.

@@ -220,22 +220,32 @@ func (m *Manager) handleTrafficPaddingTransition(old, target Mode) error {
 	newRequires := target.RequiresTrafficPadding()
 
 	if !oldRequires && newRequires {
-		// Entering Guarded/Fortress - start traffic padding.
-		if m.paddingStarter != nil {
-			if err := m.paddingStarter(); err != nil {
-				return ErrTrafficPaddingStartErr
-			}
-		}
-		m.paddingEnabled = true
+		return m.startTrafficPadding()
 	} else if oldRequires && !newRequires {
-		// Leaving Guarded/Fortress - stop traffic padding.
-		if m.paddingStopper != nil {
-			if err := m.paddingStopper(); err != nil {
-				return ErrTrafficPaddingStopErr
-			}
-		}
-		m.paddingEnabled = false
+		return m.stopTrafficPadding()
 	}
+	return nil
+}
+
+// startTrafficPadding activates traffic padding when entering Guarded or Fortress mode.
+func (m *Manager) startTrafficPadding() error {
+	if m.paddingStarter != nil {
+		if err := m.paddingStarter(); err != nil {
+			return ErrTrafficPaddingStartErr
+		}
+	}
+	m.paddingEnabled = true
+	return nil
+}
+
+// stopTrafficPadding deactivates traffic padding when leaving Guarded or Fortress mode.
+func (m *Manager) stopTrafficPadding() error {
+	if m.paddingStopper != nil {
+		if err := m.paddingStopper(); err != nil {
+			return ErrTrafficPaddingStopErr
+		}
+	}
+	m.paddingEnabled = false
 	return nil
 }
 
