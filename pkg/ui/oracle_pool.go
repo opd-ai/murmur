@@ -268,49 +268,74 @@ func (p *OraclePoolPanel) Draw(screen *ebiten.Image) {
 		return
 	}
 
-	const (
-		panelWidth  = 450
-		panelHeight = 350
-		padding     = 16
-	)
+	panelX, panelY := p.calculatePanelPosition(screen)
+	p.drawPanelBackground(screen, panelX, panelY)
+	p.drawPanelTitle(screen, panelX, panelY)
 
+	if p.pool != nil {
+		p.drawPoolDetails(screen, panelX, panelY, panelPadding)
+	}
+
+	p.drawErrorIfPresent(screen, panelX, panelY)
+	p.drawInstructions(screen, panelX, panelY, panelHeight, panelPadding)
+}
+
+const (
+	panelWidth   = 450
+	panelHeight  = 350
+	panelPadding = 16
+)
+
+// calculatePanelPosition computes centered panel coordinates.
+func (p *OraclePoolPanel) calculatePanelPosition(screen *ebiten.Image) (float32, float32) {
 	screenW := screen.Bounds().Dx()
 	screenH := screen.Bounds().Dy()
 	panelX := float32((screenW - panelWidth) / 2)
 	panelY := float32((screenH - panelHeight) / 2)
+	return panelX, panelY
+}
 
-	// Background.
+// drawPanelBackground renders the panel background and border.
+func (p *OraclePoolPanel) drawPanelBackground(screen *ebiten.Image, panelX, panelY float32) {
 	vector.DrawFilledRect(screen, panelX, panelY, panelWidth, panelHeight, p.theme.PanelBackground, true)
 	vector.StrokeRect(screen, panelX, panelY, panelWidth, panelHeight, 2, p.theme.PanelBorder, true)
+}
 
-	// Title.
-	title := "Oracle Pool"
-	if p.mode == OraclePoolModeCreate {
-		title = "Create Oracle Pool"
-	} else if p.mode == OraclePoolModePredict {
-		title = "Submit Prediction"
-	}
-	if defaultFont != nil {
-		op := &text.DrawOptions{}
-		op.GeoM.Translate(float64(panelX+padding), float64(panelY+padding))
-		op.ColorScale.ScaleWithColor(p.theme.TextPrimary)
-		text.Draw(screen, title, defaultFont, op)
+// drawPanelTitle renders the mode-specific panel title.
+func (p *OraclePoolPanel) drawPanelTitle(screen *ebiten.Image, panelX, panelY float32) {
+	if defaultFont == nil {
+		return
 	}
 
-	if p.pool != nil {
-		p.drawPoolDetails(screen, panelX, panelY, padding)
+	title := selectOraclePoolTitle(p.mode)
+	op := &text.DrawOptions{}
+	op.GeoM.Translate(float64(panelX+panelPadding), float64(panelY+panelPadding))
+	op.ColorScale.ScaleWithColor(p.theme.TextPrimary)
+	text.Draw(screen, title, defaultFont, op)
+}
+
+// selectOraclePoolTitle returns the appropriate title based on mode.
+func selectOraclePoolTitle(mode OraclePoolPanelMode) string {
+	switch mode {
+	case OraclePoolModeCreate:
+		return "Create Oracle Pool"
+	case OraclePoolModePredict:
+		return "Submit Prediction"
+	default:
+		return "Oracle Pool"
+	}
+}
+
+// drawErrorIfPresent renders the error message if one exists.
+func (p *OraclePoolPanel) drawErrorIfPresent(screen *ebiten.Image, panelX, panelY float32) {
+	if p.errorMessage == "" || defaultFont == nil {
+		return
 	}
 
-	// Error message.
-	if p.errorMessage != "" && defaultFont != nil {
-		op := &text.DrawOptions{}
-		op.GeoM.Translate(float64(panelX+padding), float64(panelY+panelHeight-50))
-		op.ColorScale.ScaleWithColor(p.theme.TextError)
-		text.Draw(screen, p.errorMessage, defaultFont, op)
-	}
-
-	// Instructions.
-	p.drawInstructions(screen, panelX, panelY, panelHeight, padding)
+	op := &text.DrawOptions{}
+	op.GeoM.Translate(float64(panelX+panelPadding), float64(panelY+panelHeight-50))
+	op.ColorScale.ScaleWithColor(p.theme.TextError)
+	text.Draw(screen, p.errorMessage, defaultFont, op)
 }
 
 // drawPoolDetails draws the pool information.

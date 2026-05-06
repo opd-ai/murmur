@@ -759,49 +759,58 @@ func (a *App) checkDatabaseSize() {
 // Subsystems are closed in reverse initialization order.
 // Per ROADMAP.md line 814: ordered subsystem teardown with timeout.
 func (a *App) Close() error {
-	a.mu.Lock()
-	wasRunning := a.running
-	a.running = false
+	wasRunning := a.markStopped()
 	pulseMapUI := a.subsystems.PulseMapUI
-	a.mu.Unlock()
 
-	// Signal Pulse Map UI to shut down if it exists.
-	// This must happen before canceling context to give the UI loop time to exit.
-	if pulseMapUI != nil {
-		// Type assert to the concrete type to access Shutdown().
-		// The type is interface{} to avoid hard ebiten dependency in this package.
-		type shutdowner interface {
-			Shutdown()
-		}
-		if ui, ok := pulseMapUI.(shutdowner); ok {
-			ui.Shutdown()
-		}
-	}
-
-	// Always cancel the context to signal shutdown.
+	a.shutdownPulseMapUI(pulseMapUI)
 	a.cancel()
 
-	// Only close subsystems if the app was running.
 	if wasRunning {
-		// Wait for goroutines with timeout.
-		done := make(chan struct{})
-		go func() {
-			a.wg.Wait()
-			close(done)
-		}()
-
-		select {
-		case <-done:
-			// Goroutines completed successfully.
-		case <-time.After(10 * time.Second):
-			// Timeout reached - force shutdown.
-			fmt.Fprintln(os.Stderr, "WARNING: Graceful shutdown timeout reached after 10 seconds")
-		}
-
+		a.waitForGoroutines()
 		return a.closeSubsystems()
 	}
 
 	return nil
+}
+
+// markStopped atomically marks the app as stopped and returns previous state.
+func (a *App) markStopped() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	wasRunning := a.running
+	a.running = false
+	return wasRunning
+}
+
+// shutdownPulseMapUI signals the Pulse Map UI to shut down if present.
+func (a *App) shutdownPulseMapUI(pulseMapUI interface{}) {
+	if pulseMapUI == nil {
+		return
+	}
+
+	type shutdowner interface {
+		Shutdown()
+	}
+	if ui, ok := pulseMapUI.(shutdowner); ok {
+		ui.Shutdown()
+	}
+}
+
+// waitForGoroutines waits for all goroutines to complete with timeout.
+func (a *App) waitForGoroutines() {
+	const shutdownTimeout = 10 * time.Second
+
+	done := make(chan struct{})
+	go func() {
+		a.wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(shutdownTimeout):
+		fmt.Fprintln(os.Stderr, "WARNING: Graceful shutdown timeout reached after 10 seconds")
+	}
 }
 
 // closeSubsystems closes all subsystems in reverse initialization order.

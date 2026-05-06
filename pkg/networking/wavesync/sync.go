@@ -145,55 +145,89 @@ func (sh *SyncHandler) handleStream(s network.Stream) {
 
 	remotePeer := s.Conn().RemotePeer()
 
-	// Check concurrent sessions
-	if atomic.AddInt32(&sh.activeSessions, 1) > MaxConcurrentSessions {
-		atomic.AddInt32(&sh.activeSessions, -1)
+	if !sh.checkConcurrentSessions() {
 		sh.writeResponse(s, &SyncResponse{Status: StatusTooManyPeers})
 		return
 	}
-	defer atomic.AddInt32(&sh.activeSessions, -1)
+	defer sh.decrementActiveSessions()
 
-	// Check rate limit
-	if !sh.rateLimiter.allow(remotePeer) {
+	if !sh.checkRateLimit(remotePeer) {
 		sh.writeResponse(s, &SyncResponse{Status: StatusRateLimited})
-		sh.mu.RLock()
-		cb := sh.callbacks.OnRateLimited
-		sh.mu.RUnlock()
-		if cb != nil {
-			cb(remotePeer)
-		}
+		sh.notifyRateLimited(remotePeer)
 		return
 	}
 
-	// Set read deadline
-	_ = s.SetReadDeadline(time.Now().Add(RequestTimeout))
-
-	// Read request
-	req, err := sh.readRequest(s)
-	if err != nil {
+	req, ok := sh.readRequestWithDeadline(s)
+	if !ok {
 		sh.writeResponse(s, &SyncResponse{Status: StatusInvalidReq})
 		return
 	}
 
-	sh.mu.RLock()
-	cbReq := sh.callbacks.OnSyncRequest
-	sh.mu.RUnlock()
-	if cbReq != nil {
-		cbReq(remotePeer, req.Type)
-	}
-
-	// Process request
+	sh.notifySyncRequest(remotePeer, req.Type)
 	resp := sh.processRequest(req)
+	sh.writeResponseWithDeadline(s, resp)
+	sh.notifySyncComplete(remotePeer, len(resp.Waves))
+}
 
-	// Write response
+// checkConcurrentSessions enforces the concurrent session limit.
+func (sh *SyncHandler) checkConcurrentSessions() bool {
+	if atomic.AddInt32(&sh.activeSessions, 1) > MaxConcurrentSessions {
+		atomic.AddInt32(&sh.activeSessions, -1)
+		return false
+	}
+	return true
+}
+
+// decrementActiveSessions decrements the active session counter.
+func (sh *SyncHandler) decrementActiveSessions() {
+	atomic.AddInt32(&sh.activeSessions, -1)
+}
+
+// checkRateLimit checks if the peer is within rate limits.
+func (sh *SyncHandler) checkRateLimit(peer peer.ID) bool {
+	return sh.rateLimiter.allow(peer)
+}
+
+// notifyRateLimited invokes the rate limit callback if configured.
+func (sh *SyncHandler) notifyRateLimited(peer peer.ID) {
+	sh.mu.RLock()
+	cb := sh.callbacks.OnRateLimited
+	sh.mu.RUnlock()
+	if cb != nil {
+		cb(peer)
+	}
+}
+
+// readRequestWithDeadline reads a request with timeout.
+func (sh *SyncHandler) readRequestWithDeadline(s network.Stream) (*SyncRequest, bool) {
+	_ = s.SetReadDeadline(time.Now().Add(RequestTimeout))
+	req, err := sh.readRequest(s)
+	return req, err == nil
+}
+
+// notifySyncRequest invokes the sync request callback if configured.
+func (sh *SyncHandler) notifySyncRequest(peer peer.ID, reqType byte) {
+	sh.mu.RLock()
+	cb := sh.callbacks.OnSyncRequest
+	sh.mu.RUnlock()
+	if cb != nil {
+		cb(peer, reqType)
+	}
+}
+
+// writeResponseWithDeadline writes a response with timeout.
+func (sh *SyncHandler) writeResponseWithDeadline(s network.Stream, resp *SyncResponse) {
 	_ = s.SetWriteDeadline(time.Now().Add(RequestTimeout))
 	sh.writeResponse(s, resp)
+}
 
+// notifySyncComplete invokes the sync complete callback if configured.
+func (sh *SyncHandler) notifySyncComplete(peer peer.ID, waveCount int) {
 	sh.mu.RLock()
-	cbComplete := sh.callbacks.OnSyncComplete
+	cb := sh.callbacks.OnSyncComplete
 	sh.mu.RUnlock()
-	if cbComplete != nil {
-		cbComplete(remotePeer, len(resp.Waves))
+	if cb != nil {
+		cb(peer, waveCount)
 	}
 }
 

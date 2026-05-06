@@ -170,54 +170,72 @@ func (p *DeviceManagementPanel) Draw(screen *ebiten.Image) {
 // drawDeviceList draws the list of authorized devices.
 func (p *DeviceManagementPanel) drawDeviceList(screen *ebiten.Image, x, y int) {
 	if len(p.devices) == 0 {
-		noDevicesY := y + 150
-		drawUICenteredText(screen, "No authorized devices", float64(x+p.width/2), float64(noDevicesY), p.theme.TextSecondary)
+		drawNoDevicesMessage(screen, x, y, p.width, p.theme)
 		return
 	}
 
 	const itemHeight = 80
-	padding := 10
+	const padding = 10
 
 	for i, device := range p.devices {
 		itemY := y + i*itemHeight - p.scrollY
 
-		// Skip if scrolled out of view
-		if itemY < y-itemHeight || itemY > y+p.height-200 {
+		if !isItemVisible(itemY, y, p.height, itemHeight) {
 			continue
 		}
 
-		// Draw device item background
-		bgColor := p.theme.InputBackground
-		if i == p.selectedIndex {
-			bgColor = p.theme.Selection
-		}
+		drawDeviceItem(screen, device, i, p.selectedIndex, x, itemY, p.width, padding, p.theme)
 
-		vector.DrawFilledRect(screen, float32(x+padding), float32(itemY),
-			float32(p.width-padding*2), float32(itemHeight-5), bgColor, true)
-
-		// Draw device label
-		labelY := itemY + 20
-		labelText := device.Label
-		if device.IsCurrentDevice {
-			labelText += " (This Device)"
-		}
-		drawUIText(screen, labelText, float64(x+padding+10), float64(labelY), p.theme.TextPrimary)
-
-		// Draw public key (truncated)
-		keyY := itemY + 40
-		keyText := fmt.Sprintf("Key: %x...", device.PublicKey[:8])
-		drawUIText(screen, keyText, float64(x+padding+10), float64(keyY), p.theme.TextSecondary)
-
-		// Draw authorization date
-		dateY := itemY + 60
-		dateText := fmt.Sprintf("Authorized: %s", device.AuthorizedAt.Format("2006-01-02 15:04"))
-		drawUIText(screen, dateText, float64(x+padding+10), float64(dateY), p.theme.TextSecondary)
-
-		// Draw revoke button (if not current device)
 		if !device.IsCurrentDevice {
 			p.drawRevokeButton(screen, x+p.width-120, itemY+25, i)
 		}
 	}
+}
+
+// drawNoDevicesMessage renders the empty state message.
+func drawNoDevicesMessage(screen *ebiten.Image, x, y, width int, theme Theme) {
+	noDevicesY := y + 150
+	drawUICenteredText(screen, "No authorized devices", float64(x+width/2), float64(noDevicesY), theme.TextSecondary)
+}
+
+// isItemVisible checks if an item is within the visible scroll area.
+func isItemVisible(itemY, viewportY, viewportHeight, itemHeight int) bool {
+	return itemY >= viewportY-itemHeight && itemY <= viewportY+viewportHeight-200
+}
+
+// drawDeviceItem renders a single device list item.
+func drawDeviceItem(
+	screen *ebiten.Image,
+	device DeviceInfo,
+	index, selectedIndex,
+	x, itemY, width, padding int,
+	theme Theme,
+) {
+	bgColor := theme.InputBackground
+	if index == selectedIndex {
+		bgColor = theme.Selection
+	}
+
+	const itemHeight = 80
+	vector.DrawFilledRect(screen, float32(x+padding), float32(itemY),
+		float32(width-padding*2), float32(itemHeight-5), bgColor, true)
+
+	drawDeviceItemText(screen, device, x, itemY, padding, theme)
+}
+
+// drawDeviceItemText renders all text elements for a device item.
+func drawDeviceItemText(screen *ebiten.Image, device DeviceInfo, x, itemY, padding int, theme Theme) {
+	labelText := device.Label
+	if device.IsCurrentDevice {
+		labelText += " (This Device)"
+	}
+	drawUIText(screen, labelText, float64(x+padding+10), float64(itemY+20), theme.TextPrimary)
+
+	keyText := fmt.Sprintf("Key: %x...", device.PublicKey[:8])
+	drawUIText(screen, keyText, float64(x+padding+10), float64(itemY+40), theme.TextSecondary)
+
+	dateText := fmt.Sprintf("Authorized: %s", device.AuthorizedAt.Format("2006-01-02 15:04"))
+	drawUIText(screen, dateText, float64(x+padding+10), float64(itemY+60), theme.TextSecondary)
 }
 
 // drawRevokeButton draws a revoke button for a device.

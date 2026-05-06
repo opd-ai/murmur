@@ -238,57 +238,75 @@ func (p *PuzzleEffects) drawFragmentPuzzle(dst *ebiten.Image, x, y, size float32
 
 // drawMosaicPuzzle renders interlocking pieces for Mosaic puzzles.
 func (p *PuzzleEffects) drawMosaicPuzzle(dst *ebiten.Image, x, y, size float32, state PuzzleState, progress float32) {
-	// Blue/purple color scheme for Mosaic.
-	baseColor := color.RGBA{100, 150, 255, 200}
-	if state == PuzzleStateExpired {
-		baseColor = color.RGBA{128, 128, 128, 100}
-	} else if state == PuzzleStateSolved {
-		baseColor = color.RGBA{100, 255, 100, 200}
-	}
-
-	// 5 interlocking pieces arranged in a cross.
-	piecePositions := [][2]float32{
-		{0, 0},           // Center.
-		{-size * 0.8, 0}, // Left.
-		{size * 0.8, 0},  // Right.
-		{0, -size * 0.8}, // Top.
-		{0, size * 0.8},  // Bottom.
-	}
-
+	baseColor := selectMosaicBaseColor(state)
+	piecePositions := getMosaicPiecePositions(size)
 	completedPieces := int(progress * 5)
 
-	for i, pos := range piecePositions {
-		offsetX := pos[0]
-		offsetY := pos[1]
+	drawMosaicPieces(dst, x, y, size, piecePositions, completedPieces, baseColor, p.mosaicPieces[:])
 
-		// Animation: pieces pulse individually.
-		piecePulse := 1.0 + 0.1*float32(math.Sin(float64(p.mosaicPieces[i])))
+	if state == PuzzleStateActive {
+		drawMosaicGlow(dst, x, y, size)
+	}
+}
+
+// selectMosaicBaseColor returns the appropriate color based on puzzle state.
+func selectMosaicBaseColor(state PuzzleState) color.RGBA {
+	switch state {
+	case PuzzleStateExpired:
+		return color.RGBA{128, 128, 128, 100}
+	case PuzzleStateSolved:
+		return color.RGBA{100, 255, 100, 200}
+	default:
+		return color.RGBA{100, 150, 255, 200}
+	}
+}
+
+// getMosaicPiecePositions returns the 5 interlocking piece positions in a cross.
+func getMosaicPiecePositions(size float32) [][2]float32 {
+	return [][2]float32{
+		{0, 0},           // Center
+		{-size * 0.8, 0}, // Left
+		{size * 0.8, 0},  // Right
+		{0, -size * 0.8}, // Top
+		{0, size * 0.8},  // Bottom
+	}
+}
+
+// drawMosaicPieces renders all puzzle pieces with completion status.
+func drawMosaicPieces(
+	dst *ebiten.Image,
+	x, y, size float32,
+	positions [][2]float32,
+	completedCount int,
+	baseColor color.RGBA,
+	animationStates []float32,
+) {
+	for i, pos := range positions {
+		px := x + pos[0]
+		py := y + pos[1]
+
+		piecePulse := 1.0 + 0.1*float32(math.Sin(float64(animationStates[i])))
 		pieceSize := size * 0.35 * piecePulse
 
-		// Color based on completion.
 		pieceColor := baseColor
-		if i < completedPieces {
-			pieceColor = color.RGBA{100, 255, 150, 200} // Green for completed.
+		if i < completedCount {
+			pieceColor = color.RGBA{100, 255, 150, 200}
 		}
 
-		// Draw square piece with rounded corners effect.
-		px := x + offsetX
-		py := y + offsetY
 		vector.DrawFilledRect(dst, px-pieceSize, py-pieceSize, pieceSize*2, pieceSize*2, pieceColor, true)
 
-		// Connection lines between pieces.
 		if i > 0 {
 			lineColor := color.RGBA{pieceColor.R, pieceColor.G, pieceColor.B, 100}
 			vector.StrokeLine(dst, x, y, px, py, 1.0, lineColor, true)
 		}
 	}
+}
 
-	// Glow for active.
-	if state == PuzzleStateActive {
-		glowColor := color.RGBA{100, 150, 255, 30}
-		glowSize := size * 1.6
-		vector.DrawFilledCircle(dst, x, y, glowSize, glowColor, true)
-	}
+// drawMosaicGlow renders the active state glow effect.
+func drawMosaicGlow(dst *ebiten.Image, x, y, size float32) {
+	glowColor := color.RGBA{100, 150, 255, 30}
+	glowSize := size * 1.6
+	vector.DrawFilledCircle(dst, x, y, glowSize, glowColor, true)
 }
 
 // drawCascadePuzzle renders flowing waterfall effect for Cascade puzzles.

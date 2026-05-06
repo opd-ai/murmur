@@ -405,68 +405,24 @@ type EdgeStyle struct {
 // Edge thickness is proportional to interaction frequency (message exchange rate).
 // At Macro zoom, edges are rendered as faint lines with sparse sampling.
 func RenderEdge(dst *ebiten.Image, x1, y1, x2, y2 float32, style EdgeStyle, zoom ZoomLevel) {
-	// Per PULSE_MAP.md §Macro View: "Connections are rendered as faint lines,
-	// with only a sparse sample visible to prevent visual overload."
 	if zoom == ZoomMacro {
 		renderEdgeMacro(dst, x1, y1, x2, y2, style)
 		return
 	}
 
-	// Calculate edge opacity based on age.
-	var alpha uint8 = 50 // Base alpha (20-40% as per spec)
-	if style.Age > 90 {
-		alpha = 80 // Old connections more visible
-	} else if style.Age < 7 {
-		alpha = 40 // New connections dashed (simplified to lower alpha)
-	}
+	alpha := calculateEdgeAlpha(style)
+	edgeColor := buildEdgeColor(style, alpha)
+	thickness := calculateEdgeThickness(style)
 
-	// Specter edges are more translucent.
-	if style.IsSpecter {
-		alpha = uint8(float32(alpha) * 0.7)
-	}
-
-	edgeColor := color.RGBA{
-		R: style.Color.R,
-		G: style.Color.G,
-		B: style.Color.B,
-		A: alpha,
-	}
-
-	// Calculate edge thickness based on interaction frequency.
-	// Base thickness: 1.5, scale logarithmically with frequency.
-	// thickness = base + scale * ln(1 + frequency)
-	// For frequency in messages/day: 0 msg/day → 1.5px, 10 msg/day → ~3px, 100 msg/day → ~6px
-	baseThickness := 1.5
-	thicknessScale := 1.5
-	thickness := baseThickness + thicknessScale*math.Log(1+style.InteractionFrequency)
-
-	// For simplicity, draw straight line (Bézier curves require more complex path)
 	vector.StrokeLine(dst, x1, y1, x2, y2, float32(thickness), edgeColor, true)
 
-	// Activity pulse animation (simplified)
 	if style.Active {
-		pulseColor := color.RGBA{255, 255, 255, 180}
-		if style.IsSpecter {
-			pulseColor = color.RGBA{200, 220, 255, 140} // Cooler, more ghostly
-		}
-		// Draw a bright dot at midpoint to indicate activity.
-		mx := (x1 + x2) / 2
-		my := (y1 + y2) / 2
-		vector.DrawFilledCircle(dst, mx, my, 3, pulseColor, true)
+		renderActivityPulse(dst, x1, y1, x2, y2, style.IsSpecter)
 	}
 }
 
-// RenderEdgeWithTime draws an edge with time-based animations.
-// Edge thickness is proportional to interaction frequency (message exchange rate).
-// At Macro zoom, edges are rendered as faint lines with sparse sampling.
-func RenderEdgeWithTime(dst *ebiten.Image, x1, y1, x2, y2 float32, style EdgeStyle, zoom ZoomLevel, time float64) {
-	// Per PULSE_MAP.md §Macro View: "Connections are rendered as faint lines,
-	// with only a sparse sample visible to prevent visual overload."
-	if zoom == ZoomMacro {
-		renderEdgeMacro(dst, x1, y1, x2, y2, style)
-		return
-	}
-
+// calculateEdgeAlpha computes edge opacity based on age and type.
+func calculateEdgeAlpha(style EdgeStyle) uint8 {
 	var alpha uint8 = 50
 	if style.Age > 90 {
 		alpha = 80
@@ -475,38 +431,89 @@ func RenderEdgeWithTime(dst *ebiten.Image, x1, y1, x2, y2 float32, style EdgeSty
 	}
 
 	if style.IsSpecter {
-		// Animated shimmer for Specter edges.
-		shimmer := 0.7 + 0.3*math.Sin(time*2.0)
-		alpha = uint8(float64(alpha) * shimmer)
+		alpha = uint8(float32(alpha) * 0.7)
 	}
 
-	edgeColor := color.RGBA{
+	return alpha
+}
+
+// buildEdgeColor constructs the edge color from style and alpha.
+func buildEdgeColor(style EdgeStyle, alpha uint8) color.RGBA {
+	return color.RGBA{
 		R: style.Color.R,
 		G: style.Color.G,
 		B: style.Color.B,
 		A: alpha,
 	}
+}
 
-	// Calculate edge thickness based on interaction frequency.
-	// Base thickness: 1.5, scale logarithmically with frequency.
-	baseThickness := 1.5
-	thicknessScale := 1.5
-	thickness := baseThickness + thicknessScale*math.Log(1+style.InteractionFrequency)
+// calculateEdgeThickness computes thickness from interaction frequency.
+func calculateEdgeThickness(style EdgeStyle) float64 {
+	const baseThickness = 1.5
+	const thicknessScale = 1.5
+	return baseThickness + thicknessScale*math.Log(1+style.InteractionFrequency)
+}
+
+// renderActivityPulse draws an activity indicator at edge midpoint.
+func renderActivityPulse(dst *ebiten.Image, x1, y1, x2, y2 float32, isSpecter bool) {
+	pulseColor := color.RGBA{255, 255, 255, 180}
+	if isSpecter {
+		pulseColor = color.RGBA{200, 220, 255, 140}
+	}
+
+	mx := (x1 + x2) / 2
+	my := (y1 + y2) / 2
+	vector.DrawFilledCircle(dst, mx, my, 3, pulseColor, true)
+}
+
+// RenderEdgeWithTime draws an edge with time-based animations.
+// Edge thickness is proportional to interaction frequency (message exchange rate).
+// At Macro zoom, edges are rendered as faint lines with sparse sampling.
+func RenderEdgeWithTime(dst *ebiten.Image, x1, y1, x2, y2 float32, style EdgeStyle, zoom ZoomLevel, time float64) {
+	if zoom == ZoomMacro {
+		renderEdgeMacro(dst, x1, y1, x2, y2, style)
+		return
+	}
+
+	alpha := calculateAnimatedEdgeAlpha(style, time)
+	edgeColor := buildEdgeColor(style, alpha)
+	thickness := calculateEdgeThickness(style)
 
 	vector.StrokeLine(dst, x1, y1, x2, y2, float32(thickness), edgeColor, true)
 
 	if style.Active {
-		// Animated pulse moving along the edge.
-		pulsePos := math.Mod(time*0.5, 1.0)
-		px := x1 + float32(pulsePos)*(x2-x1)
-		py := y1 + float32(pulsePos)*(y2-y1)
-
-		pulseColor := color.RGBA{255, 255, 255, 180}
-		if style.IsSpecter {
-			pulseColor = color.RGBA{200, 220, 255, 140}
-		}
-		vector.DrawFilledCircle(dst, px, py, 3, pulseColor, true)
+		renderAnimatedActivityPulse(dst, x1, y1, x2, y2, style.IsSpecter, time)
 	}
+}
+
+// calculateAnimatedEdgeAlpha computes time-animated edge opacity.
+func calculateAnimatedEdgeAlpha(style EdgeStyle, time float64) uint8 {
+	var alpha uint8 = 50
+	if style.Age > 90 {
+		alpha = 80
+	} else if style.Age < 7 {
+		alpha = 40
+	}
+
+	if style.IsSpecter {
+		shimmer := 0.7 + 0.3*math.Sin(time*2.0)
+		alpha = uint8(float64(alpha) * shimmer)
+	}
+
+	return alpha
+}
+
+// renderAnimatedActivityPulse draws a moving activity indicator along the edge.
+func renderAnimatedActivityPulse(dst *ebiten.Image, x1, y1, x2, y2 float32, isSpecter bool, time float64) {
+	pulsePos := math.Mod(time*0.5, 1.0)
+	px := x1 + float32(pulsePos)*(x2-x1)
+	py := y1 + float32(pulsePos)*(y2-y1)
+
+	pulseColor := color.RGBA{255, 255, 255, 180}
+	if isSpecter {
+		pulseColor = color.RGBA{200, 220, 255, 140}
+	}
+	vector.DrawFilledCircle(dst, px, py, 3, pulseColor, true)
 }
 
 // renderEdgeMacro renders an edge at Macro zoom level as a faint line.

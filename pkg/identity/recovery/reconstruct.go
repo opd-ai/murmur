@@ -19,67 +19,92 @@ func ReconstructMasterKey(
 	contactX25519PublicKeys map[uint32][]byte,
 ) (*RecoveryResult, error) {
 	if len(responses) == 0 {
-		return &RecoveryResult{
-			Success: false,
-			Error:   ErrNotEnoughShares,
-		}, nil
+		return newRecoveryResult(false, ErrNotEnoughShares, nil, nil), nil
 	}
 
+	shares, sharesUsed, err := decryptReceivedShares(responses, requesterX25519PrivateKey, contactX25519PublicKeys)
+	if err != nil {
+		return newRecoveryResult(false, err, nil, nil), nil
+	}
+
+	masterKey, err := combineSharesToMasterKey(shares, expectedPublicKey)
+	if err != nil {
+		return newRecoveryResult(false, err, nil, nil), nil
+	}
+
+	return newRecoveryResult(true, nil, masterKey, sharesUsed), nil
+}
+
+// newRecoveryResult constructs a RecoveryResult with given parameters.
+func newRecoveryResult(success bool, err error, masterKey ed25519.PrivateKey, sharesUsed []uint32) *RecoveryResult {
+	return &RecoveryResult{
+		Success:    success,
+		Error:      err,
+		MasterKey:  masterKey,
+		SharesUsed: sharesUsed,
+	}
+}
+
+// decryptReceivedShares decrypts all received shares using ECDH.
+func decryptReceivedShares(
+	responses []*proto.RecoveryResponse,
+	requesterX25519PrivateKey []byte,
+	contactX25519PublicKeys map[uint32][]byte,
+) ([][]byte, []uint32, error) {
 	shares := make([][]byte, len(responses))
 	sharesUsed := make([]uint32, len(responses))
 
 	for i, resp := range responses {
-		contactX25519Key, ok := contactX25519PublicKeys[resp.ShareIndex]
-		if !ok {
-			return &RecoveryResult{
-				Success: false,
-				Error:   fmt.Errorf("missing X25519 key for share index %d", resp.ShareIndex),
-			}, nil
-		}
-
-		sharedSecret, err := deriveSharedSecret(requesterX25519PrivateKey, contactX25519Key)
+		share, err := decryptSingleShare(resp, requesterX25519PrivateKey, contactX25519PublicKeys)
 		if err != nil {
-			return &RecoveryResult{
-				Success: false,
-				Error:   fmt.Errorf("ECDH failed for share %d: %w", resp.ShareIndex, err),
-			}, nil
+			return nil, nil, err
 		}
-
-		share, err := decryptShare(resp.EncryptedShare, resp.Nonce, sharedSecret)
-		if err != nil {
-			return &RecoveryResult{
-				Success: false,
-				Error:   fmt.Errorf("decryption failed for share %d: %w", resp.ShareIndex, err),
-			}, nil
-		}
-
 		shares[i] = share
 		sharesUsed[i] = resp.ShareIndex
 	}
 
+	return shares, sharesUsed, nil
+}
+
+// decryptSingleShare decrypts a single recovery response share.
+func decryptSingleShare(
+	resp *proto.RecoveryResponse,
+	requesterX25519PrivateKey []byte,
+	contactX25519PublicKeys map[uint32][]byte,
+) ([]byte, error) {
+	contactX25519Key, ok := contactX25519PublicKeys[resp.ShareIndex]
+	if !ok {
+		return nil, fmt.Errorf("missing X25519 key for share index %d", resp.ShareIndex)
+	}
+
+	sharedSecret, err := deriveSharedSecret(requesterX25519PrivateKey, contactX25519Key)
+	if err != nil {
+		return nil, fmt.Errorf("ECDH failed for share %d: %w", resp.ShareIndex, err)
+	}
+
+	share, err := decryptShare(resp.EncryptedShare, resp.Nonce, sharedSecret)
+	if err != nil {
+		return nil, fmt.Errorf("decryption failed for share %d: %w", resp.ShareIndex, err)
+	}
+
+	return share, nil
+}
+
+// combineSharesToMasterKey combines Shamir shares and verifies the result.
+func combineSharesToMasterKey(shares [][]byte, expectedPublicKey ed25519.PublicKey) (ed25519.PrivateKey, error) {
 	masterKeySeed, err := shamir.Combine(shares)
 	if err != nil {
-		return &RecoveryResult{
-			Success: false,
-			Error:   ErrReconstructionFailed,
-		}, nil
+		return nil, ErrReconstructionFailed
 	}
 
 	reconstructedKey := ed25519.NewKeyFromSeed(masterKeySeed)
 	reconstructedPublicKey := reconstructedKey.Public().(ed25519.PublicKey)
 
 	if !reconstructedPublicKey.Equal(expectedPublicKey) {
-		return &RecoveryResult{
-			Success: false,
-			Error:   ErrInvalidMasterKey,
-		}, nil
+		return nil, ErrInvalidMasterKey
 	}
 
-	return &RecoveryResult{
-		MasterKey:  reconstructedKey,
-		SharesUsed: sharesUsed,
-		Success:    true,
-	}, nil
+	return reconstructedKey, nil
 }
 
 // CreateRecoveryRequest generates a recovery request message.
