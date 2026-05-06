@@ -133,7 +133,8 @@ The `-race` detector is the authoritative source for concurrency bugs. **All fin
     1. Simulate high load: `for i := 0; i < 10000; i++ { eb.Emit(Event{...}) }` and verify `EventBusDropsTotal` metric.
     2. Confirm critical events are never dropped: `EventReplyReceived`, `EventShroudCircuitFailed`, `EventShroudCircuitBuilt`.
 
-- [ ] **M2: Layout engine stop channel separate from context creates shutdown race** — `pkg/pulsemap/layout/engine.go:199-225`
+- [x] **M2: Layout engine stop channel separate from context creates shutdown race** — `pkg/pulsemap/layout/engine.go:199-225`
+  - **Status:** ALREADY RESOLVED. The layout engine was previously refactored to use context-only shutdown. Tests updated to pass context to Start().
   - **Evidence:** The `Start()` method selects on both `stopCh` and a ticker, but does not select on `ctx.Done()`. The `Stop()` method closes `stopCh`, but if called concurrently with context cancellation, there is a narrow window where the goroutine may block on a channel send/receive after `stopCh` is closed but before it checks the channel.
   - **Execution path:** `App.Close()` → `cancel()` + `engine.Stop()` concurrent → goroutine in `Start()` blocked on `ticker.C` → 10s timeout.
   - **Impact:** Contributes to H1 (shutdown timeout). The layout engine is one of the 7 persistent goroutines.
@@ -143,7 +144,8 @@ The `-race` detector is the authoritative source for concurrency bugs. **All fin
     3. Remove the `Stop()` method — context cancellation becomes the sole shutdown signal.
   - **Verification:** `engine.Start(ctx)` exits within 100ms of `cancel()` call.
 
-- [ ] **M3: Double-buffered position swap not synchronized with reader access** — `pkg/pulsemap/layout/engine.go:61-83`
+- [x] **M3: Double-buffered position swap not synchronized with reader access** — `pkg/pulsemap/layout/engine.go:61-83`
+  - **Status:** FALSE POSITIVE. The atomic.Pointer pattern is correct - layout creates fresh maps each tick and swaps pointers atomically. No concurrent map mutation occurs.
   - **Evidence:** The `PositionBuffer` uses `atomic.Pointer` for lock-free reads, which is correct. However, the `Start()` goroutine calls `frontBuffer.Swap(backBuffer)` without ensuring the reader (Ebitengine `Draw()` loop) is not mid-access.
   - **Execution path:** Layout goroutine: `newPositions := make(map[string]Position)` → `populate(newPositions)` → `frontBuffer.Swap(&newPositions)` *concurrent with* Rendering goroutine: `positions := frontBuffer.Get()` → iterate `positions` → **panic if map resized during iteration**.
   - **Higher-level serialization:** Wait — Go maps are **not** safe for concurrent read/write, but `atomic.Pointer.Load()` returns a *pointer to a map*, not the map itself. Once the pointer is loaded, the map it points to is immutable (the layout goroutine creates a new map each tick; it never mutates the old map). Therefore, this is **safe**.
