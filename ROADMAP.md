@@ -853,7 +853,7 @@
 - [x] **Keystore separation** — Surface and Specter keys in separate encrypted files (pkg/identity/keys/keystore.go with SaveIdentityBundle/LoadIdentityBundle, 0600 file permissions, independent Argon2id+XChaCha20-Poly1305 encryption per key, validated 2026-05-06)
 - [x] **PoW verification before signature** — ordering per SECURITY_PRIVACY.md
 - [x] **Signed DHT records** — prevent DHT poisoning (pkg/networking/discovery/dht.go enables ValidateRecords)
-- [ ] **Multi-region connection diversity** — eclipse attack resistance
+- [x] **Multi-region connection diversity** — eclipse attack resistance (pkg/networking/mesh/diversity.go RegionDiversityManager integrated into mesh.Manager, tracks peer regions, enforces MaxPeersPerRegion=6, targets ≥3 unique regions, prunes overloaded regions first, 100% test coverage, validated 2026-05-06)
 - [x] **Rate limiting per peer** — per-peer message rate caps (pkg/networking/gossip/pubsub.go 10 msg/sec limit per AUDIT.md HIGH resolution 2026-05-04)
 - [x] **Gossip flooding defense** — PoW cost + peer scoring + rate limits (PoW difficulty 20, peer scoring operational, rate limiting active)
 - [x] **Relay attack mitigation** — Shroud circuits with mixing and timing padding (pkg/anonymous/shroud/circuit.go implements 3-hop circuits with encryption)

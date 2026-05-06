@@ -11,6 +11,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
+	ma "github.com/multiformats/go-multiaddr"
 )
 
 // Mesh configuration constants per DESIGN_DOCUMENT.md.
@@ -62,7 +63,8 @@ type Manager struct {
 	cancel            context.CancelFunc
 	heartbeatC        chan peer.ID
 	heartbeatInterval time.Duration
-	scoreFunc         PeerScoreFunc // Optional: for score-based pruning
+	scoreFunc         PeerScoreFunc           // Optional: for score-based pruning
+	diversityMgr      *RegionDiversityManager // Optional: for eclipse attack resistance
 }
 
 // NewManager creates a new connection manager with the given heartbeat interval.
@@ -79,6 +81,7 @@ func NewManager(h host.Host, heartbeatInterval time.Duration) *Manager {
 		cancel:            cancel,
 		heartbeatC:        make(chan peer.ID, 100),
 		heartbeatInterval: heartbeatInterval,
+		diversityMgr:      NewRegionDiversityManager(),
 	}
 
 	// Register connection notifee
@@ -176,6 +179,12 @@ func (m *Manager) onConnect(p peer.ID) {
 		Priority: PriorityRandom, // Default priority
 		LastSeen: time.Now(),
 	}
+
+	// Track region diversity for eclipse resistance
+	if m.diversityMgr != nil {
+		addrs := m.h.Peerstore().Addrs(p)
+		m.diversityMgr.AddPeer(p, addrs)
+	}
 }
 
 func (m *Manager) onDisconnect(p peer.ID) {
@@ -183,6 +192,11 @@ func (m *Manager) onDisconnect(p peer.ID) {
 	defer m.mu.Unlock()
 
 	delete(m.peers, p)
+
+	// Remove from region diversity tracking
+	if m.diversityMgr != nil {
+		m.diversityMgr.RemovePeer(p)
+	}
 }
 
 func (m *Manager) heartbeatLoop() {
@@ -301,6 +315,20 @@ func (m *Manager) PruneLowestPriority() peer.ID {
 		return ""
 	}
 
+	// First check if we need to prune for diversity (eclipse resistance)
+	if m.diversityMgr != nil {
+		toDrop := m.diversityMgr.GetPeersToDropForDiversity()
+		if len(toDrop) > 0 {
+			// Prune the first overloaded region peer
+			lowestID := toDrop[0]
+			m.mu.Lock()
+			delete(m.peers, lowestID)
+			m.mu.Unlock()
+			_ = m.h.Network().ClosePeer(lowestID)
+			return lowestID
+		}
+	}
+
 	lowestID := m.removeLowestPriorityPeer()
 	if lowestID != "" {
 		_ = m.h.Network().ClosePeer(lowestID)
@@ -335,4 +363,24 @@ func (m *Manager) findLowestPriorityPeerLocked() peer.ID {
 		}
 	}
 	return lowestID
+}
+
+// DiversityStatus returns the current region diversity status.
+// Returns nil if diversity manager is not enabled.
+func (m *Manager) DiversityStatus() *DiversityStatus {
+	if m.diversityMgr == nil {
+		return nil
+	}
+	status := m.diversityMgr.Status()
+	return &status
+}
+
+// ShouldAcceptPeerFromAddrs returns whether we should accept a peer
+// based on region diversity constraints. Returns true if diversity
+// manager is disabled or if the peer should be accepted.
+func (m *Manager) ShouldAcceptPeerFromAddrs(addrs []ma.Multiaddr) bool {
+	if m.diversityMgr == nil {
+		return true
+	}
+	return m.diversityMgr.ShouldAcceptPeer(addrs)
 }
