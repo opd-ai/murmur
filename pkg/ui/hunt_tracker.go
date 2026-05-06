@@ -578,44 +578,64 @@ func (p *HuntTrackerPanel) drawLeaderboardTab(screen *ebiten.Image, x, y, w, h i
 	for i := 0; i < visibleItems && i < len(p.hunt.Leaderboard); i++ {
 		entry := p.hunt.Leaderboard[i]
 		itemY := y + i*itemH + 4
-
-		// Item background.
-		itemBg := color.RGBA{40, 42, 50, 255}
-		if entry.IsMe {
-			itemBg = color.RGBA{50, 60, 70, 255}
-		}
-
-		vector.DrawFilledRect(screen, float32(x+4), float32(itemY),
-			float32(w-8), float32(itemH-4), itemBg, true)
-
-		// Rank indicator.
-		rankX := x + 12
-		rankY := itemY + 10
-		rankColor := p.theme.TextSecondary
-		if i == 0 {
-			rankColor = color.RGBA{255, 215, 0, 255} // Gold.
-		} else if i == 1 {
-			rankColor = color.RGBA{192, 192, 192, 255} // Silver.
-		} else if i == 2 {
-			rankColor = color.RGBA{205, 127, 50, 255} // Bronze.
-		}
-		vector.DrawFilledCircle(screen, float32(rankX+10), float32(rankY+10), 12, rankColor, true)
-
-		// Claims bar.
-		maxClaims := p.hunt.FragmentCount
-		if maxClaims > 0 {
-			barX := x + 80
-			barY := itemY + itemH/2 - 4
-			barW := w - 110
-			barH := 8
-			vector.DrawFilledRect(screen, float32(barX), float32(barY),
-				float32(barW), float32(barH), p.theme.ButtonBackground, true)
-
-			fillW := float64(barW) * float64(entry.Claims) / float64(maxClaims)
-			vector.DrawFilledRect(screen, float32(barX), float32(barY),
-				float32(fillW), float32(barH), p.theme.AccentPrimary, true)
-		}
+		p.drawLeaderboardEntry(screen, entry, i, x, itemY, w, itemH)
 	}
+}
+
+// drawLeaderboardEntry renders a single leaderboard entry with background, rank indicator, and claims bar.
+func (p *HuntTrackerPanel) drawLeaderboardEntry(screen *ebiten.Image, entry LeaderboardEntry, rank, x, itemY, w, itemH int) {
+	p.drawLeaderboardBackground(screen, entry, x, itemY, w, itemH)
+	p.drawRankIndicator(screen, rank, x, itemY)
+	p.drawClaimsBar(screen, entry, x, itemY, w, itemH)
+}
+
+// drawLeaderboardBackground draws the entry background with highlight for current user.
+func (p *HuntTrackerPanel) drawLeaderboardBackground(screen *ebiten.Image, entry LeaderboardEntry, x, itemY, w, itemH int) {
+	itemBg := color.RGBA{40, 42, 50, 255}
+	if entry.IsMe {
+		itemBg = color.RGBA{50, 60, 70, 255}
+	}
+	vector.DrawFilledRect(screen, float32(x+4), float32(itemY), float32(w-8), float32(itemH-4), itemBg, true)
+}
+
+// drawRankIndicator draws the rank circle with appropriate color for top 3 positions.
+func (p *HuntTrackerPanel) drawRankIndicator(screen *ebiten.Image, rank, x, itemY int) {
+	rankX := x + 12
+	rankY := itemY + 10
+	rankColor := p.getRankColor(rank)
+	vector.DrawFilledCircle(screen, float32(rankX+10), float32(rankY+10), 12, rankColor, true)
+}
+
+// getRankColor returns the appropriate color for a rank (gold/silver/bronze for top 3).
+func (p *HuntTrackerPanel) getRankColor(rank int) color.RGBA {
+	switch rank {
+	case 0:
+		return color.RGBA{255, 215, 0, 255} // Gold.
+	case 1:
+		return color.RGBA{192, 192, 192, 255} // Silver.
+	case 2:
+		return color.RGBA{205, 127, 50, 255} // Bronze.
+	default:
+		return p.theme.TextSecondary
+	}
+}
+
+// drawClaimsBar draws the progress bar showing fragment claims relative to total.
+func (p *HuntTrackerPanel) drawClaimsBar(screen *ebiten.Image, entry LeaderboardEntry, x, itemY, w, itemH int) {
+	maxClaims := p.hunt.FragmentCount
+	if maxClaims == 0 {
+		return
+	}
+
+	barX := x + 80
+	barY := itemY + itemH/2 - 4
+	barW := w - 110
+	barH := 8
+
+	vector.DrawFilledRect(screen, float32(barX), float32(barY), float32(barW), float32(barH), p.theme.ButtonBackground, true)
+
+	fillW := float64(barW) * float64(entry.Claims) / float64(maxClaims)
+	vector.DrawFilledRect(screen, float32(barX), float32(barY), float32(fillW), float32(barH), p.theme.AccentPrimary, true)
 }
 
 // drawTimer draws the countdown timer.

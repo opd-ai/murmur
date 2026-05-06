@@ -51,9 +51,23 @@ func NewServer(host host.Host, pubsub *gossip.PubSub) *Server {
 // Returns an error if the server fails to start.
 // The server runs in a background goroutine and can be stopped via ctx.
 func (s *Server) Start(ctx context.Context, port int) error {
+	if err := s.initializeServer(port); err != nil {
+		return err
+	}
+
+	errCh := make(chan error, 1)
+	s.startServerGoroutine(errCh)
+	s.startShutdownMonitor(ctx, errCh)
+
+	return nil
+}
+
+// initializeServer checks for duplicate start and creates the HTTP server.
+func (s *Server) initializeServer(port int) error {
 	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if s.httpServer != nil {
-		s.mu.Unlock()
 		return fmt.Errorf("health server already started")
 	}
 
@@ -68,33 +82,40 @@ func (s *Server) Start(ctx context.Context, port int) error {
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  15 * time.Second,
 	}
-	s.mu.Unlock()
 
-	// Start HTTP server in background goroutine
-	errCh := make(chan error, 1)
+	return nil
+}
+
+// startServerGoroutine launches the HTTP server in a background goroutine.
+func (s *Server) startServerGoroutine(errCh chan error) {
 	go func() {
 		if err := s.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			errCh <- fmt.Errorf("health server error: %w", err)
 		}
 	}()
+}
 
-	// Wait for either server error or context cancellation
+// startShutdownMonitor monitors context cancellation and server errors, initiating shutdown when needed.
+func (s *Server) startShutdownMonitor(ctx context.Context, errCh chan error) {
 	go func() {
 		select {
 		case <-ctx.Done():
-			shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			if err := s.httpServer.Shutdown(shutdownCtx); err != nil {
-				fmt.Printf("Health server shutdown error: %v\n", err)
-			}
+			s.shutdownGracefully()
 		case err := <-errCh:
 			if err != nil {
 				fmt.Printf("Health server error: %v\n", err)
 			}
 		}
 	}()
+}
 
-	return nil
+// shutdownGracefully performs a graceful HTTP server shutdown with timeout.
+func (s *Server) shutdownGracefully() {
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := s.httpServer.Shutdown(shutdownCtx); err != nil {
+		fmt.Printf("Health server shutdown error: %v\n", err)
+	}
 }
 
 // handleHealth serves the /health endpoint.

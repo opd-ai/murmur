@@ -181,19 +181,36 @@ func (cm *ClusterManager) UpdateClusters(
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 
-	// Check if clustering should be enabled.
-	nodeCount := len(nodes)
-	if nodeCount < cm.threshold {
-		cm.enabled = false
-		cm.clusters = make(map[string]*Cluster)
-		cm.nodeCluster = make(map[string]string)
+	if !cm.shouldEnableClustering(len(nodes)) {
+		cm.disableClustering()
 		return
 	}
 	cm.enabled = true
 
-	// Build edge map for connectivity info.
+	edgeMap, connections := cm.buildConnectivityMaps(edges)
+	clusters := cm.performClustering(nodes, positions, edgeMap)
+	clusters = cm.limitClusterCount(clusters, positions)
+	cm.buildClusterConnections(clusters, connections)
+	cm.updateInternalState(clusters)
+}
+
+// shouldEnableClustering returns true if the node count exceeds the threshold.
+func (cm *ClusterManager) shouldEnableClustering(nodeCount int) bool {
+	return nodeCount >= cm.threshold
+}
+
+// disableClustering resets clustering state.
+func (cm *ClusterManager) disableClustering() {
+	cm.enabled = false
+	cm.clusters = make(map[string]*Cluster)
+	cm.nodeCluster = make(map[string]string)
+}
+
+// buildConnectivityMaps builds edge count and connection maps from edge list.
+func (cm *ClusterManager) buildConnectivityMaps(edges []Edge) (map[string]int, map[string]map[string]bool) {
 	edgeMap := make(map[string]int)
 	connections := make(map[string]map[string]bool)
+
 	for _, e := range edges {
 		edgeMap[e.SourceID]++
 		edgeMap[e.TargetID]++
@@ -203,18 +220,19 @@ func (cm *ClusterManager) UpdateClusters(
 		connections[e.SourceID][e.TargetID] = true
 	}
 
-	// Perform hierarchical clustering.
-	clusters := cm.performClustering(nodes, positions, edgeMap)
+	return edgeMap, connections
+}
 
-	// Limit cluster count if too many.
+// limitClusterCount merges clusters if count exceeds maximum.
+func (cm *ClusterManager) limitClusterCount(clusters []*Cluster, positions map[string]Position) []*Cluster {
 	if len(clusters) > cm.maxClusters {
-		clusters = cm.mergeClusters(clusters, positions, cm.maxClusters)
+		return cm.mergeClusters(clusters, positions, cm.maxClusters)
 	}
+	return clusters
+}
 
-	// Build cluster connections.
-	cm.buildClusterConnections(clusters, connections)
-
-	// Update internal state.
+// updateInternalState updates cluster and node-to-cluster mappings, preserving expanded state.
+func (cm *ClusterManager) updateInternalState(clusters []*Cluster) {
 	cm.clusters = make(map[string]*Cluster)
 	cm.nodeCluster = make(map[string]string)
 
@@ -223,7 +241,6 @@ func (cm *ClusterManager) UpdateClusters(
 		for _, nodeID := range c.NodeIDs {
 			cm.nodeCluster[nodeID] = c.ID
 		}
-		// Preserve expanded state.
 		if cm.expandedIDs[c.ID] {
 			c.Expanded = true
 		}
@@ -574,13 +591,27 @@ func (cm *ClusterManager) GetStats() ClusterStats {
 		return stats
 	}
 
+	cm.computeClusterSizeStats(&stats)
+
+	if len(cm.clusters) > 0 {
+		stats.AvgClusterSize = float64(stats.TotalNodes) / float64(len(cm.clusters))
+	}
+
+	if stats.SmallestCluster == math.MaxInt32 {
+		stats.SmallestCluster = 0
+	}
+
+	return stats
+}
+
+// computeClusterSizeStats computes total, largest, smallest, and expanded count statistics.
+func (cm *ClusterManager) computeClusterSizeStats(stats *ClusterStats) {
 	stats.LargestCluster = 0
 	stats.SmallestCluster = math.MaxInt32
-	total := 0
 
 	for _, c := range cm.clusters {
 		stats.TotalNodes += c.NodeCount
-		total += c.NodeCount
+
 		if c.NodeCount > stats.LargestCluster {
 			stats.LargestCluster = c.NodeCount
 		}
@@ -591,14 +622,4 @@ func (cm *ClusterManager) GetStats() ClusterStats {
 			stats.ExpandedCount++
 		}
 	}
-
-	if len(cm.clusters) > 0 {
-		stats.AvgClusterSize = float64(total) / float64(len(cm.clusters))
-	}
-
-	if stats.SmallestCluster == math.MaxInt32 {
-		stats.SmallestCluster = 0
-	}
-
-	return stats
 }

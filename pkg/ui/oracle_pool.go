@@ -435,39 +435,58 @@ func (p *OraclePoolPanel) drawInstructions(screen *ebiten.Image, panelX, panelY,
 		return
 	}
 
-	var instructions string
-	switch p.mode {
-	case OraclePoolModeView:
-		if p.pool != nil {
-			switch p.pool.State {
-			case OraclePoolStatePending:
-				if !p.pool.MyCommitted {
-					instructions = "P:Predict  Esc:Close"
-				} else {
-					instructions = "Prediction committed  Esc:Close"
-				}
-			case OraclePoolStateRevealing:
-				if p.pool.MyCommitted && !p.pool.MyRevealed {
-					instructions = "R:Reveal  Esc:Close"
-				} else {
-					instructions = "Esc:Close"
-				}
-			default:
-				instructions = "Esc:Close"
-			}
-		} else {
-			instructions = "Esc:Close"
-		}
-	case OraclePoolModePredict:
-		instructions = "Enter:Submit  Esc:Cancel"
-	case OraclePoolModeCreate:
-		instructions = "Enter:Create  Esc:Cancel"
-	}
+	instructions := p.getInstructionsText()
 
 	op := &text.DrawOptions{}
 	op.GeoM.Translate(float64(panelX+padding), float64(panelY+panelHeight-30))
 	op.ColorScale.ScaleWithColor(p.theme.TextSecondary)
 	text.Draw(screen, instructions, defaultFont, op)
+}
+
+// getInstructionsText returns the appropriate instructions text based on current mode and pool state.
+func (p *OraclePoolPanel) getInstructionsText() string {
+	switch p.mode {
+	case OraclePoolModeView:
+		return p.getViewModeInstructions()
+	case OraclePoolModePredict:
+		return "Enter:Submit  Esc:Cancel"
+	case OraclePoolModeCreate:
+		return "Enter:Create  Esc:Cancel"
+	default:
+		return "Esc:Close"
+	}
+}
+
+// getViewModeInstructions returns instructions text for view mode based on pool state.
+func (p *OraclePoolPanel) getViewModeInstructions() string {
+	if p.pool == nil {
+		return "Esc:Close"
+	}
+
+	switch p.pool.State {
+	case OraclePoolStatePending:
+		return p.getPendingStateInstructions()
+	case OraclePoolStateRevealing:
+		return p.getRevealingStateInstructions()
+	default:
+		return "Esc:Close"
+	}
+}
+
+// getPendingStateInstructions returns instructions for pending pool state.
+func (p *OraclePoolPanel) getPendingStateInstructions() string {
+	if !p.pool.MyCommitted {
+		return "P:Predict  Esc:Close"
+	}
+	return "Prediction committed  Esc:Close"
+}
+
+// getRevealingStateInstructions returns instructions for revealing pool state.
+func (p *OraclePoolPanel) getRevealingStateInstructions() string {
+	if p.pool.MyCommitted && !p.pool.MyRevealed {
+		return "R:Reveal  Esc:Close"
+	}
+	return "Esc:Close"
 }
 
 // GetPool returns the current pool info.

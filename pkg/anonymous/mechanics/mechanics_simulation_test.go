@@ -1,14 +1,21 @@
 //go:build simulation
 
-// Package mechanics multi-node simulation tests validate end-to-end
+// Package mechanics_test contains multi-node simulation tests that validate end-to-end
 // completion of anonymous game mechanics per ANONYMOUS_GAME_MECHANICS.md.
-package mechanics
+package mechanics_test
 
 import (
 	"crypto/rand"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics/councils"
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics/forge"
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics/hunts"
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics/oracle"
+	"github.com/opd-ai/murmur/pkg/anonymous/mechanics/shadowplay"
 )
 
 // TestSpecterHuntEndToEnd validates complete hunt lifecycle with multiple participants.
@@ -26,12 +33,13 @@ func TestSpecterHuntEndToEnd(t *testing.T) {
 	var seed [32]byte
 	rand.Read(seed[:])
 
-	hunt, err := NewHunt(
+	hunt, err := hunts.NewHunt(
 		"Test Network Hunt",
 		seed,
 		specters[0], // Initiator
-		HuntDuration30Min,
+		hunts.HuntDuration30Min,
 		numFragments,
+		hunts.HuntMinResonance, // initiatorResonance
 	)
 	if err != nil {
 		t.Fatalf("Failed to create hunt: %v", err)
@@ -54,7 +62,7 @@ func TestSpecterHuntEndToEnd(t *testing.T) {
 		claimer := i % numSpecters
 
 		// Create proximity proof (mock: always valid)
-		proof := ProximityProof{
+		proof := mechanics.ProximityProof{
 			ClaimerPeerID:  "QmSpecter" + string(rune('A'+claimer)),
 			ConnectedPeers: []string{"QmPeer1", "QmPeer2"},
 			HopDistances:   []int{1, 2}, // Within proximity
@@ -97,7 +105,7 @@ func TestSpecterHuntEndToEnd(t *testing.T) {
 	}
 
 	// Verify bonus calculation
-	bonus := ComputeHuntBonus(3, numFragments)
+	bonus := hunts.ComputeHuntBonus(3, numFragments)
 	if bonus <= 0 {
 		t.Error("Hunt bonus should be positive for participants")
 	}
@@ -118,9 +126,9 @@ func TestOraclePoolEndToEnd(t *testing.T) {
 
 	// Create pool with short timeframes for testing
 	now := time.Now()
-	pool, err := NewOraclePool(
+	pool, err := oracle.NewOraclePool(
 		"Will network node count exceed 100 by end of week?",
-		OraclePredictionBoolean,
+		oracle.OraclePredictionBoolean,
 		"Network metrics oracle",
 		specters[0],
 		now.Add(100*time.Millisecond), // Short deadline for test
@@ -145,7 +153,7 @@ func TestOraclePoolEndToEnd(t *testing.T) {
 			predictions[i] = 1.0 // Predict true
 		}
 
-		commitment := ComputeCommitmentHash(predictions[i], nonces[i])
+		commitment := oracle.ComputeCommitmentHash(predictions[i], nonces[i])
 		err := pool.SubmitCommitment(specters[i], commitment)
 		if err != nil {
 			t.Errorf("Failed to submit commitment %d: %v", i, err)
@@ -195,7 +203,7 @@ func TestOraclePoolEndToEnd(t *testing.T) {
 	}
 
 	// Top 25% should be rewarded
-	expectedWinners := int(float64(numPredictors) * OracleTopPercentile)
+	expectedWinners := int(float64(numPredictors) * oracle.OracleTopPercentile)
 	if expectedWinners < 1 {
 		expectedWinners = 1
 	}
@@ -204,7 +212,7 @@ func TestOraclePoolEndToEnd(t *testing.T) {
 		t.Errorf("Expected at least %d winners, got %d", expectedWinners, len(winners))
 	}
 
-	t.Logf("Winners: %d (top %.0f%% of %d)", len(winners), OracleTopPercentile*100, numPredictors)
+	t.Logf("Winners: %d (top %.0f%% of %d)", len(winners), oracle.OracleTopPercentile*100, numPredictors)
 
 	for _, w := range winners {
 		if w.Accuracy != 1.0 {
@@ -227,40 +235,41 @@ func TestSigilForgeEndToEnd(t *testing.T) {
 	}
 
 	// Create forge challenge
-	forge, err := NewSigilForge(
-		ForgeSigilArt,
+	frg, err := forge.NewSigilForge(
+		forge.ForgeSigilArt,
 		"Minimalist geometric sigil",
 		specters[0],
-		ForgeDuration30Min,
+		forge.ForgeDuration30Min,
+		forge.ForgeMinResonance, // initiatorResonance
 	)
 	if err != nil {
 		t.Fatalf("Failed to create forge: %v", err)
 	}
 
-	t.Logf("Sigil Forge created: %x...", forge.ID[:8])
+	t.Logf("Sigil Forge created: %x...", frg.ID[:8])
 
 	// Submit entries
 	for i := 0; i < numParticipants; i++ {
 		content := []byte("sigil-data-" + string(rune('A'+i)))
 		var emptyParent [32]byte
-		_, err := forge.SubmitEntry(specters[i], content, emptyParent)
+		_, err := frg.SubmitEntry(specters[i], content, emptyParent)
 		if err != nil {
 			t.Errorf("Failed to submit entry %d: %v", i, err)
 		}
 	}
 
-	if forge.EntryCount() != numParticipants {
-		t.Errorf("Expected %d entries, got %d", numParticipants, forge.EntryCount())
+	if frg.EntryCount() != numParticipants {
+		t.Errorf("Expected %d entries, got %d", numParticipants, frg.EntryCount())
 	}
-	t.Logf("Submitted %d forge entries", forge.EntryCount())
+	t.Logf("Submitted %d forge entries", frg.EntryCount())
 
 	// Amplify entries (voting)
 	for i := 0; i < numParticipants; i++ {
 		// Each specter amplifies someone else's entry
 		amplifyIdx := (i + 1) % numParticipants
-		targetEntry := forge.GetEntryBySpecter(specters[amplifyIdx])
+		targetEntry := frg.GetEntryBySpecter(specters[amplifyIdx])
 		if targetEntry != nil {
-			err := forge.AmplifyEntry(targetEntry.ID, specters[i], 50.0) // resonance = 50
+			err := frg.AmplifyEntry(targetEntry.ID, specters[i], 50.0) // resonance = 50
 			if err != nil {
 				t.Logf("Amplify from %d for %d: %v", i, amplifyIdx, err)
 			}
@@ -268,19 +277,19 @@ func TestSigilForgeEndToEnd(t *testing.T) {
 	}
 
 	// Force deadline to pass and evaluate
-	forge.Deadline = time.Now().Add(-time.Second)
-	forge.UpdateState()
-	err = forge.Evaluate()
+	frg.Deadline = time.Now().Add(-time.Second)
+	frg.UpdateState()
+	err = frg.Evaluate()
 	if err != nil {
 		t.Fatalf("Failed to evaluate forge: %v", err)
 	}
 
-	if !forge.IsCompleted() {
+	if !frg.IsCompleted() {
 		t.Error("Forge should be completed")
 	}
 
 	// Verify winner determination
-	leaderboard := forge.GetLeaderboard()
+	leaderboard := frg.GetLeaderboard()
 	if len(leaderboard) == 0 {
 		t.Error("Should have leaderboard entries")
 	}
@@ -293,8 +302,8 @@ func TestSigilForgeEndToEnd(t *testing.T) {
 	}
 
 	// Verify bonus calculation
-	winner := forge.GetWinner()
-	bonus := ComputeForgeWinnerBonus(winner.Amplifications)
+	winner := frg.GetWinner()
+	bonus := forge.ComputeForgeWinnerBonus(winner.Amplifications)
 	if bonus <= 0 {
 		t.Error("Forge winner bonus should be positive")
 	}
@@ -314,7 +323,7 @@ func TestShadowPlayEndToEnd(t *testing.T) {
 	}
 
 	// Create game
-	game, err := NewShadowPlay(specters[0], ShadowPlayDuration30Min, numPlayers)
+	game, err := shadowplay.NewShadowPlay(specters[0], shadowplay.ShadowPlayDuration30Min, numPlayers)
 	if err != nil {
 		t.Fatalf("Failed to create shadow play: %v", err)
 	}
@@ -340,7 +349,7 @@ func TestShadowPlayEndToEnd(t *testing.T) {
 		t.Fatalf("Failed to start game: %v", err)
 	}
 
-	if game.State != ShadowPlayActive {
+	if game.State != shadowplay.ShadowPlayActive {
 		t.Error("Game should be active after start")
 	}
 
@@ -350,9 +359,9 @@ func TestShadowPlayEndToEnd(t *testing.T) {
 	for i := 0; i < numPlayers; i++ {
 		role, _ := game.DeriveRole(specters[i])
 		switch role {
-		case RoleShade:
+		case shadowplay.RoleShade:
 			shades++
-		case RoleEcho:
+		case shadowplay.RoleEcho:
 			echoes++
 		}
 	}
@@ -403,11 +412,11 @@ func TestShadowPlayEndToEnd(t *testing.T) {
 	// Determine result
 	var winner string
 	switch game.State {
-	case ShadowPlayEchoesWin:
+	case shadowplay.ShadowPlayEchoesWin:
 		winner = "Echoes"
-	case ShadowPlayShadesWin:
+	case shadowplay.ShadowPlayShadesWin:
 		winner = "Shades"
-	case ShadowPlayExpired:
+	case shadowplay.ShadowPlayExpired:
 		winner = "Draw (expired)"
 	default:
 		winner = "Unknown"
@@ -415,7 +424,7 @@ func TestShadowPlayEndToEnd(t *testing.T) {
 	t.Logf("Winner: %s", winner)
 
 	// Verify bonus calculation
-	bonus := ComputeShadowPlayWinBonus(numPlayers)
+	bonus := shadowplay.ComputeShadowPlayWinBonus(numPlayers)
 	if bonus <= 0 {
 		t.Error("Winner bonus should be positive")
 	}
@@ -436,14 +445,14 @@ func TestPhantomCouncilEndToEnd(t *testing.T) {
 	}
 
 	// Create council (creator, name, purpose, minResonance, maxMembers, creatorResonance, isFortress)
-	council, err := NewPhantomCouncil(
+	council, err := councils.NewPhantomCouncil(
 		specters[0], // Founder
 		"Test Governance Council",
 		"Testing council operations",
 		minResonance,
 		councilSize,
-		CouncilMinResonance, // Creator has sufficient resonance
-		true,                // Fortress mode required
+		councils.CouncilMinResonance, // Creator has sufficient resonance
+		true,                         // Fortress mode required
 	)
 	if err != nil {
 		t.Fatalf("Failed to create council: %v", err)
@@ -469,7 +478,7 @@ func TestPhantomCouncilEndToEnd(t *testing.T) {
 			break
 		}
 		// Founder votes for admission (unanimous required, only 1 voter initially)
-		err := council.VoteOnApplication(specters[0], app.ApplicantKey, VoteFor)
+		err := council.VoteOnApplication(specters[0], app.ApplicantKey, councils.VoteFor)
 		if err != nil {
 			t.Errorf("Failed to vote on applicant: %v", err)
 			continue
@@ -498,12 +507,12 @@ func TestPhantomCouncilEndToEnd(t *testing.T) {
 		votesAgainst := 0
 
 		for i, member := range members {
-			var vote VoteValue
+			var vote councils.VoteValue
 			if i%3 == 0 {
-				vote = VoteAgainst
+				vote = councils.VoteAgainst
 				votesAgainst++
 			} else {
-				vote = VoteFor
+				vote = councils.VoteFor
 				votesFor++
 			}
 
@@ -563,7 +572,7 @@ func TestMultiGameConcurrentSimulation(t *testing.T) {
 			var seed [32]byte
 			rand.Read(seed[:])
 
-			hunt, err := NewHunt("Hunt "+string(rune('A'+huntNum)), seed, specters[huntNum], HuntDuration30Min, 5)
+			hunt, err := hunts.NewHunt("Hunt "+string(rune('A'+huntNum)), seed, specters[huntNum], hunts.HuntDuration30Min, 5, hunts.HuntMinResonance)
 			if err != nil {
 				t.Logf("Hunt %d creation failed: %v", huntNum, err)
 				return
@@ -571,7 +580,7 @@ func TestMultiGameConcurrentSimulation(t *testing.T) {
 
 			// Claim all fragments
 			for i := 0; i < 5; i++ {
-				proof := ProximityProof{HopDistances: []int{1}}
+				proof := mechanics.ProximityProof{HopDistances: []int{1}}
 				_ = hunt.ClaimFragment(i, specters[(huntNum*5+i)%numSpecters], proof)
 			}
 
@@ -588,9 +597,9 @@ func TestMultiGameConcurrentSimulation(t *testing.T) {
 			defer wg.Done()
 			now := time.Now()
 
-			pool, err := NewOraclePool(
+			pool, err := oracle.NewOraclePool(
 				"Oracle "+string(rune('A'+oracleNum)),
-				OraclePredictionBoolean,
+				oracle.OraclePredictionBoolean,
 				"test",
 				specters[oracleNum+numHunts],
 				now.Add(50*time.Millisecond),
@@ -606,7 +615,7 @@ func TestMultiGameConcurrentSimulation(t *testing.T) {
 				idx := (oracleNum*5 + i) % numSpecters
 				var nonce [32]byte
 				rand.Read(nonce[:])
-				commit := ComputeCommitmentHash(1.0, nonce)
+				commit := oracle.ComputeCommitmentHash(1.0, nonce)
 				_ = pool.SubmitCommitment(specters[idx], commit)
 			}
 
@@ -628,11 +637,12 @@ func TestMultiGameConcurrentSimulation(t *testing.T) {
 		go func(forgeNum int) {
 			defer wg.Done()
 
-			forge, err := NewSigilForge(
-				ForgeSigilArt,
+			frg, err := forge.NewSigilForge(
+				forge.ForgeSigilArt,
 				"Forge "+string(rune('A'+forgeNum)),
 				specters[forgeNum+numHunts+numOracles],
-				ForgeDuration30Min,
+				forge.ForgeDuration30Min,
+				forge.ForgeMinResonance,
 			)
 			if err != nil {
 				t.Logf("Forge %d creation failed: %v", forgeNum, err)
@@ -644,16 +654,16 @@ func TestMultiGameConcurrentSimulation(t *testing.T) {
 				idx := (forgeNum*4 + i) % numSpecters
 				content := []byte("content-" + string(rune('A'+i)))
 				var emptyParent [32]byte
-				_, _ = forge.SubmitEntry(specters[idx], content, emptyParent)
+				_, _ = frg.SubmitEntry(specters[idx], content, emptyParent)
 			}
 
 			// Force deadline and evaluate
-			forge.Deadline = time.Now().Add(-time.Second)
-			forge.UpdateState()
-			_ = forge.Evaluate()
+			frg.Deadline = time.Now().Add(-time.Second)
+			frg.UpdateState()
+			_ = frg.Evaluate()
 
 			mu.Lock()
-			results["forge-"+string(rune('A'+forgeNum))] = forge.IsCompleted()
+			results["forge-"+string(rune('A'+forgeNum))] = frg.IsCompleted()
 			mu.Unlock()
 		}(f)
 	}
@@ -664,7 +674,7 @@ func TestMultiGameConcurrentSimulation(t *testing.T) {
 		go func(shadowNum int) {
 			defer wg.Done()
 
-			game, err := NewShadowPlay(specters[shadowNum], ShadowPlayDuration30Min, 6)
+			game, err := shadowplay.NewShadowPlay(specters[shadowNum], shadowplay.ShadowPlayDuration30Min, 6)
 			if err != nil {
 				t.Logf("Shadow %d creation failed: %v", shadowNum, err)
 				return
