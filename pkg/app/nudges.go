@@ -38,8 +38,16 @@ func (a *App) runNudgeLoop() {
 	defer ticker.Stop()
 
 	// Also check immediately on startup (after 5-minute grace period).
-	time.Sleep(5 * time.Minute)
-	a.checkAndSendNudges()
+	// Use a select to respect context cancellation during the sleep.
+	graceTimer := time.NewTimer(5 * time.Minute)
+	defer graceTimer.Stop()
+
+	select {
+	case <-a.ctx.Done():
+		return
+	case <-graceTimer.C:
+		a.checkAndSendNudges()
+	}
 
 	for {
 		select {

@@ -72,7 +72,7 @@ The `-race` detector is the authoritative source for concurrency bugs. **All fin
 
 ### HIGH
 
-- [ ] **H1: Graceful shutdown timeout consistently exceeded (10s target vs >10s actual)** — `pkg/app/murmur.go:584-596`
+- [x] **H1: Graceful shutdown timeout consistently exceeded (10s target vs >10s actual)** — `pkg/app/murmur.go:584-596`
   - **Evidence:** `TestGracefulShutdown` fails with "Shutdown took 10.002967443s, expected < 3s". The test expects 3s, but the implementation uses a 10s timeout and still exceeds it. The `Close()` method waits for `a.wg.Wait()` with a 10-second timeout, but goroutines do not complete within this window.
   - **Execution path:** `Close()` → `a.cancel()` → `a.wg.Wait()` blocks → timeout fires → WARNING logged.
   - **Root cause:** One or more of the 7 application goroutines (event bus, GC, nudges, beacon, deduplication, memory monitor, Pulse Map layout) are not terminating promptly on context cancellation. Most likely candidates:
