@@ -33,6 +33,11 @@ go.work.sum
 
 # Project binary (repo-specific)
 murmur
+bin/murmur*
+bin/*.exe
+bin/*.dll
+bin/*.so
+bin/*.dylib
 
 # Analysis and development artifacts
 *.log
@@ -68,3 +73,4 @@ tlskeys/
 
 # Temporary build artifacts
 github.com/
+dist/
