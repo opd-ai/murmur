@@ -29,6 +29,11 @@ type PassphrasePromptPanel struct {
 	showPass   bool
 	errorMsg   string
 
+	// toggleBtnX/Y/W/H cache the Show/Hide button rect set during Draw() so
+	// Update() can perform a hit-test without recomputing modal geometry.
+	toggleBtnX, toggleBtnY int
+	toggleBtnW, toggleBtnH int
+
 	onSubmit func(passphrase string) error
 	onCancel func()
 }
@@ -92,6 +97,11 @@ func (p *PassphrasePromptPanel) Update() bool {
 	if p.handleEnterKey() {
 		return true
 	}
+	// Check the Show/Hide toggle before backspace so a click on the button
+	// doesn't also trigger a character deletion.
+	if p.handleShowPassToggle() {
+		return true
+	}
 	if p.handleBackspaceKey() {
 		return true
 	}
@@ -121,6 +131,25 @@ func (p *PassphrasePromptPanel) handleEnterKey() bool {
 				p.visible = false
 			}
 		}
+		return true
+	}
+	return false
+}
+
+// handleShowPassToggle detects a left-click on the Show/Hide button and toggles
+// the showPass state so the user can verify what they typed.
+// Per AUDIT.md HIGH finding: showPass was declared but never set.
+func (p *PassphrasePromptPanel) handleShowPassToggle() bool {
+	if p.toggleBtnW == 0 || p.toggleBtnH == 0 {
+		return false // Button rect not yet set (first frame before Draw).
+	}
+	if !inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+		return false
+	}
+	mx, my := ebiten.CursorPosition()
+	if mx >= p.toggleBtnX && mx < p.toggleBtnX+p.toggleBtnW &&
+		my >= p.toggleBtnY && my < p.toggleBtnY+p.toggleBtnH {
+		p.showPass = !p.showPass
 		return true
 	}
 	return false
@@ -167,17 +196,41 @@ func (p *PassphrasePromptPanel) Draw(screen *ebiten.Image) {
 	vector.StrokeRect(screen, float32(inputX), float32(inputY),
 		float32(inputWidth), float32(inputHeight), 1.0, p.theme.PanelBorder, true)
 
-	// Draw passphrase (masked)
+	// Draw Show/Hide toggle button at the right edge of the input box.
+	// Per AUDIT.md HIGH finding: showPass was declared but the toggle was never drawn.
+	const toggleW = 40
+	toggleH := inputHeight
+	toggleX := inputX + inputWidth - toggleW
+	toggleY := inputY
+	toggleLabel := "Show"
+	if p.showPass {
+		toggleLabel = "Hide"
+	}
+	vector.DrawFilledRect(screen, float32(toggleX), float32(toggleY),
+		float32(toggleW), float32(toggleH), p.theme.ButtonBackground, true)
+	vector.StrokeRect(screen, float32(toggleX), float32(toggleY),
+		float32(toggleW), float32(toggleH), 1.0, p.theme.PanelBorder, true)
+	drawUICenteredText(screen, toggleLabel,
+		float64(toggleX+toggleW/2), float64(toggleY+toggleH/2), p.theme.TextPrimary)
+
+	// Cache toggle button geometry so Update() can hit-test it next frame.
+	p.toggleBtnX = toggleX
+	p.toggleBtnY = toggleY
+	p.toggleBtnW = toggleW
+	p.toggleBtnH = toggleH
+
+	// Draw passphrase (masked or visible depending on showPass).
+	// Per AUDIT.md HIGH finding: the original masking loop was broken —
+	// maskPassphrase() in passphrase_mask.go produces the correct bullet count.
 	passText := p.passphrase
-	if !p.showPass && len(passText) > 0 {
-		passText = string(make([]byte, len(passText)))
-		for i := range passText {
-			passText = passText[:i] + "•"
-		}
+	if !p.showPass {
+		passText = maskPassphrase(p.passphrase)
 	}
 	if passText == "" {
 		passText = "(passphrase)"
 	}
+	drawUICenteredText(screen, passText,
+		float64(inputX+inputWidth/2), float64(inputY+inputHeight/2), p.theme.TextPrimary)
 
 	// Draw error message if present
 	if p.errorMsg != "" {

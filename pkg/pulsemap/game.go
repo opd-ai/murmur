@@ -10,11 +10,13 @@ package pulsemap
 import (
 	"context"
 	"fmt"
+	"image/color"
 	"log"
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	"github.com/hajimehoshi/ebiten/v2/vector"
 	"github.com/opd-ai/murmur/pkg/content/waves"
 	"github.com/opd-ai/murmur/pkg/identity/keys"
 	"github.com/opd-ai/murmur/pkg/networking/gossip"
@@ -26,6 +28,17 @@ import (
 	pb "github.com/opd-ai/murmur/proto"
 	"google.golang.org/protobuf/proto"
 )
+
+// toastNotification is a short-lived overlay message shown after an async operation.
+// Per AUDIT.md HIGH finding: Wave submission results had no user notification path.
+type toastNotification struct {
+	message   string
+	isError   bool
+	ticksLeft int // countdown to hide; decremented each Update() tick
+}
+
+// toastDurationTicks is how many Update() ticks a toast stays visible (~3 seconds at 60fps).
+const toastDurationTicks = 180
 
 // Game implements ebiten.Game for the Pulse Map visualization.
 // Per TECHNICAL_IMPLEMENTATION.md §2, this is the Ebitengine game loop
@@ -85,11 +98,40 @@ type Game struct {
 	// lastSelectedNode tracks the previously selected node to avoid redundant updates.
 	lastSelectedNode string
 
+	// touchState processes multi-touch gestures (pan, pinch-zoom, tap).
+	// Per AUDIT.md HIGH finding: touch input was implemented in interaction/touch.go
+	// but never wired into the Ebitengine game loop.
+	touchState *interaction.TouchState
+
+	// prevTouchIDs holds the touch IDs active in the previous frame, used
+	// to diff against the current frame and detect start/end events.
+	prevTouchIDs []ebiten.TouchID
+
+	// tickCount is incremented every Update() call and passed to TouchState
+	// so gesture timing (tap duration, double-tap interval) is frame-based.
+	tickCount int64
+
 	// frame counter for diagnostics.
 	frameCount uint64
 
 	// shutdown signals that the game loop should terminate.
 	shutdown chan struct{}
+
+	// waveResultCh receives the outcome (nil=success, non-nil=error) from the
+	// Wave submission goroutine so Update() can display a toast notification.
+	// Per AUDIT.md HIGH finding: submission failures were silently discarded.
+	waveResultCh chan error
+
+	// waveInFlight is true while the Wave PoW+publish goroutine is running.
+	// Draw() shows a "Sending…" indicator when this is set.
+	waveInFlight bool
+
+	// toast holds the currently displayed notification, or nil if none.
+	toast *toastNotification
+
+	// theme is the UI colour/sizing theme, stored so helper methods can use it
+	// without re-creating DefaultTheme() every frame.
+	theme ui.Theme
 }
 
 // NewGame creates a new Pulse Map game instance.
@@ -145,6 +187,8 @@ func NewGame(ctx context.Context, keypair *keys.KeyPair, pubsub *gossip.PubSub, 
 		screenWidth:  800,
 		screenHeight: 600,
 		shutdown:     make(chan struct{}),
+		waveResultCh: make(chan error, 1),
+		theme:        theme,
 	}
 
 	// Create compose panel with submission callback.
@@ -188,6 +232,10 @@ func NewGame(ctx context.Context, keypair *keys.KeyPair, pubsub *gossip.PubSub, 
 		OnAction: game.handleRadialMenuAction,
 	})
 
+	// Initialise touch state for multi-touch pan, pinch-zoom, and tap.
+	// Per AUDIT.md HIGH finding: TouchState was implemented but never instantiated.
+	game.touchState = interaction.NewTouchState()
+
 	return game, nil
 }
 
@@ -199,13 +247,17 @@ func (g *Game) Update() error {
 	}
 
 	g.handleWindowResize()
-	g.handleComposePanelToggle()
-	g.handleSearchBarToggle()
 
-	panelActive := g.searchBar.Visible() || g.nodeDetailPanel.Visible() || g.composePanel.Visible()
-	if !panelActive {
+	// Guard all hotkeys — compose/search toggles AND navigation — behind the
+	// text-input predicate so that typing inside text panels does not fire
+	// shortcuts simultaneously with character input.
+	// Per AUDIT.md HIGH finding: hotkeys fired while text panels had focus.
+	if !g.textInputActive() {
+		g.handleComposePanelToggle()
+		g.handleSearchBarToggle()
 		g.handleNavigationHotkeys()
 	}
+
 	g.handleNodeSelection()
 
 	if g.updateActivePanels() {
@@ -217,7 +269,10 @@ func (g *Game) Update() error {
 	}
 
 	g.handleZoom()
+	g.handleTouchInput()
 	g.handleDragging()
+	g.checkWaveResult()
+	g.tickToast()
 	g.engine.Tick()
 	g.frameCount++
 
@@ -586,6 +641,79 @@ func (g *Game) updatePanPosition() {
 	g.dragStartX, g.dragStartY = mx, my
 }
 
+// handleTouchInput processes Ebitengine touch events each frame and routes them
+// to the same camera / node-selection code paths used by the mouse.
+// Per AUDIT.md HIGH finding: TouchState was implemented but never wired into Update().
+func (g *Game) handleTouchInput() {
+	g.tickCount++
+	currentIDs := ebiten.AppendTouchIDs(nil)
+
+	// Detect newly started touches (IDs present now but not last frame).
+	for _, id := range currentIDs {
+		if !containsTouchID(g.prevTouchIDs, id) {
+			x, y := ebiten.TouchPosition(id)
+			g.touchState.HandleTouchStart(int(id), float64(x), float64(y), g.tickCount)
+		}
+	}
+
+	// Detect ended touches (IDs present last frame but not now).
+	for _, id := range g.prevTouchIDs {
+		if !containsTouchID(currentIDs, id) {
+			isTap, isDoubleTap, tx, ty := g.touchState.HandleTouchEnd(int(id), g.tickCount)
+			switch {
+			case isDoubleTap:
+				// Double-tap: zoom in centred on the tapped point.
+				g.camera.AnimateToWithZoom(tx, ty, 2.0)
+			case isTap:
+				// Single tap: identical path to a left mouse-button click —
+				// hit-test nodes and update input.SelectedNodeID.
+				// Per AUDIT.md: ensure touch path calls the same entry point as mouse.
+				g.renderer.HandleMouseDown(tx, ty)
+			}
+		}
+	}
+
+	// Process pan / zoom for all currently active touches.
+	// Only the first result is applied per frame; HandleTouchMove updates stored
+	// positions for subsequent calls so duplicate application is avoided.
+	if len(currentIDs) > 0 {
+		firstTouch := true
+		var panDX, panDY, zoomFactor float64
+		zoomFactor = 1.0
+		for _, id := range currentIDs {
+			x, y := ebiten.TouchPosition(id)
+			dx, dy, zoom := g.touchState.HandleTouchMove(int(id), float64(x), float64(y))
+			if firstTouch {
+				panDX = dx
+				panDY = dy
+				zoomFactor = zoom
+				firstTouch = false
+			}
+		}
+
+		if panDX != 0 || panDY != 0 {
+			g.camera.Pan(panDX, panDY)
+		}
+		if zoomFactor != 1.0 {
+			cx, cy := g.touchState.PinchCenter()
+			g.camera.Zoom(zoomFactor, cx, cy,
+				float64(g.screenWidth), float64(g.screenHeight))
+		}
+	}
+
+	g.prevTouchIDs = currentIDs
+}
+
+// containsTouchID reports whether id appears in ids.
+func containsTouchID(ids []ebiten.TouchID, id ebiten.TouchID) bool {
+	for _, v := range ids {
+		if v == id {
+			return true
+		}
+	}
+	return false
+}
+
 // Draw renders the Pulse Map to the screen.
 // Per ebiten.Game interface, this is called after Update().
 func (g *Game) Draw(screen *ebiten.Image) {
@@ -614,6 +742,10 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	if g.composePanel.Visible() {
 		g.composePanel.Draw(screen)
 	}
+
+	// Draw toast notification above all other layers.
+	// Per AUDIT.md HIGH finding: Wave submission results had no UI feedback path.
+	g.drawToast(screen)
 }
 
 // Layout returns the game's screen dimensions.
@@ -637,22 +769,38 @@ func (g *Game) Shutdown() {
 
 // handleWaveSubmit is the callback for Wave composition panel submission.
 // It creates a Wave, computes PoW, signs it, wraps it in an envelope, and publishes to GossipSub.
-// Per AUDIT.md remediation, this enables user Wave creation.
+// Per AUDIT.md HIGH finding: submission failures were silently discarded; results now
+// feed back via waveResultCh so Update() can display a toast notification.
 func (g *Game) handleWaveSubmit(content string, waveType uint8, targetNodeID string) {
 	if g.keypair == nil || g.pubsub == nil {
+		g.showToast("Cannot send Wave: not connected", true)
 		log.Printf("Cannot submit Wave: keypair or pubsub not initialized")
 		return
 	}
 
+	// Signal that a submission is in flight so Draw() shows a "Sending…" indicator.
+	g.waveInFlight = true
+
 	// Create Wave asynchronously to avoid blocking UI (PoW takes 2-5 seconds).
 	go func() {
 		log.Printf("Creating Wave with %d bytes content...", len(content))
+
+		// sendResult delivers the outcome back to the main goroutine via the
+		// buffered channel.  Non-blocking send so the goroutine never hangs.
+		sendResult := func(err error) {
+			select {
+			case g.waveResultCh <- err:
+			default:
+				// Channel full (previous result not yet consumed); drop silently.
+			}
+		}
 
 		// Create Wave with PoW.
 		opts := waves.DefaultCreateOptions()
 		wave, err := waves.Create(waves.WaveType(waveType), []byte(content), g.keypair, opts)
 		if err != nil {
 			log.Printf("Failed to create Wave: %v", err)
+			sendResult(err)
 			return
 		}
 
@@ -677,10 +825,12 @@ func (g *Game) handleWaveSubmit(content string, waveType uint8, targetNodeID str
 
 		if err := g.pubsub.Publish(ctx, "/murmur/waves/1", envelopeBytes); err != nil {
 			log.Printf("Failed to publish Wave: %v", err)
+			sendResult(err)
 			return
 		}
 
 		log.Printf("Published Wave %x to network", wave.WaveId)
+		sendResult(nil)
 	}()
 }
 
@@ -779,7 +929,9 @@ func (g *Game) getResonanceRank(resonance int) string {
 // handleNodeDetailComposeWave is called when user clicks "Compose Wave" in the detail panel.
 func (g *Game) handleNodeDetailComposeWave(nodeID string) {
 	log.Printf("Compose Wave to node %s", nodeID)
-	// Open compose panel with target node pre-filled.
+	// Hide node detail before showing compose so both panels are never
+	// simultaneously visible. Per AUDIT.md HIGH finding.
+	g.nodeDetailPanel.Hide()
 	g.composePanel.Show()
 }
 
@@ -810,6 +962,14 @@ func (g *Game) handleNodeDetailClose() {
 // anyModalVisible returns true if any modal panel that should block the radial menu is open.
 func (g *Game) anyModalVisible() bool {
 	return g.composePanel.Visible() || g.searchBar.Visible() || g.nodeDetailPanel.Visible()
+}
+
+// textInputActive returns true when any panel that accepts keyboard text input is visible.
+// While this is true, global hotkeys (Ctrl+N, Ctrl+F, H, Home, N, etc.) must not fire so
+// that typed characters are not simultaneously handled as shortcuts.
+// Per AUDIT.md HIGH finding: hotkeys were not guarded against active text panels.
+func (g *Game) textInputActive() bool {
+	return g.composePanel.Visible() || g.searchBar.Visible()
 }
 
 // handleRadialMenuAction dispatches radial menu action callbacks.
@@ -873,4 +1033,77 @@ func (g *Game) handleSearchSelect(nodeID string) {
 // handleSearchClose is called when user closes the search bar.
 func (g *Game) handleSearchClose() {
 	log.Printf("Search bar closed")
+}
+
+// checkWaveResult drains the waveResultCh channel (non-blocking) and displays
+// a toast notification with the outcome.
+// Per AUDIT.md HIGH finding: Wave submission results were silently discarded.
+func (g *Game) checkWaveResult() {
+	select {
+	case err := <-g.waveResultCh:
+		g.waveInFlight = false
+		if err != nil {
+			g.showToast("Wave failed: "+err.Error(), true)
+		} else {
+			g.showToast("Wave sent", false)
+		}
+	default:
+		// No result ready yet — nothing to do.
+	}
+}
+
+// showToast sets the active toast notification with the given message.
+func (g *Game) showToast(message string, isError bool) {
+	g.toast = &toastNotification{
+		message:   message,
+		isError:   isError,
+		ticksLeft: toastDurationTicks,
+	}
+}
+
+// tickToast decrements the active toast timer and clears it when it expires.
+func (g *Game) tickToast() {
+	if g.toast == nil {
+		return
+	}
+	g.toast.ticksLeft--
+	if g.toast.ticksLeft <= 0 {
+		g.toast = nil
+	}
+}
+
+// drawToast renders the active toast notification over all other layers.
+// The toast is a semi-transparent banner at the top-centre of the screen.
+func (g *Game) drawToast(screen *ebiten.Image) {
+	if g.toast == nil && !g.waveInFlight {
+		return
+	}
+
+	var message string
+	var bg color.RGBA
+	if g.waveInFlight && g.toast == nil {
+		message = "Sending…"
+		bg = g.theme.AccentSecondary
+	} else if g.toast != nil {
+		message = g.toast.message
+		if g.toast.isError {
+			bg = g.theme.TextError
+		} else {
+			bg = g.theme.Success
+		}
+	}
+
+	if message == "" {
+		return
+	}
+
+	// Draw a centred banner near the top of the screen.
+	const toastW, toastH = 360, 40
+	toastX := float32(g.screenWidth/2 - toastW/2)
+	toastY := float32(24)
+
+	vector.DrawFilledRect(screen, toastX, toastY, toastW, toastH, bg, true)
+	ui.DrawCenteredText(screen, message,
+		float64(g.screenWidth/2), float64(toastY)+float64(toastH)/2,
+		g.theme.TextPrimary)
 }

@@ -50,6 +50,13 @@ func drawUICenteredText(dst *ebiten.Image, str string, cx, y float64, clr color.
 	drawUIText(dst, str, cx-w/2, y, clr)
 }
 
+// DrawCenteredText is the exported equivalent of drawUICenteredText.
+// It is intended for use by packages outside pkg/ui (e.g. pkg/pulsemap) that
+// need to render text consistently with the shared font face.
+func DrawCenteredText(dst *ebiten.Image, str string, cx, y float64, clr color.Color) {
+	drawUICenteredText(dst, str, cx, y, clr)
+}
+
 // measureUIText returns the rendered width and height of str with defaultFont.
 func measureUIText(str string) (float64, float64) {
 	return text.Measure(str, defaultFont, 0)

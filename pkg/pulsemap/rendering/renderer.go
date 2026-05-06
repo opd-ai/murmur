@@ -569,7 +569,12 @@ func (r *Renderer) Layout(outsideWidth, outsideHeight int) (int, int) {
 func (r *Renderer) HandleMouseDown(x, y float64) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-
+	// Clear any orphaned drag state before starting a new interaction.
+	// Per AUDIT.md: mirrors the guard in game.go handleDragging() — if Dragging
+	// is stuck true from a prior unclosed drag, reset it first.
+	if r.input.Dragging {
+		r.input.EndDrag()
+	}
 	// Check if clicking on a node.
 	nodeID := r.hitTestNodes(x, y)
 	if nodeID != "" {

@@ -92,11 +92,11 @@
   ```
   Map `TouchState` results (pan delta, zoom factor, tap position) to the same camera and node-selection code paths already used by mouse.
 - **Remediation checklist**:
-  - [ ] Add `touchState *interaction.TouchState` field to `Game`, initialised in `NewGame`.
-  - [ ] Add `handleTouchInput()` called from `Update()`.
-  - [ ] Implement frame-to-frame `AppendTouchIDs` diff to detect start/end events.
-  - [ ] Map pan delta → `camera.Pan`, zoom factor → `camera.Zoom`, tap → `renderer.HandleMouseDown`.
-  - [ ] Ensure touch and mouse paths both call `input.SelectNode`.
+  - [x] Add `touchState *interaction.TouchState` field to `Game`, initialised in `NewGame`.
+  - [x] Add `handleTouchInput()` called from `Update()`.
+  - [x] Implement frame-to-frame `AppendTouchIDs` diff to detect start/end events.
+  - [x] Map pan delta → `camera.Pan`, zoom factor → `camera.Zoom`, tap → `renderer.HandleMouseDown`.
+  - [x] Ensure touch and mouse paths both call `input.SelectNode`.
 
 ---
 
@@ -113,10 +113,10 @@
   2. Check a dedicated `textInputActive()` predicate before calling `handleNavigationHotkeys`.
   3. Move `viewportControls.Update()` inside the existing `!panelActive` guard, or make its click handler test only mouse input (it already does — but viewport controls should be excluded from keyboard shortcuts when text is active).
 - **Remediation checklist**:
-  - [ ] Refactor `Update()` ordering: evaluate `panelActive` before any hotkey dispatch.
-  - [ ] Add `func (g *Game) textInputActive() bool` that returns true when compose, search, passphrase, or any text-input panel is visible.
-  - [ ] Guard `handleComposePanelToggle` and `handleSearchBarToggle` with `!g.textInputActive()`.
-  - [ ] Confirm `ebiten.AppendInputChars` is consumed (returned slice discarded) by whichever panel is active so the same chars don't appear in multiple panels.
+  - [x] Refactor `Update()` ordering: evaluate `panelActive` before any hotkey dispatch.
+  - [x] Add `func (g *Game) textInputActive() bool` that returns true when compose, search, passphrase, or any text-input panel is visible.
+  - [x] Guard `handleComposePanelToggle` and `handleSearchBarToggle` with `!g.textInputActive()`.
+  - [x] Confirm `ebiten.AppendInputChars` is consumed (returned slice discarded) by whichever panel is active so the same chars don't appear in multiple panels.
 
 ---
 
@@ -136,8 +136,8 @@
   ```
 - **Remediation checklist**:
   - [x] Add the guard at the top of `handleDragging()`.
-  - [ ] Apply same pattern to `InputState.Dragging` inside `renderer.HandleMouseDown` / `HandleMouseUp`.
-  - [ ] Write a test that calls `Update()` with `Dragging=true` but `MouseButtonLeft` not pressed and asserts `isDragging` becomes false.
+  - [x] Apply same pattern to `InputState.Dragging` inside `renderer.HandleMouseDown` / `HandleMouseUp`.
+  - [x] Write a test that calls `Update()` with `Dragging=true` but `MouseButtonLeft` not pressed and asserts `isDragging` becomes false.
 
 ---
 
@@ -160,9 +160,9 @@
   passText = strings.Repeat("•", utf8.RuneCountInString(p.passphrase))
   ```
 - **Remediation checklist**:
-  - [ ] Import `strings` and `unicode/utf8` in `passphrase_prompt.go`.
-  - [ ] Replace the broken loop with `strings.Repeat("•", utf8.RuneCountInString(p.passphrase))`.
-  - [ ] Add unit test: set passphrase to "abc", call Draw, assert rendered text is "•••".
+  - [x] Import `strings` and `unicode/utf8` in `passphrase_prompt.go`.
+  - [x] Replace the broken loop with `strings.Repeat("•", utf8.RuneCountInString(p.passphrase))`.
+  - [x] Add unit test: set passphrase to "abc", call Draw, assert rendered text is "•••".
 
 ---
 
@@ -177,9 +177,9 @@
   1. Draw a small "Show/Hide" toggle button or eye icon in `Draw()` to the right of the input box.
   2. In `Update()`, detect a click on that button and toggle `p.showPass = !p.showPass`.
 - **Remediation checklist**:
-  - [ ] Draw a "Show" toggle button at `(inputX+inputWidth-40, inputY)`.
-  - [ ] In `Update()` add mouse-click handler for that button region.
-  - [ ] Guard: zero `p.passphrase` from `strings.Builder` after `p.visible = false` to avoid leaving plaintext passphrase in memory.
+  - [x] Draw a "Show" toggle button at `(inputX+inputWidth-40, inputY)`.
+  - [x] In `Update()` add mouse-click handler for that button region.
+  - [x] Guard: zero `p.passphrase` from `strings.Builder` after `p.visible = false` to avoid leaving plaintext passphrase in memory.
 
 ---
 
@@ -329,10 +329,10 @@
   }
   ```
 - **Remediation checklist**:
-  - [ ] Add `waveResultCh chan error` to `Game` and send to it from the goroutine.
-  - [ ] Add a `ToastNotification` struct with message, type (success/error), and decay timer.
-  - [ ] Draw toast in `Draw()` above all other layers.
-  - [ ] Show "Sending…" spinner in compose panel until result arrives.
+  - [x] Add `waveResultCh chan error` to `Game` and send to it from the goroutine.
+  - [x] Add a `ToastNotification` struct with message, type (success/error), and decay timer.
+  - [x] Draw toast in `Draw()` above all other layers.
+  - [x] Show "Sending…" spinner in compose panel until result arrives.
 
 ---
 

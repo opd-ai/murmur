@@ -5,6 +5,27 @@ import (
 	"testing"
 )
 
+// TestMaskPassphrase verifies the masking helper produces one bullet per rune.
+// Per AUDIT.md HIGH finding: the original inline loop was broken and produced
+// at most one bullet; this test would have caught the regression.
+func TestMaskPassphrase(t *testing.T) {
+	cases := []struct {
+		input string
+		want  string
+	}{
+		{"abc", "•••"},
+		{"", ""},
+		{"a", "•"},
+		{"héllo", "•••••"}, // multi-byte runes — count by rune not byte
+	}
+	for _, c := range cases {
+		got := maskPassphrase(c.input)
+		if got != c.want {
+			t.Errorf("maskPassphrase(%q) = %q, want %q", c.input, got, c.want)
+		}
+	}
+}
+
 func TestPassphrasePromptPanel_Creation(t *testing.T) {
 	theme := DefaultTheme()
 

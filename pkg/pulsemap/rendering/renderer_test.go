@@ -328,3 +328,55 @@ func TestRendererConcurrentAccess(t *testing.T) {
 	<-done
 	<-done
 }
+
+// TestHandleMouseDownClearsOrphanedDragState verifies that HandleMouseDown resets
+// an existing Dragging=true state before beginning a new interaction.
+// Per AUDIT.md HIGH finding: isDragging / InputState.Dragging can become orphaned
+// when the mouse is released outside the window.
+func TestHandleMouseDownClearsOrphanedDragState(t *testing.T) {
+	engine := layout.NewEngine()
+	renderer, err := NewRenderer(engine)
+	if err != nil {
+		t.Fatalf("NewRenderer failed: %v", err)
+	}
+
+	// Simulate an orphaned drag (Dragging stuck true, no corresponding mouse-up).
+	renderer.InputState().StartDrag(50, 50)
+	if !renderer.InputState().Dragging {
+		t.Fatal("precondition: expected Dragging=true after StartDrag")
+	}
+
+	// A new mouse-down elsewhere (on empty space) must clear the orphan first,
+	// then begin a fresh drag — Dragging should remain true but reset to the new origin.
+	renderer.HandleMouseDown(200, 200)
+
+	inputState := renderer.InputState()
+	if !inputState.Dragging {
+		t.Error("expected Dragging=true after HandleMouseDown on empty space")
+	}
+	if inputState.DragStartX != 200 || inputState.DragStartY != 200 {
+		t.Errorf("expected new drag origin (200,200), got (%v,%v)",
+			inputState.DragStartX, inputState.DragStartY)
+	}
+}
+
+// TestHandleMouseDownOrphanOnNodeHit verifies that HandleMouseDown on a node
+// clears Dragging and does NOT start a new drag (node selection replaces drag).
+func TestHandleMouseDownOrphanOnNodeHit(t *testing.T) {
+	engine := layout.NewEngine()
+	renderer, err := NewRenderer(engine)
+	if err != nil {
+		t.Fatalf("NewRenderer failed: %v", err)
+	}
+
+	// Force Dragging=true (orphaned state).
+	renderer.InputState().StartDrag(50, 50)
+
+	// Click on empty space away from any node — orphan clears, new drag starts.
+	renderer.HandleMouseDown(9999, 9999)
+
+	// Drag should start since we clicked empty space.
+	if !renderer.InputState().Dragging {
+		t.Error("expected Dragging=true after clicking empty space with prior orphan")
+	}
+}
