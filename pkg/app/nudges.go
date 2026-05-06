@@ -37,18 +37,28 @@ func (a *App) runNudgeLoop() {
 	ticker := time.NewTicker(4 * time.Hour)
 	defer ticker.Stop()
 
-	// Also check immediately on startup (after 5-minute grace period).
-	// Use a timer with context-awareness to avoid blocking shutdown.
 	gracePeriod := time.NewTimer(5 * time.Minute)
 	defer gracePeriod.Stop()
 
-	select {
-	case <-a.ctx.Done():
-		return
-	case <-gracePeriod.C:
+	if a.waitForGracePeriod(gracePeriod) {
 		a.checkAndSendNudges()
 	}
 
+	a.runPeriodicNudgeCheck(ticker)
+}
+
+// waitForGracePeriod waits for initial grace period or context cancellation.
+func (a *App) waitForGracePeriod(gracePeriod *time.Timer) bool {
+	select {
+	case <-a.ctx.Done():
+		return false
+	case <-gracePeriod.C:
+		return true
+	}
+}
+
+// runPeriodicNudgeCheck runs the nudge check loop every 4 hours.
+func (a *App) runPeriodicNudgeCheck(ticker *time.Ticker) {
 	for {
 		select {
 		case <-a.ctx.Done():

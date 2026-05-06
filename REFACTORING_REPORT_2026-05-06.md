@@ -1,189 +1,152 @@
-# Complexity Refactoring Report
-**Date**: 2026-05-06  
-**Goal**: Reduce top 10 most complex functions below professional thresholds
+# Complexity Refactoring Report - 2026-05-06
 
-## Methodology
-- **Baseline**: Generated with `go-stats-generator` analyzing all Go source (skip-tests)
-- **Thresholds**: Overall complexity >9.0, Cyclomatic >9, Function length >40 lines
-- **Approach**: Extract-method refactoring to reduce nesting, cyclomatic complexity, and function length
+## Executive Summary
 
-## Functions Refactored (10)
+Successfully refactored 10 complex functions, reducing their overall complexity below professional thresholds while maintaining zero test failures.
 
-### 1. `drawInstructions` - pkg/ui/oracle_pool.go
-**Before**: Overall 11.1, Cyclo 7, Lines 35, Nesting 4  
-**After**: Overall 3.1, Cyclo 2, Lines 8, Nesting 1  
-**Improvement**: 72.1% overall complexity reduction  
-**Extracted helpers**:
-- `getInstructionsText()` - Top-level instruction text router
-- `getViewModeInstructions()` - View mode instruction logic
-- `getPendingStateInstructions()` - Pending state instructions
-- `getRevealingStateInstructions()` - Revealing state instructions
+**Result**: 53 improvements, 18 neutral changes, 20 regressions (none in refactored functions)  
+**Quality Score**: 58.2/100  
+**Overall Trend**: Improving
 
----
+## Refactored Functions
 
-### 2. `drawLeaderboardTab` - pkg/ui/hunt_tracker.go
-**Before**: Overall 11.1, Cyclo 7, Lines 35, Nesting 4  
-**After**: Overall 3.1, Cyclo 2, Lines 7, Nesting 1  
-**Improvement**: 72.1% overall complexity reduction  
-**Extracted helpers**:
-- `drawLeaderboardEntry()` - Single entry rendering orchestrator
-- `drawLeaderboardBackground()` - Entry background with user highlight
-- `drawRankIndicator()` - Rank circle with medal colors
-- `getRankColor()` - Medal color mapping (gold/silver/bronze)
-- `drawClaimsBar()` - Progress bar for fragment claims
+### 1. DecodeNFCIgnitionData (pkg/identity/ignition/nfc.go)
+- **Before**: 39 lines, cyclomatic 9, overall 12.2
+- **After**: 11 lines, cyclomatic 4, overall 5.7
+- **Reduction**: 53.3% overall complexity
+- **Extracted**: `parseAllFields()` helper (consolidated sequential field parsing)
+- **Tests**: ✅ PASS
 
----
+### 2. Update (pkg/ui/puzzle.go)
+- **Before**: 30 lines, cyclomatic 8, overall 11.4
+- **After**: 12 lines, cyclomatic 3, overall 4.4
+- **Reduction**: 61.4% overall complexity
+- **Extracted**: `updateAnimations()`, `handlePanelHotkeys()`
+- **Tests**: ✅ PASS
 
-### 3. `UpdateClusters` - pkg/pulsemap/layout/clustering.go
-**Before**: Overall 11.4, Cyclo 8, Lines 36, Nesting 2  
-**After**: Overall 3.1, Cyclo 2, Lines 12, Nesting 1  
-**Improvement**: 72.8% overall complexity reduction  
-**Extracted helpers**:
-- `shouldEnableClustering()` - Threshold check predicate
-- `disableClustering()` - State reset
-- `buildConnectivityMaps()` - Edge map construction
-- `limitClusterCount()` - Merge trigger
-- `updateInternalState()` - Cluster and node-to-cluster mapping update
+### 3. handleKeyboardNav (pkg/ui/search.go)
+- **Before**: 28 lines, cyclomatic 8, overall 11.4
+- **After**: 7 lines, cyclomatic 3, overall 4.4
+- **Reduction**: 61.4% overall complexity
+- **Extracted**: `handleArrowNavigation()`, `handleResultSelection()`
+- **Tests**: ✅ PASS
 
----
+### 4. Update (pkg/ui/puzzle_solver.go)
+- **Before**: 30 lines, cyclomatic 8, overall 11.4
+- **After**: 11 lines, cyclomatic 3, overall 4.4
+- **Reduction**: 61.4% overall complexity
+- **Extracted**: `updateAnimations()`, `handlePanelHotkeys()`
+- **Tests**: ✅ PASS
 
-### 4. `GetStats` - pkg/pulsemap/layout/clustering.go
-**Before**: Overall 11.4, Cyclo 8, Lines 31, Nesting 2  
-**After**: Overall 5.7, Cyclo 4, Lines 16, Nesting 1  
-**Improvement**: 50.0% overall complexity reduction  
-**Extracted helpers**:
-- `computeClusterSizeStats()` - Aggregate size statistics computation
+### 5. updateEntriesMode (pkg/ui/forge.go)
+- **Before**: 21 lines, cyclomatic 8, overall 11.4
+- **After**: 5 lines, cyclomatic 2, overall 3.1
+- **Reduction**: 72.8% overall complexity
+- **Extracted**: `handleEntryNavigation()`, `handleEntryAmplify()`
+- **Tests**: ✅ PASS
 
----
+### 6. Update (pkg/onboarding/screens/identity.go)
+- **Before**: 28 lines, cyclomatic 8, overall 11.4
+- **After**: 4 lines, cyclomatic 1, overall 1.3
+- **Reduction**: 88.6% overall complexity
+- **Extracted**: `updateAnimations()`, `updatePhilosophyTiming()`, `handleUserInput()`
+- **Tests**: ✅ PASS
 
-### 5. `Start` - pkg/networking/health/health.go
-**Before**: Overall 11.4, Cyclo 8, Lines 37, Nesting 2  
-**After**: Overall 3.1, Cyclo 2, Lines 7, Nesting 1  
-**Improvement**: 72.8% overall complexity reduction  
-**Extracted helpers**:
-- `initializeServer()` - Server initialization with duplicate check
-- `startServerGoroutine()` - HTTP server launch
-- `startShutdownMonitor()` - Context/error monitoring
-- `shutdownGracefully()` - Graceful shutdown with timeout
+### 7. runNudgeLoop (pkg/app/nudges.go)
+- **Before**: 18 lines, cyclomatic 8, overall 11.4
+- **After**: 8 lines, cyclomatic 2, overall 3.1
+- **Reduction**: 72.8% overall complexity
+- **Extracted**: `waitForGracePeriod()`, `runPeriodicNudgeCheck()`
+- **Tests**: ✅ PASS
 
----
+### 8. validateSendMessage (pkg/anonymous/mechanics/shadowplay/shadowplay_communication.go)
+- **Before**: 22 lines, cyclomatic 8, overall 11.4
+- **After**: 14 lines, cyclomatic 5, overall 7.0
+- **Reduction**: 38.6% overall complexity
+- **Extracted**: `validatePhaseState()`, `validateParticipant()`, `validateMessageContent()`, `validateRateLimits()`
+- **Tests**: ✅ PASS
 
-### 6. `RotateCircuit` - pkg/anonymous/shroud/circuit.go
-**Before**: Overall 11.4, Cyclo 8, Lines 29, Nesting 2  
-**After**: Overall 3.1, Cyclo 2, Lines 10, Nesting 1  
-**Improvement**: 72.8% overall complexity reduction  
-**Extracted helpers**:
-- `buildNewPrimaryCircuit()` - Relay selection and circuit construction
-- `rotateCircuits()` - Circuit promotion/demotion logic
-- `ensureBackupCircuit()` - Backup circuit creation guard
-- `notifyRotation()` - Callback invocation
+### 9. ValidateWave (proto/validation.go)
+- **Before**: 23 lines, cyclomatic 8, overall 10.9
+- **After**: 16 lines, cyclomatic 6, overall 8.3
+- **Reduction**: 23.9% overall complexity
+- **Extracted**: `validateWaveContent()`, `validateWaveTiming()`
+- **Tests**: ✅ PASS
 
----
+### 10. DecryptVeiledContent (pkg/content/waves/veiled.go)
+- **Before**: 28 lines, cyclomatic 8, overall 10.9
+- **After**: 15 lines, cyclomatic 5, overall 7.0
+- **Reduction**: 35.8% overall complexity
+- **Extracted**: `isWaveEncrypted()`, `extractEncryptionMetadata()`, `decryptContent()`
+- **Tests**: ✅ PASS
 
-### 7. `checkAndSendNudges` - pkg/app/nudges.go
-**Before**: Overall 11.4, Cyclo 8, Lines 28, Nesting 2  
-**After**: Overall 4.4, Cyclo 3, Lines 9, Nesting 1  
-**Improvement**: 61.4% overall complexity reduction  
-**Extracted helpers**:
-- `areSubsystemsReady()` - Subsystem initialization check
-- `getAccountAgeDays()` - Account age calculation from declaration
-- `processNudgeSchedule()` - Nudge schedule iteration
-- `shouldSendNudge()` - Nudge applicability predicate (timing + mode + history)
+## Refactoring Patterns Applied
 
----
+1. **Extract Method**: Moved cohesive blocks into named helpers
+2. **Decompose Conditional**: Replaced complex boolean chains with predicate functions
+3. **Replace Loop Body**: Extracted inner loop logic into functions
+4. **Consolidate Error Handling**: Merged repeated error patterns into shared helpers
 
-### 8. `handleTrafficPaddingTransition` - pkg/identity/modes/state.go
-**Before**: Overall 11.1, Cyclo 7, Lines 18, Nesting 4  
-**After**: Overall 4.9, Cyclo 3, Lines 8, Nesting 2  
-**Improvement**: 55.9% overall complexity reduction  
-**Extracted helpers**:
-- `startTrafficPadding()` - Padding activation for Guarded/Fortress
-- `stopTrafficPadding()` - Padding deactivation
+## Naming Conventions
 
----
+All extracted functions follow the project's verb-first naming convention:
+- `parseAllFields()`, `parseVersionField()` (parsing operations)
+- `updateAnimations()`, `updatePhilosophyTiming()` (update operations)
+- `handlePanelHotkeys()`, `handleArrowNavigation()` (event handling)
+- `validatePhaseState()`, `validateMessageContent()` (validation operations)
 
-### 9. `drawGlowCircle` - pkg/pulsemap/rendering/sigil_image.go
-**Before**: Overall 9.8, Cyclo 6, Lines 39, Nesting 4  
-**After**: Overall 3.1, Cyclo 2, Lines 7, Nesting 1  
-**Improvement**: 68.4% overall complexity reduction  
-**Extracted helpers**:
-- `buildGlowCacheKey()` - Cache key construction
-- `getOrCreateGlowImage()` - Cache lookup or creation
-- `createGlowImage()` - Glow image generation
-- `setGlowPixel()` - Single pixel radial falloff
-- `drawGlowImage()` - Final image rendering
+## Complexity Thresholds Met
 
----
-
-### 10. `Update` - pkg/onboarding/screens/recovery_screen.go
-**Before**: Overall 11.1, Cyclo 7, Lines 21, Nesting 4  
-**After**: Overall 3.1, Cyclo 2, Lines 6, Nesting 1  
-**Improvement**: 72.1% overall complexity reduction  
-**Extracted helpers**:
-- `updateSelectedMethod()` - Method dispatcher
-- `updateKeyFileMethod()` - Key file recovery flow
-- `handleKeyFileBackButton()` - Back button interaction
-
----
-
-## Summary Statistics
-
-| Metric | Before | After | Improvement |
-|--------|--------|-------|-------------|
-| **Average Overall Complexity** | 11.1 | 3.5 | **68.5%** |
-| **Average Cyclomatic Complexity** | 7.4 | 2.3 | **68.9%** |
-| **Average Function Length** | 29.3 | 8.7 | **70.3%** |
-| **Average Nesting Depth** | 2.6 | 1.0 | **61.5%** |
-| **Functions Above Threshold** | 10 | 0 | **100%** |
+All refactored functions now meet professional standards:
+- ✅ Overall complexity: <9.0 (all now 1.3–8.3)
+- ✅ Cyclomatic complexity: <9 (all now 1–6)
+- ✅ Function length: <40 lines (all now 4–16 lines)
+- ✅ Nesting depth: <3 (all maintained)
+- ✅ Extracted function length: <20 lines
+- ✅ Extracted function cyclomatic: <8
 
 ## Test Results
-All tests pass with race detection enabled:
+
+All 58 test suites pass with race detection:
 ```
-ok  github.com/opd-ai/murmur/pkg/ui1.115s
-ok  github.com/opd-ai/murmur/pkg/pulsemap/layout3.333s
-ok  github.com/opd-ai/murmur/pkg/networking/health1.220s
-ok  github.com/opd-ai/murmur/pkg/anonymous/shroud8.503s
-ok  github.com/opd-ai/murmur/pkg/app5.063s
-ok  github.com/opd-ai/murmur/pkg/identity/modes1.201s
-ok  github.com/opd-ai/murmur/pkg/onboarding/screens1.750s
+ok  github.com/opd-ai/murmur/pkg/identity/ignition1.226s
+ok  github.com/opd-ai/murmur/pkg/ui1.089s
+ok  github.com/opd-ai/murmur/pkg/app10.459s
+ok  github.com/opd-ai/murmur/pkg/content/waves1.121s
+ok  github.com/opd-ai/murmur/pkg/anonymous/mechanics/shadowplay10.071s
+ok  github.com/opd-ai/murmur/pkg/onboarding/screens2.036s
+ok  github.com/opd-ai/murmur/proto1.043s
 ```
 
-## Refactoring Principles Applied
+## Remaining Complex Functions
 
-1. **Extract Method**: Cohesive blocks of logic moved into named helper functions
-2. **Decompose Conditional**: Complex nested conditionals replaced with predicate functions
-3. **Replace Loop Body**: Inner loop logic extracted where applicable
-4. **Single Responsibility**: Each extracted function has one clear purpose
-5. **Naming Consistency**: Verb-first naming (e.g., `buildConnectivityMaps`, `shouldEnableClustering`)
-6. **Preserve API**: No changes to exported function signatures
+Top 5 most complex functions still exceeding thresholds (candidates for future refactoring):
 
-## Code Quality Impact
+1. `Update` (pkg/pulsemap/overlays/councils.go) - 25 lines, cyclomatic 7, overall 10.6
+2. `Update` (pkg/onboarding/screens/bootstrap_screen.go) - 20 lines, cyclomatic 7, overall 10.6
+3. `Update` (pkg/ui/hunt_tracker.go) - 28 lines, cyclomatic 7, overall 10.1
+4. `Update` (pkg/ui/search.go) - 26 lines, cyclomatic 7, overall 10.1
+5. `Update` (pkg/pulsemap/interaction/input.go) - 36 lines, cyclomatic 6, overall 8.8
 
-- **Readability**: High-level orchestration now visible at a glance
-- **Testability**: Extracted helpers can be unit tested independently
-- **Maintainability**: Changes isolated to smaller, focused functions
-- **Cognitive Load**: Reduced nesting depth decreases mental overhead
+## Adherence to Project Standards
 
-## Files Modified
+✅ All code formatted with `gofumpt -w -extra .`  
+✅ Zero `go vet` warnings  
+✅ Preserved all exported API signatures  
+✅ Matched project's Ebitengine UI patterns  
+✅ Followed libp2p concurrency model  
+✅ Maintained cryptographic primitive specifications
 
-1. `pkg/ui/oracle_pool.go` - drawInstructions refactored
-2. `pkg/ui/hunt_tracker.go` - drawLeaderboardTab refactored
-3. `pkg/pulsemap/layout/clustering.go` - UpdateClusters + GetStats refactored
-4. `pkg/networking/health/health.go` - Start refactored
-5. `pkg/anonymous/shroud/circuit.go` - RotateCircuit refactored
-6. `pkg/app/nudges.go` - checkAndSendNudges refactored
-7. `pkg/identity/modes/state.go` - handleTrafficPaddingTransition refactored
-8. `pkg/pulsemap/rendering/sigil_image.go` - drawGlowCircle refactored
-9. `pkg/onboarding/screens/recovery_screen.go` - Update refactored
+## Next Steps
 
-## Validation
+1. Continue refactoring the next 5–10 most complex functions
+2. Focus on UI `Update()` methods (common pattern across overlays and panels)
+3. Consider extracting common animation and input handling patterns into shared utilities
+4. Update PLAN.md and CHANGELOG.md with refactoring completion status
 
-- ✅ All tests pass (`go test -race`)
-- ✅ All functions now below thresholds (Overall <9.0, Cyclo <9, Lines <40)
-- ✅ Zero API breakage
-- ✅ Code formatted with `gofumpt -w -extra .`
-- ✅ Passes `go vet ./...`
+---
 
-## Conclusion
-
-Successfully refactored 10 high-complexity functions, achieving an average **68.5% reduction in overall complexity**. All target functions now meet professional complexity thresholds while maintaining full test coverage and zero API breakage.
+**Generated**: 2026-05-06T06:22:10Z  
+**Baseline**: baseline-refactor.json (2026-05-06T02:15:29-04:00)  
+**Post-Analysis**: post-refactor.json (2026-05-06T02:22:10-04:00)  
+**Test Suite**: ✅ 58/58 packages passing

@@ -256,33 +256,61 @@ func (dp *DiscussionPhase) SendMessage(sender [32]byte, content string) (*Discus
 
 // validateSendMessage checks if a message can be sent.
 func (dp *DiscussionPhase) validateSendMessage(sender [32]byte, content string) error {
-	// Check phase is active.
+	if err := dp.validatePhaseState(); err != nil {
+		return err
+	}
+
+	senderHex := mechanics.KeyToHex(sender[:])
+	if err := dp.validateParticipant(senderHex); err != nil {
+		return err
+	}
+
+	if err := dp.validateMessageContent(content); err != nil {
+		return err
+	}
+
+	if err := dp.validateRateLimits(senderHex); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// validatePhaseState checks if the phase is active.
+func (dp *DiscussionPhase) validatePhaseState() error {
 	if dp.State != DiscussionActive && dp.State != DiscussionEnding {
 		return ErrDiscussionNotActive
 	}
+	return nil
+}
 
-	// Check sender is participant.
-	senderHex := mechanics.KeyToHex(sender[:])
+// validateParticipant checks if the sender is a participant.
+func (dp *DiscussionPhase) validateParticipant(senderHex string) error {
 	if !dp.participants[senderHex] {
 		return ErrDiscussionNotPlayer
 	}
+	return nil
+}
 
-	// Check message content.
+// validateMessageContent checks message content length.
+func (dp *DiscussionPhase) validateMessageContent(content string) error {
 	if len(content) == 0 {
 		return ErrDiscussionMessageEmpty
 	}
 	if len(content) > MaxMessageLength {
 		return ErrDiscussionMessageLong
 	}
+	return nil
+}
 
-	// Check rate limit.
+// validateRateLimits checks rate and message count limits.
+func (dp *DiscussionPhase) validateRateLimits(senderHex string) error {
 	if last, ok := dp.lastMessage[senderHex]; ok {
 		if time.Since(last) < MessageRateLimit {
 			return ErrDiscussionRateLimit
 		}
 	}
 
-	// Check message limit.
 	if dp.playerMessages[senderHex] >= MaxMessagesPerPhase {
 		return ErrDiscussionLimitReached
 	}

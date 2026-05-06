@@ -251,7 +251,15 @@ func (s *SearchBar) handleKeyboardNav() bool {
 		return false
 	}
 
-	// Arrow down - select next result.
+	if s.handleArrowNavigation() {
+		return true
+	}
+
+	return s.handleResultSelection()
+}
+
+// handleArrowNavigation processes up/down arrow keys for result navigation.
+func (s *SearchBar) handleArrowNavigation() bool {
 	if inpututil.IsKeyJustPressed(ebiten.KeyDown) {
 		s.selectedIndex++
 		if s.selectedIndex >= len(s.results) {
@@ -260,7 +268,6 @@ func (s *SearchBar) handleKeyboardNav() bool {
 		return true
 	}
 
-	// Arrow up - select previous result.
 	if inpututil.IsKeyJustPressed(ebiten.KeyUp) {
 		s.selectedIndex--
 		if s.selectedIndex < 0 {
@@ -269,19 +276,27 @@ func (s *SearchBar) handleKeyboardNav() bool {
 		return true
 	}
 
-	// Enter - select current result.
-	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) && s.selectedIndex >= 0 && s.selectedIndex < len(s.results) {
-		result := s.results[s.selectedIndex]
-		s.visible = false
-		if s.callbacks.OnSelect != nil {
-			s.mu.Unlock()
-			s.callbacks.OnSelect(result.NodeID)
-			s.mu.Lock()
-		}
-		return true
+	return false
+}
+
+// handleResultSelection processes Enter key to select current result.
+func (s *SearchBar) handleResultSelection() bool {
+	if !inpututil.IsKeyJustPressed(ebiten.KeyEnter) {
+		return false
 	}
 
-	return false
+	if s.selectedIndex < 0 || s.selectedIndex >= len(s.results) {
+		return false
+	}
+
+	result := s.results[s.selectedIndex]
+	s.visible = false
+	if s.callbacks.OnSelect != nil {
+		s.mu.Unlock()
+		s.callbacks.OnSelect(result.NodeID)
+		s.mu.Lock()
+	}
+	return true
 }
 
 // handleMouseClick handles clicks on search results.

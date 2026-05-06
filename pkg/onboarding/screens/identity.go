@@ -96,49 +96,55 @@ func NewScreen(controller *flow.Controller, callbacks ScreenCallbacks) *Screen {
 
 // Update handles input and advances animations.
 func (s *Screen) Update() error {
-	// Advance animation phase
-	dt := 1.0 / 60.0 // Assume 60 FPS
+	s.updateAnimations()
+	s.updatePhilosophyTiming()
+	s.handleUserInput()
+	return nil
+}
+
+// updateAnimations updates all animation states.
+func (s *Screen) updateAnimations() {
+	dt := 1.0 / 60.0
 	s.animPhase += dt * 0.5
 	if s.animPhase > 1 {
 		s.animPhase -= 1
 	}
 
-	// Welcome pulse animation
 	s.welcomePulse = 0.5 + 0.5*math.Sin(s.animPhase*2*math.Pi)
 
-	// Cursor blink
 	s.cursorBlink += dt * 2
 	if s.cursorBlink > 1 {
 		s.cursorBlink -= 1
 	}
+}
 
-	// Handle philosophy screen timing
-	if s.state == StatePhilosophy {
-		elapsed := time.Since(s.philosophyStart)
-		// 3 seconds per statement
-		index := int(elapsed.Seconds() / 3)
-		if index != s.philosophyIndex && index < len(s.philosophyTexts) {
-			s.philosophyIndex = index
-		}
+// updatePhilosophyTiming advances philosophy statement display.
+func (s *Screen) updatePhilosophyTiming() {
+	if s.state != StatePhilosophy {
+		return
 	}
 
-	// Handle mouse clicks.
+	elapsed := time.Since(s.philosophyStart)
+	index := int(elapsed.Seconds() / 3)
+	if index != s.philosophyIndex && index < len(s.philosophyTexts) {
+		s.philosophyIndex = index
+	}
+}
+
+// handleUserInput processes mouse clicks and keyboard input.
+func (s *Screen) handleUserInput() {
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		x, y := ebiten.CursorPosition()
 		s.HandleClick(x, y)
 	}
 
-	// Handle text input for display name entry.
 	for _, ch := range ebiten.AppendInputChars(nil) {
 		s.HandleKeyInput(ch)
 	}
 
-	// Handle backspace.
 	if inpututil.IsKeyJustPressed(ebiten.KeyBackspace) {
 		s.HandleBackspace()
 	}
-
-	return nil
 }
 
 // Draw renders the current screen.

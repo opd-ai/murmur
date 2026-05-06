@@ -219,7 +219,12 @@ func (p *ForgePanel) updateEntriesMode() {
 		return
 	}
 
-	// Navigation.
+	p.handleEntryNavigation()
+	p.handleEntryAmplify()
+}
+
+// handleEntryNavigation processes up/down arrow keys for entry navigation.
+func (p *ForgePanel) handleEntryNavigation() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyUp) && p.selectedEntry > 0 {
 		p.selectedEntry--
 		if p.selectedEntry < p.scrollOffset {
@@ -232,8 +237,10 @@ func (p *ForgePanel) updateEntriesMode() {
 			p.scrollOffset = p.selectedEntry - 4
 		}
 	}
+}
 
-	// A to amplify selected entry.
+// handleEntryAmplify processes the 'A' key to amplify selected entry.
+func (p *ForgePanel) handleEntryAmplify() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyA) {
 		entry := &p.forge.Entries[p.selectedEntry]
 		if !entry.IsOwn && p.onAmplify != nil {

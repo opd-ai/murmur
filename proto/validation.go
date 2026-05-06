@@ -171,30 +171,42 @@ func ValidateWave(wave *Wave) error {
 		return errors.New("nil wave")
 	}
 
-	// Wave type check
 	if err := ValidateWaveType(wave.WaveType); err != nil {
 		return err
 	}
 
-	// Content size check
-	if len(wave.Content) == 0 {
-		return ErrEmptyWaveContent
-	}
-	if len(wave.Content) > MaxWaveContentSize {
-		return ErrContentTooLarge
+	if err := validateWaveContent(wave.Content); err != nil {
+		return err
 	}
 
-	// TTL check
-	if wave.TtlSeconds <= 0 || wave.TtlSeconds > MaxTTLSeconds {
-		return ErrInvalidTTL
+	if err := validateWaveTiming(wave); err != nil {
+		return err
 	}
 
-	// Hop count check
 	if wave.HopCount > MaxHopCount {
 		return ErrInvalidHopCount
 	}
 
-	// Expiry check: created_at + ttl must be in the future
+	return nil
+}
+
+// validateWaveContent checks content size constraints.
+func validateWaveContent(content []byte) error {
+	if len(content) == 0 {
+		return ErrEmptyWaveContent
+	}
+	if len(content) > MaxWaveContentSize {
+		return ErrContentTooLarge
+	}
+	return nil
+}
+
+// validateWaveTiming checks TTL and expiry constraints.
+func validateWaveTiming(wave *Wave) error {
+	if wave.TtlSeconds <= 0 || wave.TtlSeconds > MaxTTLSeconds {
+		return ErrInvalidTTL
+	}
+
 	expiry := wave.CreatedAt + wave.TtlSeconds
 	if expiry < time.Now().Unix() {
 		return ErrTimestampTooOld

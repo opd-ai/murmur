@@ -234,37 +234,52 @@ func DecryptVeiledContent(wave *pb.Wave, recipientPubKey []byte) ([]byte, error)
 		return nil, errors.New("wave is nil")
 	}
 
-	// Check if wave is encrypted.
-	encrypted, ok := wave.Metadata[EncryptedContentKey]
-	if !ok || string(encrypted) != "true" {
-		// Not encrypted, return content as-is.
+	if !isWaveEncrypted(wave) {
 		return wave.Content, nil
 	}
 
-	// Get wrapped key and nonce.
-	wrappedKey, ok := wave.Metadata[WrappedKeyKey]
-	if !ok {
-		return nil, ErrInvalidWrappedKey
+	wrappedKey, nonce, err := extractEncryptionMetadata(wave)
+	if err != nil {
+		return nil, err
 	}
 
-	nonce, ok := wave.Metadata[NonceKey]
-	if !ok || len(nonce) != chacha20poly1305.NonceSizeX {
-		return nil, ErrDecryptionFailed
-	}
-
-	// Unwrap the symmetric key.
 	symmetricKey, err := UnwrapSymmetricKey(wrappedKey, wave.AuthorPubkey, recipientPubKey)
 	if err != nil {
 		return nil, err
 	}
 
-	// Decrypt the content.
+	return decryptContent(symmetricKey, nonce, wave.Content, wave.AuthorPubkey)
+}
+
+// isWaveEncrypted checks if the wave has encrypted content.
+func isWaveEncrypted(wave *pb.Wave) bool {
+	encrypted, ok := wave.Metadata[EncryptedContentKey]
+	return ok && string(encrypted) == "true"
+}
+
+// extractEncryptionMetadata extracts wrapped key and nonce from wave metadata.
+func extractEncryptionMetadata(wave *pb.Wave) ([]byte, []byte, error) {
+	wrappedKey, ok := wave.Metadata[WrappedKeyKey]
+	if !ok {
+		return nil, nil, ErrInvalidWrappedKey
+	}
+
+	nonce, ok := wave.Metadata[NonceKey]
+	if !ok || len(nonce) != chacha20poly1305.NonceSizeX {
+		return nil, nil, ErrDecryptionFailed
+	}
+
+	return wrappedKey, nonce, nil
+}
+
+// decryptContent decrypts content using XChaCha20-Poly1305.
+func decryptContent(symmetricKey, nonce, ciphertext, aad []byte) ([]byte, error) {
 	aead, err := chacha20poly1305.NewX(symmetricKey)
 	if err != nil {
 		return nil, ErrDecryptionFailed
 	}
 
-	plaintext, err := aead.Open(nil, nonce, wave.Content, wave.AuthorPubkey)
+	plaintext, err := aead.Open(nil, nonce, ciphertext, aad)
 	if err != nil {
 		return nil, ErrDecryptionFailed
 	}

@@ -132,7 +132,18 @@ func (p *PuzzleSolverPanel) Update() bool {
 		return false
 	}
 
-	// Animate slide-in.
+	p.updateAnimations()
+	p.handleTextInput()
+
+	if p.handlePanelHotkeys() {
+		return true
+	}
+
+	return true
+}
+
+// updateAnimations updates slide and feedback message animations.
+func (p *PuzzleSolverPanel) updateAnimations() {
 	p.animTime += 1.0 / 60.0
 	if p.slideOffset > 0 {
 		p.slideOffset *= 0.85
@@ -141,7 +152,6 @@ func (p *PuzzleSolverPanel) Update() bool {
 		}
 	}
 
-	// Clear feedback after 4 seconds.
 	if p.errorMessage != "" || p.successMsg != "" {
 		p.feedbackTime += 1.0 / 60.0
 		if p.feedbackTime > 4.0 {
@@ -150,23 +160,21 @@ func (p *PuzzleSolverPanel) Update() bool {
 			p.feedbackTime = 0
 		}
 	}
+}
 
-	// Handle text input.
-	p.handleTextInput()
-
-	// Handle escape to close.
+// handlePanelHotkeys processes Escape and Enter keys.
+func (p *PuzzleSolverPanel) handlePanelHotkeys() bool {
 	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
 		p.visible = false
 		return true
 	}
 
-	// Handle enter to submit.
 	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) && !ebiten.IsKeyPressed(ebiten.KeyShift) {
 		p.submit()
 		return true
 	}
 
-	return true
+	return false
 }
 
 // handleTextInput processes keyboard input for the solution field.

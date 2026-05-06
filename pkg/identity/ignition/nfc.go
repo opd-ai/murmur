@@ -190,6 +190,20 @@ func DecodeNFCIgnitionData(data []byte) (*NFCIgnitionData, error) {
 		return nil, ErrNFCInvalidPayload
 	}
 
+	result, err := parseAllFields(data)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := verifySignature(result); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+// parseAllFields extracts all NFC data fields sequentially.
+func parseAllFields(data []byte) (*NFCIgnitionData, error) {
 	version, idx, err := parseVersionField(data, 0)
 	if err != nil {
 		return nil, err
@@ -220,20 +234,14 @@ func DecodeNFCIgnitionData(data []byte) (*NFCIgnitionData, error) {
 		return nil, err
 	}
 
-	result := &NFCIgnitionData{
+	return &NFCIgnitionData{
 		Version:   version,
 		PublicKey: publicKey,
 		Token:     token,
 		Timestamp: timestamp,
 		Addresses: addresses,
 		Signature: signature,
-	}
-
-	if err := verifySignature(result); err != nil {
-		return nil, err
-	}
-
-	return result, nil
+	}, nil
 }
 
 // parseVersionField extracts and validates the version byte.

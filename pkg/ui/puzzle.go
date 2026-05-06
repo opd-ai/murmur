@@ -153,7 +153,19 @@ func (p *PuzzlePanel) Update() bool {
 		return false
 	}
 
-	// Animate slide-in.
+	p.updateAnimations()
+	p.handleFieldNavigation()
+	p.handleFieldInput()
+
+	if p.handlePanelHotkeys() {
+		return true
+	}
+
+	return true
+}
+
+// updateAnimations updates slide and error message animations.
+func (p *PuzzlePanel) updateAnimations() {
 	p.animTime += 1.0 / 60.0
 	if p.slideOffset > 0 {
 		p.slideOffset *= 0.85
@@ -162,7 +174,6 @@ func (p *PuzzlePanel) Update() bool {
 		}
 	}
 
-	// Clear error after 3 seconds.
 	if p.errorMessage != "" {
 		p.errorTime += 1.0 / 60.0
 		if p.errorTime > 3.0 {
@@ -170,26 +181,21 @@ func (p *PuzzlePanel) Update() bool {
 			p.errorTime = 0
 		}
 	}
+}
 
-	// Handle field navigation.
-	p.handleFieldNavigation()
-
-	// Handle field-specific input.
-	p.handleFieldInput()
-
-	// Handle escape to close.
+// handlePanelHotkeys processes Escape and Enter keys.
+func (p *PuzzlePanel) handlePanelHotkeys() bool {
 	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
 		p.visible = false
 		return true
 	}
 
-	// Handle enter to submit.
 	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) && !ebiten.IsKeyPressed(ebiten.KeyShift) {
 		p.submit()
 		return true
 	}
 
-	return true // Panel consumes all input when visible.
+	return false
 }
 
 // handleFieldNavigation processes Tab/Arrow keys to move between fields.
