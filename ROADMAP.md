@@ -9,6 +9,7 @@
 
 ### Progress Update (2026-05-07)
 
+- [x] Extension surface freeze (PLAN 8.1) completed: stable registries now exist for Wave extensions (`pkg/content/waves.RegisterWaveType`), game modules (`pkg/anonymous/mechanics.RegisterGameModule`), transport adapters (`pkg/networking/transport.RegisterAdapter`), and read-only Resonance hooks (`pkg/anonymous/resonance.RegisterResonanceHook` + `NewReadOnlyQuery`). The host builder now appends registered custom transports, and extension Wave handlers are enforced during validation.
 - [x] Tunnel operator incentive design documented with non-cryptocurrency model (`docs/TUNNEL_OPERATOR_INCENTIVES.md`), including explicit opt-in, capped rewards, anti-Sybil controls, and abuse-policy-gated eligibility.
 - [x] Operator-facing tunnel host documentation and configuration profiles published (`docs/TUNNEL_HOST_PROFILE.md`) for relay-only and exit-enabled operation.
 - [x] Friend-to-friend reseed semantics documented (`docs/RESEED_SEMANTICS.md`) covering bundle scope, capability-based authorization, and compromised-host trust model.

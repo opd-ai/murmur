@@ -878,12 +878,13 @@ PHASE 8: EXTENSION SURFACE HARDENING (Weeks 24–32)
 =====================================
 Turn the Extension Contract from 0.3 into a stable, documented API.
 
-[ ] 8.1  Freeze stable extension points
+[x] 8.1  Freeze stable extension points
          - Custom Wave type registration
          - Game module API (from Phase 2.4)
          - Transport adapter API (from Phase 5.2 — the same boundary
            used for onramp Onion/Garlic adapters)
          - Resonance hook API (read-only reputation queries)
+         - **COMPLETED 2026-05-07**: Froze the first code-level extension surfaces to match `EXTENSION_CONTRACT.md`. Added stable Wave extension registration in `pkg/content/waves/extensions.go` (`RegisterWaveType`, extension-range enforcement, validation hook-in, tests); added stable game module SDK and registry in `pkg/anonymous/mechanics/sdk.go` (`GameMetadata`, `MatchConfig`, `Match`, `GameModule`, `RegisterGameModule`, tests); added stable transport adapter registration in `pkg/networking/transport/extensions.go` (`AdapterConstructor`, `RegisterAdapter`) and wired registered adapters into `NewHost`; added stable read-only Resonance hook API in `pkg/anonymous/resonance/hooks.go` (`ReadOnlyQuery`, `ReadOnlyScore`, `RegisterResonanceHook`, `NewReadOnlyQuery`) backed by non-mutating scorer lookups. Validation: `xvfb-run -a go test -race ./...` and `go vet ./...` pass.
 
 [ ] 8.2  Publish PROTOCOL.md separating wire format from
          reference implementation

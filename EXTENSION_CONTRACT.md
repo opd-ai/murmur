@@ -20,12 +20,13 @@ Extend the Wave message format to support domain-specific content types (e.g., p
 #### Extension Mechanism
 - Register custom Wave type IDs in the range `0x40–0xFF` (types `0x01–0x3F` reserved for core MURMUR)
 - Implement custom serialization/deserialization via Protocol Buffers `Any` type or custom protobuf messages
+- Register an `ExtensionHandler` in `pkg/content/waves/extensions.go`; registered handlers are invoked during Wave validation for extension types
 - Custom types propagate through GossipSub like standard Waves; subject to PoW and TTL enforcement
 
 #### API Surface
 ```go
-// pkg/content/waves/types.go
-type WaveType byte
+// pkg/content/waves/extensions.go
+type WaveType uint8
 
 const (
     // Core types (0x01–0x3F)
@@ -39,12 +40,11 @@ const (
 )
 
 // RegisterWaveType registers a custom Wave type handler.
-func RegisterWaveType(typ WaveType, handler WaveHandler) error
+func RegisterWaveType(typ WaveType, handler ExtensionHandler) error
 
-type WaveHandler interface {
-    Validate(wave *Wave) error           // Validate custom Wave structure
-    Render(wave *Wave) ([]byte, error)   // Serialize for display
-    ComputePoW(wave *Wave) error         // PoW computation for custom type
+type ExtensionHandler interface {
+    Validate(wave *pb.Wave) error
+    Render(wave *pb.Wave) ([]byte, error)
 }
 ```
 
@@ -69,29 +69,26 @@ type WaveHandler interface {
 Extend the mini-game library with new asynchronous or real-time games. Games are sandboxed and interact with the network only through the Game Module SDK.
 
 #### Extension Mechanism
-- Implement `GameModule` interface in `pkg/anonymous/mechanics/games/`
-- Register module at startup via `RegisterGameModule(name, module)`
+- Implement `GameModule` in `pkg/anonymous/mechanics/sdk.go`
+- Register the module at startup via `RegisterGameModule(module)`
 - SDK provides primitives: create match, broadcast event, persist state, end match, award Resonance
 
 #### API Surface
 ```go
-// pkg/anonymous/mechanics/games/sdk.go
+// pkg/anonymous/mechanics/sdk.go
 type GameModule interface {
-    Name() string                               // Unique game identifier
-    MinPlayers() int                            // Minimum players to start
-    MaxPlayers() int                            // Maximum players allowed
-    IsRealTime() bool                           // Real-time or asynchronous?
-    
-    CreateMatch(players []PlayerID) (Match, error)  // Initialize game state
-    HandleEvent(match Match, event Event) error     // Process player actions
-    EndMatch(match Match) ([]Winner, error)         // Declare winners, award Resonance
+    Metadata() GameMetadata
+    CreateMatch(ctx context.Context, config MatchConfig) (Match, error)
+    ValidateConfig(config MatchConfig) error
 }
 
 type Match interface {
-    ID() string
-    State() []byte                              // Serialize game state
-    BroadcastEvent(event Event)                 // Send event to all players
-    PersistState(state []byte) error            // Save to local storage
+    ID() [32]byte
+    Join(ctx context.Context, participantKey [32]byte) error
+    Leave(ctx context.Context, participantKey [32]byte) error
+    HandleEvent(ctx context.Context, event Event) error
+    State() MatchState
+    End(ctx context.Context, outcome Outcome) error
 }
 ```
 
@@ -110,26 +107,33 @@ type Match interface {
 
 ### 3. Custom Resonance Hooks
 
-**Status:** 🟡 **EXPERIMENTAL** — API may change in minor versions
+**Status:** 🟢 **STABLE** — Public API, backward compatibility guaranteed
 
 #### Description
 Extend Resonance computation with custom signal sources (e.g., domain-specific reputation from third-party oracles).
 
 #### Extension Mechanism
 - Implement `ResonanceHook` interface in `pkg/anonymous/resonance/hooks.go`
-- Register hook at startup; invoked during periodic Resonance recalculation
-- Hooks provide **read-only** access to identity, Wave history, and game participation
+- Register hook at startup; invoked by the owning scorer/integration layer
+- Hooks receive **read-only** Resonance score views via `ReadOnlyQuery`
 
 #### API Surface
 ```go
 // pkg/anonymous/resonance/hooks.go
-type ResonanceHook interface {
-    Name() string
-    ComputeSignal(ctx context.Context, identity IdentityID) (float64, error)
+type ReadOnlyQuery interface {
+    SpecterScore(specterID string) (ReadOnlyScore, bool)
 }
 
-// RegisterResonanceHook adds a custom signal to Resonance computation.
+type ResonanceHook interface {
+    Name() string
+    ComputeSignal(ctx context.Context, specterID string, query ReadOnlyQuery) (float64, error)
+}
+
+// RegisterResonanceHook adds a custom signal provider.
 func RegisterResonanceHook(hook ResonanceHook) error
+
+// NewReadOnlyQuery adapts a scorer to the hook query surface.
+func NewReadOnlyQuery(scorer interface{ LookupScore(string) (*Score, bool) }) ReadOnlyQuery
 ```
 
 #### Examples
@@ -154,29 +158,19 @@ Extend MURMUR's transport layer with additional libp2p transports (e.g., Bluetoo
 
 #### Extension Mechanism
 - Implement libp2p `transport.Transport` interface
-- Register adapter in `pkg/networking/transport/host.go` during host construction
+- Register the adapter via `pkg/networking/transport.RegisterAdapter`
 - Adapter must support Noise encryption and yamux multiplexing
 
 #### API Surface
 ```go
-// Uses standard libp2p transport.Transport interface
-// See: github.com/libp2p/go-libp2p/core/transport
+// pkg/networking/transport/extensions.go
+type AdapterConstructor func(
+    ctx context.Context,
+    upgrader transport.Upgrader,
+    rcmgr network.ResourceManager,
+) (transport.Transport, error)
 
-// Register in host builder:
-func NewHost(config Config) (host.Host, error) {
-    // Standard transports
-    transports := []transport.Transport{
-        tcp.NewTCPTransport(...),
-        quic.NewTransport(...),
-    }
-    
-    // Custom transports
-    if config.CustomTransports != nil {
-        transports = append(transports, config.CustomTransports...)
-    }
-    
-    // ...
-}
+func RegisterAdapter(name string, constructor AdapterConstructor) error
 ```
 
 #### Examples
@@ -288,12 +282,12 @@ type StorageBackend interface {
 - **API frozen**: No breaking changes without major version bump (v1.x → v2.x)
 - **Backward compatibility**: Extensions built for v1.0 work on v1.x
 - **Deprecation policy**: 12 months notice before removal
-- **Examples:** Custom Wave Types, Custom Game Modules, Custom Transport Adapters
+- **Examples:** Custom Wave Types, Custom Game Modules, Custom Resonance Hooks, Custom Transport Adapters
 
 ### 🟡 EXPERIMENTAL
 - **API may change**: Breaking changes allowed in minor versions (v1.0 → v1.1)
 - **Notice period**: 3 months before breaking change
-- **Examples:** Custom Resonance Hooks, Custom UI Overlays
+- **Examples:** Custom UI Overlays
 
 ### 🔴 PRIVATE
 - **Not an extension point**: Internal implementation detail
