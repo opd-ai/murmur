@@ -19,6 +19,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/vector"
 	"github.com/opd-ai/murmur/pkg/content/waves"
 	"github.com/opd-ai/murmur/pkg/identity/keys"
+	"github.com/opd-ai/murmur/pkg/identity/modes"
 	"github.com/opd-ai/murmur/pkg/networking/gossip"
 	"github.com/opd-ai/murmur/pkg/pulsemap/interaction"
 	"github.com/opd-ai/murmur/pkg/pulsemap/layout"
@@ -78,6 +79,10 @@ type Game struct {
 	// settingsPanel provides user access to all configuration settings.
 	// Per AUDIT.md HIGH finding: SettingsPanel was implemented but never wired.
 	settingsPanel *ui.SettingsPanel
+
+	// modeManager is the Shadow Gradient privacy mode state machine.
+	// Set via SetModeManager; nil means privacy_mode changes are logged but not applied.
+	modeManager *modes.Manager
 
 	// keypair is the Surface Layer identity for signing Waves.
 	keypair *keys.KeyPair
@@ -1086,12 +1091,29 @@ func (g *Game) handleSettingsPanelToggle() {
 	}
 }
 
+// SetModeManager wires the Shadow Gradient modes.Manager to the game loop so
+// that Privacy Mode changes made in the Settings panel take effect immediately.
+// Per SHADOW_GRADIENT.md, all four modes (Open/Hybrid/Guarded/Fortress) must be
+// reachable from the settings UI.
+func (g *Game) SetModeManager(m *modes.Manager) {
+	g.modeManager = m
+}
+
 // handleSettingChange applies a changed setting to live subsystems.
 // Per AUDIT.md HIGH finding: SettingsPanel was wired without a real change handler.
 func (g *Game) handleSettingChange(key, value string) {
 	log.Printf("Setting changed: %s = %s", key, value)
-	// TODO: Route to identity/modes for privacy_mode, to renderer for display settings, etc.
-	// Per DESIGN_DOCUMENT.md §Shadow Gradient, privacy_mode changes require identity/modes state machine.
+	if key == "privacy_mode" {
+		if mode, ok := parseModeString(value); ok {
+			if g.modeManager != nil {
+				if err := g.modeManager.Transition(mode); err != nil {
+					log.Printf("privacy_mode transition error: %v", err)
+				}
+			}
+		} else {
+			log.Printf("handleSettingChange: unknown privacy_mode value %q", value)
+		}
+	}
 }
 
 // checkWaveResult drains the waveResultCh channel (non-blocking) and displays

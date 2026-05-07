@@ -10,15 +10,23 @@ import (
 	"context"
 
 	"github.com/opd-ai/murmur/pkg/identity/keys"
+	"github.com/opd-ai/murmur/pkg/identity/modes"
 	"github.com/opd-ai/murmur/pkg/networking/gossip"
 )
 
 // Game is a stub for test builds without Ebitengine.
-type Game struct{}
+type Game struct {
+	modeManager *modes.Manager
+}
 
 // NewGame creates a stub game instance for test builds.
 func NewGame(ctx context.Context, keypair *keys.KeyPair, pubsub *gossip.PubSub) (*Game, error) {
 	return &Game{}, nil
+}
+
+// SetModeManager wires the Shadow Gradient modes.Manager to the stub game.
+func (g *Game) SetModeManager(m *modes.Manager) {
+	g.modeManager = m
 }
 
 // Update is a no-op stub.

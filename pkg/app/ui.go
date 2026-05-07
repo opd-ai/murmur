@@ -11,6 +11,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/opd-ai/murmur/pkg/identity/keys"
+	"github.com/opd-ai/murmur/pkg/identity/modes"
 	"github.com/opd-ai/murmur/pkg/onboarding/flow"
 	"github.com/opd-ai/murmur/pkg/onboarding/screens"
 	"github.com/opd-ai/murmur/pkg/pulsemap"
@@ -141,9 +142,15 @@ func (a *App) runPulseMapUI() error {
 		return fmt.Errorf("creating Pulse Map game: %w", err)
 	}
 
+	// Wire the Shadow Gradient modes.Manager so privacy_mode settings take effect.
+	// Per SHADOW_GRADIENT.md, Open/Hybrid/Guarded/Fortress modes are user-controllable at runtime.
+	modeMgr := modes.NewManager()
+	game.SetModeManager(modeMgr)
+
 	// Store in subsystems for access by other components.
 	a.mu.Lock()
 	a.subsystems.PulseMapUI = game
+	a.subsystems.ModeManager = modeMgr
 	a.mu.Unlock()
 
 	return a.runEbitenGame(game, "MURMUR — Pulse Map", "Starting Pulse Map visualization...", "running Pulse Map")

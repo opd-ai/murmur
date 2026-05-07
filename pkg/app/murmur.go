@@ -18,6 +18,7 @@ import (
 	"github.com/opd-ai/murmur/pkg/content/pow"
 	"github.com/opd-ai/murmur/pkg/content/storage"
 	"github.com/opd-ai/murmur/pkg/identity/keys"
+	"github.com/opd-ai/murmur/pkg/identity/modes"
 	"github.com/opd-ai/murmur/pkg/murerr"
 	"github.com/opd-ai/murmur/pkg/networking/gossip"
 	"github.com/opd-ai/murmur/pkg/networking/health"
@@ -117,6 +118,10 @@ type Subsystems struct {
 	// Nil if SkipUI is true. Type is interface{} to avoid hard ebiten dependency
 	// in the app package (actual type is *pulsemap.Game which implements ebiten.Game).
 	PulseMapUI interface{}
+
+	// ModeManager is the Shadow Gradient privacy mode state machine.
+	// Initialized during subsystem startup and wired to PulseMapUI via SetModeManager.
+	ModeManager *modes.Manager
 }
 
 // App is the top-level MURMUR application.
