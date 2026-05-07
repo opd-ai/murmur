@@ -1,6 +1,6 @@
 # PLAN
 
-Last updated: 2026-05-06
+Last updated: 2026-05-07
 
 ## Active Track: Desktop + WASM Deployment
 
@@ -22,3 +22,4 @@ Last updated: 2026-05-06
 - [x] Add desktop-browser interop integration tests.
 - [x] Add dynamic bootstrap server command (`cmd/bootstrap`) with DHT server-mode participation, automatic peer learning/distribution, and multi-listener support for HTTP/ngrok/Tor/I2P ingress.
 - [x] Add container deployment assets for the dynamic bootstrap server (`Dockerfile.bootstrap`, Compose example, and operator docs covering configurable ngrok domains and announced public libp2p addresses).
+- [x] Repair corrupted transport integration tests in `pkg/networking/transport/integration_test.go` and realign to current diagnostics/host APIs.
