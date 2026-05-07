@@ -3,8 +3,10 @@ package identity
 import (
 	"crypto/ed25519"
 	"crypto/rand"
+	"encoding/base64"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/libp2p/go-libp2p/core/peer"
 )
@@ -307,5 +309,114 @@ func BenchmarkGenerateQRCode(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
+	}
+}
+
+func TestSignedInvitationRoundTrip(t *testing.T) {
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("failed to generate key: %v", err)
+	}
+	peerID, err := peer.Decode("12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp")
+	if err != nil {
+		t.Fatalf("failed to decode peer ID: %v", err)
+	}
+
+	inv, err := GenerateSignedInvitation(peerID, pub, priv, SignedInvitationOptions{
+		BootstrapAddrs: []string{"/ip4/127.0.0.1/tcp/4010/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp"},
+		WelcomeMessage: "Signed invite",
+		TTL:            5 * time.Minute,
+	})
+	if err != nil {
+		t.Fatalf("GenerateSignedInvitation failed: %v", err)
+	}
+
+	uri, err := inv.EncodeURI()
+	if err != nil {
+		t.Fatalf("EncodeURI failed: %v", err)
+	}
+	if !strings.HasPrefix(uri, InviteURISchemeV2) {
+		t.Fatalf("expected v2 scheme, got %q", uri)
+	}
+
+	decoded, err := DecodeInvitation(uri)
+	if err != nil {
+		t.Fatalf("DecodeInvitation failed: %v", err)
+	}
+	if len(decoded.BootstrapAddrs) != 1 {
+		t.Fatalf("expected 1 bootstrap address, got %d", len(decoded.BootstrapAddrs))
+	}
+	if decoded.BootstrapAddrs[0] != inv.BootstrapAddrs[0] {
+		t.Fatalf("bootstrap address mismatch: got %q want %q", decoded.BootstrapAddrs[0], inv.BootstrapAddrs[0])
+	}
+}
+
+func TestSignedInvitationTamperRejected(t *testing.T) {
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("failed to generate key: %v", err)
+	}
+	peerID, err := peer.Decode("12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp")
+	if err != nil {
+		t.Fatalf("failed to decode peer ID: %v", err)
+	}
+
+	inv, err := GenerateSignedInvitation(peerID, pub, priv, SignedInvitationOptions{
+		BootstrapAddrs: []string{"/ip4/127.0.0.1/tcp/4010/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp"},
+		WelcomeMessage: "Signed invite",
+		TTL:            5 * time.Minute,
+	})
+	if err != nil {
+		t.Fatalf("GenerateSignedInvitation failed: %v", err)
+	}
+
+	encoded, err := inv.EncodeSigned()
+	if err != nil {
+		t.Fatalf("EncodeSigned failed: %v", err)
+	}
+	raw, err := base64.RawURLEncoding.DecodeString(encoded)
+	if err != nil {
+		t.Fatalf("decode raw invitation failed: %v", err)
+	}
+	raw[5] ^= 0x01
+	tampered := base64.RawURLEncoding.EncodeToString(raw)
+
+	_, err = DecodeSignedInvitation(tampered)
+	if err == nil {
+		t.Fatal("expected tampered invitation to fail signature verification")
+	}
+}
+
+func TestSignedInvitationExpired(t *testing.T) {
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("failed to generate key: %v", err)
+	}
+	peerID, err := peer.Decode("12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp")
+	if err != nil {
+		t.Fatalf("failed to decode peer ID: %v", err)
+	}
+
+	inv := &Invitation{
+		PeerID:         peerID,
+		PublicKey:      pub,
+		WelcomeMessage: "Expired",
+		BootstrapAddrs: []string{"/ip4/127.0.0.1/tcp/4010/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp"},
+		ExpiresUnix:    time.Now().Add(-time.Minute).Unix(),
+	}
+	payload, err := inv.marshalV2Payload()
+	if err != nil {
+		t.Fatalf("marshalV2Payload failed: %v", err)
+	}
+	inv.Signature = ed25519.Sign(priv, payload)
+
+	encoded, err := inv.EncodeSigned()
+	if err != nil {
+		t.Fatalf("EncodeSigned failed: %v", err)
+	}
+
+	_, err = DecodeSignedInvitation(encoded)
+	if err == nil {
+		t.Fatal("expected expired invitation to be rejected")
 	}
 }

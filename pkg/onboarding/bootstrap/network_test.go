@@ -3,11 +3,16 @@ package bootstrap
 
 import (
 	"context"
+	"crypto/ed25519"
+	"crypto/rand"
 	"errors"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/opd-ai/murmur/pkg/identity"
 )
 
 // mockConnector provides a test implementation of NetworkConnector.
@@ -16,9 +21,16 @@ type mockConnector struct {
 	connectError error
 	connectDelay time.Duration
 	discoveryErr error
+	blockedAddrs map[string]struct{}
+	connected    []string
 }
 
 func (m *mockConnector) Connect(ctx context.Context, addr string) (string, error) {
+	if m.blockedAddrs != nil {
+		if _, blocked := m.blockedAddrs[addr]; blocked {
+			return "", errors.New("blocked bootstrap address")
+		}
+	}
 	if m.connectDelay > 0 {
 		time.Sleep(m.connectDelay)
 	}
@@ -26,6 +38,7 @@ func (m *mockConnector) Connect(ctx context.Context, addr string) (string, error
 		return "", m.connectError
 	}
 	m.peerCount++
+	m.connected = append(m.connected, addr)
 	// Generate a mock peer ID from the address
 	if len(addr) >= 8 {
 		return "Qm" + addr[len(addr)-8:], nil
@@ -355,5 +368,64 @@ func TestBootstrapStatusChangeCallback(t *testing.T) {
 	}
 	if !hasComplete {
 		t.Error("expected complete status")
+	}
+}
+
+func TestBootstrapInvitationFallsBackWhenPrimaryBlocked(t *testing.T) {
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("generating keypair: %v", err)
+	}
+	peerID, err := peer.Decode("12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp")
+	if err != nil {
+		t.Fatalf("creating peer ID: %v", err)
+	}
+
+	blockedAddr := "/ip4/10.0.0.1/tcp/4999/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp"
+	allowedAddr := "/ip4/127.0.0.1/tcp/4011/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp"
+
+	inv, err := identity.GenerateSignedInvitation(peerID, pub, priv, identity.SignedInvitationOptions{
+		BootstrapAddrs: []string{blockedAddr, allowedAddr},
+		WelcomeMessage: "fallback",
+		TTL:            time.Minute,
+	})
+	if err != nil {
+		t.Fatalf("generating invitation: %v", err)
+	}
+	uri, err := inv.EncodeURI()
+	if err != nil {
+		t.Fatalf("encoding URI: %v", err)
+	}
+
+	connector := &mockConnector{
+		blockedAddrs: map[string]struct{}{blockedAddr: {}},
+	}
+
+	cfg := Config{
+		BootstrapPeers: []string{"peer1"},
+		MinPeers:       1,
+		Timeout:        2 * time.Second,
+		RetryInterval:  10 * time.Millisecond,
+		MaxRetries:     1,
+		InvitationURI:  uri,
+	}
+
+	manager := NewManager(cfg, connector, Callbacks{})
+	if err := manager.Start(context.Background()); err != nil {
+		t.Fatalf("bootstrap failed: %v", err)
+	}
+
+	if len(connector.connected) == 0 {
+		t.Fatal("expected at least one successful connection")
+	}
+	connectedAllowed := false
+	for _, addr := range connector.connected {
+		if addr == allowedAddr {
+			connectedAllowed = true
+			break
+		}
+	}
+	if !connectedAllowed {
+		t.Fatalf("expected successful connection through fallback invitation address, connected=%v", connector.connected)
 	}
 }

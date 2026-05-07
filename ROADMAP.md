@@ -18,6 +18,8 @@
 - [x] Search bar interaction correctness hardened (stale-result guard validated + debounce gating added + Escape non-consumption behavior tested).
 - [x] Bootstrap onboarding peer-discovery bridge added (`OnPeerConnected` forwarding interface + manager callback setter + focused test coverage).
 - [x] Full in-process libp2p integration test for bootstrap-screen discovery completion added and passing.
+- [x] Signed out-of-band invitation codes implemented (`murmur://invite2/`) with embedded bootstrap addresses, expiration, and Ed25519 tamper detection; onboarding bootstrap now falls back across multiple invitation-provided addresses when primary/default bootstrap routes are blocked.
+- [x] Reseed threat-model document published at root (`RESEED.md`) covering compromised host and coerced-friend scenarios, replay/resource-abuse controls, operational defaults, and failure handling.
 
 ---
 

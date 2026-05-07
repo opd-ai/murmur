@@ -414,16 +414,28 @@ func (m *Manager) connectToInviter(ctx context.Context) error {
 		return fmt.Errorf("accepting invitation: %w", err)
 	}
 
-	addr := BuildBootstrapAddrFromInvitation(inv)
-
-	if err := m.connectWithRetries(ctx, addr); err != nil {
+	if err := m.connectToFirstReachableAddr(ctx, BuildBootstrapAddrsFromInvitation(inv)); err != nil {
 		return err
 	}
-
 	if m.callbacks.OnPeerConnected != nil {
 		go m.callbacks.OnPeerConnected(inv.PeerID.String())
 	}
 	return nil
+}
+
+func (m *Manager) connectToFirstReachableAddr(ctx context.Context, addrs []string) error {
+	var lastErr error
+	for _, addr := range addrs {
+		if err := m.connectWithRetries(ctx, addr); err == nil {
+			return nil
+		} else {
+			lastErr = err
+		}
+	}
+	if lastErr != nil {
+		return lastErr
+	}
+	return fmt.Errorf("no bootstrap addresses available in invitation")
 }
 
 // connectWithRetries attempts connection with retries until success or context cancellation.

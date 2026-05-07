@@ -863,13 +863,15 @@ Shares infrastructure with tunneling. Build second, learn from Phase 6.
          - Specific Wave type or protocol message for reseed requests
          - **COMPLETED 2026-05-06**: Created docs/RESEED_TUNNEL_ARCHITECTURE.md defining reseed as a constrained tunnel application profile that reuses Shroud/tunnel transport, accounting, and policy controls. Specified protocol surface (`/murmur/reseed/1`, `RESEED_REQUEST`, `RESEED_BUNDLE`, `RESEED_DENY`), stricter policy defaults (no arbitrary proxying, bounded bundle payloads), implementation staging, and safety limits (capability expiry, rate limits, bundle size/TTL caps).
 
-[ ] 7.3  Implement out-of-band invitation codes
+[x] 7.3  Implement out-of-band invitation codes
          - Friend shares a signed code (QR, text, paper)
          - Code contains enough to bootstrap without a central server
          - Test in adversarial network conditions (blocked bootstraps)
+         - **COMPLETED 2026-05-06**: Implemented signed out-of-band invitation codes in `pkg/identity/invitation.go` with tamper-evident Ed25519 signatures, expiration, and embedded bootstrap multiaddrs via `murmur://invite2/` URIs. Added `GenerateSignedInvitation`, `EncodeSigned`, and `DecodeSignedInvitation` while preserving legacy invitation compatibility. Integrated bootstrap fallback in `pkg/onboarding/bootstrap/network.go` to try all invitation-provided addresses when primary/default bootstrap paths are blocked. Added adversarial and integrity tests in `pkg/identity/invitation_test.go`, `pkg/onboarding/bootstrap/invitation_test.go`, and `pkg/onboarding/bootstrap/network_test.go` covering signature tampering rejection, expiry rejection, signed-invite decode, multi-address extraction, and blocked-primary-address fallback behavior.
 
-[ ] 7.4  Document RESEED.md with threat model (compromised
+[x] 7.4  Document RESEED.md with threat model (compromised
          reseed host, coerced friend, etc.)
+         - **COMPLETED 2026-05-06**: Added `RESEED.md` at repository root with user flow, capability model, bundle validation model, in-scope/out-of-scope threat model, and explicit mitigations for compromised reseed hosts, coerced friend hosts, replay attacks, and requestor resource abuse. Included privacy posture, operational defaults, and failure-handling guidance aligned with `docs/RESEED_SEMANTICS.md` and `docs/RESEED_TUNNEL_ARCHITECTURE.md`.
 
 PHASE 8: EXTENSION SURFACE HARDENING (Weeks 24–32)
 =====================================

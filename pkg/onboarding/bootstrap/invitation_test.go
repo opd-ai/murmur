@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/opd-ai/murmur/pkg/identity"
@@ -148,5 +149,65 @@ func TestAcceptInvitation_RoundTrip(t *testing.T) {
 	// Verify peer ID round-trips correctly.
 	if accepted.PeerID != original.PeerID {
 		t.Error("peer ID did not round-trip correctly")
+	}
+}
+
+func TestBuildBootstrapAddrsFromInvitation(t *testing.T) {
+	pub, _, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("generating keypair: %v", err)
+	}
+	peerID, err := peer.Decode("12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp")
+	if err != nil {
+		t.Fatalf("creating peer ID: %v", err)
+	}
+
+	inv := &identity.Invitation{
+		PeerID:         peerID,
+		PublicKey:      pub,
+		BootstrapAddrs: []string{"  /ip4/127.0.0.1/tcp/4100/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp  ", ""},
+	}
+
+	addrs := BuildBootstrapAddrsFromInvitation(inv)
+	if len(addrs) != 1 {
+		t.Fatalf("expected one cleaned bootstrap address, got %d", len(addrs))
+	}
+	if addrs[0] != "/ip4/127.0.0.1/tcp/4100/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp" {
+		t.Fatalf("unexpected bootstrap address: %q", addrs[0])
+	}
+}
+
+func TestAcceptInvitationSigned(t *testing.T) {
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("generating keypair: %v", err)
+	}
+	peerID, err := peer.Decode("12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp")
+	if err != nil {
+		t.Fatalf("creating peer ID: %v", err)
+	}
+
+	inv, err := identity.GenerateSignedInvitation(peerID, pub, priv, identity.SignedInvitationOptions{
+		BootstrapAddrs: []string{"/ip4/127.0.0.1/tcp/4101/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp"},
+		WelcomeMessage: "Warm start",
+		TTL:            5 * time.Minute,
+	})
+	if err != nil {
+		t.Fatalf("generating signed invitation: %v", err)
+	}
+
+	uri, err := inv.EncodeURI()
+	if err != nil {
+		t.Fatalf("encoding signed URI: %v", err)
+	}
+
+	accepted, err := AcceptInvitation(uri)
+	if err != nil {
+		t.Fatalf("accepting signed invitation: %v", err)
+	}
+
+	addrs := BuildBootstrapAddrsFromInvitation(accepted)
+	if len(addrs) != 1 || addrs[0] != inv.BootstrapAddrs[0] {
+		t.Fatalf("signed invitation did not preserve bootstrap addresses")
 	}
 }
