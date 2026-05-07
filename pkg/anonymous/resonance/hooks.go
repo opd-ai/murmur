@@ -27,7 +27,7 @@ type ResonanceHook interface {
 
 type scorerReadOnlyQuery struct {
 	scorer interface {
-		GetScore(specterID string) *Score
+		LookupScore(specterID string) (*Score, bool)
 	}
 }
 
@@ -37,7 +37,9 @@ var (
 )
 
 // NewReadOnlyQuery adapts a scorer to the extension read-only query surface.
-func NewReadOnlyQuery(scorer interface{ GetScore(specterID string) *Score }) ReadOnlyQuery {
+func NewReadOnlyQuery(scorer interface {
+	LookupScore(specterID string) (*Score, bool)
+}) ReadOnlyQuery {
 	if scorer == nil {
 		return nil
 	}
@@ -78,8 +80,8 @@ func RegisteredResonanceHooks() []string {
 }
 
 func (q scorerReadOnlyQuery) SpecterScore(specterID string) (ReadOnlyScore, bool) {
-	score := q.scorer.GetScore(specterID)
-	if score == nil {
+	score, ok := q.scorer.LookupScore(specterID)
+	if !ok || score == nil {
 		return ReadOnlyScore{}, false
 	}
 	return ReadOnlyScore{

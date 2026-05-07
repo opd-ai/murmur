@@ -45,6 +45,15 @@ func (sc *GenericScorer[T]) GetScore(id string) T {
 	return score
 }
 
+// LookupScore retrieves a score without creating one.
+func (sc *GenericScorer[T]) LookupScore(id string) (T, bool) {
+	sc.mu.RLock()
+	defer sc.mu.RUnlock()
+
+	score, ok := sc.scores[id]
+	return score, ok
+}
+
 // SetScore sets a score for the given ID.
 func (sc *GenericScorer[T]) SetScore(id string, score T) {
 	sc.mu.Lock()

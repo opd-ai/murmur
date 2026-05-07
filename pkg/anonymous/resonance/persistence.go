@@ -79,6 +79,15 @@ func (ps *PersistentScorer) GetScore(specterID string) *Score {
 	return score
 }
 
+// LookupScore retrieves a Score without creating one.
+func (ps *PersistentScorer) LookupScore(specterID string) (*Score, bool) {
+	ps.mu.RLock()
+	defer ps.mu.RUnlock()
+
+	score, ok := ps.scores[specterID]
+	return score, ok
+}
+
 // SetScore sets a Score for a Specter and persists it.
 func (ps *PersistentScorer) SetScore(specterID string, score *Score) {
 	ps.mu.Lock()
