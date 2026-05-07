@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"sync"
 
+	libpubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
 
@@ -71,7 +72,6 @@ func (a *desktopAdapter) Start(ctx context.Context) error {
 	return nil
 }
 
-
 func (a *desktopAdapter) Stop(context.Context) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -105,14 +105,14 @@ func (a *desktopAdapter) Stop(context.Context) error {
 
 func (a *desktopAdapter) Publish(ctx context.Context, topic string, payload []byte) error {
 	a.mu.RLock()
-	pubsub := a.pubsub
+	ps := a.pubsub
 	a.mu.RUnlock()
 
-	if pubsub == nil {
+	if ps == nil {
 		return ErrNotStarted
 	}
 
-	return pubsub.Publish(ctx, topic, payload)
+	return ps.Publish(ctx, topic, payload)
 }
 
 func (a *desktopAdapter) Subscribe(topic string) (<-chan Message, error) {
@@ -122,9 +122,9 @@ func (a *desktopAdapter) Subscribe(topic string) (<-chan Message, error) {
 		return ch, nil
 	}
 
-	pubsub := a.pubsub
+	ps := a.pubsub
 	runCtx := a.runCtx
-	if pubsub == nil || runCtx == nil {
+	if ps == nil || runCtx == nil {
 		a.mu.Unlock()
 		return nil, ErrNotStarted
 	}
@@ -133,9 +133,9 @@ func (a *desktopAdapter) Subscribe(topic string) (<-chan Message, error) {
 	a.subs[topic] = ch
 	a.mu.Unlock()
 
-	err := pubsub.Subscribe(runCtx, topic, func(ctx context.Context, msg *gossippubsubMessage) {
+	err := ps.Subscribe(runCtx, topic, func(ctx context.Context, msg *libpubsub.Message) {
 		select {
-		case ch <- Message{Topic: topic, From: msg.From, Payload: msg.Payload}:
+		case ch <- Message{Topic: topic, From: msg.GetFrom().String(), Payload: msg.Data}:
 		default:
 		}
 	})
@@ -208,9 +208,4 @@ func parseBootstrapPeers(addrs []string) ([]peer.AddrInfo, error) {
 		infos = append(infos, *info)
 	}
 	return infos, nil
-}
-
-type gossippubsubMessage struct {
-	From    string
-	Payload []byte
 }

@@ -9,6 +9,10 @@ import (
 var (
 	// ErrNotImplemented indicates a platform adapter is still pending concrete implementation.
 	ErrNotImplemented = errors.New("network adapter not implemented")
+	// ErrAlreadyStarted indicates Start was called more than once.
+	ErrAlreadyStarted = errors.New("network adapter already started")
+	// ErrNotStarted indicates an operation requires Start to have completed.
+	ErrNotStarted = errors.New("network adapter not started")
 )
 
 // Platform identifies networking target platform.
