@@ -37,3 +37,7 @@ All targeted and full-suite tests passed. Full interactive first-run GUI validat
 - Transport integration test repair in `pkg/networking/transport/integration_test.go`.
 - Security impact: none. Changes are test-only and do not modify runtime transport, cryptography, or trust boundaries.
 - Verification: compiled package with integration build tag and ran daemon-independent protocol parsing test.
+
+- Added `UI_AUDIT.md`, a documentation-only audit prompt for Ebitengine UI review with emphasis on discoverability, onboarding clarity, Pulse Map navigation, and first-time user comprehension.
+- Security impact: none. This change adds no runtime code, protocol changes, or trust-boundary modifications.
+- Verification: file creation and content diff review.

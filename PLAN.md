@@ -25,3 +25,4 @@ Last updated: 2026-05-07
 - [x] Add container deployment assets for the dynamic bootstrap server (`Dockerfile.bootstrap`, Compose example, and operator docs covering configurable ngrok domains and announced public libp2p addresses).
 - [x] Repair corrupted transport integration tests in `pkg/networking/transport/integration_test.go` and realign to current diagnostics/host APIs.
 - [x] Harden bootstrap Docker build path for restricted DNS environments with host-network compose builds and configurable Go module proxy args.
+- [x] Add a MURMUR-specific UI audit prompt in `UI_AUDIT.md` focused on first-run comprehension, discoverability, and obvious Pulse Map interaction guidance.
