@@ -83,4 +83,11 @@ type Config struct {
 
 	// ExitRelayAddr is the network address of the exit relay (for prototype: "host:port").
 	ExitRelayAddr string
+
+	// BandwidthLimit is the daily per-tunnel quota in bytes (0 means unlimited).
+	BandwidthLimit uint64
+
+	// RequireShroud enforces three-hop circuit availability before tunnel start.
+	// When false, initiator falls back to single-hop mode if insufficient relays exist.
+	RequireShroud bool
 }

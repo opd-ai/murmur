@@ -6,18 +6,28 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/opd-ai/murmur/pkg/tunneling"
+	"github.com/opd-ai/murmur/pkg/tunneling/protocol"
+	pb "github.com/opd-ai/murmur/proto"
+	"google.golang.org/protobuf/proto"
 )
+
+type operatorSession struct {
+	conn net.Conn
+	mu   sync.Mutex
+	seq  uint32
+}
 
 // Relay manages tunnel connections from operators and forwards client traffic.
 type Relay struct {
 	listenAddr string
-	tunnels    map[tunneling.TunnelID]net.Conn
+	tunnels    map[tunneling.TunnelID]*operatorSession
 	mu         sync.RWMutex
 	listener   net.Listener
 	stopCh     chan struct{}
@@ -27,7 +37,7 @@ type Relay struct {
 func NewRelay(listenAddr string) *Relay {
 	return &Relay{
 		listenAddr: listenAddr,
-		tunnels:    make(map[tunneling.TunnelID]net.Conn),
+		tunnels:    make(map[tunneling.TunnelID]*operatorSession),
 		stopCh:     make(chan struct{}),
 	}
 }
@@ -67,57 +77,103 @@ func (r *Relay) acceptLoop(ctx context.Context) {
 // handleConnection reads the first line to determine if this is a
 // tunnel registration (REGISTER/UNREGISTER) or a client request.
 func (r *Relay) handleConnection(ctx context.Context, conn net.Conn) {
-	// Set read deadline for first message
 	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	firstByte := make([]byte, 1)
+	if _, err := io.ReadFull(conn, firstByte); err != nil {
+		conn.Close()
+		return
+	}
+	_ = conn.SetReadDeadline(time.Time{})
 
-	reader := bufio.NewReader(conn)
+	if firstByte[0] == protocol.FrameMagic {
+		r.handleFramedOperator(ctx, conn)
+		return
+	}
+
+	defer conn.Close()
+	reader := bufio.NewReader(io.MultiReader(strings.NewReader(string(firstByte[0])), conn))
 	firstLine, err := reader.ReadString('\n')
+	if err != nil {
+		return
+	}
+	firstLine = strings.TrimSpace(firstLine)
+
+	if strings.HasPrefix(firstLine, "UNREGISTER ") {
+		r.handleUnregister(firstLine)
+		return
+	}
+
+	r.handleClientRequest(ctx, conn, firstLine, reader)
+}
+
+// handleFramedOperator registers and maintains an operator tunnel session.
+func (r *Relay) handleFramedOperator(ctx context.Context, conn net.Conn) {
+	frameType, payload, err := protocol.ReadFrameWithFirstByte(conn, protocol.FrameMagic)
+	if err != nil {
+		conn.Close()
+		return
+	}
+	if frameType != protocol.FrameTypeRegister {
+		conn.Close()
+		return
+	}
+
+	cell, err := protocol.DecodeAndVerifyRegisterCell(payload, time.Now())
 	if err != nil {
 		conn.Close()
 		return
 	}
 
-	firstLine = strings.TrimSpace(firstLine)
-
-	if strings.HasPrefix(firstLine, "REGISTER ") {
-		// Registration connections stay open for forwarding
-		r.handleRegister(ctx, conn, firstLine)
-	} else if strings.HasPrefix(firstLine, "UNREGISTER ") {
-		conn.Close()
-		r.handleUnregister(firstLine)
-	} else {
-		// Client connections close after handling the request
-		defer conn.Close()
-		// Assume this is a client HTTP request
-		// First line should be "GET /tunnel/<id> HTTP/1.1" or similar
-		r.handleClientRequest(ctx, conn, firstLine, reader)
-	}
-}
-
-// handleRegister registers a tunnel from an operator.
-func (r *Relay) handleRegister(ctx context.Context, conn net.Conn, msg string) {
-	parts := strings.Fields(msg)
-	if len(parts) != 2 {
-		conn.Write([]byte("ERROR: invalid REGISTER format\n"))
-		return
-	}
-
-	tunnelID := tunneling.TunnelID(parts[1])
+	tunnelID := tunneling.TunnelID(cell.TunnelId)
 	if err := tunnelID.Validate(); err != nil {
-		conn.Write([]byte(fmt.Sprintf("ERROR: invalid tunnel ID: %v\n", err)))
+		conn.Close()
 		return
 	}
 
+	session := &operatorSession{conn: conn}
 	r.mu.Lock()
-	r.tunnels[tunnelID] = conn
+	r.tunnels[tunnelID] = session
 	r.mu.Unlock()
 
-	conn.Write([]byte("OK\n"))
+	_, _ = conn.Write([]byte("OK\n"))
 
-	// Keep connection open for forwarding
-	// Connection will be used bidirectionally:
-	// - Read from exit relay (client requests)
-	// - Write to exit relay (responses from operator)
+	defer func() {
+		r.mu.Lock()
+		if existing, ok := r.tunnels[tunnelID]; ok && existing == session {
+			delete(r.tunnels, tunnelID)
+		}
+		r.mu.Unlock()
+		conn.Close()
+	}()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-r.stopCh:
+			return
+		default:
+		}
+
+		_ = conn.SetReadDeadline(time.Now().Add(1 * time.Second))
+		t, p, err := protocol.ReadFrame(conn)
+		if err != nil {
+			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+				continue
+			}
+			return
+		}
+
+		if t == protocol.FrameTypeTeardown {
+			return
+		}
+
+		if t == protocol.FrameTypeData {
+			// Operator responses are consumed in request path while holding session lock.
+			_ = p
+			continue
+		}
+	}
 }
 
 // handleUnregister removes a tunnel registration.
@@ -129,8 +185,8 @@ func (r *Relay) handleUnregister(msg string) {
 
 	tunnelID := tunneling.TunnelID(parts[1])
 	r.mu.Lock()
-	if conn, ok := r.tunnels[tunnelID]; ok {
-		conn.Close()
+	if session, ok := r.tunnels[tunnelID]; ok {
+		session.conn.Close()
 		delete(r.tunnels, tunnelID)
 	}
 	r.mu.Unlock()
@@ -143,7 +199,7 @@ func (r *Relay) handleClientRequest(ctx context.Context, clientConn net.Conn, fi
 		return
 	}
 
-	operatorConn, ok := r.lookupTunnel(tunnelID)
+	session, ok := r.lookupTunnel(tunnelID)
 	if !ok {
 		clientConn.Write([]byte("HTTP/1.1 502 Bad Gateway\r\nContent-Type: text/plain\r\n\r\nTunnel not found\n"))
 		return
@@ -151,11 +207,11 @@ func (r *Relay) handleClientRequest(ctx context.Context, clientConn net.Conn, fi
 
 	fullRequest := r.reconstructHTTPRequest(firstLine, reader)
 
-	if !r.forwardRequestToOperator(operatorConn, fullRequest, clientConn) {
+	if !r.forwardRequestToOperator(session, tunnelID, fullRequest, clientConn) {
 		return
 	}
 
-	r.forwardResponseToClient(operatorConn, clientConn)
+	r.forwardResponseToClient(session, tunnelID, clientConn)
 }
 
 // parseTunnelID extracts and validates the tunnel ID from the HTTP request path.
@@ -189,11 +245,11 @@ func (r *Relay) parseTunnelID(firstLine string, clientConn net.Conn) (tunneling.
 }
 
 // lookupTunnel retrieves the operator connection for a tunnel ID.
-func (r *Relay) lookupTunnel(tunnelID tunneling.TunnelID) (net.Conn, bool) {
+func (r *Relay) lookupTunnel(tunnelID tunneling.TunnelID) (*operatorSession, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	operatorConn, ok := r.tunnels[tunnelID]
-	return operatorConn, ok
+	session, ok := r.tunnels[tunnelID]
+	return session, ok
 }
 
 // reconstructHTTPRequest rebuilds the full HTTP request from first line and headers.
@@ -211,39 +267,72 @@ func (r *Relay) reconstructHTTPRequest(firstLine string, reader *bufio.Reader) s
 }
 
 // forwardRequestToOperator sends the HTTP request to the operator connection.
-func (r *Relay) forwardRequestToOperator(operatorConn net.Conn, fullRequest string, clientConn net.Conn) bool {
-	if _, err := operatorConn.Write([]byte(fullRequest)); err != nil {
+func (r *Relay) forwardRequestToOperator(session *operatorSession, tunnelID tunneling.TunnelID, fullRequest string, clientConn net.Conn) bool {
+	session.mu.Lock()
+	defer session.mu.Unlock()
+
+	cell := &pb.TunnelDataCell{
+		TunnelId: []byte(tunnelID),
+		Payload:  []byte(fullRequest),
+		Sequence: session.seq,
+	}
+	payload, err := proto.Marshal(cell)
+	if err != nil {
 		clientConn.Write([]byte("HTTP/1.1 502 Bad Gateway\r\n\r\n"))
 		return false
 	}
+
+	if err := protocol.WriteFrame(session.conn, protocol.FrameTypeData, payload); err != nil {
+		clientConn.Write([]byte("HTTP/1.1 502 Bad Gateway\r\n\r\n"))
+		return false
+	}
+	session.seq++
 	return true
 }
 
 // forwardResponseToClient reads the operator's response and forwards it to the client.
-func (r *Relay) forwardResponseToClient(operatorConn, clientConn net.Conn) {
-	respBuf := make([]byte, 65536)
-	operatorConn.SetReadDeadline(time.Now().Add(10 * time.Second))
-	n, err := operatorConn.Read(respBuf)
+func (r *Relay) forwardResponseToClient(session *operatorSession, tunnelID tunneling.TunnelID, clientConn net.Conn) {
+	session.conn.SetReadDeadline(time.Now().Add(10 * time.Second))
+	frameType, payload, err := protocol.ReadFrame(session.conn)
 	if err != nil {
 		clientConn.Write([]byte("HTTP/1.1 502 Bad Gateway\r\n\r\n"))
 		return
 	}
-	clientConn.Write(respBuf[:n])
+	if frameType != protocol.FrameTypeData {
+		clientConn.Write([]byte("HTTP/1.1 502 Bad Gateway\r\n\r\n"))
+		return
+	}
+
+	respCell := &pb.TunnelDataCell{}
+	if err := proto.Unmarshal(payload, respCell); err != nil {
+		clientConn.Write([]byte("HTTP/1.1 502 Bad Gateway\r\n\r\n"))
+		return
+	}
+	if string(respCell.TunnelId) != string(tunnelID) {
+		clientConn.Write([]byte("HTTP/1.1 502 Bad Gateway\r\n\r\n"))
+		return
+	}
+
+	_, _ = clientConn.Write(respCell.Payload)
 }
 
 // Stop gracefully shuts down the relay.
 func (r *Relay) Stop(ctx context.Context) error {
-	close(r.stopCh)
+	select {
+	case <-r.stopCh:
+	default:
+		close(r.stopCh)
+	}
 
 	if r.listener != nil {
 		r.listener.Close()
 	}
 
 	r.mu.Lock()
-	for _, conn := range r.tunnels {
-		conn.Close()
+	for _, session := range r.tunnels {
+		session.conn.Close()
 	}
-	r.tunnels = make(map[tunneling.TunnelID]net.Conn)
+	r.tunnels = make(map[tunneling.TunnelID]*operatorSession)
 	r.mu.Unlock()
 
 	return nil

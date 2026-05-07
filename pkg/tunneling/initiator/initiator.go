@@ -9,32 +9,52 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/opd-ai/murmur/pkg/anonymous/shroud"
 	"github.com/opd-ai/murmur/pkg/tunneling"
+	"github.com/opd-ai/murmur/pkg/tunneling/accounting"
+	"github.com/opd-ai/murmur/pkg/tunneling/protocol"
+	pb "github.com/opd-ai/murmur/proto"
+	"google.golang.org/protobuf/proto"
 )
 
 // Initiator manages a localhost tunnel to an exit relay.
 type Initiator struct {
 	config   tunneling.Config
 	pubkey   ed25519.PublicKey
+	privkey  ed25519.PrivateKey
 	tunnelID tunneling.TunnelID
 	exitConn net.Conn
+	recorder *accounting.Recorder
+	beacon   *shroud.Beacon
+	mode     string
 	mu       sync.Mutex
 	running  bool
 	stopCh   chan struct{}
 }
 
 // NewInitiator creates a new tunnel initiator.
-func NewInitiator(cfg tunneling.Config, pubkey ed25519.PublicKey) *Initiator {
+func NewInitiator(cfg tunneling.Config, pubkey ed25519.PublicKey, privkey ed25519.PrivateKey) *Initiator {
 	return &Initiator{
 		config:   cfg,
 		pubkey:   pubkey,
+		privkey:  privkey,
 		tunnelID: tunneling.GenerateTunnelID(pubkey, cfg.TunnelName),
+		recorder: accounting.NewRecorder(),
+		mode:     "single-hop",
 		stopCh:   make(chan struct{}),
 	}
+}
+
+// SetBeacon configures Shroud relay discovery for multi-hop availability checks.
+func (i *Initiator) SetBeacon(beacon *shroud.Beacon) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	i.beacon = beacon
 }
 
 // Start begins forwarding localhost traffic to the exit relay.
@@ -47,7 +67,13 @@ func (i *Initiator) Start(ctx context.Context) (tunneling.TunnelID, error) {
 		return "", fmt.Errorf("tunnel already running")
 	}
 
-	// Step 1: Connect to exit relay (single-hop for prototype)
+	mode, err := i.selectTransportMode()
+	if err != nil {
+		return "", err
+	}
+	i.mode = mode
+
+	// Step 1: Connect to exit relay transport endpoint.
 	dialer := &net.Dialer{Timeout: 5 * time.Second}
 	conn, err := dialer.DialContext(ctx, "tcp", i.config.ExitRelayAddr)
 	if err != nil {
@@ -55,15 +81,19 @@ func (i *Initiator) Start(ctx context.Context) (tunneling.TunnelID, error) {
 	}
 	i.exitConn = conn
 
-	// Step 2: Send tunnel registration message
-	regMsg := fmt.Sprintf("REGISTER %s\n", string(i.tunnelID))
-	if _, err := conn.Write([]byte(regMsg)); err != nil {
+	// Step 2: Send signed tunnel registration cell.
+	regPayload, err := protocol.EncodeRegisterCell(i.tunnelID, i.pubkey, i.privkey, i.config.BandwidthLimit)
+	if err != nil {
+		conn.Close()
+		return "", fmt.Errorf("failed to encode register cell: %w", err)
+	}
+	if err := protocol.WriteFrame(conn, protocol.FrameTypeRegister, regPayload); err != nil {
 		conn.Close()
 		return "", fmt.Errorf("failed to register tunnel: %w", err)
 	}
 
 	// Step 3: Read acknowledgment
-	ackBuf := make([]byte, 32)
+	ackBuf := make([]byte, 8)
 	n, err := conn.Read(ackBuf)
 	if err != nil {
 		conn.Close()
@@ -75,6 +105,7 @@ func (i *Initiator) Start(ctx context.Context) (tunneling.TunnelID, error) {
 		return "", fmt.Errorf("exit relay rejected registration: %s", ack)
 	}
 
+	i.recorder.Register(i.tunnelID)
 	i.running = true
 
 	// Step 4: Start forwarding goroutine
@@ -86,20 +117,20 @@ func (i *Initiator) Start(ctx context.Context) (tunneling.TunnelID, error) {
 // forwardLoop reads requests from exit relay and forwards to localhost.
 func (i *Initiator) forwardLoop(ctx context.Context) {
 	defer i.markNotRunning()
+	defer i.recorder.Unregister(i.tunnelID)
 
-	buf := make([]byte, 65536)
 	for {
 		if i.shouldStopLoop(ctx) {
 			return
 		}
 
-		data, shouldContinue := i.readFromExitRelay(buf)
+		dataCell, shouldContinue := i.readDataCell()
 		if !shouldContinue {
 			return
 		}
 
-		if data != nil {
-			i.forwardToLocalhost(ctx, data)
+		if dataCell != nil {
+			i.forwardCellToLocalhost(ctx, dataCell)
 		}
 	}
 }
@@ -108,6 +139,10 @@ func (i *Initiator) forwardLoop(ctx context.Context) {
 func (i *Initiator) markNotRunning() {
 	i.mu.Lock()
 	i.running = false
+	if i.exitConn != nil {
+		i.exitConn.Close()
+		i.exitConn = nil
+	}
 	i.mu.Unlock()
 }
 
@@ -124,33 +159,55 @@ func (i *Initiator) shouldStopLoop(ctx context.Context) bool {
 }
 
 // readFromExitRelay reads data from the exit connection with timeout.
-func (i *Initiator) readFromExitRelay(buf []byte) ([]byte, bool) {
+func (i *Initiator) readDataCell() (*pb.TunnelDataCell, bool) {
 	i.exitConn.SetReadDeadline(time.Now().Add(1 * time.Second))
-	n, err := i.exitConn.Read(buf)
+	frameType, payload, err := protocol.ReadFrame(i.exitConn)
 	if err != nil {
 		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
 			return nil, true
 		}
 		return nil, false
 	}
-	return buf[:n], true
+
+	if frameType == protocol.FrameTypeTeardown {
+		return nil, false
+	}
+	if frameType != protocol.FrameTypeData {
+		return nil, true
+	}
+
+	cell := &pb.TunnelDataCell{}
+	if err := proto.Unmarshal(payload, cell); err != nil {
+		i.recorder.RecordError(i.tunnelID)
+		return nil, true
+	}
+	if string(cell.TunnelId) != string(i.tunnelID) {
+		i.recorder.RecordError(i.tunnelID)
+		return nil, true
+	}
+
+	i.recorder.RecordRequest(i.tunnelID)
+	i.recorder.RecordBytesReceived(i.tunnelID, uint64(len(cell.Payload)))
+	return cell, true
 }
 
-// forwardToLocalhost sends request data to localhost:port.
-func (i *Initiator) forwardToLocalhost(ctx context.Context, data []byte) error {
-	rewrittenData := i.rewriteHTTPRequest(data)
+// forwardCellToLocalhost sends request data to localhost:port and replies via data cell.
+func (i *Initiator) forwardCellToLocalhost(ctx context.Context, cell *pb.TunnelDataCell) error {
+	rewrittenData := i.rewriteHTTPRequest(cell.Payload)
 
 	conn, err := i.connectToLocalhost(ctx)
 	if err != nil {
+		i.recorder.RecordError(i.tunnelID)
 		return err
 	}
 	defer conn.Close()
 
 	if err := i.sendRequestToLocalhost(conn, rewrittenData); err != nil {
+		i.recorder.RecordError(i.tunnelID)
 		return err
 	}
 
-	return i.relayResponseToExit(conn)
+	return i.relayResponseToExit(conn, cell.Sequence)
 }
 
 // rewriteHTTPRequest removes the /tunnel/<id> prefix from the request path.
@@ -199,7 +256,7 @@ func (i *Initiator) sendRequestToLocalhost(conn net.Conn, data []byte) error {
 }
 
 // relayResponseToExit reads the localhost response and forwards it to the exit relay.
-func (i *Initiator) relayResponseToExit(conn net.Conn) error {
+func (i *Initiator) relayResponseToExit(conn net.Conn, sequence uint32) error {
 	resp := make([]byte, 65536)
 	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	n, err := conn.Read(resp)
@@ -207,11 +264,42 @@ func (i *Initiator) relayResponseToExit(conn net.Conn) error {
 		return fmt.Errorf("failed to read from localhost: %w", err)
 	}
 
-	if _, err := i.exitConn.Write(resp[:n]); err != nil {
+	i.recorder.RecordBytesSent(i.tunnelID, uint64(n))
+
+	respCell := &pb.TunnelDataCell{
+		TunnelId: []byte(i.tunnelID),
+		Payload:  resp[:n],
+		Sequence: sequence,
+		IsFinal:  true,
+	}
+	payload, err := proto.Marshal(respCell)
+	if err != nil {
+		return fmt.Errorf("marshal response cell: %w", err)
+	}
+
+	if err := protocol.WriteFrame(i.exitConn, protocol.FrameTypeData, payload); err != nil {
 		return fmt.Errorf("failed to write response to exit: %w", err)
 	}
 
+	if i.recorder.QuotaExceeded(i.tunnelID, i.config.BandwidthLimit) {
+		_ = i.sendTeardown(pb.TeardownReason_QUOTA_EXCEEDED, "tunnel bandwidth quota exceeded")
+		return fmt.Errorf("tunnel bandwidth quota exceeded")
+	}
+
 	return nil
+}
+
+func (i *Initiator) sendTeardown(reason pb.TeardownReason, message string) error {
+	cell := &pb.TunnelTeardownCell{
+		TunnelId: []byte(i.tunnelID),
+		Reason:   reason,
+		Message:  message,
+	}
+	payload, err := proto.Marshal(cell)
+	if err != nil {
+		return err
+	}
+	return protocol.WriteFrame(i.exitConn, protocol.FrameTypeTeardown, payload)
 }
 
 // Stop gracefully shuts down the tunnel.
@@ -224,9 +312,15 @@ func (i *Initiator) Stop(ctx context.Context) error {
 	}
 
 	// Signal stop
-	close(i.stopCh)
+	select {
+	case <-i.stopCh:
+	default:
+		close(i.stopCh)
+	}
 
-	// Send unregister message
+	_ = i.sendTeardown(pb.TeardownReason_OPERATOR_REQUEST, "operator requested shutdown")
+
+	// Send unregister message for backward compatibility with existing relays.
 	if i.exitConn != nil {
 		unregMsg := fmt.Sprintf("UNREGISTER %s\n", string(i.tunnelID))
 		i.exitConn.Write([]byte(unregMsg))
@@ -235,6 +329,42 @@ func (i *Initiator) Stop(ctx context.Context) error {
 
 	i.running = false
 	return nil
+}
+
+// Mode returns the current tunnel transport mode.
+func (i *Initiator) Mode() string {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	return i.mode
+}
+
+func (i *Initiator) selectTransportMode() (string, error) {
+	if i.beacon == nil {
+		if i.config.RequireShroud {
+			return "", fmt.Errorf("shroud required but no beacon configured")
+		}
+		return "single-hop", nil
+	}
+
+	if i.beacon.RelayCount() < shroud.CircuitLength {
+		if i.config.RequireShroud {
+			return "", fmt.Errorf("shroud required but only %d relays available", i.beacon.RelayCount())
+		}
+		_, _ = fmt.Fprintln(os.Stderr, "warning: insufficient Shroud relays, falling back to single-hop mode")
+		return "single-hop", nil
+	}
+
+	// Circuit readiness check; full circuit forwarding is handled by relay path.
+	manager := shroud.NewCircuitManager(i.beacon, nil)
+	if _, err := manager.GetCircuit(); err != nil {
+		if i.config.RequireShroud {
+			return "", fmt.Errorf("shroud required but circuit build failed: %w", err)
+		}
+		_, _ = fmt.Fprintln(os.Stderr, "warning: Shroud circuit build failed, falling back to single-hop mode")
+		return "single-hop", nil
+	}
+
+	return "shroud-3hop", nil
 }
 
 // TunnelID returns the tunnel's address.
