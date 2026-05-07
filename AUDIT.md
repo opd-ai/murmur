@@ -101,9 +101,9 @@ Remediation checklist:
 - Fix: Pass cursorX too and clamp to button/list rectangles before firing actions.
 
 Remediation checklist:
-- [ ] Extend handlePanelClick signature to include cursorX.
-- [ ] Add explicit X and Y bounds checks for action buttons and wave rows.
-- [ ] Add tests for false-positive clicks near right panel edge.
+- [x] Extend handlePanelClick signature to include cursorX.
+- [x] Add explicit X and Y bounds checks for action buttons and wave rows.
+- [x] Add tests for false-positive clicks near right panel edge.
 
 ---
 
@@ -121,9 +121,9 @@ Remediation checklist:
 - Fix: Compute panel geometry in Update before hit-tests (or set it in Show), and avoid using draw-time mutation for input regions.
 
 Remediation checklist:
-- [ ] Move panel geometry computation into Update (or Show) before input handling.
-- [ ] Remove input dependency on draw-time side effects.
-- [ ] Add first-frame-open stability test with active mouse press.
+- [x] Move panel geometry computation into Update (or Show) before input handling.
+- [x] Remove input dependency on draw-time side effects.
+- [x] Add first-frame-open stability test with active mouse press.
 
 ### [LOW] Specter detail show and hide is abrupt (no open/close tween)
 - File: pkg/ui/specter_detail.go (lines 37, 62)
@@ -133,9 +133,9 @@ Remediation checklist:
 - Fix: Add fade or slide tween state and interpolate for both enter and exit.
 
 Remediation checklist:
-- [ ] Add panel enter tween state.
-- [ ] Add panel exit tween state.
-- [ ] Ensure input lockout during transition to prevent accidental clicks.
+- [x] Add panel enter tween state.
+- [x] Add panel exit tween state.
+- [x] Ensure input lockout during transition to prevent accidental clicks.
 
 ---
 

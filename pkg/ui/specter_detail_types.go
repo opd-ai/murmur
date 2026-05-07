@@ -71,4 +71,6 @@ type SpecterDetailPanel struct {
 	trophyHover    int
 	panelX, panelY int
 	panelW, panelH int
+	transition     float64
+	closing        bool
 }

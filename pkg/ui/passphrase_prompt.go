@@ -33,6 +33,10 @@ type PassphrasePromptPanel struct {
 	// Update() can perform a hit-test without recomputing modal geometry.
 	toggleBtnX, toggleBtnY int
 	toggleBtnW, toggleBtnH int
+	submitBtnX, submitBtnY int
+	submitBtnW, submitBtnH int
+	cancelBtnX, cancelBtnY int
+	cancelBtnW, cancelBtnH int
 
 	onSubmit func(passphrase string) error
 	onCancel func()
@@ -94,12 +98,17 @@ func (p *PassphrasePromptPanel) Update() bool {
 	if p.handleEscapeKey() {
 		return true
 	}
+	leftJustPressed := inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft)
+	mx, my := ebiten.CursorPosition()
 	if p.handleEnterKey() {
 		return true
 	}
 	// Check the Show/Hide toggle before backspace so a click on the button
 	// doesn't also trigger a character deletion.
-	if p.handleShowPassToggle() {
+	if p.handleShowPassToggle(mx, my, leftJustPressed) {
+		return true
+	}
+	if p.handleButtonsClick(mx, my, leftJustPressed) {
 		return true
 	}
 	if p.handleBackspaceKey() {
@@ -124,32 +133,59 @@ func (p *PassphrasePromptPanel) handleEscapeKey() bool {
 // handleEnterKey processes Enter key for submit action.
 func (p *PassphrasePromptPanel) handleEnterKey() bool {
 	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) || inpututil.IsKeyJustPressed(ebiten.KeyNumpadEnter) {
-		if p.passphrase != "" && p.onSubmit != nil {
-			if err := p.onSubmit(p.passphrase); err != nil {
-				p.errorMsg = err.Error()
-			} else {
-				p.visible = false
-			}
-		}
+		p.submit()
 		return true
 	}
 	return false
 }
 
+func (p *PassphrasePromptPanel) submit() {
+	if p.passphrase == "" || p.onSubmit == nil {
+		return
+	}
+	if err := p.onSubmit(p.passphrase); err != nil {
+		p.errorMsg = err.Error()
+		return
+	}
+	p.visible = false
+}
+
 // handleShowPassToggle detects a left-click on the Show/Hide button and toggles
 // the showPass state so the user can verify what they typed.
 // Per AUDIT.md HIGH finding: showPass was declared but never set.
-func (p *PassphrasePromptPanel) handleShowPassToggle() bool {
+func (p *PassphrasePromptPanel) handleShowPassToggle(mx, my int, leftJustPressed bool) bool {
 	if p.toggleBtnW == 0 || p.toggleBtnH == 0 {
 		return false // Button rect not yet set (first frame before Draw).
 	}
-	if !inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+	if !leftJustPressed {
 		return false
 	}
-	mx, my := ebiten.CursorPosition()
 	if mx >= p.toggleBtnX && mx < p.toggleBtnX+p.toggleBtnW &&
 		my >= p.toggleBtnY && my < p.toggleBtnY+p.toggleBtnH {
 		p.showPass = !p.showPass
+		return true
+	}
+	return false
+}
+
+// handleButtonsClick processes mouse clicks on the Cancel and Submit buttons.
+func (p *PassphrasePromptPanel) handleButtonsClick(mx, my int, leftJustPressed bool) bool {
+	if !leftJustPressed {
+		return false
+	}
+	if p.cancelBtnW > 0 && p.cancelBtnH > 0 &&
+		mx >= p.cancelBtnX && mx < p.cancelBtnX+p.cancelBtnW &&
+		my >= p.cancelBtnY && my < p.cancelBtnY+p.cancelBtnH {
+		p.visible = false
+		if p.onCancel != nil {
+			p.onCancel()
+		}
+		return true
+	}
+	if p.submitBtnW > 0 && p.submitBtnH > 0 &&
+		mx >= p.submitBtnX && mx < p.submitBtnX+p.submitBtnW &&
+		my >= p.submitBtnY && my < p.submitBtnY+p.submitBtnH {
+		p.submit()
 		return true
 	}
 	return false
@@ -255,12 +291,20 @@ func (p *PassphrasePromptPanel) drawButtons(screen *ebiten.Image, x, y int) {
 	vector.StrokeRect(screen, float32(cancelX), float32(y),
 		float32(btnWidth), float32(btnHeight), 1.0, p.theme.PanelBorder, true)
 	drawUICenteredText(screen, "Cancel", float64(cancelX+btnWidth/2), float64(y+btnHeight/2), p.theme.TextPrimary)
+	p.cancelBtnX = cancelX
+	p.cancelBtnY = y
+	p.cancelBtnW = btnWidth
+	p.cancelBtnH = btnHeight
 
 	// Submit button
 	submitX := x + (p.width/2 + btnSpacing/2)
 	vector.DrawFilledRect(screen, float32(submitX), float32(y),
 		float32(btnWidth), float32(btnHeight), p.theme.AccentPrimary, true)
 	drawUICenteredText(screen, "Submit", float64(submitX+btnWidth/2), float64(y+btnHeight/2), p.theme.TextPrimary)
+	p.submitBtnX = submitX
+	p.submitBtnY = y
+	p.submitBtnW = btnWidth
+	p.submitBtnH = btnHeight
 }
 
 // SetError sets an error message to display.

@@ -389,6 +389,68 @@ func TestSpecterDetailPanel_CheckInteractButtonEdgeTriggered(t *testing.T) {
 	}
 }
 
+func TestSpecterDetailPanel_UpdateInitializesGeometryBeforeDraw(t *testing.T) {
+	panel := NewSpecterDetailPanel(DefaultTheme(), SpecterDetailCallbacks{})
+	panel.ShowForSpecter(&SpecterInfo{ID: [32]byte{1}, Pseudonym: "Test"})
+
+	// Simulate first update after opening, before any Draw call.
+	panel.Update()
+
+	if panel.panelW != 400 || panel.panelH != 450 {
+		t.Fatalf("expected panel dimensions initialized in Update, got %dx%d", panel.panelW, panel.panelH)
+	}
+	if panel.panelX == 0 && panel.panelY == 0 {
+		t.Fatal("expected panel position initialized in Update before Draw")
+	}
+}
+
+func TestSpecterDetailPanel_TransitionEnterAndExit(t *testing.T) {
+	panel := NewSpecterDetailPanel(DefaultTheme(), SpecterDetailCallbacks{})
+	panel.ShowForSpecter(&SpecterInfo{ID: [32]byte{1}, Pseudonym: "Test"})
+
+	if !panel.isTransitioning() {
+		t.Fatal("expected entering transition immediately after show")
+	}
+
+	for i := 0; i < 10; i++ {
+		panel.Update()
+	}
+	if panel.isTransitioning() {
+		t.Fatal("expected enter transition to complete after updates")
+	}
+
+	panel.Hide()
+	if panel.Visible() {
+		t.Fatal("expected Visible() false immediately after Hide")
+	}
+	if !panel.closing {
+		t.Fatal("expected closing transition state after Hide")
+	}
+
+	for i := 0; i < 10; i++ {
+		panel.Update()
+	}
+	if panel.closing {
+		t.Fatal("expected closing transition to complete")
+	}
+}
+
+func TestSpecterDetailPanel_InputLockDuringTransition(t *testing.T) {
+	panel := NewSpecterDetailPanel(DefaultTheme(), SpecterDetailCallbacks{})
+	panel.ShowForSpecter(&SpecterInfo{ID: [32]byte{1}, Pseudonym: "Test"})
+	panel.mode = SpecterModeOverview
+
+	// First update occurs during enter transition and should consume input path
+	// without allowing mode-changing click handlers.
+	consumed := panel.Update()
+	if !consumed {
+		t.Fatal("expected update to consume input during transition")
+	}
+	if panel.mode != SpecterModeOverview {
+		t.Fatalf("expected mode unchanged during transition lockout, got %v", panel.mode)
+	}
+}
+
 func TestSpecterDetailPanel_TrophyCount(t *testing.T) {
 	emptyCallbacks := SpecterDetailCallbacks{
 		GetTrophies: func(specterID [32]byte) []TrophyDisplayInfo {

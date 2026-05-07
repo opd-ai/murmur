@@ -31,6 +31,7 @@ func NewSpecterDetailPanel(theme Theme, callbacks SpecterDetailCallbacks) *Spect
 		hoverButton:    -1,
 		selectedTrophy: -1,
 		trophyHover:    -1,
+		transition:     1.0,
 	}
 }
 
@@ -39,6 +40,9 @@ func (p *SpecterDetailPanel) Show() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.visible = true
+	p.closing = false
+	p.transition = 0
+	p.updatePanelGeometry(ebiten.WindowSize())
 }
 
 // ShowForSpecter shows the panel with a specific Specter's info.
@@ -50,6 +54,8 @@ func (p *SpecterDetailPanel) ShowForSpecter(info *SpecterInfo) {
 	p.mode = SpecterModeOverview
 	p.selectedTrophy = -1
 	p.trophyScroll = 0
+	p.closing = false
+	p.transition = 0
 
 	// Load trophies if callback available.
 	if p.callbacks.GetTrophies != nil && info != nil {
@@ -57,20 +63,44 @@ func (p *SpecterDetailPanel) ShowForSpecter(info *SpecterInfo) {
 	} else {
 		p.trophies = nil
 	}
+	p.updatePanelGeometry(ebiten.WindowSize())
 }
 
 // Hide hides the panel.
 func (p *SpecterDetailPanel) Hide() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	if !p.visible && !p.closing {
+		return
+	}
 	p.visible = false
+	p.closing = true
+	if p.transition <= 0 {
+		p.transition = 1
+	}
 }
 
 // Toggle toggles panel visibility.
 func (p *SpecterDetailPanel) Toggle() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.visible = !p.visible
+	if p.closing {
+		p.closing = false
+		p.visible = true
+		p.transition = 0
+		return
+	}
+	if p.visible {
+		p.visible = false
+		p.closing = true
+		if p.transition <= 0 {
+			p.transition = 1
+		}
+		return
+	}
+	p.visible = true
+	p.closing = false
+	p.transition = 0
 }
 
 // Visible returns whether the panel is visible.
@@ -119,11 +149,17 @@ func (p *SpecterDetailPanel) Update() bool {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	if !p.visible || p.specter == nil {
+	if (!p.visible && !p.closing) || p.specter == nil {
 		return false
 	}
 
 	p.animTime += FrameTime
+	p.updateTransition()
+	p.updatePanelGeometry(ebiten.WindowSize())
+	if p.isTransitioning() {
+		// Lock input during enter/exit transition to avoid accidental clicks.
+		return true
+	}
 
 	mx, my := ebiten.CursorPosition()
 	leftJustPressed := inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft)
@@ -141,6 +177,38 @@ func (p *SpecterDetailPanel) Update() bool {
 	}
 
 	return p.handleModeInput(mx, my, leftJustPressed)
+}
+
+func (p *SpecterDetailPanel) updateTransition() {
+	const transitionStep = 0.2
+	if p.closing {
+		p.transition -= transitionStep
+		if p.transition <= 0 {
+			p.transition = 0
+			p.closing = false
+		}
+		return
+	}
+	if p.transition < 1 {
+		p.transition += transitionStep
+		if p.transition > 1 {
+			p.transition = 1
+		}
+	}
+}
+
+func (p *SpecterDetailPanel) isTransitioning() bool {
+	return p.closing || p.transition < 1.0
+}
+
+// updatePanelGeometry computes panel bounds used by both input hit-tests and draw.
+func (p *SpecterDetailPanel) updatePanelGeometry(screenW, screenH int) {
+	p.panelW = 400
+	p.panelH = 450
+	p.panelX = (screenW - p.panelW) / 2
+	baseY := (screenH - p.panelH) / 2
+	offsetY := int((1.0 - p.transition) * 24.0)
+	p.panelY = baseY + offsetY
 }
 
 // isMouseInPanel checks if mouse is inside panel bounds.
@@ -316,14 +384,12 @@ func (p *SpecterDetailPanel) Draw(screen *ebiten.Image) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	if !p.visible || p.specter == nil {
+	if (!p.visible && !p.closing) || p.specter == nil {
 		return
 	}
 
-	// Panel dimensions.
-	p.panelW = 400
-	p.panelH = 450
-	p.panelX, p.panelY, _, _ = CenterPanelAndDrawBackground(screen, p.panelW, p.panelH)
+	p.updatePanelGeometry(screen.Bounds().Dx(), screen.Bounds().Dy())
+	CenterPanelAndDrawBackground(screen, p.panelW, p.panelH)
 
 	// Draw panel background.
 	p.drawPanelBackground(screen)
