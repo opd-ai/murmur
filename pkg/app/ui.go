@@ -8,7 +8,6 @@ package app
 
 import (
 	"fmt"
-	"sync/atomic"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/opd-ai/murmur/pkg/identity/keys"
@@ -91,7 +90,6 @@ func (a *App) runOnboardingUI() error {
 	// This is safe because we control the adapter type.
 	adapter := flowAdapter.(*flowControllerAdapter)
 	flowController := adapter.controller
-	var transitionToPulseMap atomic.Bool
 
 	// Create onboarding screen with callbacks.
 	screen := screens.NewScreen(flowController, screens.ScreenCallbacks{
@@ -108,25 +106,27 @@ func (a *App) runOnboardingUI() error {
 		},
 		OnPhaseComplete: func(phase flow.Phase) {
 			fmt.Printf("Onboarding: Phase %s complete\n", phase.String())
-			if phase == flow.PhaseIdentityCreation && transitionToPulseMap.CompareAndSwap(false, true) {
-				if err := a.subsystems.Storage.Put(store.BucketConfig, []byte("first_run_complete"), []byte("true")); err != nil {
-					fmt.Printf("Warning: Failed to persist first-run flag: %v\n", err)
-				} else {
-					a.mu.Lock()
-					a.firstRun = false
-					a.mu.Unlock()
-				}
-				fmt.Println("Onboarding complete, transitioning to Pulse Map...")
-			}
 		},
 		OnSkipBackup: func() {
 			fmt.Println("Onboarding: Backup skipped (warning shown to user)")
 		},
 	})
 
+	markFirstRunComplete := func() error {
+		if err := a.subsystems.Storage.Put(store.BucketConfig, []byte("first_run_complete"), []byte("true")); err != nil {
+			return err
+		}
+		a.mu.Lock()
+		a.firstRun = false
+		a.mu.Unlock()
+		return nil
+	}
+
 	onboardingGame := &onboardingTransitionGame{
 		game:                  screen,
-		transitionToPulseMap:  &transitionToPulseMap,
+		controller:            flowController,
+		identityScreen:        screen,
+		onFirstRunComplete:    markFirstRunComplete,
 		buildPulseMapGameFunc: a.buildPulseMapGame,
 	}
 
@@ -144,14 +144,35 @@ func (a *App) runOnboardingUI() error {
 }
 
 type onboardingTransitionGame struct {
-	game                  ebiten.Game
-	transitionToPulseMap  *atomic.Bool
+	game                  onboardingScreen
+	controller            *flow.Controller
+	identityScreen        *screens.Screen
+	modeScreen            *screens.ModeScreen
+	bootstrapScreen       *screens.BootstrapScreen
+	onFirstRunComplete    func() error
+	firstRunMarked        bool
 	buildPulseMapGameFunc func() (ebiten.Game, error)
 	transitioned          bool
 }
 
+type onboardingScreen interface {
+	Update() error
+	Draw(screen *ebiten.Image)
+}
+
 func (g *onboardingTransitionGame) Update() error {
-	if g.transitionToPulseMap.Load() && !g.transitioned {
+	if !g.transitioned {
+		g.syncOnboardingScreenByPhase()
+	}
+
+	if !g.transitioned && g.controller != nil && g.controller.IsComplete() {
+		if !g.firstRunMarked && g.onFirstRunComplete != nil {
+			if err := g.onFirstRunComplete(); err != nil {
+				return fmt.Errorf("persisting first-run flag: %w", err)
+			}
+			g.firstRunMarked = true
+		}
+
 		pulseMapGame, err := g.buildPulseMapGameFunc()
 		if err != nil {
 			return fmt.Errorf("building Pulse Map game for transition: %w", err)
@@ -167,12 +188,39 @@ func (g *onboardingTransitionGame) Update() error {
 	return g.game.Update()
 }
 
+func (g *onboardingTransitionGame) syncOnboardingScreenByPhase() {
+	if g.controller == nil || g.identityScreen == nil {
+		return
+	}
+
+	switch g.controller.CurrentPhase() {
+	case flow.PhaseWelcome, flow.PhaseIdentityCreation:
+		g.game = g.identityScreen
+	case flow.PhaseModeSelection:
+		if g.modeScreen == nil {
+			g.modeScreen = screens.NewModeScreen(
+				g.controller,
+				g.identityScreen.GetKeypair(),
+				g.identityScreen.GetSigil(),
+				g.identityScreen.GetDisplayName(),
+				screens.ModeScreenCallbacks{},
+			)
+		}
+		g.game = g.modeScreen
+	case flow.PhaseNetworkBootstrap, flow.PhaseGuidedExploration, flow.PhaseFirstWave:
+		if g.bootstrapScreen == nil {
+			g.bootstrapScreen = screens.NewBootstrapScreen(g.controller, screens.BootstrapScreenCallbacks{})
+		}
+		g.game = g.bootstrapScreen
+	}
+}
+
 func (g *onboardingTransitionGame) Draw(screen *ebiten.Image) {
 	g.game.Draw(screen)
 }
 
 func (g *onboardingTransitionGame) Layout(outsideWidth, outsideHeight int) (int, int) {
-	return g.game.Layout(outsideWidth, outsideHeight)
+	return outsideWidth, outsideHeight
 }
 
 // runPulseMapUI displays the normal Pulse Map visualization.

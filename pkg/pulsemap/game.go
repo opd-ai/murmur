@@ -146,6 +146,10 @@ type Game struct {
 	// toast holds the currently displayed notification, or nil if none.
 	toast *toastNotification
 
+	// minimapNodes is a reusable scratch buffer for minimap node projection,
+	// avoiding per-frame slice allocations in Draw().
+	minimapNodes []overlays.MinimapNode
+
 	// theme is the UI colour/sizing theme, stored so helper methods can use it
 	// without re-creating DefaultTheme() every frame.
 	theme ui.Theme
@@ -861,10 +865,14 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	// Draw minimap after graph and before modal panels.
 	if g.minimap != nil {
 		positions := g.engine.Positions().Get()
-		nodes := make([]overlays.MinimapNode, 0, len(positions))
+		nodes := g.minimapNodes[:0]
+		if cap(nodes) < len(positions) {
+			nodes = make([]overlays.MinimapNode, 0, len(positions))
+		}
 		for _, pos := range positions {
 			nodes = append(nodes, overlays.MinimapNode{X: pos.X, Y: pos.Y})
 		}
+		g.minimapNodes = nodes
 		g.minimap.UpdateNodes(nodes)
 		if g.minimap.IsVisible() {
 			g.minimap.Render(screen, g.camera.X, g.camera.Y, g.camera.Scale, g.screenWidth, g.screenHeight)

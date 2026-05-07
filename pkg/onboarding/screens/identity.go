@@ -791,6 +791,11 @@ func (s *Screen) GetDisplayName() string {
 	return s.displayName
 }
 
+// GetSigil returns the generated sigil image.
+func (s *Screen) GetSigil() *ebiten.Image {
+	return s.sigil
+}
+
 // IsBackupDone returns whether the user completed backup.
 func (s *Screen) IsBackupDone() bool {
 	return s.backupDone

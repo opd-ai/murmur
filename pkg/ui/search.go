@@ -159,7 +159,13 @@ func (s *SearchBar) Update() bool {
 		return true
 	}
 
-	return s.handleEscapeKey()
+	if s.handleEscapeKey() {
+		return true
+	}
+
+	// While visible, the search bar owns input focus and blocks world handlers
+	// to prevent click-through selection/pan behind the overlay.
+	return true
 }
 
 func (s *SearchBar) shouldPerformSearch() bool {

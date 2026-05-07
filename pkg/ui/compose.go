@@ -126,6 +126,7 @@ func (p *ComposePanel) Update() bool {
 
 	// Update common animation/error handling.
 	p.anim.UpdateAnimation()
+	p.refreshPositionForInput()
 
 	// Handle mouse button clicks on Submit/Cancel before text input
 	// so that clicking the button does not also insert a character.
@@ -152,6 +153,20 @@ func (p *ComposePanel) Update() bool {
 	}
 
 	return true // Panel consumes all input when visible.
+}
+
+// refreshPositionForInput updates cached panel origin used by click hit-testing.
+// This keeps Update() independent from Draw() timing and window resize order.
+func (p *ComposePanel) refreshPositionForInput() {
+	w, h := ebiten.WindowSize()
+	if w <= 0 || h <= 0 {
+		w = p.screenWidth
+		h = p.screenHeight
+	}
+	if w <= 0 || h <= 0 {
+		w, h = 800, 600
+	}
+	p.x, p.y = p.calculatePosition(w, h)
 }
 
 // handleMouseClick detects left-clicks on the Submit and Cancel buttons.
