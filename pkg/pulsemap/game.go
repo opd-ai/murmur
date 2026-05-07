@@ -725,6 +725,13 @@ func (g *Game) handleTouchInput() {
 	}
 
 	g.prevTouchIDs = currentIDs
+
+	// Poll for deferred single-taps (double-tap debounce window expired).
+	// Per AUDIT.md MEDIUM fix: single-tap is deferred DoubleTapMaxInterval ticks
+	// to avoid spurious single-tap on double-taps.
+	if isTap, tx, ty := g.touchState.PollPendingTap(g.tickCount); isTap {
+		g.renderer.HandleMouseDown(tx, ty)
+	}
 }
 
 // containsTouchID reports whether id appears in ids.

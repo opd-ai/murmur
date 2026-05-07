@@ -87,8 +87,9 @@ func (s *BootstrapScreen) WasSent() bool {
 
 // --- Simulation Methods for Testing ---
 
-// SimulatePeerFound simulates finding a peer.
-func (s *BootstrapScreen) SimulatePeerFound() {
+// NotifyPeerFound is called when the network layer discovers a real peer.
+// Renamed from SimulatePeerFound per AUDIT.md MEDIUM fix.
+func (s *BootstrapScreen) NotifyPeerFound() {
 	s.peersFound++
 	if s.callbacks.OnPeerFound != nil {
 		s.callbacks.OnPeerFound(s.peersFound)
@@ -96,6 +97,11 @@ func (s *BootstrapScreen) SimulatePeerFound() {
 	if s.peersFound >= s.targetPeers {
 		s.discoveryDone = true
 	}
+}
+
+// SimulatePeerFound is the legacy test helper alias; prefer NotifyPeerFound in production wiring.
+func (s *BootstrapScreen) SimulatePeerFound() {
+	s.NotifyPeerFound()
 }
 
 // SimulateDiscoveryComplete simulates completing peer discovery.

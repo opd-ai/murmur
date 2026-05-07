@@ -389,9 +389,10 @@ func (p *ComposePanel) drawTextArea(screen *ebiten.Image, px, py int) {
 	vector.StrokeRect(screen, float32(textX), float32(textY),
 		float32(textW), float32(textH), 1.0, borderColor, true)
 
-	// Draw cursor (blinking at 7-px-per-char offset matching basicfont).
+	// Draw cursor at correct pixel position for the current rune offset.
+	// Per AUDIT.md MEDIUM fix: use rune-aware advance, not fixed 7px/char.
 	if int(p.anim.AnimTime()*2)%2 == 0 {
-		cursorX := textX + 8 + p.cursorPos*7
+		cursorX := textX + 8 + measureRuneAdvance(p.content, p.cursorPos)
 		cursorY := textY + 4
 		vector.DrawFilledRect(screen, float32(cursorX), float32(cursorY),
 			2, 14, p.theme.TextPrimary, true)

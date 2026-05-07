@@ -162,7 +162,7 @@ func (s *SearchBar) handleEscapeKey() bool {
 		}
 		return true
 	}
-	return true
+	return false // Per AUDIT.md LOW fix: don't consume input when Escape was not pressed.
 }
 
 // updateFadeAnimation updates the fade in/out animation.
@@ -247,8 +247,12 @@ func (s *SearchBar) performSearch() {
 	results := s.callbacks.OnSearch(query)
 	s.mu.Lock()
 
-	s.results = results
-	s.selectedIndex = -1
+	// Guard against stale results: only store if still visible and query unchanged.
+	// Per AUDIT.md MEDIUM finding: another goroutine may call Hide() between unlock and re-lock.
+	if s.visible && s.query == query {
+		s.results = results
+		s.selectedIndex = -1
+	}
 }
 
 // handleKeyboardNav handles arrow keys and Enter for result selection.

@@ -62,6 +62,19 @@ func measureUIText(str string) (float64, float64) {
 	return text.Measure(str, defaultFont, 0)
 }
 
+// measureRuneAdvance returns the pixel advance width of the first n runes of s
+// using the shared defaultFont. This is used for cursor positioning in text
+// areas where fixed-width assumptions break for multi-byte characters.
+// Per AUDIT.md MEDIUM fix: replaced fixed 7px/char with actual advance.
+func measureRuneAdvance(s string, n int) int {
+	runes := []rune(s)
+	if n > len(runes) {
+		n = len(runes)
+	}
+	w, _ := text.Measure(string(runes[:n]), defaultFont, 0)
+	return int(w)
+}
+
 // truncateRunes truncates s to at most max runes, appending "…" if truncated.
 // Unlike a byte-slice truncation (s[:n]), this never splits a multi-byte UTF-8
 // rune and is safe for any Unicode input.

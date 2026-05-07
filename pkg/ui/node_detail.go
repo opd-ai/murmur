@@ -47,6 +47,7 @@ type NodeInfo struct {
 
 // WaveInfo contains information about a Wave for display.
 type WaveInfo struct {
+	WaveID    string    // Unique Wave identifier
 	Content   string    // Wave text content (truncated if >100 chars)
 	Timestamp time.Time // Publication time
 	WaveType  string    // "Surface", "Specter", "Veiled", etc.
@@ -98,15 +99,17 @@ type NodeDetailPanel struct {
 
 // Panel dimensions.
 const (
-	nodeDetailPanelWidth      = 400  // Panel width in pixels
-	nodeDetailPanelHeight     = 600  // Panel height in pixels
-	nodeDetailPadding         = 20   // Padding inside panel
-	nodeDetailSectionSpacing  = 15   // Spacing between sections
-	nodeDetailButtonHeight    = 40   // Height of action buttons
-	nodeDetailButtonSpacing   = 10   // Spacing between buttons
-	nodeDetailListItemHeight  = 60   // Height of each list item (Wave/Connection)
-	nodeDetailMaxVisibleItems = 5    // Max visible list items before scrolling
-	nodeDetailSlideSpeed      = 0.15 // Slide animation speed (progress per frame)
+	nodeDetailPanelWidth      = 400                                             // Panel width in pixels
+	nodeDetailPanelHeight     = 600                                             // Panel height in pixels
+	nodeDetailPadding         = 20                                              // Padding inside panel
+	nodeDetailSectionSpacing  = 15                                              // Spacing between sections
+	nodeDetailButtonHeight    = 40                                              // Height of action buttons
+	nodeDetailButtonSpacing   = 10                                              // Spacing between buttons
+	nodeDetailListItemHeight  = 60                                              // Height of each list item (Wave/Connection)
+	nodeDetailMaxVisibleItems = 5                                               // Max visible list items before scrolling
+	nodeDetailSlideSpeed      = 0.15                                            // Slide animation speed (progress per frame)
+	nodeDetailHeaderHeight    = 60                                              // Height of the name/fingerprint header section
+	nodeDetailButtonGroupY    = nodeDetailPadding + nodeDetailHeaderHeight + 20 // Header + spacing before buttons
 )
 
 // NewNodeDetailPanel creates a new node detail panel.
@@ -236,11 +239,38 @@ func (p *NodeDetailPanel) handleScrollInput(mouseOverPanel bool) {
 
 // handlePanelClick processes clicks inside the panel.
 func (p *NodeDetailPanel) handlePanelClick(cursorY int) bool {
-	if p.nodeInfo != nil {
-		buttonY := p.panelY + nodeDetailPadding + 100
-		if cursorY >= buttonY && cursorY < buttonY+nodeDetailButtonHeight*4+nodeDetailButtonSpacing*3 {
-			buttonIndex := (cursorY - buttonY) / (nodeDetailButtonHeight + nodeDetailButtonSpacing)
-			p.handleButtonClick(buttonIndex)
+	if p.nodeInfo == nil {
+		return true
+	}
+	// Button zone: per AUDIT.md fix, use named constants derived from Draw() layout.
+	// buttonGroupY = panelY + nodeDetailPadding + headerHeight + spacing
+	buttonY := p.panelY + nodeDetailButtonGroupY
+	buttonsEnd := buttonY + nodeDetailButtonHeight*4 + nodeDetailButtonSpacing*3
+	if cursorY >= buttonY && cursorY < buttonsEnd {
+		buttonIndex := (cursorY - buttonY) / (nodeDetailButtonHeight + nodeDetailButtonSpacing)
+		p.handleButtonClick(buttonIndex)
+		return true
+	}
+	// Wave list zone: per AUDIT.md, wave items must be hit-testable.
+	wavesY := buttonY + 4*(nodeDetailButtonHeight+nodeDetailButtonSpacing) + 20 + 22 // +20 gap, +22 label
+	visibleWaves := p.nodeInfo.RecentWaves
+	if len(visibleWaves) > p.waveScroll {
+		visibleWaves = visibleWaves[p.waveScroll:]
+	} else {
+		visibleWaves = nil
+	}
+	if len(visibleWaves) > nodeDetailMaxVisibleItems {
+		visibleWaves = visibleWaves[:nodeDetailMaxVisibleItems]
+	}
+	for i, wave := range visibleWaves {
+		itemY := wavesY + i*nodeDetailListItemHeight
+		if cursorY >= itemY && cursorY < itemY+nodeDetailListItemHeight {
+			if wave.WaveID != "" && p.callbacks.OnViewWave != nil {
+				p.mu.Unlock()
+				p.callbacks.OnViewWave(wave.WaveID)
+				p.mu.Lock()
+			}
+			return true
 		}
 	}
 	return true

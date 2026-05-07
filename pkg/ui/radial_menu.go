@@ -82,9 +82,9 @@ type RadialMenu struct {
 
 // Menu geometry constants.
 const (
-	radialMenuRadius      = 100.0 // Distance from center to item center.
+	radialMenuRadius      = 110.0 // Distance from center to item center. Per AUDIT.md LOW fix: increased from 100.
 	radialMenuItemRadius  = 35.0  // Radius of each item circle.
-	radialMenuInnerRadius = 20.0  // Radius of center circle (cancel zone).
+	radialMenuInnerRadius = 25.0  // Radius of center circle (cancel zone). Per AUDIT.md LOW fix: increased from 20.
 	radialMenuFadeInTime  = 0.15  // Fade-in animation duration in seconds.
 	radialMenuIconSize    = 20.0  // Icon font size.
 	radialMenuLabelOffset = 15.0  // Distance from item center to label.
@@ -337,15 +337,26 @@ func (r *RadialMenu) updateHoveredItem(fx, fy float64) {
 	}
 }
 
-// isItemHovered checks if the given item is under the cursor.
+// isItemHovered checks if the given item is under the cursor using angular sector detection.
+// Per AUDIT.md LOW fix: replaced circular proximity with angular bisector test for reliable
+// selection at diagonal angles and 6+ items.
 func (r *RadialMenu) isItemHovered(index int, fx, fy float64) bool {
+	if len(r.items) == 0 {
+		return false
+	}
+	dx := fx - r.centerX
+	dy := fy - r.centerY
+	dist := math.Sqrt(dx*dx + dy*dy)
+	// Must be in the annular zone between inner radius and outer selection ring.
+	if dist < radialMenuInnerRadius || dist > radialMenuRadius+radialMenuItemRadius {
+		return false
+	}
+	cursorAngle := math.Atan2(dy, dx)
+	angleStep := 2 * math.Pi / float64(len(r.items))
 	itemAngle := r.itemAngle(index)
-	itemX := r.centerX + radialMenuRadius*math.Cos(itemAngle)
-	itemY := r.centerY + radialMenuRadius*math.Sin(itemAngle)
-	itemDx := fx - itemX
-	itemDy := fy - itemY
-	itemDist := math.Sqrt(itemDx*itemDx + itemDy*itemDy)
-	return itemDist < radialMenuItemRadius
+	// Normalise angular difference into [-π, π].
+	diff := math.Mod(cursorAngle-itemAngle+3*math.Pi, 2*math.Pi) - math.Pi
+	return math.Abs(diff) < angleStep/2
 }
 
 // handleClick processes left-click input on the menu.

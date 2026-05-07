@@ -26,6 +26,11 @@ type TouchState struct {
 	// Double-tap detection
 	lastTapX, lastTapY float64
 	lastTapTime        int64
+
+	// Pending single-tap debounce: per AUDIT.md MEDIUM fix, first tap is held
+	// until DoubleTapMaxInterval expires to avoid firing single-tap on double-taps.
+	pendingTapX, pendingTapY float64
+	pendingTapTick           int64 // tick when pending tap was recorded; 0 = none
 }
 
 // Touch represents a single touch point.
@@ -180,13 +185,21 @@ func (t *TouchState) HandleTouchEnd(id int, tickCount int64) (isTap, isDoubleTap
 
 		if interval < DoubleTapMaxInterval && dist < DoubleTapMaxDistance && t.lastTapTime > 0 {
 			isDoubleTap = true
-			// Reset double-tap state after detecting one
+			// Double-tap consumed: discard the pending single-tap.
+			t.pendingTapTick = 0
+			// Reset double-tap state after detecting one.
 			t.lastTapTime = 0
 		} else {
-			// Record this tap for potential double-tap
+			// Record as pending single-tap; defer emission until DoubleTapMaxInterval expires.
+			t.pendingTapX = x
+			t.pendingTapY = y
+			t.pendingTapTick = tickCount
+			// Also record for future double-tap detection.
 			t.lastTapX = x
 			t.lastTapY = y
 			t.lastTapTime = tickCount
+			// Single-tap is deferred; don't report it yet.
+			isTap = false
 		}
 	}
 
@@ -202,6 +215,24 @@ func (t *TouchState) HandleTouchEnd(id int, tickCount int64) (isTap, isDoubleTap
 	}
 
 	return isTap, isDoubleTap, x, y
+}
+
+// PollPendingTap checks whether a deferred single-tap has waited long enough
+// to be emitted (double-tap window expired). Call this once per game tick.
+// Returns (true, x, y) when the pending tap should now fire; (false, 0, 0) otherwise.
+// Per AUDIT.md MEDIUM finding: single-taps are deferred by DoubleTapMaxInterval ticks
+// so they are not fired prematurely on double-taps.
+func (t *TouchState) PollPendingTap(tickCount int64) (isTap bool, x, y float64) {
+	if t.pendingTapTick == 0 {
+		return false, 0, 0
+	}
+	if tickCount-t.pendingTapTick < DoubleTapMaxInterval {
+		return false, 0, 0
+	}
+	// Window expired — emit the single-tap now.
+	x, y = t.pendingTapX, t.pendingTapY
+	t.pendingTapTick = 0
+	return true, x, y
 }
 
 // twoTouchDistance calculates the distance between two touch points.

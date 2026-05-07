@@ -571,8 +571,15 @@ func (s *BootstrapScreen) HandleTextInput(text string) {
 	s.firstWaveText = text
 }
 
-// SimulatePeerFound simulates finding a peer.
-func (s *BootstrapScreen) SimulatePeerFound() {
+// NotifyPeerFound is called when the network layer discovers a real peer.
+// Per AUDIT.md MEDIUM fix: renamed from SimulatePeerFound to clarify this is
+// intended for real peer-connection events from bootstrap.NetworkManager.OnPeerConnected.
+// Wire-up example in app layer:
+//
+//	networkMgr.SetCallbacks(bootstrap.Callbacks{
+//	    OnPeerConnected: func(id string) { bootstrapScreen.NotifyPeerFound() },
+//	})
+func (s *BootstrapScreen) NotifyPeerFound() {
 	s.peersFound++
 	if s.callbacks.OnPeerFound != nil {
 		s.callbacks.OnPeerFound(s.peersFound)
