@@ -164,7 +164,8 @@ func (s *BootstrapScreen) handleWaveTextInput() {
 	}
 
 	if inpututil.IsKeyJustPressed(ebiten.KeyBackspace) && len(s.firstWaveText) > 0 {
-		s.firstWaveText = s.firstWaveText[:len(s.firstWaveText)-1]
+		runes := []rune(s.firstWaveText)
+		s.firstWaveText = string(runes[:len(runes)-1])
 	}
 }
 

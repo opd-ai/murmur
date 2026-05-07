@@ -674,6 +674,14 @@ func (r *Renderer) SelectedNode() string {
 	return r.input.SelectedNodeID
 }
 
+// NodeAtScreen returns the node ID under the given screen-space position.
+// Returns an empty string when no node is hit.
+func (r *Renderer) NodeAtScreen(x, y float64) string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.hitTestNodes(x, y)
+}
+
 // GetNodeData returns the NodeData for the given node ID, or nil if not found.
 // This is used by the Node Detail Panel to query node information.
 func (r *Renderer) GetNodeData(nodeID string) *NodeData {
@@ -826,7 +834,7 @@ func (r *Renderer) accumulateNodes(positions map[string]layout.Position,
 		// Render cross-layer artifacts (not batched - complex custom rendering).
 		// Per AUDIT.md HIGH finding "Cross-layer visibility not implemented", this enables
 		// Surface users to see anonymous activity on their Pulse Map.
-		if r.store != nil {
+		if r.store != nil && zoom == ZoomMicro {
 			r.drawCrossLayerArtifacts(r.graphLayer, data, float32(screenX), float32(screenY))
 		}
 

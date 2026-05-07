@@ -27,3 +27,4 @@ Last updated: 2026-05-07
 - [x] Harden bootstrap Docker build path for restricted DNS environments with host-network compose builds and configurable Go module proxy args.
 - [x] Add a MURMUR-specific UI audit prompt in `UI_AUDIT.md` focused on first-run comprehension, discoverability, and obvious Pulse Map interaction guidance.
 - [x] Resolve Ebitengine transition/input audit findings: one-shot scene transitions, modal-safe shortcut routing, UTF-8 text deletion correctness, and minimap redraw caching.
+- [x] Apply follow-up UI audit fixes: synchronous returning-screen handoff, pointer-based radial-menu targeting, continuous world ticking during modal input consumption, tick-based caret blink, and time-based camera interpolation.

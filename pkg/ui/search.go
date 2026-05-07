@@ -417,7 +417,7 @@ func (s *SearchBar) Draw(screen *ebiten.Image) {
 	// positioned accurately regardless of character width or encoding.
 	// cursorPos is a rune index; convert to a byte-string prefix so that
 	// measureUIText gets the correct UTF-8 sequence.
-	if s.visible && (ebiten.TPS()/searchCursorBlinkRate)%2 == 0 {
+	if s.visible && (s.tickCount/int64(searchCursorBlinkRate))%2 == 0 {
 		queryRunes := []rune(s.query)
 		safePos := s.cursorPos
 		if safePos > len(queryRunes) {

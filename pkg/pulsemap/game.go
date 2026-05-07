@@ -280,17 +280,26 @@ func (g *Game) Update() error {
 
 	g.handleNodeSelection()
 
-	if g.updateActivePanels() {
-		return nil
-	}
+	panelConsumed := g.updateActivePanels()
 
 	if err := g.renderer.Update(); err != nil {
 		return err
 	}
 
-	g.handleZoom()
-	g.handleTouchInput()
-	g.handleDragging()
+	if !panelConsumed {
+		g.handleZoom()
+		g.handleTouchInput()
+		g.handleDragging()
+	} else {
+		// Keep world simulation running while preventing stale drag/touch state.
+		g.isDragging = false
+		g.renderer.HandleMouseUp()
+		if g.touchState != nil {
+			g.touchState.Reset()
+		}
+		g.prevTouchIDs = nil
+	}
+
 	g.checkWaveResult()
 	g.tickToast()
 	g.engine.Tick()
@@ -684,9 +693,15 @@ func (g *Game) handleDragging() {
 	// Right-click opens the radial menu on the hovered node.
 	// Guard: do not open while a modal panel is visible.
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonRight) {
-		nodeID := g.input.SelectedNodeID
-		if nodeID != "" && !g.anyModalVisible() {
-			mx, my := ebiten.CursorPosition()
+		if g.anyModalVisible() {
+			return
+		}
+		mx, my := ebiten.CursorPosition()
+		nodeID := g.renderer.NodeAtScreen(float64(mx), float64(my))
+		if nodeID == "" {
+			nodeID = g.input.SelectedNodeID
+		}
+		if nodeID != "" {
 			g.radialMenu.Show(float64(mx), float64(my), nodeID)
 		}
 	}
@@ -777,7 +792,10 @@ func (g *Game) handleTouchInput() {
 		// Long-press opens the radial menu on touch platforms, matching
 		// right-click behavior on desktop when a node is already selected.
 		if isLongPress, tx, ty := g.touchState.PollLongPress(g.tickCount); isLongPress {
-			nodeID := g.input.SelectedNodeID
+			nodeID := g.renderer.NodeAtScreen(tx, ty)
+			if nodeID == "" {
+				nodeID = g.input.SelectedNodeID
+			}
 			if nodeID != "" && !g.anyModalVisible() {
 				g.radialMenu.Show(tx, ty, nodeID)
 			}

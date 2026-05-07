@@ -40,6 +40,18 @@ All targeted and full-suite tests passed. Full interactive first-run GUI validat
 Verification:
 - `go test ./pkg/app ./pkg/onboarding/screens ./pkg/pulsemap ./pkg/pulsemap/overlays ./pkg/ui`
 
+## 2026-05-07 — UI Audit Follow-up Fixes
+
+- Fixed returning-user RunGame lifecycle race by removing asynchronous RunGame handoff in `pkg/app/ui.go` and running the welcome screen synchronously before Pulse Map startup.
+- Reduced stale-target action risk by resolving radial-menu targets from pointer/touch hit-test positions in `pkg/pulsemap/game.go` via `Renderer.NodeAtScreen`, with selected-node fallback.
+- Preserved transition continuity by continuing renderer/world tick updates while modal UI consumes input, while explicitly resetting drag/touch transient state to prevent input leakage.
+- Made onboarding first-wave backspace rune-safe (`pkg/onboarding/screens/bootstrap_screen.go`) to avoid UTF-8 corruption.
+- Made Search caret blink deterministic using update ticks instead of static TPS-derived gating (`pkg/ui/search.go`).
+- Updated camera interpolation/momentum integration to be time-based in `pkg/pulsemap/interaction/input.go` for more consistent motion under frame-rate variance.
+
+Verification:
+- `go test ./pkg/app ./pkg/pulsemap ./pkg/pulsemap/interaction ./pkg/onboarding/screens ./pkg/ui`
+
 ## Discarded Candidates
 | Candidate | Reason Discarded |
 |-----------|-----------------|

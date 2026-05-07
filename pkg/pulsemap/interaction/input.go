@@ -4,6 +4,7 @@ package interaction
 
 import (
 	"math"
+	"time"
 )
 
 // Camera represents the viewport into the Pulse Map.
@@ -18,6 +19,8 @@ type Camera struct {
 	// Momentum scrolling state
 	velocityX float64 // Current pan velocity in world units per tick
 	velocityY float64 // Current pan velocity in world units per tick
+
+	lastUpdate time.Time // Time of the previous Update() call for dt integration
 }
 
 // NewCamera creates a camera centered at the origin with default zoom.
@@ -29,6 +32,7 @@ func NewCamera() *Camera {
 		TargetX:     0,
 		TargetY:     0,
 		TargetScale: 1.0,
+		lastUpdate:  time.Now(),
 	}
 }
 
@@ -147,20 +151,28 @@ func (c *Camera) SetZoomPresetMicro() {
 
 // Update performs animation interpolation per tick.
 func (c *Camera) Update() {
+	now := time.Now()
+	dt := now.Sub(c.lastUpdate).Seconds()
+	if dt <= 0 || dt < 1.0/240.0 || dt > 0.25 {
+		dt = 1.0 / 60.0
+	}
+	c.lastUpdate = now
+
 	// Apply momentum scrolling (inertial pan with deceleration)
 	const momentumDeceleration = 0.95 // Velocity multiplier per tick for smooth deceleration
 	const momentumThreshold = 0.1     // Stop momentum when velocity is negligible
+	decel := math.Pow(momentumDeceleration, dt*60.0)
 
 	if !c.Animating && (math.Abs(c.velocityX) > momentumThreshold || math.Abs(c.velocityY) > momentumThreshold) {
 		// Apply velocity to camera position
-		c.X += c.velocityX
-		c.Y += c.velocityY
+		c.X += c.velocityX * dt * 60.0
+		c.Y += c.velocityY * dt * 60.0
 		c.TargetX = c.X
 		c.TargetY = c.Y
 
 		// Apply deceleration
-		c.velocityX *= momentumDeceleration
-		c.velocityY *= momentumDeceleration
+		c.velocityX *= decel
+		c.velocityY *= decel
 
 		// Stop momentum when velocity is negligible
 		if math.Abs(c.velocityX) <= momentumThreshold {
@@ -176,8 +188,9 @@ func (c *Camera) Update() {
 		return
 	}
 
-	const lerp = 0.1      // Interpolation factor for smooth animation
+	const lerp = 0.1      // Base interpolation factor at 60fps
 	const threshold = 0.5 // Stop animating when close enough
+	alpha := 1.0 - math.Pow(1.0-lerp, dt*60.0)
 
 	dx := c.TargetX - c.X
 	dy := c.TargetY - c.Y
@@ -191,9 +204,9 @@ func (c *Camera) Update() {
 		return
 	}
 
-	c.X += dx * lerp
-	c.Y += dy * lerp
-	c.Scale += ds * lerp
+	c.X += dx * alpha
+	c.Y += dy * alpha
+	c.Scale += ds * alpha
 
 	// Clear momentum when animating
 	c.velocityX = 0
