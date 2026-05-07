@@ -25,6 +25,7 @@
 - [x] Shadow Gradient runtime behavior applied in UI layer (mode-specific layer blending + Specter panel reset when switching to Open mode).
 - [x] Search bar interaction correctness hardened (stale-result guard validated + debounce gating added + Escape non-consumption behavior tested).
 - [x] Bootstrap onboarding peer-discovery bridge added (`OnPeerConnected` forwarding interface + manager callback setter + focused test coverage).
+- [x] First-run desktop onboarding handoff repaired in `pkg/app/ui.go`: completing onboarding now persists the first-run flag and transitions directly into the Pulse Map instead of shutting the app down.
 - [x] Full in-process libp2p integration test for bootstrap-screen discovery completion added and passing.
 - [x] Repaired malformed transport integration test source (`pkg/networking/transport/integration_test.go`) and synchronized test calls with current transport diagnostics signatures and host configuration requirements.
 - [x] Hardened bootstrap container build path for environments where Docker DNS cannot resolve the Go module mirror, including host-network compose builds and configurable Go proxy/sumdb build args.

@@ -14,6 +14,7 @@ Last updated: 2026-05-07
 
 ## Next Steps
 
+- [x] Repair the desktop first-run onboarding handoff so completing onboarding enters the Pulse Map immediately instead of canceling the app.
 - [x] Implement concrete desktop adapter in pkg/network backed by pkg/networking/transport + GossipSub.
 - [x] Implement concrete wasm adapter in pkg/network backed by pion/webrtc data channels.
 - [x] Add relay/bootstrap discovery policy for browser peers (no mDNS dependency).

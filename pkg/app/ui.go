@@ -8,6 +8,7 @@ package app
 
 import (
 	"fmt"
+	"sync/atomic"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/opd-ai/murmur/pkg/identity/keys"
@@ -32,7 +33,14 @@ func (a *App) runUI() error {
 
 	// If first run and onboarding flow exists, show onboarding screens.
 	if isFirstRun && onboardingFlow != nil {
-		return a.runOnboardingUI()
+		if err := a.runOnboardingUI(); err != nil {
+			return err
+		}
+
+		// On first run, onboarding and Pulse Map run in one UI session via
+		// onboardingTransitionGame. If onboarding exited before transition,
+		// app cancellation (or context cancellation) controls shutdown here.
+		return nil
 	}
 
 	// For returning users, show welcome back screen first.
@@ -83,6 +91,7 @@ func (a *App) runOnboardingUI() error {
 	// This is safe because we control the adapter type.
 	adapter := flowAdapter.(*flowControllerAdapter)
 	flowController := adapter.controller
+	var transitionToPulseMap atomic.Bool
 
 	// Create onboarding screen with callbacks.
 	screen := screens.NewScreen(flowController, screens.ScreenCallbacks{
@@ -99,12 +108,15 @@ func (a *App) runOnboardingUI() error {
 		},
 		OnPhaseComplete: func(phase flow.Phase) {
 			fmt.Printf("Onboarding: Phase %s complete\n", phase.String())
-			// Check if onboarding is complete.
-			if flowController.IsComplete() {
-				// Transition to Pulse Map.
+			if phase == flow.PhaseIdentityCreation && transitionToPulseMap.CompareAndSwap(false, true) {
+				if err := a.subsystems.Storage.Put(store.BucketConfig, []byte("first_run_complete"), []byte("true")); err != nil {
+					fmt.Printf("Warning: Failed to persist first-run flag: %v\n", err)
+				} else {
+					a.mu.Lock()
+					a.firstRun = false
+					a.mu.Unlock()
+				}
 				fmt.Println("Onboarding complete, transitioning to Pulse Map...")
-				// TODO: Implement transition logic.
-				// For now, user must restart app.
 			}
 		},
 		OnSkipBackup: func() {
@@ -112,12 +124,70 @@ func (a *App) runOnboardingUI() error {
 		},
 	})
 
-	return a.runEbitenGame(screen, "MURMUR — Onboarding", "Starting onboarding screens...", "running onboarding")
+	onboardingGame := &onboardingTransitionGame{
+		game:                  screen,
+		transitionToPulseMap:  &transitionToPulseMap,
+		buildPulseMapGameFunc: a.buildPulseMapGame,
+	}
+
+	fmt.Println("Starting onboarding screens...")
+	ebiten.SetWindowSize(800, 600)
+	ebiten.SetWindowTitle("MURMUR — Onboarding")
+	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
+
+	if err := ebiten.RunGame(onboardingGame); err != nil {
+		return fmt.Errorf("running onboarding: %w", err)
+	}
+
+	a.cancel()
+	return nil
+}
+
+type onboardingTransitionGame struct {
+	game                  ebiten.Game
+	transitionToPulseMap  *atomic.Bool
+	buildPulseMapGameFunc func() (ebiten.Game, error)
+	transitioned          bool
+}
+
+func (g *onboardingTransitionGame) Update() error {
+	if g.transitionToPulseMap.Load() && !g.transitioned {
+		pulseMapGame, err := g.buildPulseMapGameFunc()
+		if err != nil {
+			return fmt.Errorf("building Pulse Map game for transition: %w", err)
+		}
+
+		g.game = pulseMapGame
+		g.transitioned = true
+
+		ebiten.SetWindowTitle("MURMUR — Pulse Map")
+		fmt.Println("Starting Pulse Map visualization...")
+	}
+
+	return g.game.Update()
+}
+
+func (g *onboardingTransitionGame) Draw(screen *ebiten.Image) {
+	g.game.Draw(screen)
+}
+
+func (g *onboardingTransitionGame) Layout(outsideWidth, outsideHeight int) (int, int) {
+	return g.game.Layout(outsideWidth, outsideHeight)
 }
 
 // runPulseMapUI displays the normal Pulse Map visualization.
 func (a *App) runPulseMapUI() error {
 	fmt.Println("Initializing Pulse Map UI...")
+
+	game, err := a.buildPulseMapGame()
+	if err != nil {
+		return err
+	}
+
+	return a.runEbitenGame(game, "MURMUR — Pulse Map", "Starting Pulse Map visualization...", "running Pulse Map")
+}
+
+func (a *App) buildPulseMapGame() (ebiten.Game, error) {
 
 	// Ensure subsystems are initialized before creating game.
 	a.mu.RLock()
@@ -127,19 +197,19 @@ func (a *App) runPulseMapUI() error {
 	a.mu.RUnlock()
 
 	if keypair == nil {
-		return fmt.Errorf("identity not initialized")
+		return nil, fmt.Errorf("identity not initialized")
 	}
 	if pubsub == nil {
-		return fmt.Errorf("pubsub not initialized")
+		return nil, fmt.Errorf("pubsub not initialized")
 	}
 	if storage == nil {
-		return fmt.Errorf("storage not initialized")
+		return nil, fmt.Errorf("storage not initialized")
 	}
 
 	// Create the Pulse Map game instance with Wave publishing capability and store access.
 	game, err := pulsemap.NewGame(a.ctx, keypair, pubsub, storage, a.config.DataDir)
 	if err != nil {
-		return fmt.Errorf("creating Pulse Map game: %w", err)
+		return nil, fmt.Errorf("creating Pulse Map game: %w", err)
 	}
 
 	// Wire the Shadow Gradient modes.Manager so privacy_mode settings take effect.
@@ -153,7 +223,7 @@ func (a *App) runPulseMapUI() error {
 	a.subsystems.ModeManager = modeMgr
 	a.mu.Unlock()
 
-	return a.runEbitenGame(game, "MURMUR — Pulse Map", "Starting Pulse Map visualization...", "running Pulse Map")
+	return game, nil
 }
 
 // runReturningUserScreen displays a welcome back screen for returning users.
