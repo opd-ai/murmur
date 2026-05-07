@@ -24,6 +24,8 @@ services:
       ANNOUNCE_ADDRS: ${ANNOUNCE_ADDRS:-}
     volumes:
       - ./bootstrap-data:/data
+    dns:
+      - 1.1.1.1
     command:
       - /bin/sh
       - -ec
