@@ -1,3 +1,5 @@
+//go:build !js
+
 // Package store provides typed accessor methods for MURMUR's Bbolt database.
 // Per TECHNICAL_IMPLEMENTATION.md, the database stores protobuf-encoded messages.
 package store

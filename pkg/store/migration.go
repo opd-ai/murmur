@@ -1,3 +1,5 @@
+//go:build !js
+
 // Package store provides Bbolt-based persistent storage for MURMUR.
 // This file implements the schema migration system for version upgrades.
 package store
