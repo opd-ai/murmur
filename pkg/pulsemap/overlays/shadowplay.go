@@ -278,8 +278,8 @@ func (so *ShadowPlayOverlay) drawGame(
 	camX, camY, zoom float64,
 ) {
 	// Transform world coordinates to screen coordinates.
-	screenX := (info.X - camX) * zoom
-	screenY := (info.Y - camY) * zoom
+	_, _, centerX, centerY := getCameraSetup(screen)
+	screenX, screenY := worldToScreen(info.X, info.Y, camX, camY, centerX, centerY, zoom)
 
 	radius := so.computeDomeRadius(info) * zoom
 
@@ -288,11 +288,11 @@ func (so *ShadowPlayOverlay) drawGame(
 
 	// Draw lightning effects.
 	for _, bolt := range bolts {
-		so.drawLightning(screen, bolt, info.X, info.Y, camX, camY, zoom)
+		so.drawLightning(screen, bolt, info.X, info.Y, camX, camY, centerX, centerY, zoom)
 	}
 
 	// Draw player nodes inside dome.
-	so.drawPlayers(screen, info, camX, camY, zoom)
+	so.drawPlayers(screen, info, camX, camY, centerX, centerY, zoom)
 
 	// Draw game status indicator.
 	so.drawStatusIndicator(screen, screenX, screenY, radius, info)
@@ -368,7 +368,7 @@ func (so *ShadowPlayOverlay) drawRing(
 func (so *ShadowPlayOverlay) drawLightning(
 	screen *ebiten.Image,
 	bolt *Lightning,
-	worldX, worldY, camX, camY, zoom float64,
+	worldX, worldY, camX, camY, centerX, centerY, zoom float64,
 ) {
 	alpha := uint8(255 * bolt.intensity)
 	col := color.RGBA{200, 200, 255, alpha} // Bright white-blue.
@@ -376,16 +376,14 @@ func (so *ShadowPlayOverlay) drawLightning(
 
 	for _, seg := range bolt.segments {
 		// Transform to screen coordinates.
-		x1 := float32((seg.x1 - camX) * zoom)
-		y1 := float32((seg.y1 - camY) * zoom)
-		x2 := float32((seg.x2 - camX) * zoom)
-		y2 := float32((seg.y2 - camY) * zoom)
+		x1, y1 := worldToScreen(seg.x1, seg.y1, camX, camY, centerX, centerY, zoom)
+		x2, y2 := worldToScreen(seg.x2, seg.y2, camX, camY, centerX, centerY, zoom)
 
 		// Draw glow (wider, dimmer).
-		vector.StrokeLine(screen, x1, y1, x2, y2, 4.0, glowCol, false)
+		vector.StrokeLine(screen, float32(x1), float32(y1), float32(x2), float32(y2), 4.0, glowCol, false)
 
 		// Draw core (thinner, brighter).
-		vector.StrokeLine(screen, x1, y1, x2, y2, 2.0, col, false)
+		vector.StrokeLine(screen, float32(x1), float32(y1), float32(x2), float32(y2), 2.0, col, false)
 	}
 }
 
@@ -393,10 +391,10 @@ func (so *ShadowPlayOverlay) drawLightning(
 func (so *ShadowPlayOverlay) drawPlayers(
 	screen *ebiten.Image,
 	info *ShadowPlayInfo,
-	camX, camY, zoom float64,
+	camX, camY, centerX, centerY, zoom float64,
 ) {
 	for _, player := range info.Players {
-		so.drawPlayer(screen, &player, info.State, camX, camY, zoom)
+		so.drawPlayer(screen, &player, info.State, camX, camY, centerX, centerY, zoom)
 	}
 }
 
@@ -405,10 +403,11 @@ func (so *ShadowPlayOverlay) drawPlayer(
 	screen *ebiten.Image,
 	player *ShadowPlayer,
 	gameState ShadowPlayState,
-	camX, camY, zoom float64,
+	camX, camY, centerX, centerY, zoom float64,
 ) {
-	screenX := float32((player.X - camX) * zoom)
-	screenY := float32((player.Y - camY) * zoom)
+	sx, sy := worldToScreen(player.X, player.Y, camX, camY, centerX, centerY, zoom)
+	screenX := float32(sx)
+	screenY := float32(sy)
 
 	radius := float32(8 * zoom)
 	if player.IsEliminated {

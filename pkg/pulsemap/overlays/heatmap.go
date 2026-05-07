@@ -224,8 +224,7 @@ func (h *ActivityHeatMap) renderHeatMapCells(screenW, screenH int, cameraX, came
 func (h *ActivityHeatMap) transformCellToScreen(key gridKey, centerX, centerY, cameraX, cameraY, zoom float64) (float64, float64, float64) {
 	worldCellX := float64(key.x)*float64(h.config.GridCellSize) + float64(h.config.GridCellSize)/2
 	worldCellY := float64(key.y)*float64(h.config.GridCellSize) + float64(h.config.GridCellSize)/2
-	screenX := centerX + (worldCellX-cameraX)*zoom
-	screenY := centerY + (worldCellY-cameraY)*zoom
+	screenX, screenY := worldToScreen(worldCellX, worldCellY, cameraX, cameraY, centerX, centerY, zoom)
 	cellRadius := float64(h.config.GridCellSize) * zoom / 2
 	return screenX, screenY, cellRadius
 }

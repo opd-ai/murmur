@@ -208,7 +208,7 @@ Remediation checklist:
 ---
 
 ## Cross-Cut Remediation Plan
-- [ ] Add integration tests for touch/mouse parity in selection, drag, and context menu actions.
+- [x] Add integration tests for touch/mouse parity in selection, drag, and context menu actions.
 - [ ] Standardize all world-to-screen transforms to shared helpers to prevent drift.
 - [ ] Enforce edge-triggered input policy for all click actions.
 - [ ] Add panel interaction contract tests: first-frame open, close behavior, and button hit regions.

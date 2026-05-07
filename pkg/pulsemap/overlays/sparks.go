@@ -280,9 +280,8 @@ func (o *SparkOverlay) drawAllCrowns(screen *ebiten.Image, cameraX, cameraY, cen
 		if now.After(holder.ExpiresAt) {
 			continue
 		}
-		sx := centerX + (holder.X-cameraX)*zoom
-		sy := centerY + (holder.Y-cameraY)*zoom
-		if sx < -100 || sx > screenW+100 || sy < -100 || sy > screenH+100 {
+		sx, sy := worldToScreen(holder.X, holder.Y, cameraX, cameraY, centerX, centerY, zoom)
+		if isOffScreen(sx, sy, screenW, screenH, 100) {
 			continue
 		}
 		o.drawCrown(screen, float32(sx), float32(sy), float32(zoom))

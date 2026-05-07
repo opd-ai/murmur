@@ -274,8 +274,7 @@ func (o *PulseBeatOverlay) Draw(screen *ebiten.Image, cameraX, cameraY, zoom flo
 
 	for i, beat := range o.beats {
 		// Calculate position of target on screen.
-		targetSX := centerX + (beat.TargetX-cameraX)*zoom
-		targetSY := centerY + (beat.TargetY-cameraY)*zoom
+		targetSX, targetSY := worldToScreen(beat.TargetX, beat.TargetY, cameraX, cameraY, centerX, centerY, zoom)
 
 		// Check if target is on screen.
 		if targetSX >= 0 && targetSX <= screenW && targetSY >= 0 && targetSY <= screenH {
@@ -718,8 +717,7 @@ func (o *PulseBeatOverlay) getBeatsAndCallback() ([]*DisplayBeat, func([32]byte)
 
 // calculateIndicatorPosition computes the screen position for a beat indicator.
 func (o *PulseBeatOverlay) calculateIndicatorPosition(beat *DisplayBeat, index int, centerX, centerY, cameraX, cameraY, zoom, screenW, screenH float64) (float64, float64) {
-	targetSX := centerX + (beat.TargetX-cameraX)*zoom
-	targetSY := centerY + (beat.TargetY-cameraY)*zoom
+	targetSX, targetSY := worldToScreen(beat.TargetX, beat.TargetY, cameraX, cameraY, centerX, centerY, zoom)
 
 	if o.isOnScreen(targetSX, targetSY, screenW, screenH) {
 		return targetSX, targetSY

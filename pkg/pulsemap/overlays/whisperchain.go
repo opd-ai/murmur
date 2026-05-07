@@ -160,8 +160,7 @@ func (o *WhisperChainOverlay) Draw(screen *ebiten.Image, cameraX, cameraY, zoom 
 		progress := elapsed / indicator.Duration
 
 		// Transform to screen coordinates.
-		sx := centerX + (indicator.X-cameraX)*zoom
-		sy := centerY + (indicator.Y-cameraY)*zoom
+		sx, sy := worldToScreen(indicator.X, indicator.Y, cameraX, cameraY, centerX, centerY, zoom)
 
 		// Skip if off-screen.
 		margin := 50.0

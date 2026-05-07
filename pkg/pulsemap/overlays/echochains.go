@@ -260,10 +260,8 @@ func (o *EchoChainOverlay) drawChain(screen *ebiten.Image, chain *EchoChainInfo,
 		node2 := chain.Nodes[i+1]
 
 		// Transform to screen coordinates.
-		sx1 := centerX + (node1.X-cameraX)*zoom
-		sy1 := centerY + (node1.Y-cameraY)*zoom
-		sx2 := centerX + (node2.X-cameraX)*zoom
-		sy2 := centerY + (node2.Y-cameraY)*zoom
+		sx1, sy1 := worldToScreen(node1.X, node1.Y, cameraX, cameraY, centerX, centerY, zoom)
+		sx2, sy2 := worldToScreen(node2.X, node2.Y, cameraX, cameraY, centerX, centerY, zoom)
 
 		// Check if segment is visible (at least one endpoint on screen).
 		if !o.isSegmentVisible(sx1, sy1, sx2, sy2, screenW, screenH) {
@@ -279,8 +277,7 @@ func (o *EchoChainOverlay) drawChain(screen *ebiten.Image, chain *EchoChainInfo,
 
 	// Draw final node marker.
 	lastNode := chain.Nodes[len(chain.Nodes)-1]
-	sx := centerX + (lastNode.X-cameraX)*zoom
-	sy := centerY + (lastNode.Y-cameraY)*zoom
+	sx, sy := worldToScreen(lastNode.X, lastNode.Y, cameraX, cameraY, centerX, centerY, zoom)
 	if sx >= -50 && sx <= screenW+50 && sy >= -50 && sy <= screenH+50 {
 		o.drawNodeMarker(screen, float32(sx), float32(sy), float32(zoom), fadeFactor, false)
 	}
@@ -494,8 +491,7 @@ func (o *EchoChainOverlay) drawPulse(screen *ebiten.Image, chain *EchoChainInfo,
 		return
 	}
 
-	sx := centerX + (pulseX-cameraX)*zoom
-	sy := centerY + (pulseY-cameraY)*zoom
+	sx, sy := worldToScreen(pulseX, pulseY, cameraX, cameraY, centerX, centerY, zoom)
 	drawPulseGraphics(screen, float32(sx), float32(sy), float32(zoom), fadeFactor)
 }
 

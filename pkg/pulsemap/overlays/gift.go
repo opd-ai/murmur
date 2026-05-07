@@ -118,8 +118,11 @@ func (o *GiftOverlay) Render(dst *ebiten.Image, nodeID string, nodeX, nodeY, nod
 	}
 
 	// Transform to screen coordinates
-	screenX := (nodeX-cameraX)*scale + float32(dst.Bounds().Dx())/2
-	screenY := (nodeY-cameraY)*scale + float32(dst.Bounds().Dy())/2
+	centerX := float64(dst.Bounds().Dx()) / 2
+	centerY := float64(dst.Bounds().Dy()) / 2
+	sx, sy := worldToScreen(float64(nodeX), float64(nodeY), float64(cameraX), float64(cameraY), centerX, centerY, float64(scale))
+	screenX := float32(sx)
+	screenY := float32(sy)
 	screenRadius := nodeRadius * scale
 
 	for _, e := range effects {
