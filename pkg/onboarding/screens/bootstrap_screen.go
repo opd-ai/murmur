@@ -10,6 +10,7 @@ package screens
 import (
 	"image/color"
 	"math"
+	"sync/atomic"
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -34,6 +35,11 @@ type BootstrapScreen struct {
 	state      BootstrapScreenState
 	startTime  time.Time
 	animPhase  float64
+
+	// pendingPeerFound queues cross-goroutine peer-connected notifications from
+	// the bootstrap network manager. Update() drains this counter on the UI
+	// goroutine before mutating screen state.
+	pendingPeerFound atomic.Int64
 
 	// Peer discovery
 	peersFound     int
@@ -65,6 +71,15 @@ type BootstrapScreenCallbacks struct {
 	OnPhaseComplete      func(flow.Phase)
 }
 
+// PeerConnectedSource is the minimal interface BootstrapScreen needs from the
+// network bootstrap layer to observe peer connections.
+//
+// Implementations should invoke the provided callback each time a new peer is
+// connected during bootstrap.
+type PeerConnectedSource interface {
+	SetOnPeerConnected(handler func(peerID string))
+}
+
 // NewBootstrapScreen creates a new bootstrap/exploration screen.
 func NewBootstrapScreen(controller *flow.Controller, callbacks BootstrapScreenCallbacks) *BootstrapScreen {
 	return &BootstrapScreen{
@@ -78,12 +93,45 @@ func NewBootstrapScreen(controller *flow.Controller, callbacks BootstrapScreenCa
 	}
 }
 
+// NewBootstrapScreenWithPeerSource creates a bootstrap screen and wires
+// real peer-connection events from the bootstrap network layer.
+func NewBootstrapScreenWithPeerSource(
+	controller *flow.Controller,
+	callbacks BootstrapScreenCallbacks,
+	peerSource PeerConnectedSource,
+) *BootstrapScreen {
+	s := NewBootstrapScreen(controller, callbacks)
+	s.AttachPeerConnectedSource(peerSource)
+	return s
+}
+
+// AttachPeerConnectedSource wires bootstrap network events to this screen.
+// Per AUDIT.md MEDIUM finding, this bridges OnPeerConnected to UI discovery
+// progress so peer discovery can complete from real network activity.
+func (s *BootstrapScreen) AttachPeerConnectedSource(peerSource PeerConnectedSource) {
+	if peerSource == nil {
+		return
+	}
+	peerSource.SetOnPeerConnected(func(peerID string) {
+		_ = peerID
+		s.pendingPeerFound.Add(1)
+	})
+}
+
 // Update advances animations and handles state transitions.
 func (s *BootstrapScreen) Update() error {
+	s.drainPendingPeerFound()
 	s.updateAnimationPhase()
 	s.handleMouseInput()
 	s.handleWaveTextInput()
 	return nil
+}
+
+func (s *BootstrapScreen) drainPendingPeerFound() {
+	n := s.pendingPeerFound.Swap(0)
+	for i := int64(0); i < n; i++ {
+		s.NotifyPeerFound()
+	}
 }
 
 // updateAnimationPhase advances the animation phase.
@@ -589,6 +637,12 @@ func (s *BootstrapScreen) NotifyPeerFound() {
 	}
 }
 
+// SimulatePeerFound is a legacy test helper alias. Prefer NotifyPeerFound for
+// production wiring from bootstrap network callbacks.
+func (s *BootstrapScreen) SimulatePeerFound() {
+	s.NotifyPeerFound()
+}
+
 // SimulateDiscoveryComplete simulates completing peer discovery.
 func (s *BootstrapScreen) SimulateDiscoveryComplete(peerCount int) {
 	s.peersFound = peerCount
@@ -643,4 +697,50 @@ func (s *BootstrapScreen) IsDiscoveryDone() bool {
 // WasSent returns whether the first Wave was sent.
 func (s *BootstrapScreen) WasSent() bool {
 	return s.waveSent
+}
+
+// SimulateAdvanceToTutorial is a legacy noebiten test helper that advances
+// from connecting to Pulse Map intro.
+func (s *BootstrapScreen) SimulateAdvanceToTutorial() {
+	if !s.discoveryDone {
+		s.discoveryDone = true
+	}
+	s.state = BootstrapStatePulseMapIntro
+	s.tutorialStep = 0
+}
+
+// SimulateTutorialStep is a legacy noebiten test helper.
+func (s *BootstrapScreen) SimulateTutorialStep() {
+	if s.tutorialStep < 4 {
+		s.tutorialStep++
+	}
+}
+
+// SimulateCompleteTutorial is a legacy noebiten test helper.
+func (s *BootstrapScreen) SimulateCompleteTutorial() {
+	s.tutorialStep = 4
+	s.state = BootstrapStateFirstWavePrompt
+	if s.callbacks.OnPulseMapReady != nil {
+		s.callbacks.OnPulseMapReady()
+	}
+}
+
+// SimulateSendWave is a legacy noebiten test helper.
+func (s *BootstrapScreen) SimulateSendWave(text string) {
+	s.firstWaveText = text
+	s.waveSent = true
+	if s.callbacks.OnFirstWaveSent != nil {
+		s.callbacks.OnFirstWaveSent(text)
+	}
+	s.state = BootstrapStateComplete
+}
+
+// SimulateSkipWave is a legacy noebiten test helper.
+func (s *BootstrapScreen) SimulateSkipWave() {
+	s.state = BootstrapStateComplete
+}
+
+// SimulateComplete is a legacy noebiten test helper.
+func (s *BootstrapScreen) SimulateComplete() {
+	s.completePhase()
 }

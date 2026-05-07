@@ -145,6 +145,14 @@ func NewManager(cfg Config, connector NetworkConnector, cb Callbacks) *Manager {
 	}
 }
 
+// SetOnPeerConnected updates the peer-connected callback used during bootstrap.
+// This allows UI layers to attach a handler after manager construction.
+func (m *Manager) SetOnPeerConnected(handler func(peerID string)) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.callbacks.OnPeerConnected = handler
+}
+
 // Start begins the bootstrap process.
 func (m *Manager) Start(ctx context.Context) error {
 	if !m.tryStartBootstrap() {

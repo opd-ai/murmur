@@ -48,6 +48,11 @@ type SearchBar struct {
 	results       []SearchResult
 	selectedIndex int // Selected result index (-1 = none)
 
+	// Search dispatch timing (ticks are Update() frames).
+	tickCount      int64
+	lastInputTick  int64
+	lastSearchTick int64
+
 	// Animation
 	opacity float64 // Fade in/out animation
 
@@ -87,6 +92,9 @@ func (s *SearchBar) Show() {
 	s.cursorPos = 0
 	s.results = nil
 	s.selectedIndex = -1
+	s.tickCount = 0
+	s.lastInputTick = 0
+	s.lastSearchTick = 0
 }
 
 // Hide hides the search bar.
@@ -97,6 +105,8 @@ func (s *SearchBar) Hide() {
 	s.query = ""
 	s.results = nil
 	s.selectedIndex = -1
+	s.lastInputTick = 0
+	s.lastSearchTick = 0
 }
 
 // Visible returns true if the search bar is currently shown.
@@ -127,11 +137,18 @@ func (s *SearchBar) Update() bool {
 		return false
 	}
 
+	s.tickCount++
+
 	s.updateFadeAnimation()
 	s.calculateBarPosition()
 
 	if s.handleTextInput() {
+		s.lastInputTick = s.tickCount
+	}
+
+	if s.shouldPerformSearch() {
 		s.performSearch()
+		s.lastSearchTick = s.tickCount
 	}
 
 	if s.handleKeyboardNav() {
@@ -143,6 +160,18 @@ func (s *SearchBar) Update() bool {
 	}
 
 	return s.handleEscapeKey()
+}
+
+func (s *SearchBar) shouldPerformSearch() bool {
+	if s.callbacks.OnSearch == nil {
+		return false
+	}
+	if s.lastInputTick == 0 || s.lastInputTick <= s.lastSearchTick {
+		return false
+	}
+	// Debounce: wait at least 3 ticks (~50ms at 60fps) after the most recent
+	// input change before dispatching a search.
+	return s.tickCount-s.lastInputTick >= 3
 }
 
 func (s *SearchBar) handleMouseInput() bool {

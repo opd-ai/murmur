@@ -23,6 +23,7 @@ import (
 	"github.com/opd-ai/murmur/pkg/networking/gossip"
 	"github.com/opd-ai/murmur/pkg/pulsemap/interaction"
 	"github.com/opd-ai/murmur/pkg/pulsemap/layout"
+	"github.com/opd-ai/murmur/pkg/pulsemap/overlays"
 	"github.com/opd-ai/murmur/pkg/pulsemap/rendering"
 	"github.com/opd-ai/murmur/pkg/store"
 	"github.com/opd-ai/murmur/pkg/ui"
@@ -1099,6 +1100,34 @@ func (g *Game) SetModeManager(m *modes.Manager) {
 	g.modeManager = m
 }
 
+func (g *Game) applyModeVisuals(mode modes.Mode) {
+	if g.renderer == nil {
+		return
+	}
+
+	blend := overlays.NewDefaultBlend()
+	switch mode {
+	case modes.Open:
+		blend.SetBlendRatio(0.0)
+		g.closeSpecterPanels()
+	case modes.Hybrid:
+		blend.SetBlendRatio(0.5)
+	case modes.Guarded:
+		blend.SetBlendRatio(0.75)
+	case modes.Fortress:
+		blend = overlays.NewFortressBlend()
+	}
+
+	g.renderer.SetLayerBlend(blend)
+}
+
+// closeSpecterPanels hides UI panels that are only valid in anonymous contexts.
+func (g *Game) closeSpecterPanels() {
+	if g.nodeDetailPanel != nil && g.nodeDetailPanel.IsShowingSpecter() {
+		g.nodeDetailPanel.Hide()
+	}
+}
+
 // handleSettingChange applies a changed setting to live subsystems.
 // Per AUDIT.md HIGH finding: SettingsPanel was wired without a real change handler.
 func (g *Game) handleSettingChange(key, value string) {
@@ -1108,8 +1137,11 @@ func (g *Game) handleSettingChange(key, value string) {
 			if g.modeManager != nil {
 				if err := g.modeManager.Transition(mode); err != nil {
 					log.Printf("privacy_mode transition error: %v", err)
+					return
 				}
+				mode = g.modeManager.Current()
 			}
+			g.applyModeVisuals(mode)
 		} else {
 			log.Printf("handleSettingChange: unknown privacy_mode value %q", value)
 		}

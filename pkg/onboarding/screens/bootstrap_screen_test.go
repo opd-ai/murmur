@@ -11,6 +11,20 @@ import (
 	"github.com/opd-ai/murmur/pkg/onboarding/flow"
 )
 
+type fakePeerSource struct {
+	handler func(peerID string)
+}
+
+func (f *fakePeerSource) SetOnPeerConnected(handler func(peerID string)) {
+	f.handler = handler
+}
+
+func (f *fakePeerSource) Emit(peerID string) {
+	if f.handler != nil {
+		f.handler(peerID)
+	}
+}
+
 func TestBootstrapScreenInitialState(t *testing.T) {
 	controller := createTestController(t)
 	// Move to NetworkBootstrap phase
@@ -61,6 +75,32 @@ func TestBootstrapPeerDiscovery(t *testing.T) {
 
 	if !screen.IsDiscoveryDone() {
 		t.Error("Expected discovery to be done after finding target peers")
+	}
+}
+
+func TestBootstrapPeerConnectedSourceForwarding(t *testing.T) {
+	controller := createTestController(t)
+	controller.CompleteCurrentPhase()
+	controller.CompleteCurrentPhase()
+	controller.CompleteCurrentPhase()
+
+	source := &fakePeerSource{}
+	screen := NewBootstrapScreenWithPeerSource(controller, BootstrapScreenCallbacks{}, source)
+
+	for i := 0; i < 6; i++ {
+		source.Emit("peer")
+	}
+
+	// Forwarded peer notifications are drained during Update().
+	if err := screen.Update(); err != nil {
+		t.Fatalf("Update() error: %v", err)
+	}
+
+	if got := screen.PeersFound(); got != 6 {
+		t.Fatalf("expected 6 peers from forwarded events, got %d", got)
+	}
+	if !screen.IsDiscoveryDone() {
+		t.Fatal("expected discoveryDone=true after reaching target peers via forwarded events")
 	}
 }
 

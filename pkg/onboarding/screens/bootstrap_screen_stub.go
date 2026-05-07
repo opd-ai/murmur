@@ -49,6 +49,12 @@ type BootstrapScreenCallbacks struct {
 	OnPhaseComplete      func(flow.Phase)
 }
 
+// PeerConnectedSource is the minimal interface BootstrapScreen needs from the
+// network bootstrap layer to observe peer connections.
+type PeerConnectedSource interface {
+	SetOnPeerConnected(handler func(peerID string))
+}
+
 // NewBootstrapScreen creates a new bootstrap screen (stub).
 func NewBootstrapScreen(controller *flow.Controller, callbacks BootstrapScreenCallbacks) *BootstrapScreen {
 	return &BootstrapScreen{
@@ -58,6 +64,29 @@ func NewBootstrapScreen(controller *flow.Controller, callbacks BootstrapScreenCa
 		targetPeers: 6,
 		callbacks:   callbacks,
 	}
+}
+
+// NewBootstrapScreenWithPeerSource creates a bootstrap screen and wires
+// real peer-connection events from the bootstrap network layer.
+func NewBootstrapScreenWithPeerSource(
+	controller *flow.Controller,
+	callbacks BootstrapScreenCallbacks,
+	peerSource PeerConnectedSource,
+) *BootstrapScreen {
+	s := NewBootstrapScreen(controller, callbacks)
+	s.AttachPeerConnectedSource(peerSource)
+	return s
+}
+
+// AttachPeerConnectedSource wires bootstrap network events to this screen.
+func (s *BootstrapScreen) AttachPeerConnectedSource(peerSource PeerConnectedSource) {
+	if peerSource == nil {
+		return
+	}
+	peerSource.SetOnPeerConnected(func(peerID string) {
+		_ = peerID
+		s.NotifyPeerFound()
+	})
 }
 
 // Update advances animations (stub - no-op).

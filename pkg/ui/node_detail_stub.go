@@ -67,6 +67,11 @@ func (p *NodeDetailPanel) Visible() bool {
 	return p.visible
 }
 
+// IsShowingSpecter reports whether the panel is visible and bound to a Specter node.
+func (p *NodeDetailPanel) IsShowingSpecter() bool {
+	return p.visible && p.nodeInfo != nil && p.nodeInfo.IsSpecter
+}
+
 // Toggle toggles panel visibility.
 func (p *NodeDetailPanel) Toggle() {
 	p.visible = !p.visible

@@ -358,7 +358,7 @@
 
 ---
 
-### [HIGH] Settings panel is never instantiated or accessible to the user
+### [HIGH][FIXED] Settings panel is never instantiated or accessible to the user
 
 - **File**: `pkg/pulsemap/game.go` (no reference to `SettingsPanel`); `pkg/ui/settings.go`
 - **Category**: Transition / Convenience
@@ -371,11 +371,11 @@
   3. Bind `Ctrl+,` (macOS convention) or `Ctrl+P` to `g.settingsPanel.Toggle()`.
   4. Include in `updateActivePanels()` and `Draw()`.
 - **Remediation checklist**:
-  - [ ] Add `settingsPanel` field and `NewSettingsPanel(theme, g.handleSettingChange)` in `NewGame`.
-  - [ ] Add `handleSettingChange(key, value string)` method that applies setting to live subsystems.
-  - [ ] Add keyboard shortcut toggle.
-  - [ ] Draw settings panel in `Draw()` (modal — above all other panels).
-  - [ ] Wire `Privacy > Privacy Mode` to `pkg/identity/modes` package.
+  - [x] Add `settingsPanel` field and `NewSettingsPanel(theme, g.handleSettingChange)` in `NewGame`.
+  - [x] Add `handleSettingChange(key, value string)` method that applies setting to live subsystems.
+  - [x] Add keyboard shortcut toggle.
+  - [x] Draw settings panel in `Draw()` (modal — above all other panels).
+  - [x] Wire `Privacy > Privacy Mode` to `pkg/identity/modes` package.
 
 ---
 
@@ -393,14 +393,14 @@
   })
   ```
 - **Remediation checklist**:
-  - [ ] Inject `bootstrap.NetworkManager` (or an interface) into `BootstrapScreen` or its caller.
-  - [ ] Forward `OnPeerConnected` → `screen.SimulatePeerFound()`.
-  - [ ] Rename `SimulatePeerFound` → `NotifyPeerFound` to reduce confusion with test helpers.
+  - [x] Inject `bootstrap.NetworkManager` (or an interface) into `BootstrapScreen` or its caller.
+  - [x] Forward `OnPeerConnected` → `screen.NotifyPeerFound()`.
+  - [x] Rename `SimulatePeerFound` → `NotifyPeerFound` to reduce confusion with test helpers.
   - [ ] Add integration test: connect two in-process libp2p nodes, assert screen shows `discoveryDone=true`.
 
 ---
 
-### [MEDIUM] Anonymous overlay layer is always empty — toggle has no visual effect
+### [MEDIUM][FIXED] Anonymous overlay layer is always empty — toggle has no visual effect
 
 - **File**: `pkg/pulsemap/rendering/renderer.go` (lines 345–350 comment block in `Draw()`); `pkg/pulsemap/overlays/layer.go`
 - **Category**: Transition
@@ -417,23 +417,23 @@
   }
   ```
 - **Remediation checklist**:
-  - [ ] Add `layerBlend *overlays.LayerBlend` and `specterEmitters map[string]*overlays.ParticleEmitter` to `Renderer`.
-  - [ ] Initialise in `NewRenderer`.
-  - [ ] Populate overlay layer in `Draw()`.
-  - [ ] Expose `SetLayerBlend(ratio float32)` on `Renderer` for the UI to call.
+  - [x] Add `layerBlend *overlays.LayerBlend` and `specterEmitters map[string]*overlays.ParticleEmitter` to `Renderer`.
+  - [x] Initialise in `NewRenderer`.
+  - [x] Populate overlay layer in `Draw()`.
+  - [x] Expose `SetLayerBlend(ratio float32)` on `Renderer` for the UI to call.
 
 ---
 
-### [LOW] Shadow Gradient mode change does not reset open panels
+### [LOW][FIXED] Shadow Gradient mode change does not reset open panels
 
 - **File**: `pkg/pulsemap/game.go` (no `OnPrivacyModeChange` handler); `pkg/ui/settings.go` (`Privacy Mode` setting)
 - **Category**: Transition
 - **Problem**: Switching between Open/Hybrid/Guarded/Fortress modes should hide UI elements that are only valid in certain modes (e.g., Specter-specific panels should close in Open mode; the Anonymous Layer overlay should hide in Fortress mode for surface panels). Currently the settings `onChange` callback (`handleSettingChange` — not yet implemented, see HIGH finding above) has no handler, so mode changes have no UI effect.
 - **Fix**: When privacy mode changes, dispatch a `ModeChangedEvent` on the event bus that the UI subscribes to, closing inappropriate panels.
 - **Remediation checklist**:
-  - [ ] Implement `handleSettingChange` in `Game` (blocked by: Settings panel not wired).
-  - [ ] On `privacy_mode` change, call `g.closeSpecterPanels()` when switching to Open mode.
-  - [ ] Drive `LayerBlend` opacity from the new mode value.
+  - [x] Implement `handleSettingChange` in `Game` (blocked by: Settings panel not wired).
+  - [x] On `privacy_mode` change, call `g.closeSpecterPanels()` when switching to Open mode.
+  - [x] Drive `LayerBlend` opacity from the new mode value.
 
 ---
 
