@@ -451,8 +451,6 @@ func (p *SettingsPanel) Draw(screen *ebiten.Image) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	p.applyResponsiveLayout()
-
 	px, py, w, h, shouldRender := CheckPanelVisibilityAndCenter(screen, p.visible, p.width, p.height)
 	if !shouldRender {
 		return
