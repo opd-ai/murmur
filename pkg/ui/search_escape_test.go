@@ -5,12 +5,12 @@ package ui
 
 import "testing"
 
-func TestSearchBar_Update_NoEscapeDoesNotConsumeInput(t *testing.T) {
+func TestSearchBar_Update_VisibleConsumesInput(t *testing.T) {
 	bar := NewSearchBar(DefaultTheme(), SearchCallbacks{})
 	bar.Show()
 
 	consumed := bar.Update()
-	if consumed {
-		t.Fatal("expected Update() to return false when Escape is not pressed and no input occurred")
+	if !consumed {
+		t.Fatal("expected Update() to return true while search is visible to block click-through input")
 	}
 }

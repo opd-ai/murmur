@@ -37,6 +37,8 @@ type RecoveryScreen struct {
 
 	// UI state
 	hoveredButton int
+	width         int
+	height        int
 }
 
 // NewRecoveryScreen creates a new recovery screen.
@@ -44,11 +46,15 @@ func NewRecoveryScreen() *RecoveryScreen {
 	return &RecoveryScreen{
 		method:        RecoveryMethodNone,
 		hoveredButton: -1,
+		width:         800,
+		height:        600,
 	}
 }
 
 // Update handles input and state updates for the recovery screen.
 func (s *RecoveryScreen) Update() error {
+	s.refreshLayoutFromWindow()
+
 	if s.method == RecoveryMethodNone {
 		s.updateMethodSelection()
 		return nil
@@ -80,7 +86,8 @@ func (s *RecoveryScreen) updateKeyFileMethod() {
 func (s *RecoveryScreen) handleKeyFileBackButton() {
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		x, y := ebiten.CursorPosition()
-		if isInButton(float32(x), float32(y), 200, 500, 120, 40) {
+		backX, backY := s.backButtonCenter()
+		if isInButton(float32(x), float32(y), backX, backY, 120, 40) {
 			s.method = RecoveryMethodNone
 			s.errorMsg = ""
 		}
@@ -98,9 +105,8 @@ func (s *RecoveryScreen) updateMethodSelection() {
 
 // handleMethodClick processes clicks on method selection buttons.
 func (s *RecoveryScreen) handleMethodClick(x, y int) {
-	// Mnemonic button: center x, y=250
-	centerX := 400.0
-	buttonY := 250.0
+	centerX := float64(s.width) / 2
+	buttonY := float64(s.height)/2 - 50
 	buttonWidth := 280.0
 	buttonHeight := 50.0
 
@@ -111,8 +117,8 @@ func (s *RecoveryScreen) handleMethodClick(x, y int) {
 		return
 	}
 
-	// Key file button: center x, y=320
-	buttonY = 320.0
+	// Key file button.
+	buttonY += 70
 	if isInButton(float32(x), float32(y), float32(centerX), float32(buttonY), float32(buttonWidth), float32(buttonHeight)) {
 		s.method = RecoveryMethodKeyFile
 		s.errorMsg = ""
@@ -139,7 +145,8 @@ func (s *RecoveryScreen) updateMnemonicEntry() {
 	// Back button click — handled here, not in Draw, to keep rendering side-effect-free.
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		x, y := ebiten.CursorPosition()
-		if isInButton(float32(x), float32(y), 200, 500, 120, 40) {
+		backX, backY := s.backButtonCenter()
+		if isInButton(float32(x), float32(y), backX, backY, 120, 40) {
 			s.method = RecoveryMethodNone
 			s.mnemonicText = ""
 			s.errorMsg = ""
@@ -180,7 +187,8 @@ func (s *RecoveryScreen) handlePassphraseBackspace() {
 func (s *RecoveryScreen) handlePassphraseBackButton() {
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		x, y := ebiten.CursorPosition()
-		if isInButton(float32(x), float32(y), 200, 500, 120, 40) {
+		backX, backY := s.backButtonCenter()
+		if isInButton(float32(x), float32(y), backX, backY, 120, 40) {
 			s.resetPassphraseState()
 		}
 	}
@@ -257,6 +265,9 @@ func (s *RecoveryScreen) attemptKeyFileRecovery() {
 
 // Draw renders the recovery screen.
 func (s *RecoveryScreen) Draw(screen *ebiten.Image) {
+	s.width = screen.Bounds().Dx()
+	s.height = screen.Bounds().Dy()
+
 	if s.method == RecoveryMethodNone {
 		s.drawMethodSelection(screen)
 	} else if s.method == RecoveryMethodMnemonic {
@@ -268,41 +279,57 @@ func (s *RecoveryScreen) Draw(screen *ebiten.Image) {
 
 // drawMethodSelection renders the recovery method selection UI.
 func (s *RecoveryScreen) drawMethodSelection(screen *ebiten.Image) {
+	centerX := float32(s.width) / 2
+	methodY := float32(s.height)/2 - 50
+	keyFileY := methodY + 70
+	helpY := float32(s.height) - 100
+	errorY := helpY - 40
+
 	// Title.
-	DrawCenteredText(screen, "Recover Your Identity", 400, 100, 24, color.RGBA{255, 255, 255, 255})
+	DrawCenteredText(screen, "Recover Your Identity", centerX, 100, 24, color.RGBA{255, 255, 255, 255})
 
 	// Description.
-	DrawCenteredText(screen, "Choose how you want to recover your MURMUR identity", 400, 150, 14, color.RGBA{200, 200, 210, 255})
+	DrawCenteredText(screen, "Choose how you want to recover your MURMUR identity", centerX, 150, 14, color.RGBA{200, 200, 210, 255})
 
 	// Method buttons.
 	style := DefaultButtonStyle()
 	style.Width = 280
-	DrawButton(screen, "Recovery Phrase (24 words)", 400, 250, style)
-	DrawButton(screen, "Key File", 400, 320, style)
+	DrawButton(screen, "Recovery Phrase (24 words)", centerX, methodY, style)
+	DrawButton(screen, "Key File", centerX, keyFileY, style)
 
 	// Error message if any.
 	if s.errorMsg != "" {
-		DrawCenteredText(screen, s.errorMsg, 400, 400, 12, color.RGBA{255, 100, 100, 255})
+		DrawCenteredText(screen, s.errorMsg, centerX, errorY, 12, color.RGBA{255, 100, 100, 255})
 	}
 
 	// Help text.
-	DrawCenteredText(screen, "Recovery works offline - no network required", 400, 500, 12, color.RGBA{150, 150, 160, 255})
+	DrawCenteredText(screen, "Recovery works offline - no network required", centerX, helpY, 12, color.RGBA{150, 150, 160, 255})
 }
 
 // drawMnemonicEntry renders the mnemonic phrase entry UI.
 func (s *RecoveryScreen) drawMnemonicEntry(screen *ebiten.Image) {
+	centerX := float32(s.width) / 2
+	boxWidth := float32(500)
+	maxW := float32(s.width - 40)
+	if maxW < 220 {
+		maxW = 220
+	}
+	if boxWidth > maxW {
+		boxWidth = maxW
+	}
+	boxHeight := float32(120)
+	boxX := centerX - boxWidth/2
+	boxY := float32(200)
+	errorY := boxY + boxHeight + 20
+	instructionY := errorY + 40
+	backX, backY := s.backButtonCenter()
+
 	// Title.
-	DrawCenteredText(screen, "Enter Recovery Phrase", 400, 80, 24, color.RGBA{255, 255, 255, 255})
+	DrawCenteredText(screen, "Enter Recovery Phrase", centerX, 80, 24, color.RGBA{255, 255, 255, 255})
 
 	// Instructions.
-	DrawCenteredText(screen, "Enter your 24-word recovery phrase", 400, 130, 14, color.RGBA{200, 200, 210, 255})
-	DrawCenteredText(screen, "Separate words with spaces", 400, 155, 12, color.RGBA{150, 150, 160, 255})
-
-	// Text input box.
-	boxX := float32(150)
-	boxY := float32(200)
-	boxWidth := float32(500)
-	boxHeight := float32(120)
+	DrawCenteredText(screen, "Enter your 24-word recovery phrase", centerX, 130, 14, color.RGBA{200, 200, 210, 255})
+	DrawCenteredText(screen, "Separate words with spaces", centerX, 155, 12, color.RGBA{150, 150, 160, 255})
 
 	drawInputBox(screen, boxX, boxY, boxWidth, boxHeight)
 
@@ -311,16 +338,16 @@ func (s *RecoveryScreen) drawMnemonicEntry(screen *ebiten.Image) {
 
 	// Error message.
 	if s.errorMsg != "" {
-		DrawCenteredText(screen, s.errorMsg, 400, 340, 12, color.RGBA{255, 100, 100, 255})
+		DrawCenteredText(screen, s.errorMsg, centerX, errorY, 12, color.RGBA{255, 100, 100, 255})
 	}
 
 	// Instructions.
-	DrawCenteredText(screen, "Press Enter to recover", 400, 380, 12, color.RGBA{150, 150, 160, 255})
+	DrawCenteredText(screen, "Press Enter to recover", centerX, instructionY, 12, color.RGBA{150, 150, 160, 255})
 
 	// Back button (click is handled in Update, not here).
 	style := DefaultButtonStyle()
 	style.Width = 120
-	DrawButton(screen, "← Back", 200, 500, style)
+	DrawButton(screen, "← Back", backX, backY, style)
 }
 
 // IsCompleted returns true if recovery was successful.
@@ -417,39 +444,69 @@ func isInButton(x, y, centerX, centerY, width, height float32) bool {
 
 // drawKeyFileEntry renders the key file passphrase entry UI.
 func (s *RecoveryScreen) drawKeyFileEntry(screen *ebiten.Image) {
+	centerX := float32(s.width) / 2
+	backX, backY := s.backButtonCenter()
+
 	// Title.
-	DrawCenteredText(screen, "Enter Key File Passphrase", 400, 80, 24, color.RGBA{255, 255, 255, 255})
+	DrawCenteredText(screen, "Enter Key File Passphrase", centerX, 80, 24, color.RGBA{255, 255, 255, 255})
 
 	// Instructions.
 	if !s.passphraseMode {
-		DrawCenteredText(screen, "File picker integration pending", 400, 130, 14, color.RGBA{200, 200, 210, 255})
-		DrawCenteredText(screen, "Key file import will be available in a future update", 400, 155, 12, color.RGBA{150, 150, 160, 255})
+		DrawCenteredText(screen, "File picker integration pending", centerX, 130, 14, color.RGBA{200, 200, 210, 255})
+		DrawCenteredText(screen, "Key file import will be available in a future update", centerX, 155, 12, color.RGBA{150, 150, 160, 255})
 	} else {
-		DrawCenteredText(screen, "Enter the passphrase for your encrypted key file", 400, 130, 14, color.RGBA{200, 200, 210, 255})
+		DrawCenteredText(screen, "Enter the passphrase for your encrypted key file", centerX, 130, 14, color.RGBA{200, 200, 210, 255})
 
 		// Passphrase input box.
-		boxX := float32(250)
-		boxY := float32(200)
 		boxWidth := float32(300)
+		maxW := float32(s.width - 40)
+		if maxW < 220 {
+			maxW = 220
+		}
+		if boxWidth > maxW {
+			boxWidth = maxW
+		}
+		boxX := centerX - boxWidth/2
+		boxY := float32(200)
 		boxHeight := float32(40)
 
 		drawInputBox(screen, boxX, boxY, boxWidth, boxHeight)
 
 		// Draw passphrase as asterisks.
 		masked := strings.Repeat("*", len(s.passphrase))
-		DrawCenteredText(screen, masked, 400, boxY+15, 14, color.RGBA{220, 220, 230, 255})
+		DrawCenteredText(screen, masked, centerX, boxY+15, 14, color.RGBA{220, 220, 230, 255})
 
 		// Error message.
 		if s.errorMsg != "" {
-			DrawCenteredText(screen, s.errorMsg, 400, 280, 12, color.RGBA{255, 100, 100, 255})
+			DrawCenteredText(screen, s.errorMsg, centerX, 280, 12, color.RGBA{255, 100, 100, 255})
 		}
 
 		// Instructions.
-		DrawCenteredText(screen, "Press Enter to recover", 400, 320, 12, color.RGBA{150, 150, 160, 255})
+		DrawCenteredText(screen, "Press Enter to recover", centerX, 320, 12, color.RGBA{150, 150, 160, 255})
 	}
 
 	// Back button (click is handled in Update, not here).
 	style := DefaultButtonStyle()
 	style.Width = 120
-	DrawButton(screen, "← Back", 200, 500, style)
+	DrawButton(screen, "← Back", backX, backY, style)
+}
+
+func (s *RecoveryScreen) refreshLayoutFromWindow() {
+	w, h := ebiten.WindowSize()
+	if w > 0 {
+		s.width = w
+	}
+	if h > 0 {
+		s.height = h
+	}
+	if s.width <= 0 {
+		s.width = 800
+	}
+	if s.height <= 0 {
+		s.height = 600
+	}
+}
+
+func (s *RecoveryScreen) backButtonCenter() (float32, float32) {
+	return 90, float32(s.height - 50)
 }
