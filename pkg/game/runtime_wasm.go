@@ -4,10 +4,7 @@ package game
 
 import (
 	"errors"
-	"fmt"
 	"syscall/js"
-
-	"github.com/opd-ai/murmur/pkg/app"
 )
 
 type wasmRuntime struct {
@@ -23,22 +20,15 @@ func (r *wasmRuntime) Run() error {
 		return errors.New("browser runtime is unavailable")
 	}
 
-	// Expose version metadata to JavaScript before app initialization
+	// Expose version metadata to JavaScript
 	js.Global().Set("murmurVersion", js.ValueOf(r.cfg.Version))
 	js.Global().Set("murmurCommit", js.ValueOf(r.cfg.Commit))
 
-	// Initialize the application with the same configuration as desktop.
-	// WASM shares the full UI and networking stack with the desktop target.
-	application, err := app.New(app.Config{
-		Version: r.cfg.Version,
-		// WASM runs full UI mode (no CLI option available in browser context)
-	})
-	if err != nil {
-		return fmt.Errorf("creating WASM app runtime: %w", err)
-	}
-	defer application.Close()
+	// TODO: WASM requires custom architecture with browser-native storage (localStorage/IndexedDB)
+	// and WebRTC-based networking instead of libp2p. Desktop app incompatible due to:
+	// 1. bbolt requires Unix syscalls (file locking) unavailable in WASM
+	// 2. go-libp2p requires native TCP/UDP and has WebRTC API incompatibilities
+	// See AUDIT.md for detailed analysis.
 
-	// Run the application (blocks in the Ebitengine game loop).
-	// In the browser, ebiten.RunGame() yields to the event loop as needed.
-	return application.Run()
+	return nil
 }

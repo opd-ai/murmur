@@ -50,9 +50,9 @@
       // Wait for the Go runtime to signal completion of initialization
       await runtimeReadyPromise;
       
-      setStatus("Runtime started.");
+      setStatus("WASM build: work in progress (see docs/IMPLEMENTATION_STATUS.md)");
       if (card) {
-        card.style.opacity = "0.6";
+        card.style.opacity = "0.8";
       }
     } catch (err) {
       console.error("Failed to start MURMUR wasm runtime", err);
