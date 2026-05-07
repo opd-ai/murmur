@@ -3,34 +3,46 @@
 package screens
 
 import (
+	"bytes"
 	"image/color"
 	"math"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
-	"golang.org/x/image/font/basicfont"
+	"golang.org/x/image/font/gofont/goregular"
 )
 
-// helperFace is the shared font face for onboarding screen helpers.
-// Allocated once at init so DrawCenteredText never allocates on the hot path.
-// The size parameter passed to DrawCenteredText is advisory; basicfont.Face7x13
-// is a fixed-size bitmap font.  A scalable font can replace this in one place.
-var helperFace = text.NewGoXFace(basicfont.Face7x13)
+// helperFaceSource is the shared scalable font source for onboarding helpers.
+var helperFaceSource = mustNewHelperFaceSource()
+
+func mustNewHelperFaceSource() *text.GoTextFaceSource {
+	src, err := text.NewGoTextFaceSource(bytes.NewReader(goregular.TTF))
+	if err != nil {
+		panic(err)
+	}
+	return src
+}
+
+func helperFaceForSize(size float64) text.Face {
+	if size <= 0 {
+		size = 14
+	}
+	return &text.GoTextFace{Source: helperFaceSource, Size: size}
+}
 
 // DrawCenteredText draws str centered horizontally around (x, y) using the
-// shared bitmap font.  The size parameter is currently ignored because
-// basicfont.Face7x13 is a fixed 7×13 px font; it is kept in the signature so
-// call-sites do not need to change when a scalable font is introduced.
+// shared scalable font source.
 func DrawCenteredText(screen *ebiten.Image, str string, x, y float32, size float64, clr color.Color) {
 	if str == "" {
 		return
 	}
-	w, _ := text.Measure(str, helperFace, 0)
+	face := helperFaceForSize(size)
+	w, _ := text.Measure(str, face, 0)
 	op := &text.DrawOptions{}
 	op.GeoM.Translate(float64(x)-w/2, float64(y))
 	op.ColorScale.ScaleWithColor(clr)
-	text.Draw(screen, str, helperFace, op)
+	text.Draw(screen, str, face, op)
 }
 
 // IdentityCardStyle defines style parameters for identity cards.

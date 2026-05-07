@@ -63,6 +63,16 @@ type ModeScreen struct {
 	callbacks     ModeScreenCallbacks
 }
 
+type modeCardLayout struct {
+	cardWidth  int
+	cardHeight int
+	spacingX   int
+	spacingY   int
+	columns    int
+	startX     int
+	startY     int
+}
+
 // ModeScreenCallbacks provides hooks for mode selection events.
 type ModeScreenCallbacks struct {
 	OnModeSelected     func(modes.Mode)
@@ -259,23 +269,27 @@ func (s *ModeScreen) drawModeCards(screen *ebiten.Image) {
 	titleY := float32(50)
 	s.drawCenteredText(screen, "Select Your Mode", centerX, titleY, 22, color.RGBA{220, 220, 225, 255})
 
-	// Mode cards layout
-	cardWidth := float32(180)
-	cardHeight := float32(240)
-	cardSpacing := float32(20)
-	totalWidth := 4*cardWidth + 3*cardSpacing
-	startX := centerX - totalWidth/2
-	cardY := float32(100)
+	layout := s.modeCardsLayout()
+	cardWidth := float32(layout.cardWidth)
+	cardHeight := float32(layout.cardHeight)
+	startX := float32(layout.startX)
+	cardY := float32(layout.startY)
+	stepX := float32(layout.cardWidth + layout.spacingX)
+	stepY := float32(layout.cardHeight + layout.spacingY)
 
 	// Draw each mode card
 	modesList := []modes.Mode{modes.Open, modes.Hybrid, modes.Guarded, modes.Fortress}
 	for i, mode := range modesList {
-		cardX := startX + float32(i)*(cardWidth+cardSpacing)
-		s.drawModeCard(screen, mode, cardX, cardY, cardWidth, cardHeight, i)
+		col := i % layout.columns
+		row := i / layout.columns
+		cardX := startX + float32(col)*stepX
+		rowY := cardY + float32(row)*stepY
+		s.drawModeCard(screen, mode, cardX, rowY, cardWidth, cardHeight, i)
 	}
 
 	// Guidance panel
-	guidanceY := cardY + cardHeight + 30
+	rows := (len(modesList) + layout.columns - 1) / layout.columns
+	guidanceY := cardY + float32(rows)*cardHeight + float32(rows-1)*float32(layout.spacingY) + 20
 	s.drawGuidancePanel(screen, centerX, guidanceY)
 
 	// Confirm button
@@ -357,6 +371,10 @@ func (s *ModeScreen) drawGuidancePanel(screen *ebiten.Image, centerX, y float32)
 
 	// Panel background
 	panelWidth := float32(500)
+	maxWidth := float32(s.width - 24)
+	if panelWidth > maxWidth {
+		panelWidth = maxWidth
+	}
 	panelHeight := float32(60)
 	panelX := centerX - panelWidth/2
 	panelColor := color.RGBA{25, 30, 45, 255}
@@ -563,14 +581,16 @@ func (s *ModeScreen) handleCardsClick(x, y int) {
 
 // checkModeCardClick checks if a mode card was clicked and updates selection.
 func (s *ModeScreen) checkModeCardClick(x, y int) {
-	cardWidth, cardHeight, cardSpacing := 180, 240, 20
-	totalWidth := 4*cardWidth + 3*cardSpacing
-	startX := s.width/2 - totalWidth/2
-	cardY := 100
+	layout := s.modeCardsLayout()
+	stepX := layout.cardWidth + layout.spacingX
+	stepY := layout.cardHeight + layout.spacingY
 
 	for i, mode := range []modes.Mode{modes.Open, modes.Hybrid, modes.Guarded, modes.Fortress} {
-		cardX := startX + i*(cardWidth+cardSpacing)
-		if s.isClickInRect(x, y, cardX, cardY, cardWidth, cardHeight) {
+		col := i % layout.columns
+		row := i / layout.columns
+		cardX := layout.startX + col*stepX
+		cardY := layout.startY + row*stepY
+		if s.isClickInRect(x, y, cardX, cardY, layout.cardWidth, layout.cardHeight) {
 			s.selectedMode = mode
 			s.hoverMode = mode
 			return
@@ -631,22 +651,59 @@ func (s *ModeScreen) HandleMouseMove(x, y int) {
 		return
 	}
 
-	centerX := s.width / 2
-	cardWidth := 180
-	cardHeight := 240
-	cardSpacing := 20
-	totalWidth := 4*cardWidth + 3*cardSpacing
-	startX := centerX - totalWidth/2
-	cardY := 100
+	layout := s.modeCardsLayout()
+	stepX := layout.cardWidth + layout.spacingX
+	stepY := layout.cardHeight + layout.spacingY
 
 	s.hoverMode = s.selectedMode // Reset to selected if not hovering
 
 	for i, mode := range []modes.Mode{modes.Open, modes.Hybrid, modes.Guarded, modes.Fortress} {
-		cardX := startX + i*(cardWidth+cardSpacing)
-		if x >= cardX && x <= cardX+cardWidth && y >= cardY && y <= cardY+cardHeight {
+		col := i % layout.columns
+		row := i / layout.columns
+		cardX := layout.startX + col*stepX
+		cardY := layout.startY + row*stepY
+		if x >= cardX && x <= cardX+layout.cardWidth && y >= cardY && y <= cardY+layout.cardHeight {
 			s.hoverMode = mode
 		}
 	}
+}
+
+func (s *ModeScreen) modeCardsLayout() modeCardLayout {
+	layout := modeCardLayout{
+		cardWidth:  180,
+		cardHeight: 240,
+		spacingX:   20,
+		spacingY:   20,
+		columns:    4,
+		startY:     100,
+	}
+
+	if s.width <= 980 {
+		layout.columns = 2
+		layout.cardWidth = 220
+		layout.cardHeight = 210
+		layout.spacingX = 16
+		layout.spacingY = 16
+	}
+
+	if s.width <= 640 {
+		layout.cardWidth = (s.width - 48 - layout.spacingX) / 2
+		if layout.cardWidth < 140 {
+			layout.cardWidth = 140
+		}
+		if layout.cardWidth > 220 {
+			layout.cardWidth = 220
+		}
+		layout.cardHeight = 190
+	}
+
+	totalWidth := layout.columns*layout.cardWidth + (layout.columns-1)*layout.spacingX
+	layout.startX = (s.width - totalWidth) / 2
+	if layout.startX < 12 {
+		layout.startX = 12
+	}
+
+	return layout
 }
 
 func (s *ModeScreen) completePhase3() {

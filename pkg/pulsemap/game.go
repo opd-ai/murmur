@@ -1133,6 +1133,8 @@ func (g *Game) handleNodeDetailSendWhisper(nodeID string) {
 func (g *Game) handleNodeDetailClose() {
 	log.Printf("Node detail panel closed")
 	g.input.ClearSelection()
+	// Reset de-dup selection gate so clicking the same node can reopen the panel.
+	g.lastSelectedNode = ""
 }
 
 // anyModalVisible returns true if any modal panel that should block the radial menu is open.

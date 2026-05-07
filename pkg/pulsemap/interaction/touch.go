@@ -323,6 +323,9 @@ func (t *TouchState) Reset() {
 	t.gestureType = GestureNone
 	t.pinchStartDist = 0
 	t.tapMoved = false
+	t.pendingTapX = 0
+	t.pendingTapY = 0
+	t.pendingTapTick = 0
 	t.lastTapTime = 0
 	t.lastLongPressTouchID = 0
 }

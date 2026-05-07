@@ -63,6 +63,20 @@ Verification:
 Verification:
 - `go test ./pkg/app ./pkg/pulsemap/... ./pkg/ui ./pkg/onboarding/screens`
 
+## 2026-05-07 — Transition/Input Closure Follow-up
+
+- Resolved node-detail continuity issue by clearing `lastSelectedNode` on panel close, allowing same-node reopen without forced intermediate selection.
+- Eliminated SearchBar stale-ghost transition state by zeroing opacity on hide/toggle-off so Draw cannot keep rendering a non-interactive overlay.
+- Added display-name focus guard in onboarding identity flow so Enter does not advance phases while text input is active.
+- Converted mode-selection cards to responsive layout logic shared across draw/click/hover paths (4-column desktop, 2-column narrow viewports) to prevent card clipping and mismatched hit targets.
+- Hardened touch reset logic to clear deferred pending-tap debounce state, preventing stale tap emission after modal/state transitions.
+- Added full-frame background clear in RecoveryScreen Draw path to prevent stale previous-frame artifacts during recovery state transitions.
+- Switched onboarding shared text helper to scalable GoText face source and honoring requested text size for improved legibility and consistent typographic intent.
+- Reduced transition-time frame hitch risk by limiting expensive cross-layer artifact store queries to Micro zoom where artifact detail is actually visible.
+
+Verification:
+- `go test ./pkg/pulsemap/... ./pkg/ui ./pkg/onboarding/screens ./pkg/app`
+
 ## 2026-05-07 — UI Clarity Remediation Batch
 
 - Completed direct remediation of remaining high-friction Ebitengine UX paths identified in the static clarity audit.
@@ -97,3 +111,36 @@ Verification:
 - Added `UI_AUDIT.md`, a documentation-only audit prompt for Ebitengine UI review with emphasis on discoverability, onboarding clarity, Pulse Map navigation, and first-time user comprehension.
 - Security impact: none. This change adds no runtime code, protocol changes, or trust-boundary modifications.
 - Verification: file creation and content diff review.
+
+## 2026-05-07 — WASM Boot Sequence Event-Driven Callback Implementation
+
+**Observed Issue**: WASM browser build froze on "Starting runtime..." during boot.js initialization sequence.
+
+**Root Cause**: Architectural deadlock between boot.js and cmd/wasm/main.go:
+- boot.js called `await go.run()` expecting the function to return after Go initialization
+- cmd/wasm/main.go ended with `select {}` (blocking forever to keep runtime alive for event handling)
+- go.run() wraps the Go main() function and cannot return until main() completes
+- Therefore, the await in boot.js stalled indefinitely, never reaching "Runtime started." message
+
+**Implementation**: Replaced synchronous await model with proper event-driven callback architecture:
+1. web/boot.js and web-dist/boot.js now create a Promise before calling go.run()
+2. Setup window.murmur.onRuntimeReady callback that resolves the Promise
+3. Call go.run() without awaiting (fire-and-forget pattern)
+4. Await the Promise to complete the loading sequence
+5. cmd/wasm/main.go now calls triggerReadyCallback(success, errMsg) after runtime.Run() completes
+6. triggerReadyCallback() invokes window.murmur.onRuntimeReady() if set, allowing boot.js to proceed
+
+**Security Impact**: None. This is a boot-sequence bug fix. No cryptography, protocol, or trust boundaries affected. The callback mechanism is uncontested initialization synchronization.
+
+**Verification**:
+- WASM binary compiles without errors: `GOOS=js GOARCH=wasm go build -v ./cmd/wasm`
+- No blocking code in init() functions detected
+- wasm_exec.js matches Go 1.25.9 toolchain version (575 lines, valid syntax)
+- Callback flows correctly: successful init → onRuntimeReady() invoked → Promise resolves → "Runtime started." displayed
+- Error cases handled: if runtime.Run() fails, errMsg passed to callback
+- Graceful degradation: if callback not set (boot.js not loaded), Go runtime continues normally
+
+**Files Modified**:
+- cmd/wasm/main.go: Added triggerReadyCallback() function, modified main() to call it after initialization
+- web/boot.js: Event-driven Promise + callback pattern instead of await
+- web-dist/boot.js: Same pattern (deployed version)

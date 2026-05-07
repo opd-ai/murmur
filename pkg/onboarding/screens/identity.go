@@ -168,6 +168,11 @@ func (s *Screen) handleKeyboardProgression() {
 		return
 	}
 
+	// Keep Enter scoped to text input while the display-name field has focus.
+	if s.state == StateDisplayName && s.inputFocused {
+		return
+	}
+
 	switch s.state {
 	case StateWelcome:
 		s.transitionToPhilosophy()

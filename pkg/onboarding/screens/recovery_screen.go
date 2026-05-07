@@ -267,6 +267,7 @@ func (s *RecoveryScreen) attemptKeyFileRecovery() {
 func (s *RecoveryScreen) Draw(screen *ebiten.Image) {
 	s.width = screen.Bounds().Dx()
 	s.height = screen.Bounds().Dy()
+	screen.Fill(color.RGBA{15, 15, 20, 255})
 
 	if s.method == RecoveryMethodNone {
 		s.drawMethodSelection(screen)
@@ -430,7 +431,7 @@ func drawWrappedText(screen *ebiten.Image, text string, x, y, maxWidth float32, 
 // helper font face from helpers.go.  Uses text.Measure for accurate pixel widths
 // that account for glyph advance widths, not just byte count × 7.
 func measureLine(s string) (float64, float64) {
-	return text.Measure(s, helperFace, 0)
+	return text.Measure(s, helperFaceForSize(14), 0)
 }
 
 // isInButton checks if a point is within a button's bounds.

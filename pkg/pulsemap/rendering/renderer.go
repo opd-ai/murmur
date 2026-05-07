@@ -470,10 +470,10 @@ func (r *Renderer) drawNodes(screen *ebiten.Image, positions map[string]layout.P
 			r.drawNodeGlow(screen, float32(screenX), float32(screenY), style)
 		}
 
-		// Render cross-layer artifacts (Specter Marks, Gifts, etc.) if store is available.
-		// Per AUDIT.md HIGH finding "Cross-layer visibility not implemented", this enables
-		// Surface users to see anonymous activity on their Pulse Map.
-		if r.store != nil {
+		// Render cross-layer artifacts (Specter Marks, Gifts, etc.) only at Micro zoom.
+		// This avoids expensive per-node store reads when details are too small to be
+		// meaningful and prevents transition stutter during pan/zoom at wider views.
+		if r.store != nil && zoom == ZoomMicro {
 			r.drawCrossLayerArtifacts(screen, data, float32(screenX), float32(screenY))
 		}
 

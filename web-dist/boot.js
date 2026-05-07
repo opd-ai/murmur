@@ -13,14 +13,43 @@
     return;
   }
 
+  // Create a Promise that the Go runtime will resolve when initialization is complete.
+  // This implements event-driven initialization without blocking boot.js.
+  let runtimeReadyResolve;
+  let runtimeReadyReject;
+  const runtimeReadyPromise = new Promise((resolve, reject) => {
+    runtimeReadyResolve = resolve;
+    runtimeReadyReject = reject;
+  });
+
+  // Set up the callback namespace that Go will invoke
+  if (!window.murmur) {
+    window.murmur = {};
+  }
+  window.murmur.onRuntimeReady = (errMsg) => {
+    if (errMsg) {
+      // Error case: Go passed an error message
+      runtimeReadyReject(new Error(errMsg));
+    } else {
+      // Success case: runtime initialized successfully
+      runtimeReadyResolve();
+    }
+  };
+
   const go = new Go();
 
   const run = async () => {
     try {
       setStatus("Fetching murmur.wasm...");
       const result = await WebAssembly.instantiateStreaming(fetch("./murmur.wasm"), go.importObject);
+      
       setStatus("Starting runtime...");
-      await go.run(result.instance);
+      // Call go.run() without awaiting — it will invoke our callback when ready
+      go.run(result.instance);
+      
+      // Wait for the Go runtime to signal completion of initialization
+      await runtimeReadyPromise;
+      
       setStatus("Runtime started.");
       if (card) {
         card.style.opacity = "0.6";

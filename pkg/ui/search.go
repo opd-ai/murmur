@@ -102,6 +102,7 @@ func (s *SearchBar) Hide() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.visible = false
+	s.opacity = 0
 	s.query = ""
 	s.results = nil
 	s.selectedIndex = -1
@@ -122,6 +123,7 @@ func (s *SearchBar) Toggle() {
 	defer s.mu.Unlock()
 	s.visible = !s.visible
 	if !s.visible {
+		s.opacity = 0
 		s.query = ""
 		s.results = nil
 	}
