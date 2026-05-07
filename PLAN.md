@@ -19,4 +19,4 @@ Last updated: 2026-05-06
 - [x] Add relay/bootstrap discovery policy for browser peers (no mDNS dependency).
 - [x] Integrate input mapper with Pulse Map interaction handlers.
 - [x] Add responsive layout policies for mobile viewport breakpoints.
-- [ ] Add desktop-browser interop integration tests.
+- [x] Add desktop-browser interop integration tests.
