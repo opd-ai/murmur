@@ -259,6 +259,9 @@ func validateCommon(wave *pb.Wave, difficulty uint8) error {
 	}
 
 	// Verify PoW.
+	if err := validateExtensionWave(wave); err != nil {
+		return err
+	}
 	pd := powData(wave)
 	if !pow.Verify(pd, wave.PowNonce, difficulty) {
 		return ErrInvalidPoW

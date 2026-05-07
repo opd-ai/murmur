@@ -225,6 +225,7 @@ func NewHost(ctx context.Context, cfg Config) (*Host, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to configure anonymity transports: %w", err)
 	}
+	opts = appendRegisteredAdapters(opts, ctx)
 	opts = appendDHTOption(opts, ctx, cfg, &idht)
 
 	h, err := libp2p.New(opts...)
