@@ -279,3 +279,57 @@ func TestNodeDetailPanel_ManyWaves(t *testing.T) {
 		panel.Update()
 	}
 }
+
+func TestNodeDetailPanel_HandlePanelClickRespectsXBounds(t *testing.T) {
+	composeCalls := 0
+	viewWaveCalls := 0
+	callbacks := NodeDetailCallbacks{
+		OnComposeWave: func(nodeID string) {
+			composeCalls++
+		},
+		OnViewWave: func(waveID string) {
+			viewWaveCalls++
+		},
+	}
+
+	panel := NewNodeDetailPanel(DefaultTheme(), callbacks)
+	panel.panelX = 100
+	panel.panelY = 50
+	panel.panelW = nodeDetailPanelWidth
+	panel.panelH = nodeDetailPanelHeight
+	panel.nodeInfo = &NodeInfo{
+		PublicKey: "node-1",
+		RecentWaves: []WaveInfo{
+			{WaveID: "wave-1", Content: "hello", Timestamp: time.Now(), WaveType: "Surface"},
+		},
+	}
+
+	insideX := panel.panelX + nodeDetailPadding + 1
+	outsideX := panel.panelX + panel.panelW - 1 // outside button/list X range (right padding zone)
+	buttonY := panel.panelY + nodeDetailButtonGroupY + 1
+	wavesY := panel.panelY + nodeDetailButtonGroupY + 4*(nodeDetailButtonHeight+nodeDetailButtonSpacing) + 20 + 22
+
+	// Outside X bounds: should not trigger button callback.
+	panel.handlePanelClick(outsideX, buttonY)
+	if composeCalls != 0 {
+		t.Fatalf("expected compose callback not to fire for outside-X click, got %d", composeCalls)
+	}
+
+	// Inside X bounds: callback should fire.
+	panel.handlePanelClick(insideX, buttonY)
+	if composeCalls != 1 {
+		t.Fatalf("expected compose callback once for inside-X click, got %d", composeCalls)
+	}
+
+	// Outside X bounds in wave row: should not trigger wave callback.
+	panel.handlePanelClick(outsideX, wavesY+1)
+	if viewWaveCalls != 0 {
+		t.Fatalf("expected wave callback not to fire for outside-X click, got %d", viewWaveCalls)
+	}
+
+	// Inside X bounds in wave row: should trigger wave callback.
+	panel.handlePanelClick(insideX, wavesY+1)
+	if viewWaveCalls != 1 {
+		t.Fatalf("expected wave callback once for inside-X click, got %d", viewWaveCalls)
+	}
+}

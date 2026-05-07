@@ -188,7 +188,7 @@ func (p *NodeDetailPanel) Update() bool {
 
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		if mouseOverPanel {
-			return p.handlePanelClick(cursorY)
+			return p.handlePanelClick(cursorX, cursorY)
 		}
 		return p.handleOutsideClick()
 	}
@@ -247,15 +247,18 @@ func (p *NodeDetailPanel) handleScrollInput(mouseOverPanel bool) {
 }
 
 // handlePanelClick processes clicks inside the panel.
-func (p *NodeDetailPanel) handlePanelClick(cursorY int) bool {
+func (p *NodeDetailPanel) handlePanelClick(cursorX, cursorY int) bool {
 	if p.nodeInfo == nil {
 		return true
 	}
+	buttonX := p.panelX + nodeDetailPadding
+	buttonXEnd := p.panelX + p.panelW - nodeDetailPadding
+
 	// Button zone: per AUDIT.md fix, use named constants derived from Draw() layout.
 	// buttonGroupY = panelY + nodeDetailPadding + headerHeight + spacing
 	buttonY := p.panelY + nodeDetailButtonGroupY
 	buttonsEnd := buttonY + nodeDetailButtonHeight*4 + nodeDetailButtonSpacing*3
-	if cursorY >= buttonY && cursorY < buttonsEnd {
+	if cursorX >= buttonX && cursorX < buttonXEnd && cursorY >= buttonY && cursorY < buttonsEnd {
 		buttonIndex := (cursorY - buttonY) / (nodeDetailButtonHeight + nodeDetailButtonSpacing)
 		p.handleButtonClick(buttonIndex)
 		return true
@@ -273,7 +276,7 @@ func (p *NodeDetailPanel) handlePanelClick(cursorY int) bool {
 	}
 	for i, wave := range visibleWaves {
 		itemY := wavesY + i*nodeDetailListItemHeight
-		if cursorY >= itemY && cursorY < itemY+nodeDetailListItemHeight {
+		if cursorX >= buttonX && cursorX < buttonXEnd && cursorY >= itemY && cursorY < itemY+nodeDetailListItemHeight {
 			if wave.WaveID != "" && p.callbacks.OnViewWave != nil {
 				p.mu.Unlock()
 				p.callbacks.OnViewWave(wave.WaveID)

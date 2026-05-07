@@ -166,9 +166,10 @@ func (mo *MaskedEventOverlay) drawEvent(
 	domePhase, dotPhase float64,
 	camX, camY, zoom float64,
 ) {
-	// Transform world coordinates to screen coordinates.
-	screenX := (info.CenterX - camX) * zoom
-	screenY := (info.CenterY - camY) * zoom
+	// Transform world coordinates to screen coordinates using the shared
+	// camera helper to keep overlay alignment consistent with node rendering.
+	_, _, centerX, centerY := getCameraSetup(screen)
+	screenX, screenY := worldToScreen(info.CenterX, info.CenterY, camX, camY, centerX, centerY, zoom)
 
 	radius := mo.computeDomeRadius(info) * zoom
 

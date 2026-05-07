@@ -89,9 +89,9 @@ Remediation checklist:
 - Fix: Use shared transform helper in overlays/camera_helpers.go or camera WorldToScreen equivalent including centerX and centerY.
 
 Remediation checklist:
-- [ ] Replace local transform math with shared worldToScreen helper.
-- [ ] Add visual alignment test between masked event center and target node position.
-- [ ] Verify alignment across multiple zoom levels.
+- [x] Replace local transform math with shared worldToScreen helper.
+- [x] Add visual alignment test between masked event center and target node position.
+- [x] Verify alignment across multiple zoom levels.
 
 ### [MEDIUM] Node detail click hit-testing ignores X bounds for actions and wave rows
 - File: pkg/ui/node_detail.go (lines 250-283)
