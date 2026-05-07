@@ -83,7 +83,6 @@ func ReadFrameWithFirstByte(r io.Reader, firstByte byte) (FrameType, []byte, err
 }
 
 func readFramePayload(r io.Reader, header []byte) (FrameType, []byte, error) {
-
 	payloadLen := binary.BigEndian.Uint32(header[2:])
 	if payloadLen > maxPayloadBytes {
 		return 0, nil, fmt.Errorf("frame payload too large: %d", payloadLen)
@@ -157,7 +156,7 @@ func registerSignBytes(id []byte, ts int64) []byte {
 	return buf
 }
 
-func withinSkewWindow(ts, now int64, maxSkewSeconds int64) bool {
+func withinSkewWindow(ts, now, maxSkewSeconds int64) bool {
 	delta := now - ts
 	if delta < 0 {
 		delta = -delta

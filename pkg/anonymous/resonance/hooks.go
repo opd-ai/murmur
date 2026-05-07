@@ -39,7 +39,8 @@ var (
 // NewReadOnlyQuery adapts a scorer to the extension read-only query surface.
 func NewReadOnlyQuery(scorer interface {
 	LookupScore(specterID string) (*Score, bool)
-}) ReadOnlyQuery {
+},
+) ReadOnlyQuery {
 	if scorer == nil {
 		return nil
 	}
