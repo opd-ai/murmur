@@ -99,6 +99,13 @@ SUCCESS CRITERIA
     requests.
 
 RECENT ACHIEVEMENTS (2026-05-06)
+✅ **AUDIT Backlog Remediation Batch — UI/Pulse Map + Onboarding wiring (2026-05-07)**
+  - Executed prioritized `AUDIT.md` backlog items covering Settings wiring, Shadow Gradient behavior, Bootstrap peer discovery bridging, SearchBar stale/debounce correctness, and UI cursor/hit-target reliability.
+  - Completed privacy mode pipeline: `SettingsPanel` -> `pulsemap.Game.handleSettingChange` -> `identity/modes.Manager.Transition` with live renderer blend updates and Specter panel reset on Open mode.
+  - Added bootstrap bridge interface for real peer events (`PeerConnectedSource`) and manager callback mutator (`SetOnPeerConnected`) with focused automated tests.
+  - Added tests for stale search-result dropping, debounce timing gates, Escape non-consumption, and rune-aware text advance behavior.
+  - Validation status: targeted packages compile and tests pass (`pkg/ui`, `pkg/pulsemap`, `pkg/onboarding/bootstrap`, `pkg/onboarding/screens` test-tag path).
+
 ✅ **Test Classification Autonomous — Complete Success (2026-05-06 20:29 UTC)**
    - Executed final autonomous test classification and resolution workflow with complexity metrics for root cause correlation
    - **Outcome**: ✅ **ALL 64 TEST PACKAGES PASSING** (72 total, 8 without test files) — Zero failures, zero race conditions

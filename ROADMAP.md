@@ -1,11 +1,19 @@
 # MURMUR — Implementation Roadmap
 
-> Last updated: 2026-05-06
+> Last updated: 2026-05-07
 >
 > This document tracks every feature, mechanic, and integration described in MURMUR's
 > specification documents against the current codebase. Items are organized by milestone
 > (v0.1 → v1.0) and subsystem. Each checkbox represents a discrete deliverable.
 > Checked items (- [x]) are implemented; unchecked items (- [ ]) remain.
+
+### Progress Update (2026-05-07)
+
+- [x] Pulse Map settings pipeline fully wired at runtime (`SettingsPanel` callbacks now drive privacy mode transitions through `identity/modes.Manager`).
+- [x] Shadow Gradient runtime behavior applied in UI layer (mode-specific layer blending + Specter panel reset when switching to Open mode).
+- [x] Search bar interaction correctness hardened (stale-result guard validated + debounce gating added + Escape non-consumption behavior tested).
+- [x] Bootstrap onboarding peer-discovery bridge added (`OnPeerConnected` forwarding interface + manager callback setter + focused test coverage).
+- [ ] Full in-process libp2p integration test for bootstrap-screen discovery completion remains pending (tracked in `AUDIT.md`).
 
 ---
 
