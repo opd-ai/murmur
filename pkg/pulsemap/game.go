@@ -75,6 +75,10 @@ type Game struct {
 	// Per AUDIT.md HIGH finding: this was previously instantiated but not wired.
 	radialMenu *ui.RadialMenu
 
+	// settingsPanel provides user access to all configuration settings.
+	// Per AUDIT.md HIGH finding: SettingsPanel was implemented but never wired.
+	settingsPanel *ui.SettingsPanel
+
 	// keypair is the Surface Layer identity for signing Waves.
 	keypair *keys.KeyPair
 
@@ -236,6 +240,10 @@ func NewGame(ctx context.Context, keypair *keys.KeyPair, pubsub *gossip.PubSub, 
 	// Per AUDIT.md HIGH finding: TouchState was implemented but never instantiated.
 	game.touchState = interaction.NewTouchState()
 
+	// Create settings panel.
+	// Per AUDIT.md HIGH finding: SettingsPanel was implemented but never wired.
+	game.settingsPanel = ui.NewSettingsPanel(theme, game.handleSettingChange)
+
 	return game, nil
 }
 
@@ -255,6 +263,7 @@ func (g *Game) Update() error {
 	if !g.textInputActive() {
 		g.handleComposePanelToggle()
 		g.handleSearchBarToggle()
+		g.handleSettingsPanelToggle()
 		g.handleNavigationHotkeys()
 	}
 
@@ -296,6 +305,9 @@ func (g *Game) handleNavigationHotkeys() {
 
 // updateActivePanels updates visible panels and returns true if input was consumed.
 func (g *Game) updateActivePanels() bool {
+	if g.settingsPanel.Visible() && g.settingsPanel.Update() {
+		return true
+	}
 	if g.searchBar.Visible() && g.searchBar.Update() {
 		return true
 	}
@@ -327,6 +339,12 @@ func (g *Game) shouldShutdown() bool {
 func (g *Game) handleComposePanelToggle() {
 	ctrlPressed := ebiten.IsKeyPressed(ebiten.KeyControl) || ebiten.IsKeyPressed(ebiten.KeyMeta)
 	if inpututil.IsKeyJustPressed(ebiten.KeyN) && ctrlPressed {
+		// Hide exclusive peers before toggling compose.
+		// Per AUDIT.md HIGH finding: panels must not overlap.
+		if !g.composePanel.Visible() {
+			g.nodeDetailPanel.Hide()
+			g.searchBar.Hide()
+		}
 		g.composePanel.Toggle()
 	}
 }
@@ -336,6 +354,11 @@ func (g *Game) handleComposePanelToggle() {
 func (g *Game) handleSearchBarToggle() {
 	ctrlPressed := ebiten.IsKeyPressed(ebiten.KeyControl) || ebiten.IsKeyPressed(ebiten.KeyMeta)
 	if inpututil.IsKeyJustPressed(ebiten.KeyF) && ctrlPressed {
+		// Hide exclusive peers before toggling search.
+		// Per AUDIT.md HIGH finding: panels must not overlap.
+		if !g.searchBar.Visible() {
+			g.nodeDetailPanel.Hide()
+		}
 		g.searchBar.Toggle()
 	}
 }
@@ -743,6 +766,12 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		g.composePanel.Draw(screen)
 	}
 
+	// Draw settings panel (modal — above all other panels).
+	// Per AUDIT.md HIGH finding: SettingsPanel was implemented but never drawn.
+	if g.settingsPanel.Visible() {
+		g.settingsPanel.Draw(screen)
+	}
+
 	// Draw toast notification above all other layers.
 	// Per AUDIT.md HIGH finding: Wave submission results had no UI feedback path.
 	g.drawToast(screen)
@@ -1033,6 +1062,29 @@ func (g *Game) handleSearchSelect(nodeID string) {
 // handleSearchClose is called when user closes the search bar.
 func (g *Game) handleSearchClose() {
 	log.Printf("Search bar closed")
+}
+
+// handleSettingsPanelToggle opens or closes the settings panel on Ctrl+, (comma).
+// Per AUDIT.md HIGH finding: there was no keyboard shortcut to open settings.
+func (g *Game) handleSettingsPanelToggle() {
+	ctrlPressed := ebiten.IsKeyPressed(ebiten.KeyControl) || ebiten.IsKeyPressed(ebiten.KeyMeta)
+	if inpututil.IsKeyJustPressed(ebiten.KeyComma) && ctrlPressed {
+		if !g.settingsPanel.Visible() {
+			// Hide exclusive peers before opening settings.
+			g.nodeDetailPanel.Hide()
+			g.composePanel.Hide()
+			g.searchBar.Hide()
+		}
+		g.settingsPanel.Toggle()
+	}
+}
+
+// handleSettingChange applies a changed setting to live subsystems.
+// Per AUDIT.md HIGH finding: SettingsPanel was wired without a real change handler.
+func (g *Game) handleSettingChange(key, value string) {
+	log.Printf("Setting changed: %s = %s", key, value)
+	// TODO: Route to identity/modes for privacy_mode, to renderer for display settings, etc.
+	// Per DESIGN_DOCUMENT.md §Shadow Gradient, privacy_mode changes require identity/modes state machine.
 }
 
 // checkWaveResult drains the waveResultCh channel (non-blocking) and displays

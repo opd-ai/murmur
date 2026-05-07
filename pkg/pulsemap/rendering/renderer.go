@@ -10,6 +10,7 @@ package rendering
 
 import (
 	"image/color"
+	"math"
 	"sync"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -394,34 +395,6 @@ func (r *Renderer) iterateEdges(positions map[string]layout.Position, zoom ZoomL
 	}
 }
 
-// drawAmplificationTrails renders amplification relationships between nodes.
-// Per ROADMAP.md line 621, amplification trails are visual connections between
-// amplifier and original author, distinct from regular edges.
-func (r *Renderer) drawAmplificationTrails(screen *ebiten.Image, positions map[string]layout.Position, zoom ZoomLevel) {
-	screenW := float64(r.screenWidth)
-	screenH := float64(r.screenHeight)
-
-	for _, trail := range r.amplificationTrails {
-		ampPos, ampOK := positions[trail.AmplifierID]
-		origPos, origOK := positions[trail.OriginalID]
-		if !ampOK || !origOK {
-			continue
-		}
-
-		// Transform and cull.
-		ampScreenX, ampScreenY, origScreenX, origScreenY, visible := r.transformAndCullLine(ampPos.X, ampPos.Y, origPos.X, origPos.Y, screenW, screenH)
-		if !visible {
-			continue
-		}
-
-		// Render amplification trail with distinctive style.
-		RenderAmplificationTrail(screen,
-			float32(ampScreenX), float32(ampScreenY),
-			float32(origScreenX), float32(origScreenY),
-			trail, zoom, float64(r.time))
-	}
-}
-
 // drawNodes renders all visible nodes.
 func (r *Renderer) drawNodes(screen *ebiten.Image, positions map[string]layout.Position,
 	minX, minY, maxX, maxY float64, zoom ZoomLevel,
@@ -643,9 +616,12 @@ func (r *Renderer) hitTestNodes(screenX, screenY float64) string {
 			continue
 		}
 
-		// Calculate hit radius (slightly larger than visual for easier clicking).
+		// Calculate hit radius in world units: use the larger of the zoom-adjusted
+		// visual radius and a constant minimum to avoid misses at high zoom or
+		// bloated zones at low zoom. Per AUDIT.md HIGH finding.
+		const baseHitRadius = 8.0 // world units, matches rBase in computeNodeRadius
 		style := r.buildNodeStyle(data)
-		radius := float64(computeNodeRadius(style)) * 1.5 / r.camera.Scale
+		radius := math.Max(float64(computeNodeRadius(style))/r.camera.Scale, baseHitRadius)
 
 		if interaction.HitTest(pos.X, pos.Y, worldX, worldY, radius) {
 			return id

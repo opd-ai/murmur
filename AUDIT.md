@@ -352,9 +352,9 @@
   }
   ```
 - **Remediation checklist**:
-  - [ ] Define an exclusive panel group or a `showOnlyPanel(p)` helper in `Game`.
-  - [ ] Apply the same exclusivity to `handleSearchBarToggle` (closes node detail if open).
-  - [ ] Audit all `*.Show()` call sites for missing paired `Hide()` calls on peers.
+  - [x] Define an exclusive panel group or a `showOnlyPanel(p)` helper in `Game`.
+  - [x] Apply the same exclusivity to `handleSearchBarToggle` (closes node detail if open).
+  - [x] Audit all `*.Show()` call sites for missing paired `Hide()` calls on peers.
 
 ---
 

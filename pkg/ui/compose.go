@@ -205,7 +205,7 @@ func (p *ComposePanel) processCharacterInput() {
 
 // processBackspace handles backspace key.
 func (p *ComposePanel) processBackspace() {
-	if !inpututil.IsKeyJustPressed(ebiten.KeyBackspace) && inpututil.KeyPressDuration(ebiten.KeyBackspace) <= 20 {
+	if !inpututil.IsKeyJustPressed(ebiten.KeyBackspace) && inpututil.KeyPressDuration(ebiten.KeyBackspace) < 20 {
 		return
 	}
 	if p.cursorPos > 0 && len(p.content) > 0 {
