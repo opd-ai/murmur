@@ -46,6 +46,7 @@ type ModeScreen struct {
 
 	// Specter generation (for Hybrid/Fortress)
 	specterKeypair *keys.AnonymousKeyPair
+	specterReady   bool
 	specterSigil   *ebiten.Image
 	specterName    string
 
@@ -98,6 +99,7 @@ func (s *ModeScreen) Update() error {
 	if s.animPhase > 1 {
 		s.animPhase -= 1
 	}
+	s.maybeGenerateSpecter()
 
 	// Introduction animation timing (5 seconds per ONBOARDING.md)
 	if s.state == ModeStateIntro {
@@ -114,6 +116,18 @@ func (s *ModeScreen) Update() error {
 	}
 
 	return nil
+}
+
+func (s *ModeScreen) maybeGenerateSpecter() {
+	if s.state != ModeStateSpecterGen || s.specterKeypair != nil || s.specterReady {
+		return
+	}
+	progress := math.Min(1, time.Since(s.startTime).Seconds()/2.5)
+	if progress < 1 {
+		return
+	}
+	s.specterReady = true
+	s.generateSpecter()
 }
 
 // Draw renders the mode selection screen.
@@ -328,10 +342,6 @@ func (s *ModeScreen) drawSpecterAnimation(screen *ebiten.Image, centerX, centerY
 	progress := math.Min(1, time.Since(s.startTime).Seconds()/2.5)
 	s.drawCoalescingParticles(screen, centerX, centerY, progress)
 	s.drawSpecterCore(screen, centerX, centerY, progress)
-
-	if progress >= 1 {
-		go s.generateSpecter()
-	}
 }
 
 // drawCoalescingParticles renders dark particles converging.
@@ -542,6 +552,7 @@ func (s *ModeScreen) transitionFromCardSelection() {
 	} else {
 		s.state = ModeStateSpecterGen
 		s.startTime = time.Now()
+		s.specterReady = false
 	}
 }
 

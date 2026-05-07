@@ -8,6 +8,7 @@ package app
 
 import (
 	"fmt"
+	"sync"
 	"sync/atomic"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -242,16 +243,27 @@ func (a *App) runReturningUserScreen(displayName string) error {
 
 	// Create returning user screen.
 	continueCh := make(chan struct{})
+	var continueOnce sync.Once
 	screen := screens.NewReturningScreen(
 		displayName,
 		keypair,
-		func() { close(continueCh) },
+		func() {
+			continueOnce.Do(func() {
+				close(continueCh)
+			})
+		},
 	)
 
-	// Run the screen in a separate goroutine.
+	// Run returning screen without using runEbitenGame so this temporary
+	// transition does not call a.cancel() before Pulse Map startup.
+	fmt.Println("Loading...")
+	ebiten.SetWindowSize(800, 600)
+	ebiten.SetWindowTitle("MURMUR — Welcome Back")
+	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
+
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- a.runEbitenGame(screen, "MURMUR — Welcome Back", "Loading...", "running welcome screen")
+		errCh <- ebiten.RunGame(screen)
 	}()
 
 	// Wait for either completion or error.
@@ -260,7 +272,10 @@ func (a *App) runReturningUserScreen(displayName string) error {
 		// User continuing, screen will exit naturally.
 		return nil
 	case err := <-errCh:
-		return err
+		if err != nil {
+			return fmt.Errorf("running welcome screen: %w", err)
+		}
+		return nil
 	case <-a.ctx.Done():
 		return a.ctx.Err()
 	}

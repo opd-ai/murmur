@@ -21,7 +21,24 @@ Updated `pkg/app/ui.go` so first-run onboarding performs an in-loop handoff into
 All targeted and full-suite tests passed. Full interactive first-run GUI validation could not be automated end-to-end in this session because the desktop binary has no scripted onboarding driver; the fix was validated by the repaired execution path plus the passing build and race suite.
 
 ## Other Blocking Bugs Found
-- [ ] None confirmed on the same critical path after the handoff fix.
+- [x] Returning-user continuation callback now one-shot and transition-safe.
+- [x] Onboarding key/specter generation no longer re-enters from Draw().
+- [x] Pulse Map global shortcuts now blocked while modal UI is active.
+- [x] `Ctrl+N` compose toggle conflict with network recenter resolved.
+- [x] UTF-8 backspace correctness restored for onboarding/settings text inputs.
+- [x] Minimap static content now cached instead of fully redrawn each frame.
+
+## 2026-05-07 — Ebitengine UI Transition/Input Remediation
+
+- Fixed a CRITICAL returning-screen transition hazard where the continuation callback could fire every frame and close an already-closed channel in the app handoff path.
+- Removed Draw-path goroutine spawning for onboarding identity/specter generation and moved generation trigger logic to one-shot Update guards.
+- Hardened Pulse Map input-mode isolation by blocking global shortcuts while modal UI is visible and deconflicting `Ctrl+N` from plain `N` network-view behavior.
+- Fixed rune/UTF-8 deletion correctness in onboarding and settings text entry backspace handling.
+- Eliminated read-lock mutation patterns in compose/passphrase draw paths by using write locks for geometry cache updates.
+- Added minimap static-layer caching to reduce per-frame redraw work and transition-time hitch risk.
+
+Verification:
+- `go test ./pkg/app ./pkg/onboarding/screens ./pkg/pulsemap ./pkg/pulsemap/overlays ./pkg/ui`
 
 ## Discarded Candidates
 | Candidate | Reason Discarded |

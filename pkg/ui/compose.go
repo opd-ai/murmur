@@ -273,8 +273,8 @@ func (p *ComposePanel) submit() {
 
 // Draw renders the panel to the screen.
 func (p *ComposePanel) Draw(screen *ebiten.Image) {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
 	ctx := InitPanelDrawWithScreen(screen, p.visible, p.calculatePosition, &p.screenWidth, &p.screenHeight)
 	if ctx == nil {

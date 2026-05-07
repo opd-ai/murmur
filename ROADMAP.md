@@ -10,6 +10,7 @@
 ### Progress Update (2026-05-07)
 
 - [x] Added `UI_AUDIT.md`, a MURMUR-specific static audit prompt for Ebitengine UI review that centers discoverability, onboarding clarity, Pulse Map orientation, and first-time usability.
+- [x] Completed Ebitengine transition/input reliability remediation: one-shot returning-screen transition, onboarding generation re-entrancy guards, modal-safe global shortcut routing, `Ctrl+N` keybinding conflict resolution, UTF-8-safe backspace handling in UI text fields, and cached minimap static rendering.
 - [x] Browser deployment groundwork landed for desktop/WASM parity: added shared runtime package (`pkg/game`), platform-neutral transport and input abstractions (`pkg/network`, `pkg/input`), static Pages shell (`web/`), reproducible WASM site bundling (`scripts/build-wasm-site.sh`, `make wasm-site`), and automated GitHub Pages deployment workflow (`.github/workflows/pages-wasm.yml`).
 - [x] Concrete desktop transport adapter completed in `pkg/network`: libp2p host lifecycle now runs through `pkg/networking/transport`, topic messaging through `pkg/networking/gossip`, with subscribe/publish/peer-dial behavior and focused adapter tests validating start idempotency and cross-node message delivery.
 - [x] Concrete WASM transport adapter completed in `pkg/network`: browser runtime now provisions `pion/webrtc` data-channel-backed publish/subscribe flow with adapter lifecycle management, STUN fallback defaults, and js/wasm build validation.

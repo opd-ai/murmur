@@ -208,11 +208,36 @@ func (m *Minimap) Render(screen *ebiten.Image, cameraX, cameraY, zoom float64, v
 	// Get minimap corner position
 	minimapX, minimapY := m.getMinimapPosition(screenW, screenH)
 
+	m.ensureStaticLayer()
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Translate(float64(minimapX), float64(minimapY))
+	screen.DrawImage(m.minimapImage, op)
+
+	// Draw viewport indicator (dynamic, per-frame) over cached static layer.
+	m.renderViewportIndicator(screen, minimapX, minimapY, cameraX, cameraY, zoom, viewportWidth, viewportHeight)
+}
+
+func (m *Minimap) ensureStaticLayer() {
+	w := int(m.config.Width)
+	h := int(m.config.Height)
+	if w <= 0 || h <= 0 {
+		return
+	}
+	if m.minimapImage == nil || m.minimapImage.Bounds().Dx() != w || m.minimapImage.Bounds().Dy() != h {
+		m.minimapImage = ebiten.NewImage(w, h)
+		m.needsRedraw = true
+	}
+	if !m.needsRedraw {
+		return
+	}
+
+	m.minimapImage.Clear()
+
 	// Draw background and border
 	vector.DrawFilledRect(
-		screen,
-		minimapX,
-		minimapY,
+		m.minimapImage,
+		0,
+		0,
 		m.config.Width,
 		m.config.Height,
 		m.config.BgColor,
@@ -220,9 +245,9 @@ func (m *Minimap) Render(screen *ebiten.Image, cameraX, cameraY, zoom float64, v
 	)
 
 	vector.StrokeRect(
-		screen,
-		minimapX,
-		minimapY,
+		m.minimapImage,
+		0,
+		0,
 		m.config.Width,
 		m.config.Height,
 		1.5,
@@ -234,17 +259,15 @@ func (m *Minimap) Render(screen *ebiten.Image, cameraX, cameraY, zoom float64, v
 	for _, node := range m.nodes {
 		localX, localY := m.worldToMinimap(node.X, node.Y)
 		vector.DrawFilledCircle(
-			screen,
-			minimapX+localX,
-			minimapY+localY,
+			m.minimapImage,
+			localX,
+			localY,
 			1.5,
 			m.config.NodeColor,
 			true,
 		)
 	}
-
-	// Draw viewport indicator
-	m.renderViewportIndicator(screen, minimapX, minimapY, cameraX, cameraY, zoom, viewportWidth, viewportHeight)
+	m.needsRedraw = false
 }
 
 // renderViewportIndicator draws the current viewport rectangle on the minimap.

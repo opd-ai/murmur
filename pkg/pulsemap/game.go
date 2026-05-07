@@ -271,7 +271,7 @@ func (g *Game) Update() error {
 	// text-input predicate so that typing inside text panels does not fire
 	// shortcuts simultaneously with character input.
 	// Per AUDIT.md HIGH finding: hotkeys fired while text panels had focus.
-	if !g.textInputActive() {
+	if !g.globalShortcutsBlocked() {
 		g.handleComposePanelToggle()
 		g.handleSearchBarToggle()
 		g.handleSettingsPanelToggle()
@@ -615,7 +615,8 @@ func constrainZoom(scale float64) float64 {
 // handleNetworkView centers the camera on the network centroid when 'N' key is pressed.
 // Per ROADMAP.md line 681: network-centric view for global perspective.
 func (g *Game) handleNetworkView() {
-	if inpututil.IsKeyJustPressed(ebiten.KeyN) {
+	ctrlPressed := ebiten.IsKeyPressed(ebiten.KeyControl) || ebiten.IsKeyPressed(ebiten.KeyMeta)
+	if !ctrlPressed && inpututil.IsKeyJustPressed(ebiten.KeyN) {
 		g.centerOnNetwork()
 	}
 }
@@ -1080,7 +1081,7 @@ func (g *Game) handleNodeDetailClose() {
 
 // anyModalVisible returns true if any modal panel that should block the radial menu is open.
 func (g *Game) anyModalVisible() bool {
-	return g.composePanel.Visible() || g.searchBar.Visible() || g.nodeDetailPanel.Visible()
+	return g.composePanel.Visible() || g.searchBar.Visible() || g.nodeDetailPanel.Visible() || g.settingsPanel.Visible()
 }
 
 // textInputActive returns true when any panel that accepts keyboard text input is visible.
@@ -1089,6 +1090,11 @@ func (g *Game) anyModalVisible() bool {
 // Per AUDIT.md HIGH finding: hotkeys were not guarded against active text panels.
 func (g *Game) textInputActive() bool {
 	return g.composePanel.Visible() || g.searchBar.Visible()
+}
+
+// globalShortcutsBlocked returns true when global keyboard shortcuts should not be handled.
+func (g *Game) globalShortcutsBlocked() bool {
+	return g.textInputActive() || g.anyModalVisible() || g.radialMenu.Visible()
 }
 
 // handleRadialMenuAction dispatches radial menu action callbacks.

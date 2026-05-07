@@ -25,6 +25,7 @@ type ReturningScreen struct {
 	pubKeyFingerprint string
 	width, height     int
 	callback          func()
+	continued         bool
 }
 
 // NewReturningScreen creates a returning user screen.
@@ -55,10 +56,12 @@ func (r *ReturningScreen) Update() error {
 	r.animPhase = elapsed
 
 	// Auto-continue after 2 seconds
-	if elapsed > 2.0 {
+	if elapsed > 2.0 && !r.continued {
+		r.continued = true
 		if r.callback != nil {
 			r.callback()
 		}
+		return ebiten.Termination
 	}
 
 	return nil

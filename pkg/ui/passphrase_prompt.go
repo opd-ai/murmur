@@ -209,8 +209,8 @@ func (p *PassphrasePromptPanel) handleTextInput() {
 
 // Draw renders the panel.
 func (p *PassphrasePromptPanel) Draw(screen *ebiten.Image) {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
 	px, py, _ := DrawModalWithTitle(screen, p.visible, p.width, p.height, p.theme, p.title)
 	if px == 0 {

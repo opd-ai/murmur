@@ -53,6 +53,7 @@ type Screen struct {
 
 	// Identity creation
 	keypair      *keys.KeyPair
+	keypairReady bool
 	sigil        *ebiten.Image
 	displayName  string
 	inputFocused bool
@@ -98,8 +99,21 @@ func NewScreen(controller *flow.Controller, callbacks ScreenCallbacks) *Screen {
 func (s *Screen) Update() error {
 	s.updateAnimations()
 	s.updatePhilosophyTiming()
+	s.maybeGenerateKeypair()
 	s.handleUserInput()
 	return nil
+}
+
+func (s *Screen) maybeGenerateKeypair() {
+	if s.state != StateKeypairGen || s.keypair != nil || s.keypairReady {
+		return
+	}
+	progress := math.Min(1, time.Since(s.phaseStart).Seconds()/2.5)
+	if progress < 1 {
+		return
+	}
+	s.keypairReady = true
+	s.generateKeypair()
 }
 
 // updateAnimations updates all animation states.
@@ -275,10 +289,6 @@ func (s *Screen) drawKeypairAnimation(screen *ebiten.Image, centerX, centerY flo
 	progress := math.Min(1, time.Since(s.phaseStart).Seconds()/2.5)
 	s.drawConvergingParticles(screen, centerX, centerY, progress)
 	s.drawGrowingCore(screen, centerX, centerY, progress)
-
-	if progress >= 1 {
-		go s.generateKeypair()
-	}
 }
 
 // drawConvergingParticles renders particles spiraling toward center.
@@ -682,7 +692,8 @@ func (s *Screen) HandleKeyInput(char rune) {
 // HandleBackspace removes the last character from input.
 func (s *Screen) HandleBackspace() {
 	if s.state == StateDisplayName && s.inputFocused && len(s.displayName) > 0 {
-		s.displayName = s.displayName[:len(s.displayName)-1]
+		runes := []rune(s.displayName)
+		s.displayName = string(runes[:len(runes)-1])
 	}
 }
 
@@ -704,6 +715,7 @@ func (s *Screen) transitionToPhilosophy() {
 func (s *Screen) transitionToKeypairGen() {
 	s.state = StateKeypairGen
 	s.phaseStart = time.Now()
+	s.keypairReady = false
 }
 
 func (s *Screen) transitionToDisplayName() {

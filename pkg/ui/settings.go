@@ -399,7 +399,8 @@ func (p *SettingsPanel) handleFocusedTextInput() {
 
 	value, _ := s.Value.(string)
 	if inpututil.IsKeyJustPressed(ebiten.KeyBackspace) && len(value) > 0 {
-		s.Value = value[:len(value)-1]
+		runes := []rune(value)
+		s.Value = string(runes[:len(runes)-1])
 		p.notifyOnChange(s.Key, s.Value)
 		return
 	}
