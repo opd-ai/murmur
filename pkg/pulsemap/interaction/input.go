@@ -113,6 +113,13 @@ func (c *Camera) AnimateToWithZoom(worldX, worldY, scale float64) {
 	c.Animating = true
 }
 
+// AnimateToScreenPointWithZoom animates camera centering using a screen-space point.
+// It converts the point to world coordinates first, then delegates to AnimateToWithZoom.
+func (c *Camera) AnimateToScreenPointWithZoom(screenX, screenY, screenWidth, screenHeight, scale float64) {
+	worldX, worldY := c.ScreenToWorld(screenX, screenY, screenWidth, screenHeight)
+	c.AnimateToWithZoom(worldX, worldY, scale)
+}
+
 // SetZoomPresetMacro animates to Macro view (full network, scale 0.3).
 // Per ROADMAP.md line 682, viewport controls provide preset zoom levels.
 func (c *Camera) SetZoomPresetMacro() {

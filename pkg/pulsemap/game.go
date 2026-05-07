@@ -691,8 +691,15 @@ func (g *Game) handleTouchInput() {
 			isTap, isDoubleTap, tx, ty := g.touchState.HandleTouchEnd(int(id), g.tickCount)
 			switch {
 			case isDoubleTap:
-				// Double-tap: zoom in centred on the tapped point.
-				g.camera.AnimateToWithZoom(tx, ty, 2.0)
+				// Double-tap touch positions are in screen space; convert to world
+				// coordinates before centering the camera animation.
+				g.camera.AnimateToScreenPointWithZoom(
+					tx,
+					ty,
+					float64(g.screenWidth),
+					float64(g.screenHeight),
+					2.0,
+				)
 			case isTap:
 				// Single tap: identical path to a left mouse-button click —
 				// hit-test nodes and update input.SelectedNodeID.

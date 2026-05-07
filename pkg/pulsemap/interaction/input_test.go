@@ -121,6 +121,28 @@ func TestScreenToWorld(t *testing.T) {
 	}
 }
 
+func TestAnimateToScreenPointWithZoomConvertsCoordinates(t *testing.T) {
+	c := NewCamera()
+
+	// Non-origin camera state simulates a panned/zoomed viewport.
+	c.X = 250
+	c.Y = -120
+	c.Scale = 2.0
+
+	c.AnimateToScreenPointWithZoom(500, 350, 800, 600, 2.0)
+
+	// Screen (500, 350) at this camera state maps to world (300, -95).
+	if math.Abs(c.TargetX-300) > 0.001 || math.Abs(c.TargetY+95) > 0.001 {
+		t.Fatalf("expected target world (300, -95), got (%f, %f)", c.TargetX, c.TargetY)
+	}
+	if c.TargetScale != 2.0 {
+		t.Fatalf("expected target scale 2.0, got %f", c.TargetScale)
+	}
+	if !c.Animating {
+		t.Fatal("expected animation to be active")
+	}
+}
+
 func TestWorldToScreen(t *testing.T) {
 	c := NewCamera()
 	c.X = 100
