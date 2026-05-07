@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>MURMUR</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="status-card" id="status-card" aria-live="polite">
+        <h1>MURMUR</h1>
+        <p id="status-text">Loading WebAssembly runtime...</p>
+      </section>
+      <canvas id="game-canvas" aria-label="MURMUR game canvas"></canvas>
+    </main>
+
+    <script src="./wasm_exec.js"></script>
+    <script src="./boot.js"></script>
+  </body>
+</html>

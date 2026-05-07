@@ -31,10 +31,16 @@ See `DESIGN_DOCUMENT.md` for the complete specification.
     ├── README.md
     ├── DESIGN_DOCUMENT.md           # Complete specification
     ├── TECHNICAL_IMPLEMENTATION.md  # Technical details
-    ├── cmd/murmur/                  # Application entry point
+    ├── cmd/
+    │   ├── murmur/                  # Legacy desktop entry point
+    │   ├── desktop/                 # Desktop-specific entry point
+    │   └── wasm/                    # Browser/WASM entry point
     ├── proto/                       # Protocol Buffer definitions
     ├── pkg/
     │   ├── app/                     # Application lifecycle, event bus
+    │   ├── game/                    # Shared runtime bootstrapping
+    │   ├── network/                 # Desktop/WASM transport abstraction
+    │   ├── input/                   # Unified touch/keyboard/mouse mapping
     │   ├── config/                  # Configuration
     │   ├── networking/
     │   │   ├── transport/           # libp2p host, Noise/QUIC/TCP
@@ -72,6 +78,9 @@ See `DESIGN_DOCUMENT.md` for the complete specification.
         ├── wordlists/               # Specter name wordlists
         └── themes/                  # Pulse Map themes
 
+    ├── web/                         # GitHub Pages HTML/CSS/JS shell
+    └── scripts/build-wasm-site.sh   # WASM + web bundle builder
+
 ---
 
 ## Quick Reference
@@ -101,3 +110,10 @@ See `DESIGN_DOCUMENT.md` for the complete specification.
 - ✅ **Cross-Layer Visibility**: Specter Marks render on Surface Layer with orbit animations and tooltips; remaining mechanics (gifts, puzzles, mini-games) deferred to post-v0.1
 
 Binary builds and connects to network. Test suite: 100% pass rate (64 packages with tests, 72 total packages), zero race conditions. Cross-platform validation: Ebitengine rendering and libp2p connectivity validated on Linux/macOS/Windows. See AUDIT.md for detailed goal-achievement assessment and ROADMAP.md for implementation checklist.
+
+### Browser Build (GitHub Pages)
+
+- Build the static Pages bundle locally: `./scripts/build-wasm-site.sh`
+- Output directory: `web-dist/`
+- Required files in output: `index.html`, `murmur.wasm`, `wasm_exec.js`, `assets/`
+- CI deployment workflow: `.github/workflows/pages-wasm.yml`

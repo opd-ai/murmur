@@ -20,7 +20,7 @@ PROTO_DIR=proto
 PROTO_GO_OUT=proto
 
 # Build targets
-.PHONY: all build clean test lint fmt proto install help
+.PHONY: all build clean test lint fmt proto install help wasm-site
 
 all: fmt lint test build
 
@@ -28,6 +28,10 @@ build:
 	@echo "Building $(BINARY_NAME) $(VERSION)..."
 	@mkdir -p $(BINARY_DIR)
 	$(GOBUILD) $(LDFLAGS) -o $(BINARY_DIR)/$(BINARY_NAME) ./cmd/murmur
+
+wasm-site:
+	@echo "Building WASM GitHub Pages bundle..."
+	@VERSION=$(VERSION) COMMIT=$(COMMIT) ./scripts/build-wasm-site.sh
 
 build-all: build-linux build-darwin build-windows
 
