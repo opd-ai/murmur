@@ -135,6 +135,21 @@ func (p *ComposePanel) Submit() {
 	p.visible = false
 }
 
+// SimulateBackspace deletes the character before the cursor, mirroring processBackspace.
+// In the real implementation this is triggered on the first key press (IsKeyJustPressed)
+// and on repeat after a hold duration of ≥ 20 ticks.
+func (p *ComposePanel) SimulateBackspace() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.cursorPos > 0 && len(p.content) > 0 {
+		runes := []rune(p.content)
+		if p.cursorPos <= len(runes) {
+			p.content = string(runes[:p.cursorPos-1]) + string(runes[p.cursorPos:])
+			p.cursorPos--
+		}
+	}
+}
+
 // SimulateClick simulates a left-click at (cx, cy) and returns true if a button was hit.
 // Mirrors the handleClickAt logic in compose.go for test coverage.
 func (p *ComposePanel) SimulateClick(cx, cy int) bool {

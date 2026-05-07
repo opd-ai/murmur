@@ -58,6 +58,9 @@ const (
 	// TapMaxDuration is the maximum duration (in ticks at 60fps) for a tap.
 	TapMaxDuration = 30 // ~500ms at 60fps
 	// DoubleTapMaxInterval is the maximum interval between taps for a double-tap (in ticks at 60fps).
+	// This value also serves as the single-tap debounce window: HandleTouchEnd defers the single-tap
+	// event by this many ticks (via PollPendingTap) to avoid firing a single-tap prematurely on
+	// the first tap of a double-tap sequence.
 	DoubleTapMaxInterval = 30 // ~500ms at 60fps
 	// DoubleTapMaxDistance is the maximum distance between tap positions for a double-tap.
 	DoubleTapMaxDistance = 50.0
@@ -185,6 +188,7 @@ func (t *TouchState) HandleTouchEnd(id int, tickCount int64) (isTap, isDoubleTap
 
 		if interval < DoubleTapMaxInterval && dist < DoubleTapMaxDistance && t.lastTapTime > 0 {
 			isDoubleTap = true
+			isTap = false // Double-tap does not also fire as a single-tap.
 			// Double-tap consumed: discard the pending single-tap.
 			t.pendingTapTick = 0
 			// Reset double-tap state after detecting one.

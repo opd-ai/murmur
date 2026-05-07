@@ -60,16 +60,35 @@ func TestTapGesture(t *testing.T) {
 	// Move slightly (within tap threshold)
 	ts.HandleTouchMove(1, 105, 103)
 
-	// End quickly
-	isTap, isDoubleTap, x, y := ts.HandleTouchEnd(1, 10) // Within TapMaxDuration
-	if !isTap {
-		t.Error("expected tap gesture")
+	// End quickly — per AUDIT.md debounce fix, HandleTouchEnd returns isTap=false on the first tap.
+	// The tap is deferred via PollPendingTap until DoubleTapMaxInterval ticks elapse.
+	isTap, isDoubleTap, _, _ := ts.HandleTouchEnd(1, 10) // Within TapMaxDuration
+	if isTap {
+		t.Error("HandleTouchEnd should not report isTap=true immediately (debounce window active)")
 	}
 	if isDoubleTap {
 		t.Error("single tap should not be double tap")
 	}
+
+	// Before the window expires, PollPendingTap should not fire.
+	ok, _, _ := ts.PollPendingTap(10 + DoubleTapMaxInterval - 1)
+	if ok {
+		t.Error("PollPendingTap should not fire before debounce window expires")
+	}
+
+	// After the window expires, PollPendingTap emits the deferred tap at the correct position.
+	ok, x, y := ts.PollPendingTap(10 + DoubleTapMaxInterval)
+	if !ok {
+		t.Error("PollPendingTap should fire after debounce window expires")
+	}
 	if x != 105 || y != 103 {
 		t.Errorf("expected tap at (105, 103), got (%v, %v)", x, y)
+	}
+
+	// A second poll should return false (tap consumed).
+	ok2, _, _ := ts.PollPendingTap(10 + DoubleTapMaxInterval + 1)
+	if ok2 {
+		t.Error("PollPendingTap should not fire twice")
 	}
 }
 
@@ -208,29 +227,35 @@ func TestThreeTouchCancelsGesture(t *testing.T) {
 func TestDoubleTapGesture(t *testing.T) {
 	ts := NewTouchState()
 
-	// First tap
+	// First tap — deferred by debounce window; HandleTouchEnd returns isTap=false.
 	ts.HandleTouchStart(1, 100, 100, 0)
 	ts.HandleTouchMove(1, 102, 102) // Small movement
 	isTap, isDoubleTap, _, _ := ts.HandleTouchEnd(1, 10)
-	if !isTap {
-		t.Error("expected first tap")
+	if isTap {
+		t.Error("first tap should be deferred (isTap must be false from HandleTouchEnd)")
 	}
 	if isDoubleTap {
 		t.Error("first tap should not be double tap")
 	}
 
-	// Second tap quickly and nearby
+	// Second tap quickly and nearby — triggers double-tap; pending single-tap is cancelled.
 	ts.HandleTouchStart(2, 105, 103, 12) // Within interval and distance
 	ts.HandleTouchMove(2, 106, 104)
 	isTap2, isDoubleTap2, x, y := ts.HandleTouchEnd(2, 20)
-	if !isTap2 {
-		t.Error("expected second tap")
+	if isTap2 {
+		t.Error("second tap in double-tap sequence should have isTap=false")
 	}
 	if !isDoubleTap2 {
 		t.Error("expected double tap on second tap")
 	}
 	if x != 106 || y != 104 {
 		t.Errorf("expected double tap at (106, 104), got (%v, %v)", x, y)
+	}
+
+	// Pending single-tap should have been cancelled by the double-tap.
+	ok, _, _ := ts.PollPendingTap(20 + DoubleTapMaxInterval)
+	if ok {
+		t.Error("pending single-tap should be cancelled when double-tap fires")
 	}
 }
 

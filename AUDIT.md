@@ -183,7 +183,7 @@
 
 ---
 
-### [MEDIUM] Double-tap detection has no single-tap debounce window
+### [MEDIUM][FIXED] Double-tap detection has no single-tap debounce window
 
 - **File**: `pkg/pulsemap/interaction/touch.go` (lines 145–165 `HandleTouchEnd()`)
 - **Category**: Input
@@ -191,13 +191,13 @@
 - **Evidence**: `HandleTouchEnd` returns `isTap = true` on the first touch end regardless of whether a second touch end is imminent. There is no deferred single-tap timer.
 - **Fix**: Return `isTap = false` on the first tap if `lastTapTime > 0` and the inter-tap interval so far is within `DoubleTapMaxInterval`. Delay the single-tap action by deferring it using a tick counter, firing only if a second tap does not arrive within the window.
 - **Remediation checklist**:
-  - [ ] Add `pendingTapX, pendingTapY float64` and `pendingTapTick int64` fields to `TouchState`.
-  - [ ] On first tap, store position/tick but return `isTap = false`; on next `Update()` tick check if double-tap window expired and emit single-tap then.
-  - [ ] Update `DoubleTapMaxInterval` doc comment to reflect the deferred model.
+  - [x] Add `pendingTapX, pendingTapY float64` and `pendingTapTick int64` fields to `TouchState`.
+  - [x] On first tap, store position/tick but return `isTap = false`; on next `Update()` tick check if double-tap window expired and emit single-tap then.
+  - [x] Update `DoubleTapMaxInterval` doc comment to reflect the deferred model.
 
 ---
 
-### [MEDIUM] `processBackspace` in compose panel repeats on backspace held but uses inconsistent condition
+### [MEDIUM][FIXED] `processBackspace` in compose panel repeats on backspace held but uses inconsistent condition
 
 - **File**: `pkg/ui/compose.go` (lines 169–177 `processBackspace()`)
 - **Category**: Input
@@ -211,8 +211,8 @@
   ```
   and use `< 20` (exclusive) so the initial just-pressed event is not blocked by the duration guard.
 - **Remediation checklist**:
-  - [ ] Fix operator from `<=` to `<` and verify first-press deletion works in a unit test.
-  - [ ] Add test: single tick with `KeyJustPressed=true`, assert one character deleted.
+  - [x] Fix operator from `<=` to `<` and verify first-press deletion works in a unit test.
+  - [x] Add test: single tick with `KeyJustPressed=true`, assert one character deleted.
 
 ---
 

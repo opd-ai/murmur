@@ -117,3 +117,54 @@ func TestComposePanel_SimulateClick_WhenHidden(t *testing.T) {
 		t.Error("SimulateClick on hidden panel should return false")
 	}
 }
+
+// TestComposePanel_SimulateBackspace_FirstPress verifies that a single backspace
+// deletes the character before the cursor (first-press behavior).
+// Per AUDIT.md MEDIUM finding: processBackspace uses < 20 (exclusive) so the first
+// key-press event is not blocked by the hold-duration guard.
+func TestComposePanel_SimulateBackspace_FirstPress(t *testing.T) {
+	theme := DefaultTheme()
+	panel := NewComposePanel(theme, nil)
+	panel.Show()
+	panel.SetContent("abc")
+
+	// Cursor is at end (position 3). One backspace should remove 'c'.
+	panel.SimulateBackspace()
+
+	if panel.Content() != "ab" {
+		t.Errorf("after 1 backspace got %q, want %q", panel.Content(), "ab")
+	}
+}
+
+func TestComposePanel_SimulateBackspace_MultiByte(t *testing.T) {
+	theme := DefaultTheme()
+	panel := NewComposePanel(theme, nil)
+	panel.Show()
+	panel.SetContent("日本語")
+
+	// Cursor at end (position 3). One backspace removes '語'.
+	panel.SimulateBackspace()
+
+	if panel.Content() != "日本" {
+		t.Errorf("after backspace on CJK content got %q, want %q", panel.Content(), "日本")
+	}
+}
+
+func TestComposePanel_SimulateBackspace_AtStart(t *testing.T) {
+	theme := DefaultTheme()
+	panel := NewComposePanel(theme, nil)
+	panel.Show()
+	panel.SetContent("x")
+
+	// Move cursor to start: content has 1 rune, cursor at 1. After one backspace → empty.
+	panel.SimulateBackspace()
+	if panel.Content() != "" {
+		t.Errorf("expected empty content, got %q", panel.Content())
+	}
+
+	// Backspace at start should be a no-op.
+	panel.SimulateBackspace()
+	if panel.Content() != "" {
+		t.Errorf("backspace at start of empty content modified content: got %q", panel.Content())
+	}
+}
