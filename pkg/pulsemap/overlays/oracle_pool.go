@@ -114,8 +114,9 @@ func (o *OraclePoolOverlay) Render(dst *ebiten.Image, cameraX, cameraY, scale fl
 // renderOraclePool draws a single Oracle Pool as a swirling vortex.
 func renderOraclePool(dst *ebiten.Image, p *OraclePoolVisual, cameraX, cameraY, scale, screenW, screenH float64, baseOpacity float32) {
 	// Transform to screen-space.
-	x := float32((p.X-cameraX)*scale + screenW/2)
-	y := float32((p.Y-cameraY)*scale + screenH/2)
+	sx, sy := worldToScreen(p.X, p.Y, cameraX, cameraY, screenW/2, screenH/2, scale)
+	x := float32(sx)
+	y := float32(sy)
 
 	// Base radius scales with zoom.
 	baseRadius := float32(math.Max(20, math.Min(50, 30*scale)))

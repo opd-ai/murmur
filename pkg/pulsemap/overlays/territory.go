@@ -128,8 +128,7 @@ func (o *TerritoryOverlay) Render(dst *ebiten.Image, cameraX, cameraY, scale flo
 // renderTerritory draws a single territory.
 func renderTerritory(dst *ebiten.Image, t *TerritoryVisual, cameraX, cameraY, scale, screenW, screenH float64, baseOpacity float32) {
 	// Transform centroid to screen-space.
-	cx := (t.CentroidX-cameraX)*scale + screenW/2
-	cy := (t.CentroidY-cameraY)*scale + screenH/2
+	cx, cy := worldToScreen(t.CentroidX, t.CentroidY, cameraX, cameraY, screenW/2, screenH/2, scale)
 
 	// Draw boundary.
 	renderTerritoryBoundary(dst, t, cameraX, cameraY, scale, screenW, screenH, baseOpacity)
@@ -169,12 +168,10 @@ func renderTerritoryBoundary(dst *ebiten.Image, t *TerritoryVisual, cameraX, cam
 		p2 := t.Boundary[(i+1)%len(t.Boundary)]
 
 		// Transform to screen-space.
-		x1 := float32((p1.X-cameraX)*scale + screenW/2)
-		y1 := float32((p1.Y-cameraY)*scale + screenH/2)
-		x2 := float32((p2.X-cameraX)*scale + screenW/2)
-		y2 := float32((p2.Y-cameraY)*scale + screenH/2)
+		x1, y1 := worldToScreen(p1.X, p1.Y, cameraX, cameraY, screenW/2, screenH/2, scale)
+		x2, y2 := worldToScreen(p2.X, p2.Y, cameraX, cameraY, screenW/2, screenH/2, scale)
 
-		vector.StrokeLine(dst, x1, y1, x2, y2, lineWidth, boundaryColor, true)
+		vector.StrokeLine(dst, float32(x1), float32(y1), float32(x2), float32(y2), lineWidth, boundaryColor, true)
 	}
 }
 

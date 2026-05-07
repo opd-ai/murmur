@@ -90,11 +90,14 @@ func (e *ParticleEmitter) Update(dt, nodeX, nodeY, nodeRadius, resonance float32
 
 // Render draws all particles to the screen.
 func (e *ParticleEmitter) Render(dst *ebiten.Image, cameraX, cameraY, scale float32) {
+	centerX := float64(dst.Bounds().Dx()) / 2
+	centerY := float64(dst.Bounds().Dy()) / 2
 	for _, p := range e.Particles {
 		alpha := uint8(float32(p.Color.A) * p.Life)
 		c := color.RGBA{p.Color.R, p.Color.G, p.Color.B, alpha}
-		screenX := (p.X-cameraX)*scale + float32(dst.Bounds().Dx())/2
-		screenY := (p.Y-cameraY)*scale + float32(dst.Bounds().Dy())/2
+		sx, sy := worldToScreen(float64(p.X), float64(p.Y), float64(cameraX), float64(cameraY), centerX, centerY, float64(scale))
+		screenX := float32(sx)
+		screenY := float32(sy)
 		size := p.Size * p.Life * scale
 		vector.DrawFilledCircle(dst, screenX, screenY, size, c, true)
 	}
@@ -149,10 +152,14 @@ type MiniGameVisualization struct {
 
 // Render draws the mini-game visualization.
 func (d *MiniGameVisualization) Render(dst *ebiten.Image, cameraX, cameraY, scale float32) {
-	x1 := (d.Player1X-cameraX)*scale + float32(dst.Bounds().Dx())/2
-	y1 := (d.Player1Y-cameraY)*scale + float32(dst.Bounds().Dy())/2
-	x2 := (d.Player2X-cameraX)*scale + float32(dst.Bounds().Dx())/2
-	y2 := (d.Player2Y-cameraY)*scale + float32(dst.Bounds().Dy())/2
+	centerX := float64(dst.Bounds().Dx()) / 2
+	centerY := float64(dst.Bounds().Dy()) / 2
+	x1f, y1f := worldToScreen(float64(d.Player1X), float64(d.Player1Y), float64(cameraX), float64(cameraY), centerX, centerY, float64(scale))
+	x2f, y2f := worldToScreen(float64(d.Player2X), float64(d.Player2Y), float64(cameraX), float64(cameraY), centerX, centerY, float64(scale))
+	x1 := float32(x1f)
+	y1 := float32(y1f)
+	x2 := float32(x2f)
+	y2 := float32(y2f)
 
 	// Draw jagged electric-arc line
 	segments := 8

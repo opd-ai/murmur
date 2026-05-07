@@ -294,10 +294,8 @@ func (co *CouncilOverlay) drawThread(
 	camX, camY, zoom, screenW, screenH float64,
 ) {
 	// Transform to screen coordinates.
-	x1 := float32((m1.X-camX)*zoom + screenW/2)
-	y1 := float32((m1.Y-camY)*zoom + screenH/2)
-	x2 := float32((m2.X-camX)*zoom + screenW/2)
-	y2 := float32((m2.Y-camY)*zoom + screenH/2)
+	x1, y1 := worldToScreen(m1.X, m1.Y, camX, camY, screenW/2, screenH/2, zoom)
+	x2, y2 := worldToScreen(m2.X, m2.Y, camX, camY, screenW/2, screenH/2, zoom)
 
 	// Base line width scales with zoom.
 	lineWidth := float32(1.5 * zoom)
@@ -316,9 +314,9 @@ func (co *CouncilOverlay) drawThread(
 		activeColor.R = uint8(math.Min(255, float64(activeColor.R)+30))
 		activeColor.G = uint8(math.Min(255, float64(activeColor.G)+30))
 		activeColor.B = uint8(math.Min(255, float64(activeColor.B)+30))
-		vector.StrokeLine(screen, x1, y1, x2, y2, lineWidth*1.5, activeColor, true)
+		vector.StrokeLine(screen, float32(x1), float32(y1), float32(x2), float32(y2), lineWidth*1.5, activeColor, true)
 	} else {
-		vector.StrokeLine(screen, x1, y1, x2, y2, lineWidth, threadColor, true)
+		vector.StrokeLine(screen, float32(x1), float32(y1), float32(x2), float32(y2), lineWidth, threadColor, true)
 	}
 }
 
@@ -347,8 +345,9 @@ func (co *CouncilOverlay) drawMemberStar(
 	opacity float32,
 ) {
 	// Transform to screen coordinates.
-	sx := float32((member.X-camX)*zoom + screenW/2)
-	sy := float32((member.Y-camY)*zoom + screenH/2)
+	sx64, sy64 := worldToScreen(member.X, member.Y, camX, camY, screenW/2, screenH/2, zoom)
+	sx := float32(sx64)
+	sy := float32(sy64)
 
 	// Star size based on zoom and communication state.
 	baseSize := float32(6 * zoom)
@@ -460,8 +459,9 @@ func (co *CouncilOverlay) drawCouncilLabel(
 	cy /= float64(len(info.Members))
 
 	// Transform to screen coordinates.
-	sx := float32((cx-camX)*zoom + screenW/2)
-	sy := float32((cy-camY)*zoom + screenH/2)
+	sx64, sy64 := worldToScreen(cx, cy, camX, camY, screenW/2, screenH/2, zoom)
+	sx := float32(sx64)
+	sy := float32(sy64)
 
 	// Draw background for label.
 	labelWidth := float32(len(info.Name) * 6)

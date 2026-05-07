@@ -161,9 +161,8 @@ func (o *EchoIndexOverlay) renderClusterBadges(dst *ebiten.Image, cameraX, camer
 
 // transformToScreen converts world coordinates to screen coordinates.
 func (o *EchoIndexOverlay) transformToScreen(center [2]float32, cameraX, cameraY, scale, halfW, halfH float32) (float32, float32) {
-	screenX := (center[0]-cameraX)*scale + halfW
-	screenY := (center[1]-cameraY)*scale + halfH
-	return screenX, screenY
+	sx, sy := worldToScreen(float64(center[0]), float64(center[1]), float64(cameraX), float64(cameraY), float64(halfW), float64(halfH), float64(scale))
+	return float32(sx), float32(sy)
 }
 
 // isOffScreen checks if coordinates are outside visible area.
@@ -189,8 +188,9 @@ func (o *EchoIndexOverlay) renderClusterTint(
 	// Transform boundary vertices to screen coordinates.
 	screenVerts := make([]float32, len(boundary))
 	for i := 0; i < len(boundary); i += 2 {
-		screenVerts[i] = (boundary[i]-cameraX)*scale + halfW
-		screenVerts[i+1] = (boundary[i+1]-cameraY)*scale + halfH
+		sx, sy := worldToScreen(float64(boundary[i]), float64(boundary[i+1]), float64(cameraX), float64(cameraY), float64(halfW), float64(halfH), float64(scale))
+		screenVerts[i] = float32(sx)
+		screenVerts[i+1] = float32(sy)
 	}
 
 	// Create tint color with configured alpha.
