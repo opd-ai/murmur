@@ -12,6 +12,7 @@ import (
 
 	"github.com/opd-ai/murmur/pkg/pulsemap/interaction"
 	"github.com/opd-ai/murmur/pkg/pulsemap/layout"
+	"github.com/opd-ai/murmur/pkg/pulsemap/overlays"
 )
 
 // Renderer coordinates rendering of the Pulse Map (stub implementation).
@@ -28,6 +29,9 @@ type Renderer struct {
 	backgroundColor color.RGBA
 	screenWidth     int
 	screenHeight    int
+
+	layerBlend      *overlays.LayerBlend
+	specterEmitters map[string]*overlays.ParticleEmitter
 	time            float32
 }
 
@@ -83,6 +87,13 @@ func (r *Renderer) SetCamera(camera *interaction.Camera) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.camera = camera
+}
+
+// SetLayerBlend sets the Surface/Anonymous layer blend ratio (stub).
+func (r *Renderer) SetLayerBlend(blend *overlays.LayerBlend) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.layerBlend = blend
 }
 
 // Camera returns the current camera.

@@ -16,6 +16,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/opd-ai/murmur/pkg/pulsemap/interaction"
 	"github.com/opd-ai/murmur/pkg/pulsemap/layout"
+	"github.com/opd-ai/murmur/pkg/pulsemap/overlays"
 	"github.com/opd-ai/murmur/pkg/pulsemap/rendering/effects"
 	"github.com/opd-ai/murmur/pkg/store"
 )
@@ -81,6 +82,14 @@ type Renderer struct {
 	// Per ROADMAP.md line 692, batched rendering groups operations by type
 	// to reduce draw call overhead and improve GPU utilization.
 	batchRenderer *BatchRenderer
+
+	// layerBlend controls Surface/Anonymous layer opacity blend.
+	// Per AUDIT.md MEDIUM fix: overlay layer was never populated; LayerBlend drives it.
+	layerBlend *overlays.LayerBlend
+
+	// specterEmitters maps Specter node IDs to their particle emitters for the overlay layer.
+	// Per AUDIT.md MEDIUM fix: specterEmitters were defined in overlays but never used in Renderer.
+	specterEmitters map[string]*overlays.ParticleEmitter
 }
 
 // NodeData holds visual properties for a renderable node.
@@ -140,6 +149,8 @@ func NewRenderer(engine *layout.Engine, db *store.DB) (*Renderer, error) {
 		screenWidth:         800,
 		screenHeight:        600,
 		batchRenderer:       NewBatchRenderer(), // Batched rendering per ROADMAP.md line 692
+		layerBlend:          overlays.NewDefaultBlend(),
+		specterEmitters:     make(map[string]*overlays.ParticleEmitter),
 	}, nil
 }
 
@@ -148,6 +159,14 @@ func (r *Renderer) SetCamera(camera *interaction.Camera) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.camera = camera
+}
+
+// SetLayerBlend sets the Surface/Anonymous layer blend ratio.
+// Per AUDIT.md MEDIUM fix: exposes layerBlend to the UI for toggle control.
+func (r *Renderer) SetLayerBlend(blend *overlays.LayerBlend) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.layerBlend = blend
 }
 
 // Camera returns the current camera.
@@ -345,9 +364,26 @@ func (r *Renderer) Draw(screen *ebiten.Image) {
 	// Execute all batched draw commands at once.
 	r.batchRenderer.Flush(r.graphLayer)
 
-	// Layer 4: Overlays (Specter Marks, annotations, etc.).
-	// Currently empty - future implementation for cross-layer artifacts.
-	// This layer will hold Specter Marks, Phantom Gift indicators, etc.
+	// Layer 4: Overlays (Specter particle emitters for Anonymous layer visibility).
+	// Per AUDIT.md MEDIUM fix: populate overlayLayer with Specter emitter particles
+	// when AnonymousOpacity > 0. Previously this layer was always empty.
+	if r.layerBlend != nil && r.layerBlend.AnonymousOpacity > 0 {
+		for id, pos := range positions {
+			data := r.nodeData[id]
+			if data == nil || !data.IsSpecter {
+				continue
+			}
+			emitter, ok := r.specterEmitters[id]
+			if !ok {
+				emitter = overlays.NewParticleEmitter(20, 0.5)
+				r.specterEmitters[id] = emitter
+			}
+			nodeRadius := float32(computeNodeRadius(r.buildNodeStyle(data)))
+			emitter.Update(1.0/60.0, float32(pos.X), float32(pos.Y), nodeRadius, float32(data.Resonance))
+			emitter.Render(r.overlayLayer,
+				float32(r.camera.X), float32(r.camera.Y), float32(r.camera.Scale))
+		}
+	}
 
 	// Layer 5: UI elements (controls, notifications, etc.).
 	// Currently empty - future implementation for UI widgets.
