@@ -23,3 +23,4 @@ Last updated: 2026-05-07
 - [x] Add dynamic bootstrap server command (`cmd/bootstrap`) with DHT server-mode participation, automatic peer learning/distribution, and multi-listener support for HTTP/ngrok/Tor/I2P ingress.
 - [x] Add container deployment assets for the dynamic bootstrap server (`Dockerfile.bootstrap`, Compose example, and operator docs covering configurable ngrok domains and announced public libp2p addresses).
 - [x] Repair corrupted transport integration tests in `pkg/networking/transport/integration_test.go` and realign to current diagnostics/host APIs.
+- [x] Harden bootstrap Docker build path for restricted DNS environments with host-network compose builds and configurable Go module proxy args.

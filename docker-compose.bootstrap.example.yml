@@ -3,9 +3,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.bootstrap
+      network: host
       args:
         VERSION: ${MURMUR_VERSION:-0.0.0-dev}
         COMMIT: ${MURMUR_COMMIT:-unknown}
+        GOPROXY: ${GOPROXY:-https://proxy.golang.org,direct}
+        GOSUMDB: ${GOSUMDB:-sum.golang.org}
+        GOFLAGS: ${GOFLAGS:-}
     image: murmur-bootstrap:${MURMUR_VERSION:-dev}
     container_name: murmur-bootstrap
     restart: unless-stopped
@@ -40,6 +44,13 @@ services:
 # Example usage:
 #   mkdir -p bootstrap-data
 #   docker compose -f docker-compose.bootstrap.example.yml up --build -d
+#
+# If Docker build DNS cannot reach proxy.golang.org, this example already uses
+# host networking for the build step. If your environment still blocks the Go
+# module mirror, try:
+#   export GOPROXY=direct
+#   export GOSUMDB=off
+#   docker compose -f docker-compose.bootstrap.example.yml build --no-cache bootstrap
 #
 # Optional public multiaddr advertisement:
 #   export ANNOUNCE_ADDRS=/dns4/bootstrap.example.org/tcp/4001,/dns4/bootstrap.example.org/udp/4001/quic-v1

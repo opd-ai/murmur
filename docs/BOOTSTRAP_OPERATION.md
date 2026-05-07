@@ -143,6 +143,25 @@ NGROK_AUTHTOKEN=... /usr/local/bin/murmur-bootstrap \
 docker build -f Dockerfile.bootstrap -t murmur-bootstrap:local .
 ```
 
+If your Docker builder cannot resolve `proxy.golang.org`, use host networking so
+the build uses the host resolver instead of an isolated Docker DNS path:
+
+```bash
+docker build --network host -f Dockerfile.bootstrap -t murmur-bootstrap:local .
+```
+
+`Dockerfile.bootstrap` also accepts Go module environment overrides as build
+arguments for restricted networks:
+
+```bash
+docker build \
+  --network host \
+  --build-arg GOPROXY=direct \
+  --build-arg GOSUMDB=off \
+  -f Dockerfile.bootstrap \
+  -t murmur-bootstrap:local .
+```
+
 ### Compose Example
 
 ```bash
@@ -157,6 +176,16 @@ export NGROK_AUTHTOKEN=...
 export NGROK_DOMAIN=consuming-dangling-commodore.ngrok-free.dev
 export ANNOUNCE_ADDRS=/dns4/bootstrap.example.org/tcp/4001,/dns4/bootstrap.example.org/udp/4001/quic-v1
 docker compose -f docker-compose.bootstrap.example.yml up --build -d
+```
+
+If module resolution is blocked in your environment, override the Go proxy for
+the compose build:
+
+```bash
+export GOPROXY=direct
+export GOSUMDB=off
+docker compose -f docker-compose.bootstrap.example.yml build --no-cache bootstrap
+docker compose -f docker-compose.bootstrap.example.yml up -d
 ```
 
 ## Firewall
