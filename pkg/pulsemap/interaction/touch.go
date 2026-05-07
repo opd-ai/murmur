@@ -31,12 +31,19 @@ type TouchState struct {
 	// until DoubleTapMaxInterval expires to avoid firing single-tap on double-taps.
 	pendingTapX, pendingTapY float64
 	pendingTapTick           int64 // tick when pending tap was recorded; 0 = none
+
+	// Long-press detection state.
+	lastLongPressTouchID int // touch ID that already fired long-press for current hold; 0 = none
 }
 
 // Touch represents a single touch point.
 type Touch struct {
-	ID   int
-	X, Y float64
+	ID int
+	X  float64
+	Y  float64
+
+	StartX, StartY float64
+	StartTick      int64
 }
 
 // GestureType indicates the current gesture being performed.
@@ -64,6 +71,10 @@ const (
 	DoubleTapMaxInterval = 30 // ~500ms at 60fps
 	// DoubleTapMaxDistance is the maximum distance between tap positions for a double-tap.
 	DoubleTapMaxDistance = 50.0
+	// LongPressMinDuration is the minimum hold time (in ticks at 60fps) to trigger long-press.
+	LongPressMinDuration = 36 // ~600ms at 60fps
+	// LongPressMaxDistance is the maximum finger movement allowed while holding.
+	LongPressMaxDistance = 16.0
 )
 
 // NewTouchState creates a new touch state tracker.
@@ -85,7 +96,8 @@ func (t *TouchState) GestureType() GestureType {
 
 // HandleTouchStart processes a touch start event.
 func (t *TouchState) HandleTouchStart(id int, x, y float64, tickCount int64) {
-	t.touches[id] = &Touch{ID: id, X: x, Y: y}
+	t.touches[id] = &Touch{ID: id, X: x, Y: y, StartX: x, StartY: y, StartTick: tickCount}
+	t.lastLongPressTouchID = 0
 
 	switch len(t.touches) {
 	case 1:
@@ -175,6 +187,9 @@ func (t *TouchState) HandleTouchEnd(id int, tickCount int64) (isTap, isDoubleTap
 		y = touch.Y
 		delete(t.touches, id)
 	}
+	if t.lastLongPressTouchID == id {
+		t.lastLongPressTouchID = 0
+	}
 
 	// Check for tap gesture
 	isTap = !t.tapMoved && (tickCount-t.tapStartTime) < TapMaxDuration && len(t.touches) == 0
@@ -219,6 +234,38 @@ func (t *TouchState) HandleTouchEnd(id int, tickCount int64) (isTap, isDoubleTap
 	}
 
 	return isTap, isDoubleTap, x, y
+}
+
+// PollLongPress checks whether the active single-touch hold has become a long-press.
+// Returns (true, x, y) exactly once per touch hold when the threshold is crossed.
+func (t *TouchState) PollLongPress(tickCount int64) (isLongPress bool, x, y float64) {
+	if len(t.touches) != 1 || t.gestureType != GesturePan {
+		return false, 0, 0
+	}
+
+	var touch *Touch
+	for _, candidate := range t.touches {
+		touch = candidate
+		break
+	}
+	if touch == nil {
+		return false, 0, 0
+	}
+	if t.lastLongPressTouchID == touch.ID {
+		return false, 0, 0
+	}
+	if tickCount-touch.StartTick < LongPressMinDuration {
+		return false, 0, 0
+	}
+
+	dx := touch.X - touch.StartX
+	dy := touch.Y - touch.StartY
+	if math.Sqrt(dx*dx+dy*dy) > LongPressMaxDistance {
+		return false, 0, 0
+	}
+
+	t.lastLongPressTouchID = touch.ID
+	return true, touch.X, touch.Y
 }
 
 // PollPendingTap checks whether a deferred single-tap has waited long enough
@@ -277,4 +324,5 @@ func (t *TouchState) Reset() {
 	t.pinchStartDist = 0
 	t.tapMoved = false
 	t.lastTapTime = 0
+	t.lastLongPressTouchID = 0
 }

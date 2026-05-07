@@ -381,6 +381,40 @@ func TestHandleMouseDownOrphanOnNodeHit(t *testing.T) {
 	}
 }
 
+// TestTouchLikeTapSequenceClearsDrag verifies the touch-like tap sequence
+// (mouse down immediately followed by mouse up) does not keep drag state set
+// and still allows node selection on subsequent taps.
+func TestTouchLikeTapSequenceClearsDrag(t *testing.T) {
+	engine := layout.NewEngine()
+	renderer, err := NewRenderer(engine)
+	if err != nil {
+		t.Fatalf("NewRenderer failed: %v", err)
+	}
+
+	const nodeID = "node-tap"
+	renderer.AddNode(&NodeData{ID: nodeID})
+	engine.Positions().Swap(map[string]layout.Position{nodeID: {X: 0, Y: 0}})
+
+	// Tap empty area: drag may start on down, but must be cleared by up.
+	renderer.HandleMouseDown(9999, 9999)
+	renderer.HandleMouseUp()
+	if renderer.InputState().Dragging {
+		t.Fatal("expected Dragging=false after tap-style down/up on empty space")
+	}
+
+	// Tap node at screen center (world origin): should select node and remain non-dragging.
+	screenCX := float64(renderer.screenWidth) / 2
+	screenCY := float64(renderer.screenHeight) / 2
+	renderer.HandleMouseDown(screenCX, screenCY)
+	renderer.HandleMouseUp()
+	if got := renderer.SelectedNode(); got != nodeID {
+		t.Fatalf("expected selected node %q, got %q", nodeID, got)
+	}
+	if renderer.InputState().Dragging {
+		t.Fatal("expected Dragging=false after tap-style node selection")
+	}
+}
+
 // TestHitTestNodesScaleInvariance verifies that hit detection is consistent across
 // the full scale range. Per AUDIT.md HIGH finding: the old formula
 // (visualRadius * 1.5 / scale) caused misses at high zoom and bloated zones at low

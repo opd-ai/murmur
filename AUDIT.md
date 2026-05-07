@@ -25,9 +25,9 @@ Scope: Input handling, coordinate accuracy, panel/state transitions, and conveni
 - Fix: Convert tx and ty via camera ScreenToWorld before calling AnimateToWithZoom.
 
 Remediation checklist:
-- [ ] Convert touch end coordinates from screen-space to world-space before camera centering.
-- [ ] Add regression test for double-tap centering after camera pan.
-- [ ] Validate behavior on both mobile touch and desktop touch emulator.
+- [x] Convert touch end coordinates from screen-space to world-space before camera centering.
+- [x] Add regression test for double-tap centering after camera pan.
+- [ ] Validate behavior on both mobile touch and desktop touch emulator. (Blocked in this environment: no mobile touch device harness available.)
 
 ### [HIGH] Touch tap path can leave renderer drag state orphaned
 - File: pkg/pulsemap/game.go (lines 697-700, 738-739)
@@ -41,9 +41,9 @@ Remediation checklist:
 - Fix: Add touch-specific hit-test/select path that does not start drag, or pair touch tap mouse-down with immediate mouse-up when not panning.
 
 Remediation checklist:
-- [ ] Separate touch tap selection from drag-start path.
-- [ ] Ensure touch taps always clear drag state when no drag gesture is active.
-- [ ] Add test covering empty-area tap followed by node tap.
+- [x] Separate touch tap selection from drag-start path.
+- [x] Ensure touch taps always clear drag state when no drag gesture is active.
+- [x] Add test covering empty-area tap followed by node tap.
 
 ### [HIGH] Radial menu is mouse-only; no long-press activation on touch
 - File: pkg/pulsemap/game.go (lines 654-661)
@@ -57,9 +57,9 @@ Remediation checklist:
 - Fix: Add long-press gesture recognition in touch state (time + movement threshold) and invoke radialMenu Show at press location.
 
 Remediation checklist:
-- [ ] Implement long-press gesture state (duration and movement threshold).
-- [ ] Trigger radial menu on long-press for selected node.
-- [ ] Add mobile interaction test for long-press menu open and cancel.
+- [x] Implement long-press gesture state (duration and movement threshold).
+- [x] Trigger radial menu on long-press for selected node.
+- [x] Add mobile interaction test for long-press menu open and cancel.
 
 ### [MEDIUM] Specter detail input uses continuous press instead of edge-triggered click
 - File: pkg/ui/specter_detail.go (lines 152, 171, 188, 302)

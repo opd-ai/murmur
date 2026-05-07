@@ -701,10 +701,9 @@ func (g *Game) handleTouchInput() {
 					2.0,
 				)
 			case isTap:
-				// Single tap: identical path to a left mouse-button click —
-				// hit-test nodes and update input.SelectedNodeID.
-				// Per AUDIT.md: ensure touch path calls the same entry point as mouse.
-				g.renderer.HandleMouseDown(tx, ty)
+				// Single tap uses an immediate down/up click so touch selection
+				// never leaves renderer drag state orphaned between frames.
+				g.handleTouchTap(tx, ty)
 			}
 		}
 	}
@@ -735,6 +734,15 @@ func (g *Game) handleTouchInput() {
 			g.camera.Zoom(zoomFactor, cx, cy,
 				float64(g.screenWidth), float64(g.screenHeight))
 		}
+
+		// Long-press opens the radial menu on touch platforms, matching
+		// right-click behavior on desktop when a node is already selected.
+		if isLongPress, tx, ty := g.touchState.PollLongPress(g.tickCount); isLongPress {
+			nodeID := g.input.SelectedNodeID
+			if nodeID != "" && !g.anyModalVisible() {
+				g.radialMenu.Show(tx, ty, nodeID)
+			}
+		}
 	}
 
 	g.prevTouchIDs = currentIDs
@@ -743,8 +751,16 @@ func (g *Game) handleTouchInput() {
 	// Per AUDIT.md MEDIUM fix: single-tap is deferred DoubleTapMaxInterval ticks
 	// to avoid spurious single-tap on double-taps.
 	if isTap, tx, ty := g.touchState.PollPendingTap(g.tickCount); isTap {
-		g.renderer.HandleMouseDown(tx, ty)
+		g.handleTouchTap(tx, ty)
 	}
+}
+
+// handleTouchTap applies touch tap selection via a click-style down/up pair.
+// This keeps touch behavior aligned with mouse selection while ensuring any
+// temporary drag state is cleared within the same frame.
+func (g *Game) handleTouchTap(x, y float64) {
+	g.renderer.HandleMouseDown(x, y)
+	g.renderer.HandleMouseUp()
 }
 
 // containsTouchID reports whether id appears in ids.

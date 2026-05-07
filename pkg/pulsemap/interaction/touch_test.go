@@ -259,6 +259,45 @@ func TestDoubleTapGesture(t *testing.T) {
 	}
 }
 
+func TestLongPressPollFiresOnce(t *testing.T) {
+	ts := NewTouchState()
+
+	ts.HandleTouchStart(1, 100, 100, 0)
+
+	// Before threshold: should not fire.
+	ok, _, _ := ts.PollLongPress(LongPressMinDuration - 1)
+	if ok {
+		t.Fatal("long-press should not fire before threshold")
+	}
+
+	// At threshold: fires once.
+	ok, x, y := ts.PollLongPress(LongPressMinDuration)
+	if !ok {
+		t.Fatal("expected long-press to fire at threshold")
+	}
+	if x != 100 || y != 100 {
+		t.Fatalf("expected long-press at (100,100), got (%v,%v)", x, y)
+	}
+
+	// Re-poll while same touch is held: should not fire again.
+	ok2, _, _ := ts.PollLongPress(LongPressMinDuration + 10)
+	if ok2 {
+		t.Fatal("long-press should fire only once per hold")
+	}
+}
+
+func TestLongPressCancelledByMovement(t *testing.T) {
+	ts := NewTouchState()
+
+	ts.HandleTouchStart(1, 100, 100, 0)
+	ts.HandleTouchMove(1, 140, 100) // Move beyond LongPressMaxDistance.
+
+	ok, _, _ := ts.PollLongPress(LongPressMinDuration + 1)
+	if ok {
+		t.Fatal("long-press should not fire when movement exceeds threshold")
+	}
+}
+
 func TestDoubleTapCancelledByDistance(t *testing.T) {
 	ts := NewTouchState()
 
