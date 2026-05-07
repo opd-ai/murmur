@@ -115,7 +115,52 @@ func (s *ModeScreen) Update() error {
 		s.HandleClick(mx, my)
 	}
 
+	s.handleKeyboardInput()
+
 	return nil
+}
+
+func (s *ModeScreen) handleKeyboardInput() {
+	if s.state == ModeStateCards {
+		modesList := []modes.Mode{modes.Open, modes.Hybrid, modes.Guarded, modes.Fortress}
+		current := 0
+		for i, mode := range modesList {
+			if mode == s.selectedMode {
+				current = i
+				break
+			}
+		}
+		if inpututil.IsKeyJustPressed(ebiten.KeyLeft) && current > 0 {
+			s.selectedMode = modesList[current-1]
+			s.hoverMode = s.selectedMode
+		}
+		if inpututil.IsKeyJustPressed(ebiten.KeyRight) && current < len(modesList)-1 {
+			s.selectedMode = modesList[current+1]
+			s.hoverMode = s.selectedMode
+		}
+	}
+
+	if !inpututil.IsKeyJustPressed(ebiten.KeyEnter) && !inpututil.IsKeyJustPressed(ebiten.KeyNumpadEnter) {
+		return
+	}
+
+	switch s.state {
+	case ModeStateIntro:
+		if s.introProgress >= 1.0 {
+			s.state = ModeStateCards
+		}
+	case ModeStateCards:
+		if s.callbacks.OnModeSelected != nil {
+			s.callbacks.OnModeSelected(s.selectedMode)
+		}
+		s.transitionFromCardSelection()
+	case ModeStateSpecterGen:
+		if s.specterKeypair != nil {
+			s.state = ModeStateConfirmation
+		}
+	case ModeStateConfirmation:
+		s.completePhase3()
+	}
 }
 
 func (s *ModeScreen) maybeGenerateSpecter() {

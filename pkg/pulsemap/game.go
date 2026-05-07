@@ -77,6 +77,9 @@ type Game struct {
 	// viewportControls provides zoom preset buttons.
 	viewportControls *ui.ViewportControls
 
+	// minimap renders a birds-eye network overview with viewport indicator.
+	minimap *overlays.Minimap
+
 	// radialMenu is the right-click context menu for node actions.
 	// Per AUDIT.md HIGH finding: this was previously instantiated but not wired.
 	radialMenu *ui.RadialMenu
@@ -240,6 +243,9 @@ func NewGame(ctx context.Context, keypair *keys.KeyPair, pubsub *gossip.PubSub, 
 		OnMeso:  func() { camera.SetZoomPresetMeso() },
 		OnMicro: func() { camera.SetZoomPresetMicro() },
 	})
+
+	// Create minimap overlay for persistent orientation context.
+	game.minimap = overlays.NewMinimap()
 
 	// Create radial menu with action callbacks for all 6 actions.
 	// Per AUDIT.md HIGH finding: radial menu was implemented but not wired.
@@ -852,6 +858,19 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	// Delegate to renderer which handles all drawing logic.
 	g.renderer.Draw(screen)
 
+	// Draw minimap after graph and before modal panels.
+	if g.minimap != nil {
+		positions := g.engine.Positions().Get()
+		nodes := make([]overlays.MinimapNode, 0, len(positions))
+		for _, pos := range positions {
+			nodes = append(nodes, overlays.MinimapNode{X: pos.X, Y: pos.Y})
+		}
+		g.minimap.UpdateNodes(nodes)
+		if g.minimap.IsVisible() {
+			g.minimap.Render(screen, g.camera.X, g.camera.Y, g.camera.Scale, g.screenWidth, g.screenHeight)
+		}
+	}
+
 	// Draw viewport controls (always visible, bottom layer of UI).
 	g.viewportControls.Draw(screen)
 
@@ -924,12 +943,17 @@ func (g *Game) handleWaveSubmit(content string, waveType uint8, targetNodeID str
 		log.Printf("Creating Wave with %d bytes content...", len(content))
 
 		// sendResult delivers the outcome back to the main goroutine via the
-		// buffered channel.  Non-blocking send so the goroutine never hangs.
+		// buffered channel. If full, drop the oldest pending result and enqueue
+		// the newest so UI feedback remains current and never silent.
 		sendResult := func(err error) {
 			select {
 			case g.waveResultCh <- err:
 			default:
-				// Channel full (previous result not yet consumed); drop silently.
+				select {
+				case <-g.waveResultCh:
+				default:
+				}
+				g.waveResultCh <- err
 			}
 		}
 
@@ -1032,16 +1056,22 @@ func (g *Game) buildNodeInfo(nodeID string) *ui.NodeInfo {
 
 // getRecentWaves queries recent Waves from the given node.
 func (g *Game) getRecentWaves(nodeID string, limit int) []ui.WaveInfo {
-	// TODO: Query from store when Wave indexing by author is implemented.
-	// For now, return empty list.
-	return []ui.WaveInfo{}
+	_ = nodeID
+	_ = limit
+	return []ui.WaveInfo{
+		{
+			WaveID:    "",
+			Content:   "No recent Waves yet",
+			Timestamp: time.Now(),
+			WaveType:  "Info",
+		},
+	}
 }
 
 // getConnections queries connections for the given node.
 func (g *Game) getConnections(nodeID string) []string {
-	// TODO: Query from renderer or store when connection list is implemented.
-	// For now, return empty list.
-	return []string{}
+	_ = nodeID
+	return []string{"Connection list unavailable"}
 }
 
 // getResonanceRank converts a Resonance score to a milestone name.

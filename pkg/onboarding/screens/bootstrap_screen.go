@@ -124,7 +124,46 @@ func (s *BootstrapScreen) Update() error {
 	s.updateAnimationPhase()
 	s.handleMouseInput()
 	s.handleWaveTextInput()
+	s.handleKeyboardInput()
 	return nil
+}
+
+func (s *BootstrapScreen) handleKeyboardInput() {
+	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) && s.state == BootstrapStatePulseMapIntro && s.tutorialStep > 0 {
+		s.tutorialStep--
+		return
+	}
+
+	if !inpututil.IsKeyJustPressed(ebiten.KeyEnter) && !inpututil.IsKeyJustPressed(ebiten.KeyNumpadEnter) {
+		return
+	}
+
+	switch s.state {
+	case BootstrapStateConnecting:
+		if s.discoveryDone {
+			s.state = BootstrapStatePulseMapIntro
+			s.tutorialStep = 0
+		}
+	case BootstrapStatePulseMapIntro:
+		if s.tutorialStep < 4 {
+			s.tutorialStep++
+		} else {
+			s.state = BootstrapStateFirstWavePrompt
+			if s.callbacks.OnPulseMapReady != nil {
+				s.callbacks.OnPulseMapReady()
+			}
+		}
+	case BootstrapStateFirstWavePrompt:
+		if s.firstWaveText != "" {
+			s.waveSent = true
+			if s.callbacks.OnFirstWaveSent != nil {
+				s.callbacks.OnFirstWaveSent(s.firstWaveText)
+			}
+		}
+		s.state = BootstrapStateComplete
+	case BootstrapStateComplete:
+		s.completePhase()
+	}
 }
 
 func (s *BootstrapScreen) drainPendingPeerFound() {

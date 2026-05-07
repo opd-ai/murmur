@@ -256,18 +256,13 @@ func (r *RadialMenu) drawItem(screen *ebiten.Image, index int, item RadialMenuIt
 	borderColor.A = uint8(float64(borderColor.A) * alpha)
 	vector.StrokeCircle(screen, float32(itemX), float32(itemY), radialMenuItemRadius, 2.0, borderColor, true)
 
-	// Draw icon (simplified - actual implementation would use text rendering).
-	// For now, we draw a small circle to represent the icon.
+	// Draw icon glyph.
 	iconColor := r.theme.TextPrimary
 	if isHovered {
 		iconColor = r.theme.AccentPrimary
 	}
 	iconColor.A = uint8(float64(iconColor.A) * alpha)
-	vector.DrawFilledCircle(screen, float32(itemX), float32(itemY), 8.0, iconColor, true)
-
-	// TODO: Draw actual icon using item.IconCode with text rendering.
-	// This requires ebiten/v2/text/v2 which is used elsewhere in the project.
-	// For now, the colored dot serves as a placeholder.
+	drawUICenteredText(screen, string(item.IconCode), itemX, itemY+5, iconColor)
 
 	// Draw label below item using the shared font helper.
 	labelY := float64(itemY) + float64(radialMenuItemRadius) + float64(radialMenuLabelOffset)

@@ -425,21 +425,96 @@ func (p *ComposePanel) drawTextArea(screen *ebiten.Image, px, py int) {
 	vector.StrokeRect(screen, float32(textX), float32(textY),
 		float32(textW), float32(textH), 1.0, borderColor, true)
 
-	// Draw cursor at correct pixel position for the current rune offset.
-	// Per AUDIT.md MEDIUM fix: use rune-aware advance, not fixed 7px/char.
-	if int(p.anim.AnimTime()*2)%2 == 0 {
-		cursorX := textX + 8 + measureRuneAdvance(p.content, p.cursorPos)
-		cursorY := textY + 4
-		vector.DrawFilledRect(screen, float32(cursorX), float32(cursorY),
-			2, 14, p.theme.TextPrimary, true)
-	}
-
 	// Render wave content (placeholder text shown when empty).
 	if p.content == "" {
 		drawUIText(screen, "Type your Wave here...", float64(textX)+8, float64(textY)+6, p.theme.TextPlaceholder)
 	} else {
-		drawUIText(screen, p.content, float64(textX)+8, float64(textY)+6, p.theme.TextPrimary)
+		lineHeight := 16
+		maxVisible := (textH - 12) / lineHeight
+		if maxVisible < 1 {
+			maxVisible = 1
+		}
+
+		lines := composeWrapLines(p.content, float64(textW-16))
+		prefix := ""
+		runes := []rune(p.content)
+		if p.cursorPos > len(runes) {
+			p.cursorPos = len(runes)
+		}
+		if p.cursorPos > 0 {
+			prefix = string(runes[:p.cursorPos])
+		}
+		cursorLines := composeWrapLines(prefix, float64(textW-16))
+		cursorLine := len(cursorLines) - 1
+		if cursorLine < 0 {
+			cursorLine = 0
+		}
+
+		startLine := 0
+		if len(lines) > maxVisible {
+			startLine = len(lines) - maxVisible
+		}
+		if cursorLine >= startLine+maxVisible {
+			startLine = cursorLine - maxVisible + 1
+		}
+		if cursorLine < startLine {
+			startLine = cursorLine
+		}
+
+		endLine := startLine + maxVisible
+		if endLine > len(lines) {
+			endLine = len(lines)
+		}
+
+		drawY := textY + 6
+		for i := startLine; i < endLine; i++ {
+			drawUIText(screen, lines[i], float64(textX)+8, float64(drawY), p.theme.TextPrimary)
+			drawY += lineHeight
+		}
+
+		// Draw cursor at wrapped position.
+		if int(p.anim.AnimTime()*2)%2 == 0 {
+			cursorDrawLine := cursorLine - startLine
+			if cursorDrawLine >= 0 && cursorDrawLine < maxVisible {
+				cursorPrefix := ""
+				if len(cursorLines) > 0 {
+					cursorPrefix = cursorLines[len(cursorLines)-1]
+				}
+				prefixW, _ := measureUIText(cursorPrefix)
+				cursorX := textX + 8 + int(prefixW)
+				cursorY := textY + 4 + cursorDrawLine*lineHeight
+				vector.DrawFilledRect(screen, float32(cursorX), float32(cursorY),
+					2, 14, p.theme.TextPrimary, true)
+			}
+		}
 	}
+}
+
+func composeWrapLines(text string, maxWidth float64) []string {
+	if text == "" {
+		return []string{""}
+	}
+
+	lines := make([]string, 0, 8)
+	current := ""
+	for _, r := range []rune(text) {
+		if r == '\n' {
+			lines = append(lines, current)
+			current = ""
+			continue
+		}
+
+		next := current + string(r)
+		nextW, _ := measureUIText(next)
+		if nextW > maxWidth && current != "" {
+			lines = append(lines, current)
+			current = string(r)
+		} else {
+			current = next
+		}
+	}
+	lines = append(lines, current)
+	return lines
 }
 
 // drawCharCount draws the character count indicator.

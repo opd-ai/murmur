@@ -533,6 +533,12 @@ func (p *SettingsPanel) drawSettings(screen *ebiten.Image, px, py int) {
 func (p *SettingsPanel) drawSettingRow(screen *ebiten.Image, x, y, width int, setting Setting) {
 	// Label on the left.
 	labelWidth := width / 2
+	labelX := x
+	labelY := y + 16
+	drawUIText(screen, setting.Label, float64(labelX), float64(labelY), p.theme.TextPrimary)
+	if setting.Description != "" {
+		drawUIText(screen, setting.Description, float64(labelX), float64(labelY+14), p.theme.TextSecondary)
+	}
 
 	// Control on the right.
 	controlX := x + labelWidth
@@ -595,6 +601,9 @@ func (p *SettingsPanel) drawSlider(screen *ebiten.Image, x, y, width int, value,
 	knobX := sliderX + fillW
 	vector.DrawFilledCircle(screen, float32(knobX), float32(sliderY+sliderH/2),
 		10, p.theme.TextPrimary, true)
+
+	valueText := fmt.Sprintf("%.0f", value)
+	drawUIText(screen, valueText, float64(x+10), float64(y+44), p.theme.TextSecondary)
 }
 
 // drawInputBox draws a bordered input box at the specified position.
@@ -612,16 +621,21 @@ func (p *SettingsPanel) drawInputBox(screen *ebiten.Image, x, y, width, height i
 // drawSelect draws a dropdown selector.
 func (p *SettingsPanel) drawSelect(screen *ebiten.Image, x, y, width int, value string, options []string) {
 	p.drawInputBox(screen, x, y, width, 30)
-	// Value text would be rendered with text/v2.
-	_ = value
-	_ = options
+	boxW := width - 20
+	boxX := x + 10
+	boxY := y + 10
+	drawUIText(screen, value, float64(boxX+8), float64(boxY+20), p.theme.TextPrimary)
+	if len(options) > 0 {
+		drawUIText(screen, "v", float64(boxX+boxW-16), float64(boxY+20), p.theme.TextSecondary)
+	}
 }
 
 // drawTextInput draws a text input field.
 func (p *SettingsPanel) drawTextInput(screen *ebiten.Image, x, y, width int, value string) {
 	p.drawInputBox(screen, x, y, width, 30)
-	// Value text would be rendered with text/v2.
-	_ = value
+	boxX := x + 18
+	boxY := y + 30
+	drawUIText(screen, value, float64(boxX), float64(boxY), p.theme.TextPrimary)
 }
 
 // GetSetting returns the value of a setting by key.

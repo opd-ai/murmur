@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 	"github.com/opd-ai/murmur/pkg/identity/keys"
 )
@@ -55,8 +56,7 @@ func (r *ReturningScreen) Update() error {
 	elapsed := time.Since(r.startTime).Seconds()
 	r.animPhase = elapsed
 
-	// Auto-continue after 2 seconds
-	if elapsed > 2.0 && !r.continued {
+	if !r.continued && (inpututil.IsKeyJustPressed(ebiten.KeyEnter) || inpututil.IsKeyJustPressed(ebiten.KeySpace) || inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft)) {
 		r.continued = true
 		if r.callback != nil {
 			r.callback()
@@ -134,5 +134,10 @@ func (r *ReturningScreen) drawIdentityInfo(screen *ebiten.Image, centerX, center
 	DrawCenteredText(
 		screen, "Connecting to network...", centerX, centerY+80, 16,
 		color.RGBA{140, 140, 160, uint8(150 * infoFade)},
+	)
+
+	DrawCenteredText(
+		screen, "Press Enter or click to continue", centerX, centerY+120, 13,
+		color.RGBA{170, 170, 185, uint8(170 * infoFade)},
 	)
 }

@@ -499,4 +499,18 @@ func (p *NodeDetailPanel) drawConnections(screen *ebiten.Image, y float32) {
 	// Connection count on the line below.
 	countText := fmt.Sprintf("Connections: %d", p.nodeInfo.ConnectionCount)
 	drawUIText(screen, countText, titleX, float64(y)+18, p.theme.TextSecondary)
+
+	listY := y + 38
+	if len(p.nodeInfo.Connections) == 0 {
+		drawUIText(screen, "No connection names available", titleX, float64(listY), p.theme.TextSecondary)
+		return
+	}
+
+	maxRows := 3
+	if len(p.nodeInfo.Connections) < maxRows {
+		maxRows = len(p.nodeInfo.Connections)
+	}
+	for i := 0; i < maxRows; i++ {
+		drawUIText(screen, "- "+p.nodeInfo.Connections[i], titleX, float64(listY)+float64(i*16), p.theme.TextPrimary)
+	}
 }

@@ -152,12 +152,44 @@ func (s *Screen) handleUserInput() {
 		s.HandleClick(x, y)
 	}
 
+	s.handleKeyboardProgression()
+
 	for _, ch := range ebiten.AppendInputChars(nil) {
 		s.HandleKeyInput(ch)
 	}
 
 	if inpututil.IsKeyJustPressed(ebiten.KeyBackspace) {
 		s.HandleBackspace()
+	}
+}
+
+func (s *Screen) handleKeyboardProgression() {
+	if !inpututil.IsKeyJustPressed(ebiten.KeyEnter) && !inpututil.IsKeyJustPressed(ebiten.KeyNumpadEnter) {
+		return
+	}
+
+	switch s.state {
+	case StateWelcome:
+		s.transitionToPhilosophy()
+	case StatePhilosophy:
+		s.transitionToKeypairGen()
+	case StateKeypairGen:
+		if s.keypair != nil {
+			s.transitionToDisplayName()
+		}
+	case StateDisplayName:
+		if s.callbacks.OnDisplayNameSet != nil {
+			s.callbacks.OnDisplayNameSet(s.displayName)
+		}
+		s.transitionToBackupPrompt()
+	case StateBackupPrompt:
+		s.transitionToBackupMnemonic()
+	case StateBackupMnemonic:
+		s.completeBackup("mnemonic")
+	case StateBackupFile:
+		s.completeBackup("file")
+	case StateBackupComplete:
+		s.completePhase1And2()
 	}
 }
 

@@ -97,7 +97,29 @@ func (s *CompletionScreen) Update() error {
 		s.HandleClick(x, y)
 	}
 
+	s.handleKeyboardInput()
+
 	return nil
+}
+
+func (s *CompletionScreen) handleKeyboardInput() {
+	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) && s.state == CompletionStateInvite {
+		s.state = CompletionStateSummary
+		return
+	}
+
+	if !inpututil.IsKeyJustPressed(ebiten.KeyEnter) && !inpututil.IsKeyJustPressed(ebiten.KeyNumpadEnter) {
+		return
+	}
+
+	switch s.state {
+	case CompletionStateSummary:
+		s.finish()
+	case CompletionStateInvite:
+		s.state = CompletionStateDone
+	case CompletionStateDone:
+		s.finish()
+	}
 }
 
 // Draw renders the completion screen.

@@ -41,6 +41,7 @@ type DeviceManagementPanel struct {
 	errorMsg      string
 	confirmRevoke bool
 	revokeTarget  *DeviceInfo
+	revokeIndex   int
 
 	onRevoke    func(devicePubkey ed25519.PublicKey) error
 	onAddDevice func()
@@ -78,6 +79,7 @@ func (p *DeviceManagementPanel) Show(devices []DeviceInfo) {
 	p.errorMsg = ""
 	p.confirmRevoke = false
 	p.revokeTarget = nil
+	p.revokeIndex = -1
 }
 
 // Hide hides the panel.
@@ -87,6 +89,7 @@ func (p *DeviceManagementPanel) Hide() {
 	p.visible = false
 	p.confirmRevoke = false
 	p.revokeTarget = nil
+	p.revokeIndex = -1
 }
 
 // Update handles input and updates panel state.
@@ -114,8 +117,158 @@ func (p *DeviceManagementPanel) Update() bool {
 
 	// Handle scrolling
 	p.handleScrolling()
+	p.handlePointerInput()
 
 	return true
+}
+
+// handlePointerInput processes click interactions for device rows and buttons.
+func (p *DeviceManagementPanel) handlePointerInput() {
+	if !inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+		return
+	}
+
+	mx, my := ebiten.CursorPosition()
+	px, py := p.panelOrigin()
+
+	if p.confirmRevoke && p.revokeTarget != nil {
+		p.handleConfirmDialogClick(mx, my, px, py)
+		return
+	}
+
+	if p.handleBottomButtonsClick(mx, my, px, py) {
+		return
+	}
+
+	p.handleDeviceListClick(mx, my, px, py)
+}
+
+func (p *DeviceManagementPanel) panelOrigin() (int, int) {
+	w, h := ebiten.WindowSize()
+	return (w - p.width) / 2, (h - p.height) / 2
+}
+
+func (p *DeviceManagementPanel) handleBottomButtonsClick(mx, my, px, py int) bool {
+	btnWidth := 150
+	btnHeight := 40
+	btnSpacing := 20
+	btnY := py + p.height - 60
+
+	addX := px + (p.width/2 - btnWidth - btnSpacing/2)
+	if mx >= addX && mx < addX+btnWidth && my >= btnY && my < btnY+btnHeight {
+		if p.onAddDevice != nil {
+			p.mu.Unlock()
+			p.onAddDevice()
+			p.mu.Lock()
+		}
+		return true
+	}
+
+	closeX := px + (p.width/2 + btnSpacing/2)
+	if mx >= closeX && mx < closeX+btnWidth && my >= btnY && my < btnY+btnHeight {
+		p.visible = false
+		if p.onClose != nil {
+			p.mu.Unlock()
+			p.onClose()
+			p.mu.Lock()
+		}
+		return true
+	}
+
+	return false
+}
+
+func (p *DeviceManagementPanel) handleDeviceListClick(mx, my, px, py int) {
+	if len(p.devices) == 0 {
+		return
+	}
+
+	contentY := py + 80
+	const itemHeight = 80
+	const padding = 10
+
+	for i, device := range p.devices {
+		itemY := contentY + i*itemHeight - p.scrollY
+		if !isItemVisible(itemY, contentY, p.height, itemHeight) {
+			continue
+		}
+
+		itemX := px + padding
+		itemW := p.width - padding*2
+		itemH := itemHeight - 5
+		if mx >= itemX && mx < itemX+itemW && my >= itemY && my < itemY+itemH {
+			p.selectedIndex = i
+		}
+
+		if device.IsCurrentDevice {
+			continue
+		}
+
+		btnX := px + p.width - 120
+		btnY := itemY + 25
+		btnW := 100
+		btnH := 30
+		if mx >= btnX && mx < btnX+btnW && my >= btnY && my < btnY+btnH {
+			p.revokeTarget = &p.devices[i]
+			p.revokeIndex = i
+			p.confirmRevoke = true
+			return
+		}
+	}
+}
+
+func (p *DeviceManagementPanel) handleConfirmDialogClick(mx, my, px, py int) {
+	dialogWidth := 500
+	dialogHeight := 250
+	dialogX := px + (p.width-dialogWidth)/2
+	dialogY := py + (p.height-dialogHeight)/2
+
+	btnWidth := 120
+	btnHeight := 40
+	btnSpacing := 20
+	btnY := dialogY + dialogHeight - 60
+
+	cancelX := dialogX + (dialogWidth/2 - btnWidth - btnSpacing/2)
+	if mx >= cancelX && mx < cancelX+btnWidth && my >= btnY && my < btnY+btnHeight {
+		p.confirmRevoke = false
+		p.revokeTarget = nil
+		p.revokeIndex = -1
+		return
+	}
+
+	confirmX := dialogX + (dialogWidth/2 + btnSpacing/2)
+	if mx >= confirmX && mx < confirmX+btnWidth && my >= btnY && my < btnY+btnHeight {
+		if err := p.confirmRevokeLocked(); err != nil {
+			p.errorMsg = fmt.Sprintf("Failed to revoke: %v", err)
+		}
+	}
+}
+
+func (p *DeviceManagementPanel) confirmRevokeLocked() error {
+	if p.revokeTarget == nil || p.onRevoke == nil {
+		p.confirmRevoke = false
+		p.revokeIndex = -1
+		return nil
+	}
+
+	pubkey := append(ed25519.PublicKey(nil), p.revokeTarget.PublicKey...)
+	p.mu.Unlock()
+	err := p.onRevoke(pubkey)
+	p.mu.Lock()
+	if err != nil {
+		return err
+	}
+
+	if p.revokeIndex >= 0 && p.revokeIndex < len(p.devices) {
+		p.devices = append(p.devices[:p.revokeIndex], p.devices[p.revokeIndex+1:]...)
+	}
+	p.confirmRevoke = false
+	p.revokeTarget = nil
+	p.revokeIndex = -1
+	if p.selectedIndex >= len(p.devices) {
+		p.selectedIndex = len(p.devices) - 1
+	}
+	return nil
 }
 
 // handleScrolling processes mouse wheel scrolling.
@@ -319,6 +472,7 @@ func (p *DeviceManagementPanel) RequestRevoke(deviceIndex int) {
 	}
 
 	p.revokeTarget = &p.devices[deviceIndex]
+	p.revokeIndex = deviceIndex
 	p.confirmRevoke = true
 }
 
@@ -327,19 +481,11 @@ func (p *DeviceManagementPanel) ConfirmRevoke() error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	if p.revokeTarget == nil || p.onRevoke == nil {
-		return nil
-	}
-
-	err := p.onRevoke(p.revokeTarget.PublicKey)
+	err := p.confirmRevokeLocked()
 	if err != nil {
 		p.errorMsg = fmt.Sprintf("Failed to revoke: %v", err)
-		return err
 	}
-
-	p.confirmRevoke = false
-	p.revokeTarget = nil
-	return nil
+	return err
 }
 
 // SetError sets an error message to display.
