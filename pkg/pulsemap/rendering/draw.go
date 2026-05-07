@@ -118,6 +118,8 @@ func RenderNodeWithTime(dst *ebiten.Image, x, y float32, style NodeStyle, zoom Z
 }
 
 // computeNodeRadius calculates node size based on connections/resonance.
+// Returns the radius in world units (equivalent to screen pixels at Scale=1.0).
+// The minimum is rBase=4.0 world units.
 func computeNodeRadius(style NodeStyle) float32 {
 	const (
 		rBase  = 4.0

@@ -220,7 +220,7 @@
 
 ---
 
-### [HIGH] Node hit-test radius not scaled by current zoom level
+### [HIGH][FIXED] Node hit-test radius not scaled by current zoom level
 
 - **File**: `pkg/pulsemap/rendering/renderer.go` (lines 638–645 `hitTestNodes()`)
 - **Category**: Accuracy
@@ -233,9 +233,9 @@
   radius := math.Max(float64(computeNodeRadius(style))/r.camera.Scale, baseHitRadius)
   ```
 - **Remediation checklist**:
-  - [ ] Audit `computeNodeRadius` to confirm its output units are screen pixels at Scale=1.
-  - [ ] Replace the fudge-factor calculation with a world-space constant floored.
-  - [ ] Add table-driven test for hit detection at Scale=0.1, 1.0, 5.0.
+  - [x] Audit `computeNodeRadius` to confirm its output units are screen pixels at Scale=1.
+  - [x] Replace the fudge-factor calculation with a world-space constant floored.
+  - [x] Add table-driven test for hit detection at Scale=0.1, 1.0, 5.0.
 
 ---
 

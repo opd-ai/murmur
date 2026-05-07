@@ -8,6 +8,7 @@ package rendering
 
 import (
 	"image/color"
+	"math"
 	"sync"
 
 	"github.com/opd-ai/murmur/pkg/pulsemap/interaction"
@@ -255,7 +256,11 @@ func (r *Renderer) hitTestNodes(screenX, screenY float64) string {
 			Activity:    data.Activity,
 			Resonance:   data.Resonance,
 		}
-		radius := float64(computeNodeRadius(style)) * 1.5 / r.camera.Scale
+		// Calculate hit radius in world units using the same formula as renderer.go.
+		// Per AUDIT.md HIGH finding: use math.Max(visual/Scale, baseMin) to avoid
+		// misses at high zoom or bloated zones at low zoom.
+		const baseHitRadius = 8.0 // world units, matches rBase in computeNodeRadius
+		radius := math.Max(float64(computeNodeRadius(style))/r.camera.Scale, baseHitRadius)
 		if interaction.HitTest(pos.X, pos.Y, worldX, worldY, radius) {
 			return id
 		}

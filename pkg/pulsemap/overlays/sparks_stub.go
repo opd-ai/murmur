@@ -6,7 +6,6 @@
 package overlays
 
 import (
-	"image/color"
 	"time"
 )
 

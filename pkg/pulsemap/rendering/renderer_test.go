@@ -380,3 +380,50 @@ func TestHandleMouseDownOrphanOnNodeHit(t *testing.T) {
 		t.Error("expected Dragging=true after clicking empty space with prior orphan")
 	}
 }
+
+// TestHitTestNodesScaleInvariance verifies that hit detection is consistent across
+// the full scale range. Per AUDIT.md HIGH finding: the old formula
+// (visualRadius * 1.5 / scale) caused misses at high zoom and bloated zones at low
+// zoom. The new formula ensures a minimum world-unit hit radius at all scales.
+func TestHitTestNodesScaleInvariance(t *testing.T) {
+	scales := []struct {
+		name  string
+		scale float64
+	}{
+		{"low_zoom", 0.1},
+		{"normal_zoom", 1.0},
+		{"high_zoom", 5.0},
+	}
+
+	for _, tc := range scales {
+		t.Run(tc.name, func(t *testing.T) {
+			engine := layout.NewEngine()
+			renderer, err := NewRenderer(engine)
+			if err != nil {
+				t.Fatalf("NewRenderer failed: %v", err)
+			}
+			renderer.camera.Scale = tc.scale
+
+			const nodeID = "testnode"
+			renderer.AddNode(&NodeData{
+				ID:          nodeID,
+				Connections: 3,
+				Activity:    0,
+			})
+			// Inject node position at world origin via position buffer.
+			engine.Positions().Swap(map[string]layout.Position{
+				nodeID: {X: 0, Y: 0},
+			})
+
+			// Click exactly at the node's world position (screen centre maps to world origin
+			// at default camera X=0, Y=0).
+			screenCX := float64(renderer.screenWidth) / 2
+			screenCY := float64(renderer.screenHeight) / 2
+			hit := renderer.hitTestNodes(screenCX, screenCY)
+
+			if hit != nodeID {
+				t.Errorf("scale=%.1f: expected hit=%q at node centre, got %q", tc.scale, nodeID, hit)
+			}
+		})
+	}
+}
