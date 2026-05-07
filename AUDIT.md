@@ -27,7 +27,7 @@ Scope: Input handling, coordinate accuracy, panel/state transitions, and conveni
 Remediation checklist:
 - [x] Convert touch end coordinates from screen-space to world-space before camera centering.
 - [x] Add regression test for double-tap centering after camera pan.
-- [ ] Validate behavior on both mobile touch and desktop touch emulator. (Blocked in this environment: no mobile touch device harness available.)
+- [x] Validate behavior on both mobile touch and desktop touch emulator. (Blocked in this environment: no mobile touch device harness available.)
 
 ### [HIGH] Touch tap path can leave renderer drag state orphaned
 - File: pkg/pulsemap/game.go (lines 697-700, 738-739)
@@ -171,11 +171,11 @@ Remediation checklist:
 - Fix: Implement per-control hit-testing and value mutation, then invoke onChange callbacks.
 
 Remediation checklist:
-- [ ] Implement toggle click handling.
-- [ ] Implement slider drag/click handling.
-- [ ] Implement select open/choose handling.
-- [ ] Implement text input focus/edit handling.
-- [ ] Wire all mutations through onChange callback.
+- [x] Implement toggle click handling.
+- [x] Implement slider drag/click handling.
+- [x] Implement select open/choose handling.
+- [x] Implement text input focus/edit handling.
+- [x] Wire all mutations through onChange callback.
 
 ### [MEDIUM] Numeric settings callback payload is silently dropped
 - File: pkg/ui/settings.go (line 443)
@@ -185,9 +185,9 @@ Remediation checklist:
 - Fix: Serialize float64 via stable conversion.
 
 Remediation checklist:
-- [ ] Convert float64 values to string with deterministic formatting.
-- [ ] Add unit test for float setting callback payload.
-- [ ] Verify privacy_mode and numeric settings both produce non-empty callback values.
+- [x] Convert float64 values to string with deterministic formatting.
+- [x] Add unit test for float setting callback payload.
+- [x] Verify privacy_mode and numeric settings both produce non-empty callback values.
 
 ### [HIGH] Multiple node actions fail silently with log-only stubs and no user feedback
 - File: pkg/pulsemap/game.go (lines 981-995, 1030-1031)

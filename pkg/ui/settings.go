@@ -7,7 +7,9 @@
 package ui
 
 import (
+	"fmt"
 	"image/color"
+	"strconv"
 	"sync"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -57,16 +59,21 @@ type SettingsPanel struct {
 	onChange   SettingsChangeCallback
 	theme      Theme
 	animTime   float64
+
+	textFocusIndex int // -1 means no text control focused.
+	sliderDragIdx  int // -1 means no slider drag in progress.
 }
 
 // NewSettingsPanel creates a new settings panel.
 func NewSettingsPanel(theme Theme, onChange SettingsChangeCallback) *SettingsPanel {
 	return &SettingsPanel{
-		theme:    theme,
-		onChange: onChange,
-		width:    500,
-		height:   400,
-		position: PositionCenter,
+		theme:          theme,
+		onChange:       onChange,
+		width:          500,
+		height:         400,
+		position:       PositionCenter,
+		textFocusIndex: -1,
+		sliderDragIdx:  -1,
 		categories: []SettingCategory{
 			{
 				Name: "Network",
@@ -166,8 +173,197 @@ func (p *SettingsPanel) Update() bool {
 
 	p.handleCategoryNavigation()
 	p.handleScrolling()
+	p.handlePointerInput()
+	p.handleFocusedTextInput()
 
 	return true
+}
+
+func (p *SettingsPanel) handlePointerInput() {
+	mx, my := ebiten.CursorPosition()
+	panelX, panelY := p.panelOrigin()
+
+	if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {
+		p.sliderDragIdx = -1
+	}
+
+	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+		if p.handleCategoryTabClick(mx, my, panelX, panelY) {
+			p.textFocusIndex = -1
+			p.sliderDragIdx = -1
+			return
+		}
+		if p.handleSettingControlClick(mx, my, panelX, panelY) {
+			return
+		}
+		p.textFocusIndex = -1
+	}
+
+	if p.sliderDragIdx >= 0 && ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
+		p.updateSliderValueAt(p.sliderDragIdx, mx, panelX)
+	}
+}
+
+func (p *SettingsPanel) handleCategoryTabClick(mx, my, panelX, panelY int) bool {
+	tabsY := panelY + 50
+	if my < tabsY || my >= tabsY+35 || mx < panelX || mx >= panelX+p.width {
+		return false
+	}
+	tabWidth := p.width / len(p.categories)
+	idx := (mx - panelX) / tabWidth
+	if idx >= 0 && idx < len(p.categories) {
+		p.selected = idx
+		return true
+	}
+	return false
+}
+
+func (p *SettingsPanel) handleSettingControlClick(mx, my, panelX, panelY int) bool {
+	if p.selected >= len(p.categories) {
+		return false
+	}
+
+	const settingHeight = 50
+	settingsY := panelY + 90
+	padding := p.theme.Padding
+	rowX := panelX + padding
+	rowW := p.width - padding*2
+	labelW := rowW / 2
+	controlX := rowX + labelW
+	controlW := rowW - labelW
+
+	cat := &p.categories[p.selected]
+	for i := range cat.Settings {
+		settingY := settingsY + i*settingHeight - p.scrollY
+		if settingY < settingsY-settingHeight || settingY > settingsY+p.height {
+			continue
+		}
+		if mx < controlX || mx >= controlX+controlW || my < settingY || my >= settingY+settingHeight {
+			continue
+		}
+		return p.activateSettingControl(i, mx, my, controlX, settingY, controlW)
+	}
+	return false
+}
+
+func (p *SettingsPanel) activateSettingControl(idx, mx, my, controlX, settingY, controlW int) bool {
+	cat := &p.categories[p.selected]
+	if idx < 0 || idx >= len(cat.Settings) {
+		return false
+	}
+
+	s := &cat.Settings[idx]
+	switch s.Type {
+	case SettingTypeToggle:
+		if v, ok := s.Value.(bool); ok {
+			s.Value = !v
+			p.notifyOnChange(s.Key, s.Value)
+			return true
+		}
+	case SettingTypeSlider:
+		p.sliderDragIdx = idx
+		p.textFocusIndex = -1
+		p.updateSliderValueAt(idx, mx, p.panelOriginXForControl(controlX))
+		return true
+	case SettingTypeSelect:
+		if len(s.Options) == 0 {
+			return true
+		}
+		current, _ := s.Value.(string)
+		next := 0
+		for i, opt := range s.Options {
+			if opt == current {
+				next = (i + 1) % len(s.Options)
+				break
+			}
+		}
+		s.Value = s.Options[next]
+		p.notifyOnChange(s.Key, s.Value)
+		return true
+	case SettingTypeText:
+		p.textFocusIndex = idx
+		p.sliderDragIdx = -1
+		return true
+	}
+	_ = my
+	_ = controlW
+	return false
+}
+
+func (p *SettingsPanel) panelOrigin() (int, int) {
+	sw, sh := ebiten.WindowSize()
+	return (sw - p.width) / 2, (sh - p.height) / 2
+}
+
+func (p *SettingsPanel) panelOriginXForControl(controlX int) int {
+	_ = controlX
+	px, _ := p.panelOrigin()
+	return px
+}
+
+func (p *SettingsPanel) updateSliderValueAt(settingIdx, mouseX, panelX int) {
+	if p.selected >= len(p.categories) {
+		return
+	}
+	cat := &p.categories[p.selected]
+	if settingIdx < 0 || settingIdx >= len(cat.Settings) {
+		return
+	}
+	s := &cat.Settings[settingIdx]
+	if s.Type != SettingTypeSlider {
+		return
+	}
+
+	padding := p.theme.Padding
+	rowW := p.width - padding*2
+	labelW := rowW / 2
+	controlX := panelX + padding + labelW
+	controlW := rowW - labelW
+	sliderX := controlX + 10
+	sliderW := controlW - 20
+	if sliderW <= 0 || s.Max <= s.Min {
+		return
+	}
+
+	ratio := float64(mouseX-sliderX) / float64(sliderW)
+	if ratio < 0 {
+		ratio = 0
+	}
+	if ratio > 1 {
+		ratio = 1
+	}
+	value := s.Min + ratio*(s.Max-s.Min)
+	s.Value = value
+	p.notifyOnChange(s.Key, s.Value)
+}
+
+func (p *SettingsPanel) handleFocusedTextInput() {
+	if p.selected >= len(p.categories) || p.textFocusIndex < 0 {
+		return
+	}
+	cat := &p.categories[p.selected]
+	if p.textFocusIndex >= len(cat.Settings) {
+		p.textFocusIndex = -1
+		return
+	}
+	s := &cat.Settings[p.textFocusIndex]
+	if s.Type != SettingTypeText {
+		p.textFocusIndex = -1
+		return
+	}
+
+	value, _ := s.Value.(string)
+	if inpututil.IsKeyJustPressed(ebiten.KeyBackspace) && len(value) > 0 {
+		s.Value = value[:len(value)-1]
+		p.notifyOnChange(s.Key, s.Value)
+		return
+	}
+	chars := ebiten.AppendInputChars(nil)
+	if len(chars) == 0 {
+		return
+	}
+	s.Value = value + string(chars)
+	p.notifyOnChange(s.Key, s.Value)
 }
 
 // handleCategoryNavigation processes Tab/Shift+Tab for category switching.
@@ -440,9 +636,9 @@ func (p *SettingsPanel) convertValueToString(value interface{}) string {
 	case string:
 		return v
 	case float64:
-		return ""
+		return strconv.FormatFloat(v, 'f', -1, 64)
 	default:
-		return ""
+		return fmt.Sprintf("%v", v)
 	}
 }
 
