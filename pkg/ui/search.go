@@ -211,11 +211,20 @@ func (s *SearchBar) updateFadeAnimation() {
 
 // calculateBarPosition calculates search bar dimensions and position.
 func (s *SearchBar) calculateBarPosition() {
-	screenW, _ := ebiten.WindowSize()
+	screenW, screenH := ebiten.WindowSize()
 	s.barW = searchBarWidth
+	if screenW <= 768 {
+		s.barW = screenW - 24
+		if s.barW < 260 {
+			s.barW = 260
+		}
+	}
 	s.barH = searchBarHeight
 	s.barX = (screenW - s.barW) / 2
 	s.barY = searchBarMarginTop
+	if screenH <= 540 {
+		s.barY = 10
+	}
 }
 
 // handleTextInput processes text input and returns true if query changed.

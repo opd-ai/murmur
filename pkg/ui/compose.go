@@ -312,6 +312,7 @@ func (p *ComposePanel) Draw(screen *ebiten.Image) {
 
 // calculatePosition returns the panel's top-left corner based on position setting.
 func (p *ComposePanel) calculatePosition(screenW, screenH int) (int, int) {
+	p.applyResponsiveLayout(screenW, screenH)
 	margin := 20
 
 	switch p.position {
@@ -332,6 +333,41 @@ func (p *ComposePanel) calculatePosition(screenW, screenH int) (int, int) {
 	default:
 		return (screenW - p.width) / 2, (screenH - p.height) / 2
 	}
+}
+
+func (p *ComposePanel) applyResponsiveLayout(screenW, screenH int) {
+	if screenW <= 768 {
+		p.width = screenW - 24
+		if p.width < 280 {
+			p.width = 280
+		}
+		p.height = screenH - 24
+		if p.height > 360 {
+			p.height = 360
+		}
+		if p.height < 220 {
+			p.height = 220
+		}
+		p.position = PositionCenter
+		return
+	}
+
+	if screenW <= 1024 {
+		p.width = 420
+		if p.width > screenW-32 {
+			p.width = screenW - 32
+		}
+		p.height = 300
+		if p.height > screenH-32 {
+			p.height = screenH - 32
+		}
+		p.position = PositionBottomRight
+		return
+	}
+
+	p.width = 400
+	p.height = 280
+	p.position = PositionBottomRight
 }
 
 // drawBackground draws the panel background and border.

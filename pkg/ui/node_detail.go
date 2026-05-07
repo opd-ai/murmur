@@ -214,10 +214,35 @@ func (p *NodeDetailPanel) updateSlideAnimation() {
 // calculatePanelPosition calculates panel dimensions and position.
 func (p *NodeDetailPanel) calculatePanelPosition() {
 	screenW, screenH := ebiten.WindowSize()
-	p.panelW = nodeDetailPanelWidth
-	p.panelH = nodeDetailPanelHeight
+	p.panelW, p.panelH = responsiveNodeDetailSize(screenW, screenH)
 	p.panelX = screenW - p.panelW + int(p.slideOffset*float64(p.panelW))
 	p.panelY = (screenH - p.panelH) / 2
+	if screenW <= 900 {
+		p.panelY = 12
+	}
+}
+
+func responsiveNodeDetailSize(screenW, screenH int) (int, int) {
+	if screenW <= 900 {
+		w := screenW - 24
+		if w < 320 {
+			w = 320
+		}
+		h := screenH - 24
+		if h < 320 {
+			h = 320
+		}
+		return w, h
+	}
+
+	h := nodeDetailPanelHeight
+	if h > screenH-24 {
+		h = screenH - 24
+	}
+	if h < 320 {
+		h = 320
+	}
+	return nodeDetailPanelWidth, h
 }
 
 // isMouseOverPanel checks if the cursor is within the panel bounds.
