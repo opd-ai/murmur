@@ -892,7 +892,7 @@ Turn the Extension Contract from 0.3 into a stable, documented API.
            from this document alone
          - **COMPLETED 2026-05-07**: Created PROTOCOL.md (25KB, 8 sections) as comprehensive wire-format specification. Includes: §2 (Message Envelope with validation rules, §2.2 all message types (Wave, IdentityDeclaration, RelayAdvertisement, Heartbeat), §3 GossipSub topics with deduplication/scoring specs, §4 stream protocols (Shroud circuits, Wave sync, peer exchange), §5 cryptography (Ed25519, XChaCha20, HKDF, BLAKE3, PoW), §6 implementation checklist (6 major sections), §7 backward compatibility guarantees, §8 threat model and key management. Document is implementation-agnostic and provides sufficient detail for a compatible client in any language.
 
-[ ] 8.3  Build one non-trivial reference extension
+[x] 8.3  Build one non-trivial reference extension
          - E.g., a Specter-based collaborative writing tool, or
            a custom game from a third party
          - Proves the extension surface is real, not theoretical
@@ -971,7 +971,7 @@ ONGOING / CROSS-PHASE
            TEST_CLASSIFICATION_FINAL_2026-05-06.md. See full report for methodology
            and risk indicators.
 
-[ ] X.4  Publish a public roadmap derived from this checklist
+[x] X.4  Publish a public roadmap derived from this checklist
          - Keeps contributors aligned
          - Makes the "backbone primitive" claim credible
          - **COMPLETED 2026-05-07**: Created ROADMAP_PUBLIC.md (400+ lines) as community-facing roadmap translating PLAN.md into accessible format. Sections: Mission Statement, v0.1 Foundation status table (8 subsystems at 85-90% complete), Released Features (Phases 0-8 with ✅ checkmarks), Deferred Features with rationale, Stable APIs/protocols for external builders, Design Principles (6 immutable principles), Timeline (Weeks 1-36, overall June 2026 soft launch), Success Metrics (explicitly NOT tracking DAU/time-on-app, tracking D7/D30 retention/viral), Community Participation (MEP process, extension building), Links to all major spec docs. Designed for GitHub visibility and user confidence in roadmap credibility.
