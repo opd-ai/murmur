@@ -52,6 +52,17 @@ Verification:
 Verification:
 - `go test ./pkg/app ./pkg/pulsemap ./pkg/pulsemap/interaction ./pkg/onboarding/screens ./pkg/ui`
 
+## 2026-05-07 — Transition/Input Audit Resolution Pass
+
+- Resolved onboarding transition continuity issue by sequencing active onboarding UI by controller phase in `pkg/app/ui.go` (`Screen` -> `ModeScreen` -> `BootstrapScreen`) and transitioning to Pulse Map only once `flow.Controller.IsComplete()` is true.
+- Hardened input isolation for search overlay: `SearchBar.Update()` now consumes input whenever visible to prevent click-through pan/selection in the Pulse Map.
+- Removed per-frame minimap projection allocation in `pkg/pulsemap/game.go` by reusing a `minimapNodes` scratch buffer.
+- Fixed ComposePanel click-hit race window by recomputing panel origin in `Update()` before mouse hit-testing (no longer dependent on prior `Draw()` cache timing).
+- Made RecoveryScreen controls responsive to current viewport dimensions (dynamic center/box/button placement and matching hit-test coordinates) instead of fixed 800x600 anchors.
+
+Verification:
+- `go test ./pkg/app ./pkg/pulsemap/... ./pkg/ui ./pkg/onboarding/screens`
+
 ## 2026-05-07 — UI Clarity Remediation Batch
 
 - Completed direct remediation of remaining high-friction Ebitengine UX paths identified in the static clarity audit.
