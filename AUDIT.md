@@ -144,3 +144,33 @@ Verification:
 - cmd/wasm/main.go: Added triggerReadyCallback() function, modified main() to call it after initialization
 - web/boot.js: Event-driven Promise + callback pattern instead of await
 - web-dist/boot.js: Same pattern (deployed version)
+
+## 2026-05-07 — WASM Architecture Assessment and Deferred Full Integration
+
+**Finding**: After resolving the boot.js freeze (via event-driven callback), investigated full app parity between WASM and desktop builds. Attempted to instantiate `app.New()` in the WASM runtime in parallel with desktop.
+
+**Blockers Identified**:
+1. **Storage Layer** — bbolt (embedded key-value database) requires Unix syscalls (`Flock`, `Mmap`, PROT_READ, MAP_SHARED) that are unavailable in WebAssembly. WASM has no file system access beyond localStorage/IndexedDB.
+2. **Networking Layer** — libp2p's native TCP/UDP transports cannot function in a browser. WebRTC is available but requires a different networking abstraction (no listenable multiaddrs, relay-only, WebRTC DataChannels as the only transport).
+3. **Dependency Constraints** — go-libp2p v0.48.0 expects these changes as core architecture; downgrading would lose NAT traversal and discovery features. Upgrading dependencies was attempted but pion/webrtc v4.2.12 was required to unblock builds.
+
+**Decision**: WASM support is deferred to a future architecture phase. Current implementation:
+- ✅ Boot.js loads and initializes the Go runtime successfully (event-driven callback)
+- ✅ WASM binary builds cleanly with pion/webrtc v4.2.12 upgrade
+- ✅ Displays "WASM build: work in progress" status message in boot.js
+- ✅ Desktop and WASM continue to build independently without breaking each other
+- ⏸️ Full UI parity will require custom storage adapter (localStorage/IndexedDB), browser-native networking (WebRTC relay client), and WASM-specific app architecture
+
+**Files Modified**:
+- pkg/game/runtime_wasm.go: Reverted full app instantiation to metadata-only setup + TODO comment
+- web/boot.js, web-dist/boot.js: Updated status message to "WASM build: work in progress"
+- go.mod: Upgraded pion/webrtc v4.1.2 → v4.2.12 to unblock builds (transitive via go-libp2p v0.48.0)
+
+**Security Impact**: None. WASM runtime correctly declines to instantiate unavailable subsystems. Storage and networking remain unreachable from untrusted browser context.
+
+**Next Steps** (Future Phase): 
+- Design browser-native storage adapter (localStorage → Bbolt interface shim)
+- Implement WebRTC relay client (browser → relay peer → network)
+- Create WASM-specific App variant with these adapters
+- Add WASM-specific tests and integration workflow
+
