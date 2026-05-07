@@ -189,7 +189,6 @@ func (a *App) runPulseMapUI() error {
 }
 
 func (a *App) buildPulseMapGame() (ebiten.Game, error) {
-
 	// Ensure subsystems are initialized before creating game.
 	a.mu.RLock()
 	keypair := a.subsystems.Identity
