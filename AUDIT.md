@@ -239,7 +239,7 @@
 
 ---
 
-### [HIGH] Duplicate (stale) amplification trail rendering path not removed
+### [HIGH][FIXED] Duplicate (stale) amplification trail rendering path not removed
 
 - **File**: `pkg/pulsemap/rendering/renderer.go` (lines 689–725 `drawAmplificationTrails()`; lines 735–765 `accumulateAmplificationTrails()`)
 - **Category**: Accuracy
@@ -247,9 +247,9 @@
 - **Evidence**: `renderer.go` line 689 defines `drawAmplificationTrails`; line 735 defines `accumulateAmplificationTrails`. Both iterate `r.amplificationTrails`. Both call `r.transformAndCullLine`. The `Draw()` method calls `accumulateAmplificationTrails` (line 339), but `drawAmplificationTrails` is also reachable from `drawEdges` → `iterateEdges` does not call it, so it is currently dead code — but it compiles and creates maintenance confusion. Confirm by checking call graph.
 - **Fix**: Remove `drawAmplificationTrails` entirely (it is superseded by `accumulateAmplificationTrails`). Verify no path calls it (grep for callers).
 - **Remediation checklist**:
-  - [ ] `grep -n "drawAmplificationTrails"` to enumerate call sites.
-  - [ ] Delete the `drawAmplificationTrails` method body and its comment block.
-  - [ ] Run `go vet ./...` to confirm no remaining references.
+  - [x] `grep -n "drawAmplificationTrails"` to enumerate call sites.
+  - [x] Delete the `drawAmplificationTrails` method body and its comment block.
+  - [x] Run `go vet ./...` to confirm no remaining references.
 
 ---
 
