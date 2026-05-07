@@ -32,4 +32,4 @@ USER murmur
 EXPOSE 8081
 
 ENTRYPOINT ["/usr/local/bin/murmur-bootstrap"]
-CMD ["-peers-file=/data/peers.json", "-listen=:8081"]
+CMD ["-state-dir=/data", "-listen=:8081", "-p2p-listen=/ip4/0.0.0.0/tcp/4001,/ip4/0.0.0.0/udp/4001/quic-v1"]

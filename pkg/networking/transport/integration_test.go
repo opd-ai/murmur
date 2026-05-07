@@ -22,12 +22,12 @@ ma "github.com/multiformats/go-multiaddr"
 // TestTorReachability tests Tor daemon reachability check.
 func TestTorReachability(t *testing.T) {
 if testing.Short() {
-g integration test in short mode")
+t.Skip("skipping integration test in short mode")
 }
 
 status := diagnostics.CheckTor("127.0.0.1:9051", 5*time.Second)
 if !status.Reachable {
-daemon not reachable: %v", status.Error)
+t.Fatalf("daemon not reachable: %v", status.Error)
 }
 
 t.Logf("Tor daemon reachable: latency=%dms", status.LatencyMs)
@@ -38,12 +38,12 @@ assert.Empty(t, status.Error)
 // TestI2PReachability tests I2P SAM bridge reachability check.
 func TestI2PReachability(t *testing.T) {
 if testing.Short() {
-g integration test in short mode")
+t.Skip("skipping integration test in short mode")
 }
 
 status := diagnostics.CheckI2P("127.0.0.1:7656", 5*time.Second)
 if !status.Reachable {
-SAM bridge not reachable: %v", status.Error)
+t.Fatalf("SAM bridge not reachable: %v", status.Error)
 }
 
 t.Logf("I2P SAM bridge reachable: latency=%dms", status.LatencyMs)
@@ -54,7 +54,7 @@ assert.Empty(t, status.Error)
 // TestHostCreationWithTor tests libp2p host creation with Tor transport.
 func TestHostCreationWithTor(t *testing.T) {
 if testing.Short() {
-g integration test in short mode")
+t.Skip("skipping integration test in short mode")
 }
 
 ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -68,7 +68,7 @@ ableI2P:      false,
 
 h, err := NewHost(ctx, cfg)
 if err != nil {
-creation failed (Tor unavailable?): %v", err)
+t.Fatalf("host creation failed (Tor unavailable?): %v", err)
 }
 defer h.Close()
 
@@ -87,7 +87,7 @@ hasOnion, "host should have onion3 address when Tor enabled")
 // TestHostCreationWithI2P tests libp2p host creation with I2P transport.
 func TestHostCreationWithI2P(t *testing.T) {
 if testing.Short() {
-g integration test in short mode")
+t.Skip("skipping integration test in short mode")
 }
 
 ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -101,7 +101,7 @@ ableI2P:  true,
 
 h, err := NewHost(ctx, cfg)
 if err != nil {
-creation failed (I2P unavailable?): %v", err)
+t.Fatalf("host creation failed (I2P unavailable?): %v", err)
 }
 defer h.Close()
 
@@ -120,7 +120,7 @@ hasGarlic, "host should have garlic64 address when I2P enabled")
 // TestHostCreationWithBoth tests host creation with both Tor and I2P.
 func TestHostCreationWithBoth(t *testing.T) {
 if testing.Short() {
-g integration test in short mode")
+t.Skip("skipping integration test in short mode")
 }
 
 ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
@@ -135,7 +135,7 @@ ableI2P:      true,
 
 h, err := NewHost(ctx, cfg)
 if err != nil {
-creation failed (Tor/I2P unavailable?): %v", err)
+t.Fatalf("host creation failed (Tor/I2P unavailable?): %v", err)
 }
 defer h.Close()
 
@@ -201,7 +201,7 @@ hasGarlic, "should parse garlic64 protocol")
 // TestAnonymityTransportDiagnosticsIntegration tests CheckAll function.
 func TestAnonymityTransportDiagnosticsIntegration(t *testing.T) {
 if testing.Short() {
-g integration test in short mode")
+t.Skip("skipping integration test in short mode")
 }
 
 cfg := config.Config{
@@ -213,7 +213,7 @@ trolAddr: "127.0.0.1:9051",
 
 statuses, err := diagnostics.CheckAll(cfg, 5*time.Second)
 if err != nil {
-onymity transports unavailable: %v", err)
+t.Fatalf("anonymity transports unavailable: %v", err)
 }
 
 require.NotEmpty(t, statuses, "should return status for each transport")

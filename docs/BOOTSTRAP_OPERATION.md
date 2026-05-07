@@ -2,56 +2,37 @@
 
 This guide covers operating the standalone MURMUR bootstrap server at `cmd/bootstrap`.
 
-The bootstrap server is a freestanding HTTP service that publishes a signed bootstrap bundle at `/peers.json`. Clients use that bundle to discover initial peers when normal bootstrap routes are unavailable or when operators want to expose alternate ingress paths such as ngrok, Tor, or I2P.
+The bootstrap server is both:
+- an HTTP endpoint that serves `/peers.json` and `/health`, and
+- a full libp2p bootstrap participant that joins DHT server mode and learns peers over time.
+
+It does not require a static `peers.json` input file.
 
 ## Overview
 
 Bootstrap servers should be:
 - Highly available (99.9%+ uptime)
-- Able to refresh signed peer bundles quickly
-- Reachable over one or more ingress transports
-- Operated with tight access and monitoring controls
+- Running with a persistent identity key
+- Reachable via public libp2p addresses
+- Able to expose HTTP discovery endpoints
 
 The server exposes:
-- `/peers.json` — signed bootstrap bundle served verbatim from `-peers-file`
-- `/health` — lightweight status endpoint
-- `/` — plaintext operator-facing index
+- `/peers.json` — dynamically generated and signed peer bundle (self + recently observed peers)
+- `/health` — runtime status including peer ID and known peer count
+- `/` — plaintext index
 
-The server can listen on:
-- TCP via `-listen`
-- ngrok via `-ngrok` and optional `-ngrok-domain`
-- Tor via `-tor`, `-tor-name`, and `-tor-port`
-- I2P via `-i2p`, `-i2p-name`, and `-i2p-sam`
-
-## Requirements
-
-### Hardware
-
-| Component | Minimum | Recommended |
-|-----------|---------|-------------|
-| CPU | 2 cores | 4+ cores |
-| RAM | 2 GB | 4+ GB |
-| Storage | 10 GB SSD | 50+ GB SSD |
-| Network | 100 Mbps | 1 Gbps |
-
-### Software
-
-- Linux (Ubuntu 22.04+ recommended)
-- Go 1.22+
-- systemd (for service management)
-- Optional: ngrok account + auth token for `-ngrok`
-- Optional: local Tor environment for `-tor`
-- Optional: local I2P SAM bridge for `-i2p`
-
-### Network
-
-- Static public IP address if exposing direct TCP
-- Port open for the HTTP listener you choose (for example 8081/tcp)
-- Optional: Tor and I2P local services running on the host
+Key runtime flags:
+- `-state-dir` (persistent identity + runtime state)
+- `-listen` (HTTP endpoint)
+- `-p2p-listen` (libp2p listen multiaddrs)
+- `-announce-addrs` (optional public multiaddrs to advertise)
+- `-ngrok`, `-ngrok-domain`
+- `-tor`, `-tor-name`, `-tor-port`
+- `-i2p`, `-i2p-name`, `-i2p-sam`
 
 ## Installation
 
-### Build MURMUR
+### Build
 
 ```bash
 git clone https://github.com/opd-ai/murmur.git
@@ -60,46 +41,18 @@ go build -o murmur-bootstrap ./cmd/bootstrap
 sudo mv murmur-bootstrap /usr/local/bin/
 ```
 
-### Container Build
-
-The repository includes a dedicated bootstrap image build file at `Dockerfile.bootstrap`.
-
-Build it directly:
+### Prepare State Directory
 
 ```bash
-docker build -f Dockerfile.bootstrap -t murmur-bootstrap:local .
-```
-
-An example Compose stack is also provided at `docker-compose.bootstrap.example.yml`.
-
-### Prepare Signed Peer Bundle
-
-`cmd/bootstrap` requires a signed bootstrap bundle passed through `-peers-file`.
-
-At minimum, the file must:
-- be valid JSON,
-- decode as a signed peer list,
-- contain at least one peer entry.
-
-Typical operator flow:
-
-```bash
-mkdir -p /var/lib/murmur-bootstrap
-cp peers.json /var/lib/murmur-bootstrap/peers.json
-chmod 600 /var/lib/murmur-bootstrap/peers.json
-```
-
-The bootstrap server does not generate or sign `peers.json`; it serves an already prepared signed file.
-
-### Create Service User
-
-```bash
-sudo useradd -r -s /bin/false murmur-bootstrap
 sudo mkdir -p /var/lib/murmur-bootstrap
 sudo chown murmur-bootstrap:murmur-bootstrap /var/lib/murmur-bootstrap
+sudo chmod 700 /var/lib/murmur-bootstrap
 ```
 
-### Configure Systemd Service
+On first start, the server creates and stores:
+- `/var/lib/murmur-bootstrap/bootstrap_identity.key`
+
+### Systemd Service
 
 Create `/etc/systemd/system/murmur-bootstrap.service`:
 
@@ -114,13 +67,13 @@ Type=simple
 User=murmur-bootstrap
 Group=murmur-bootstrap
 ExecStart=/usr/local/bin/murmur-bootstrap \
-        -peers-file=/var/lib/murmur-bootstrap/peers.json \
-        -listen=:8081
+    -state-dir=/var/lib/murmur-bootstrap \
+    -listen=:8081 \
+    -p2p-listen=/ip4/0.0.0.0/tcp/4001,/ip4/0.0.0.0/udp/4001/quic-v1
 Restart=always
 RestartSec=10
 LimitNOFILE=65536
 
-# Security hardening
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
@@ -131,87 +84,7 @@ PrivateTmp=true
 WantedBy=multi-user.target
 ```
 
-### Optional Transport Variants
-
-Direct TCP only:
-
-```bash
-/usr/local/bin/murmur-bootstrap \
-    -peers-file=/var/lib/murmur-bootstrap/peers.json \
-    -listen=:8081
-```
-
-TCP + ngrok:
-
-```bash
-NGROK_AUTHTOKEN=... /usr/local/bin/murmur-bootstrap \
-    -peers-file=/var/lib/murmur-bootstrap/peers.json \
-    -listen=:8081 \
-    -ngrok
-```
-
-TCP + ngrok custom domain:
-
-```bash
-NGROK_AUTHTOKEN=... /usr/local/bin/murmur-bootstrap \
-    -peers-file=/var/lib/murmur-bootstrap/peers.json \
-    -listen=:8081 \
-    -ngrok \
-    -ngrok-domain=consuming-dangling-commodore.ngrok-free.dev
-```
-
-TCP + Tor hidden service:
-
-```bash
-/usr/local/bin/murmur-bootstrap \
-    -peers-file=/var/lib/murmur-bootstrap/peers.json \
-    -listen=:8081 \
-    -tor \
-    -tor-name=murmur-bootstrap \
-    -tor-port=8081
-```
-
-TCP + I2P:
-
-```bash
-/usr/local/bin/murmur-bootstrap \
-    -peers-file=/var/lib/murmur-bootstrap/peers.json \
-    -listen=:8081 \
-    -i2p \
-    -i2p-name=murmur-bootstrap \
-    -i2p-sam=127.0.0.1:7656
-```
-
-All configured together:
-
-```bash
-NGROK_AUTHTOKEN=... /usr/local/bin/murmur-bootstrap \
-    -peers-file=/var/lib/murmur-bootstrap/peers.json \
-    -listen=:8081 \
-    -ngrok \
-    -tor \
-    -i2p
-```
-
-### Docker Compose Example
-
-The example Compose file starts the bootstrap server on port `8081`, mounts `./bootstrap-data/peers.json` into the container, and enables ngrok automatically when `NGROK_AUTHTOKEN` is set.
-
-```bash
-mkdir -p bootstrap-data
-cp peers.json bootstrap-data/peers.json
-docker compose -f docker-compose.bootstrap.example.yml up --build -d
-```
-
-To use a fixed ngrok hostname:
-
-```bash
-export NGROK_AUTHTOKEN=...
-export NGROK_DOMAIN=consuming-dangling-commodore.ngrok-free.dev
-docker compose -f docker-compose.bootstrap.example.yml up --build -d
-```
-
-### Enable and Start
+### Start
 
 ```bash
 sudo systemctl daemon-reload
@@ -219,118 +92,96 @@ sudo systemctl enable murmur-bootstrap
 sudo systemctl start murmur-bootstrap
 ```
 
-## Configuration
+## Transport Variants
 
-### Firewall
+### Direct HTTP + libp2p
 
 ```bash
-# UFW
+/usr/local/bin/murmur-bootstrap \
+  -state-dir=/var/lib/murmur-bootstrap \
+  -listen=:8081 \
+  -p2p-listen=/ip4/0.0.0.0/tcp/4001,/ip4/0.0.0.0/udp/4001/quic-v1
+```
+
+### Add ngrok HTTP ingress
+
+```bash
+NGROK_AUTHTOKEN=... /usr/local/bin/murmur-bootstrap \
+  -state-dir=/var/lib/murmur-bootstrap \
+  -listen=:8081 \
+  -p2p-listen=/ip4/0.0.0.0/tcp/4001,/ip4/0.0.0.0/udp/4001/quic-v1 \
+  -ngrok \
+  -ngrok-domain=consuming-dangling-commodore.ngrok-free.dev
+```
+
+### Add Tor/I2P HTTP ingress
+
+```bash
+/usr/local/bin/murmur-bootstrap \
+  -state-dir=/var/lib/murmur-bootstrap \
+  -listen=:8081 \
+  -p2p-listen=/ip4/0.0.0.0/tcp/4001,/ip4/0.0.0.0/udp/4001/quic-v1 \
+  -tor \
+  -i2p
+```
+
+### Explicit public advertisement
+
+```bash
+/usr/local/bin/murmur-bootstrap \
+  -state-dir=/var/lib/murmur-bootstrap \
+  -listen=:8081 \
+  -p2p-listen=/ip4/0.0.0.0/tcp/4001,/ip4/0.0.0.0/udp/4001/quic-v1 \
+  -announce-addrs=/dns4/bootstrap.example.org/tcp/4001,/dns4/bootstrap.example.org/udp/4001/quic-v1
+```
+
+## Docker
+
+### Image Build
+
+```bash
+docker build -f Dockerfile.bootstrap -t murmur-bootstrap:local .
+```
+
+### Compose Example
+
+```bash
+mkdir -p bootstrap-data
+docker compose -f docker-compose.bootstrap.example.yml up --build -d
+```
+
+Optional:
+
+```bash
+export NGROK_AUTHTOKEN=...
+export NGROK_DOMAIN=consuming-dangling-commodore.ngrok-free.dev
+export ANNOUNCE_ADDRS=/dns4/bootstrap.example.org/tcp/4001,/dns4/bootstrap.example.org/udp/4001/quic-v1
+docker compose -f docker-compose.bootstrap.example.yml up --build -d
+```
+
+## Firewall
+
+```bash
 sudo ufw allow 8081/tcp
-
-# iptables
-sudo iptables -A INPUT -p tcp --dport 8081 -j ACCEPT
+sudo ufw allow 4001/tcp
+sudo ufw allow 4001/udp
 ```
-
-If you expose only ngrok, Tor, or I2P, you may not need to open a public firewall port beyond local loopback access.
-
-### Resource Limits
-
-Edit `/etc/security/limits.d/murmur.conf`:
-
-```
-murmur soft nofile 65536
-murmur hard nofile 65536
-```
-
-### Sysctl Tuning
-
-Edit `/etc/sysctl.d/99-murmur.conf`:
-
-```
-# Increase socket buffers
-net.core.rmem_max = 16777216
-net.core.wmem_max = 16777216
-
-# Increase connection tracking
-net.netfilter.nf_conntrack_max = 262144
-```
-
-Apply: `sudo sysctl --system`
 
 ## Monitoring
-
-### Check Service Status
-
-```bash
-sudo systemctl status murmur-bootstrap
-```
-
-### View Logs
-
-```bash
-sudo journalctl -u murmur-bootstrap -f
-```
-
-### Key Metrics to Monitor
-
-1. **Bundle freshness**: `peers.json` timestamp and rotation cadence
-2. **HTTP reachability**: `GET /health` and `GET /peers.json`
-3. **Memory usage**: Should stay comfortably below normal service limits
-4. **Transport reachability**: ngrok URL, onion address, or I2P destination availability
-5. **Connection errors**: Listener startup and ingress failures
-
-### Health Check
-
-Example:
 
 ```bash
 curl http://127.0.0.1:8081/health
 curl http://127.0.0.1:8081/peers.json
 ```
 
-For container deployments:
-
-```bash
-docker compose -f docker-compose.bootstrap.example.yml logs -f
-docker compose -f docker-compose.bootstrap.example.yml ps
-```
-
-### Prometheus Metrics
-
-`cmd/bootstrap` currently exposes `/health`, but does not expose a Prometheus `/metrics` endpoint.
-
-If you need metrics today, use an external HTTP probe and log-based monitoring around these endpoints:
-
-```
-GET /health
-GET /peers.json
-```
-
-## Publishing Your Bootstrap Server
-
-Once your node is stable (running 48+ hours without issues):
-
-1. Verify the served bundle:
-   ```bash
-    curl http://127.0.0.1:8081/peers.json
-   ```
-
-2. Publish the bootstrap URL you want clients to use:
-    ```
-    https://<ngrok-domain>/peers.json
-    http://<public-ip>:8081/peers.json
-    http://<onion-address>/peers.json
-    http://<i2p-destination>/peers.json
-    ```
-
-3. Distribute the URL through the appropriate trust path:
-- public bootstrap distribution,
-- friend-to-friend reseed,
-- transport-specific recovery instructions.
+Track at minimum:
+- `known_peers` from `/health`
+- stability of `peer_id`
+- accessibility of advertised libp2p addresses
 
 ## Maintenance
 
-### Updates
+### Binary Update
 
 ```bash
 cd /path/to/murmur
@@ -340,72 +191,19 @@ sudo mv murmur-bootstrap /usr/local/bin/
 sudo systemctl restart murmur-bootstrap
 ```
 
-### Bundle Rotation
+### Identity Rotation (optional)
 
-Replace the signed peer bundle atomically when your source peer set changes:
+Only do this intentionally, as it changes the bootstrap peer identity:
 
 ```bash
-install -m 600 peers.json /var/lib/murmur-bootstrap/peers.json
-sudo systemctl restart murmur-bootstrap
+sudo systemctl stop murmur-bootstrap
+sudo rm /var/lib/murmur-bootstrap/bootstrap_identity.key
+sudo systemctl start murmur-bootstrap
 ```
 
-### Log Rotation
+## Security Notes
 
-Add to `/etc/logrotate.d/murmur`:
-
-```
-/var/log/murmur/*.log {
-    daily
-    rotate 7
-    compress
-    delaycompress
-    missingok
-    notifempty
-}
-```
-
-## Troubleshooting
-
-### High CPU Usage
-
-- Check for repeated HTTP probing or crash loops
-- Verify no transport listener is repeatedly failing and restarting
-
-### Memory Growth
-
-- Confirm `peers.json` is not being regenerated to excessively large payloads
-- Check for runaway logs or repeated listener initialization failures
-
-### Connection Failures
-
-- Firewall rules blocking direct TCP access
-- Missing `NGROK_AUTHTOKEN` when `-ngrok` is enabled
-- Tor or I2P local services not running when `-tor` or `-i2p` is enabled
-
-### Disk Full
-
-- Remove old bundle backups and log files
-- Increase disk space for retained signed bundle history
-
-## Security
-
-### Best Practices
-
-1. **Minimal exposure**: Only expose required ports
-2. **Regular updates**: Keep OS and MURMUR updated
-3. **Monitoring**: Set up alerts for anomalies
-4. **Backups**: Keep signed bundle generation inputs and release process backed up
-5. **Isolation**: Run in container or VM if possible
-6. **Bundle integrity**: Never hand-edit `peers.json`; regenerate and sign it from your trusted pipeline
-7. **Restricted reseed**: For sensitive recovery use-cases, prefer Tor or I2P distribution paths and add an authorization layer in front of public URLs
-
-### DDoS Mitigation
-
-- Rate limiting at firewall level
-- Reverse-proxy or CDN limits for public HTTP endpoints where appropriate
-- Connection limits per IP
-- Cloud-based DDoS protection if needed
-
----
-
-For questions, see the MURMUR community channels or open a GitHub issue.
+- Keep `-state-dir` backed up and permissioned tightly.
+- Prefer explicit `-announce-addrs` in NAT/proxy environments.
+- Treat `/peers.json` as generated output, not a hand-maintained artifact.
+- For sensitive reseed workflows, place authorization in front of public endpoints.

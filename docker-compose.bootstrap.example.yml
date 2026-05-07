@@ -11,18 +11,24 @@ services:
     restart: unless-stopped
     ports:
       - "${BOOTSTRAP_PORT:-8081}:8081"
+      - "${BOOTSTRAP_P2P_TCP_PORT:-4001}:4001"
+      - "${BOOTSTRAP_P2P_UDP_PORT:-4001}:4001/udp"
     environment:
       NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:-}
       NGROK_DOMAIN: ${NGROK_DOMAIN:-}
       ALLOW_ORIGIN: ${ALLOW_ORIGIN:-*}
+      ANNOUNCE_ADDRS: ${ANNOUNCE_ADDRS:-}
     volumes:
-      - ./bootstrap-data:/data:ro
+      - ./bootstrap-data:/data
     command:
       - /bin/sh
       - -ec
       - |
         set -eu
-        args="-peers-file=/data/peers.json -listen=:8081 -allow-origin=$${ALLOW_ORIGIN}"
+        args="-state-dir=/data -listen=:8081 -p2p-listen=/ip4/0.0.0.0/tcp/4001,/ip4/0.0.0.0/udp/4001/quic-v1 -allow-origin=$${ALLOW_ORIGIN}"
+        if [ -n "$${ANNOUNCE_ADDRS}" ]; then
+          args="$${args} -announce-addrs=$${ANNOUNCE_ADDRS}"
+        fi
         if [ -n "$${NGROK_AUTHTOKEN}" ]; then
           args="$${args} -ngrok"
         fi
@@ -33,8 +39,10 @@ services:
 
 # Example usage:
 #   mkdir -p bootstrap-data
-#   cp /path/to/peers.json bootstrap-data/peers.json
 #   docker compose -f docker-compose.bootstrap.example.yml up --build -d
+#
+# Optional public multiaddr advertisement:
+#   export ANNOUNCE_ADDRS=/dns4/bootstrap.example.org/tcp/4001,/dns4/bootstrap.example.org/udp/4001/quic-v1
 #
 # Optional ngrok configuration:
 #   export NGROK_AUTHTOKEN=...

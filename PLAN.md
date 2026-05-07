@@ -20,5 +20,5 @@ Last updated: 2026-05-06
 - [x] Integrate input mapper with Pulse Map interaction handlers.
 - [x] Add responsive layout policies for mobile viewport breakpoints.
 - [x] Add desktop-browser interop integration tests.
-- [x] Add freestanding bootstrap server command (`cmd/bootstrap`) with multi-listener support for TCP, ngrok, Tor, and I2P transports.
-- [x] Add container deployment assets for the bootstrap server (`Dockerfile.bootstrap`, Compose example, and operator docs covering configurable ngrok domains).
+- [x] Add dynamic bootstrap server command (`cmd/bootstrap`) with DHT server-mode participation, automatic peer learning/distribution, and multi-listener support for HTTP/ngrok/Tor/I2P ingress.
+- [x] Add container deployment assets for the dynamic bootstrap server (`Dockerfile.bootstrap`, Compose example, and operator docs covering configurable ngrok domains and announced public libp2p addresses).
