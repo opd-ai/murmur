@@ -470,7 +470,7 @@
 
 ---
 
-### [MEDIUM] Compose panel cursor rendering uses fixed 7-pixels-per-character advance — broken for multibyte characters
+### [MEDIUM][FIXED] Compose panel cursor rendering uses fixed 7-pixels-per-character advance — broken for multibyte characters
 
 - **File**: `pkg/ui/compose.go` (line 350 `drawTextArea()`)
 - **Category**: Convenience
@@ -478,9 +478,9 @@
 - **Evidence**: Line 350: `cursorX := textX + 8 + p.cursorPos*7`.
 - **Fix**: Use `text.Advance(p.content[:cursorByteOffset], face)` or measure the string with `basicfont.Face7x13.GlyphAdvance` to compute the correct pixel offset. Alternatively render cursor at a visually-sensible position by calling `font.BoundString`.
 - **Remediation checklist**:
-  - [ ] Replace `p.cursorPos*7` with `measureTextWidth(p.content, p.cursorPos, face)`.
-  - [ ] Implement `measureTextWidth` using `ebiten/v2/text/v2` advance measurement.
-  - [ ] Add test with multibyte content ("日本語") asserting cursor X > cursorPos*7.
+  - [x] Replace `p.cursorPos*7` with `measureTextWidth(p.content, p.cursorPos, face)`.
+  - [x] Implement `measureTextWidth` using `ebiten/v2/text/v2` advance measurement.
+  - [x] Add test with multibyte content ("日本語") asserting cursor X > cursorPos*7.
 
 ---
 
@@ -506,7 +506,7 @@
 
 ---
 
-### [LOW] Radial menu item radius (35 px) meets size requirement but label placement crosses center dead zone at 6+ items
+### [LOW][FIXED] Radial menu item radius (35 px) meets size requirement but label placement crosses center dead zone at 6+ items
 
 - **File**: `pkg/ui/radial_menu.go` (lines 60–65 constants)
 - **Category**: Convenience
@@ -514,8 +514,8 @@
 - **Evidence**: Constants lines 60–65.
 - **Fix**: Increase `radialMenuRadius` to 110 and `radialMenuInnerRadius` to 25 to provide more clearance, and use angle mid-point bisector for hit detection instead of circular proximity.
 - **Remediation checklist**:
-  - [ ] Increase `radialMenuRadius` from 100 to 110.
-  - [ ] Replace `isItemHovered` circular proximity with angular sector test: compute angle from center to cursor, compare to item's `itemAngle ± angleStep/2`.
+  - [x] Increase `radialMenuRadius` from 100 to 110.
+  - [x] Replace `isItemHovered` circular proximity with angular sector test: compute angle from center to cursor, compare to item's `itemAngle ± angleStep/2`.
 
 ---
 
