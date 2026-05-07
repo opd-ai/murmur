@@ -1,0 +1,41 @@
+services:
+  bootstrap:
+    build:
+      context: .
+      dockerfile: Dockerfile.bootstrap
+      args:
+        VERSION: ${MURMUR_VERSION:-0.0.0-dev}
+        COMMIT: ${MURMUR_COMMIT:-unknown}
+    image: murmur-bootstrap:${MURMUR_VERSION:-dev}
+    container_name: murmur-bootstrap
+    restart: unless-stopped
+    ports:
+      - "${BOOTSTRAP_PORT:-8081}:8081"
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:-}
+      NGROK_DOMAIN: ${NGROK_DOMAIN:-}
+      ALLOW_ORIGIN: ${ALLOW_ORIGIN:-*}
+    volumes:
+      - ./bootstrap-data:/data:ro
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        set -eu
+        args="-peers-file=/data/peers.json -listen=:8081 -allow-origin=$${ALLOW_ORIGIN}"
+        if [ -n "$${NGROK_AUTHTOKEN}" ]; then
+          args="$${args} -ngrok"
+        fi
+        if [ -n "$${NGROK_DOMAIN}" ]; then
+          args="$${args} -ngrok-domain=$${NGROK_DOMAIN}"
+        fi
+        exec /usr/local/bin/murmur-bootstrap $${args}
+
+# Example usage:
+#   mkdir -p bootstrap-data
+#   cp /path/to/peers.json bootstrap-data/peers.json
+#   docker compose -f docker-compose.bootstrap.example.yml up --build -d
+#
+# Optional ngrok configuration:
+#   export NGROK_AUTHTOKEN=...
+#   export NGROK_DOMAIN=consuming-dangling-commodore.ngrok-free.dev

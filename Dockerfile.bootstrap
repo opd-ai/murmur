@@ -1,0 +1,35 @@
+FROM golang:1.25-alpine AS builder
+
+WORKDIR /src
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+ARG VERSION=0.0.0-dev
+ARG COMMIT=unknown
+
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+	go build -ldflags "-X main.Version=${VERSION} -X main.Commit=${COMMIT}" \
+	-o /out/murmur-bootstrap ./cmd/bootstrap
+
+FROM alpine:3.22
+
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+
+RUN addgroup -S murmur && \
+	adduser -S -G murmur -h /app murmur
+
+WORKDIR /app
+
+COPY --from=builder /out/murmur-bootstrap /usr/local/bin/murmur-bootstrap
+
+RUN mkdir -p /data && chown -R murmur:murmur /app /data
+
+USER murmur
+
+EXPOSE 8081
+
+ENTRYPOINT ["/usr/local/bin/murmur-bootstrap"]
+CMD ["-peers-file=/data/peers.json", "-listen=:8081"]

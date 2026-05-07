@@ -30,6 +30,7 @@
 - [x] Reseed threat-model document published at root (`RESEED.md`) covering compromised host and coerced-friend scenarios, replay/resource-abuse controls, operational defaults, and failure handling.
 - [x] Tunnel multi-hop extension (PLAN 6.4) completed: operator/relay streams now use framed tunnel cells (`TunnelRegisterCell`, `TunnelDataCell`, `TunnelTeardownCell`) with signed registration verification, per-tunnel accounting/quota enforcement, and Shroud-aware mode selection with explicit fallback behavior.
 - [x] Freestanding bootstrap host binary added at `cmd/bootstrap` with `/peers.json` + `/health` endpoints and concurrent TCP/ngrok/Tor/I2P listener support for reseed/bootstrap operations.
+- [x] Bootstrap container deployment assets added (`Dockerfile.bootstrap` and `docker-compose.bootstrap.example.yml`) with env-driven ngrok domain configuration for operator deployments.
 
 ---
 

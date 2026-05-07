@@ -60,6 +60,18 @@ go build -o murmur-bootstrap ./cmd/bootstrap
 sudo mv murmur-bootstrap /usr/local/bin/
 ```
 
+### Container Build
+
+The repository includes a dedicated bootstrap image build file at `Dockerfile.bootstrap`.
+
+Build it directly:
+
+```bash
+docker build -f Dockerfile.bootstrap -t murmur-bootstrap:local .
+```
+
+An example Compose stack is also provided at `docker-compose.bootstrap.example.yml`.
+
 ### Prepare Signed Peer Bundle
 
 `cmd/bootstrap` requires a signed bootstrap bundle passed through `-peers-file`.
@@ -181,6 +193,24 @@ NGROK_AUTHTOKEN=... /usr/local/bin/murmur-bootstrap \
     -i2p
 ```
 
+### Docker Compose Example
+
+The example Compose file starts the bootstrap server on port `8081`, mounts `./bootstrap-data/peers.json` into the container, and enables ngrok automatically when `NGROK_AUTHTOKEN` is set.
+
+```bash
+mkdir -p bootstrap-data
+cp peers.json bootstrap-data/peers.json
+docker compose -f docker-compose.bootstrap.example.yml up --build -d
+```
+
+To use a fixed ngrok hostname:
+
+```bash
+export NGROK_AUTHTOKEN=...
+export NGROK_DOMAIN=consuming-dangling-commodore.ngrok-free.dev
+docker compose -f docker-compose.bootstrap.example.yml up --build -d
+```
+
 ### Enable and Start
 
 ```bash
@@ -256,6 +286,13 @@ Example:
 ```bash
 curl http://127.0.0.1:8081/health
 curl http://127.0.0.1:8081/peers.json
+```
+
+For container deployments:
+
+```bash
+docker compose -f docker-compose.bootstrap.example.yml logs -f
+docker compose -f docker-compose.bootstrap.example.yml ps
 ```
 
 ### Prometheus Metrics
