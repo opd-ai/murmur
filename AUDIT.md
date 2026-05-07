@@ -519,7 +519,7 @@
 
 ---
 
-### [LOW] Search bar `handleEscapeKey` always returns `true` even when not visible
+### [LOW][FIXED] Search bar `handleEscapeKey` always returns `true` even when not visible
 
 - **File**: `pkg/ui/search.go` (lines 152–162 `handleEscapeKey()`)
 - **Category**: Convenience
@@ -536,8 +536,8 @@
   }
   ```
 - **Remediation checklist**:
-  - [ ] Fix `return true` → `return false` in the non-Escape path of `handleEscapeKey`.
-  - [ ] Add test: call `Update()` with Escape not pressed, assert return is `false`.
+  - [x] Fix `return true` → `return false` in the non-Escape path of `handleEscapeKey`.
+  - [x] Add test: call `Update()` with Escape not pressed, assert return is `false`.
 
 ---
 
