@@ -17,6 +17,6 @@ Last updated: 2026-05-06
 - [x] Implement concrete desktop adapter in pkg/network backed by pkg/networking/transport + GossipSub.
 - [x] Implement concrete wasm adapter in pkg/network backed by pion/webrtc data channels.
 - [x] Add relay/bootstrap discovery policy for browser peers (no mDNS dependency).
-- [ ] Integrate input mapper with Pulse Map interaction handlers.
+- [x] Integrate input mapper with Pulse Map interaction handlers.
 - [ ] Add responsive layout policies for mobile viewport breakpoints.
 - [ ] Add desktop-browser interop integration tests.

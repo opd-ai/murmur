@@ -16,10 +16,11 @@ const (
 type EventType string
 
 const (
-	EventDown EventType = "down"
-	EventUp   EventType = "up"
-	EventMove EventType = "move"
-	EventKey  EventType = "key"
+	EventDown  EventType = "down"
+	EventUp    EventType = "up"
+	EventMove  EventType = "move"
+	EventWheel EventType = "wheel"
+	EventKey   EventType = "key"
 )
 
 // Action represents normalized gameplay intents.
@@ -51,6 +52,7 @@ type NormalizedAction struct {
 	Action    Action
 	X         float64
 	Y         float64
+	Delta     float64
 	Source    SourceType
 	Timestamp time.Time
 }
@@ -87,9 +89,31 @@ func (m *Mapper) Normalize(evt RawEvent) []NormalizedAction {
 			Action:    ActionPan,
 			X:         evt.X,
 			Y:         evt.Y,
+			Delta:     evt.Delta,
 			Source:    evt.Source,
 			Timestamp: evt.Timestamp,
 		}}
+	case EventWheel:
+		if evt.Delta > 0 {
+			return []NormalizedAction{{
+				Action:    ActionZoomIn,
+				X:         evt.X,
+				Y:         evt.Y,
+				Delta:     evt.Delta,
+				Source:    evt.Source,
+				Timestamp: evt.Timestamp,
+			}}
+		}
+		if evt.Delta < 0 {
+			return []NormalizedAction{{
+				Action:    ActionZoomOut,
+				X:         evt.X,
+				Y:         evt.Y,
+				Delta:     -evt.Delta,
+				Source:    evt.Source,
+				Timestamp: evt.Timestamp,
+			}}
+		}
 	case EventKey:
 		if evt.Key == "Escape" {
 			return []NormalizedAction{{

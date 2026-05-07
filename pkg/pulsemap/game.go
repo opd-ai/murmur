@@ -20,6 +20,7 @@ import (
 	"github.com/opd-ai/murmur/pkg/content/waves"
 	"github.com/opd-ai/murmur/pkg/identity/keys"
 	"github.com/opd-ai/murmur/pkg/identity/modes"
+	inputnorm "github.com/opd-ai/murmur/pkg/input"
 	"github.com/opd-ai/murmur/pkg/networking/gossip"
 	"github.com/opd-ai/murmur/pkg/pulsemap/interaction"
 	"github.com/opd-ai/murmur/pkg/pulsemap/layout"
@@ -57,6 +58,9 @@ type Game struct {
 
 	// input tracks user interaction state.
 	input *interaction.InputState
+
+	// inputMapper normalizes mouse/touch/key events into shared actions.
+	inputMapper *inputnorm.Mapper
 
 	// composePanel is the Wave composition UI panel.
 	composePanel *ui.ComposePanel
@@ -190,6 +194,7 @@ func NewGame(ctx context.Context, keypair *keys.KeyPair, pubsub *gossip.PubSub, 
 		renderer:     renderer,
 		camera:       camera,
 		input:        input,
+		inputMapper:  inputnorm.NewMapper(),
 		keypair:      keypair,
 		pubsub:       pubsub,
 		store:        db,
@@ -621,10 +626,18 @@ func (g *Game) handleZoom() {
 		return
 	}
 
-	zoomFactor := 1.0 + dy*0.1
 	mx, my := ebiten.CursorPosition()
-	g.camera.Zoom(zoomFactor, float64(mx), float64(my),
-		float64(g.screenWidth), float64(g.screenHeight))
+	actions := g.inputMapper.Normalize(inputnorm.RawEvent{
+		Source:    inputnorm.SourceMouse,
+		Type:      inputnorm.EventWheel,
+		X:         float64(mx),
+		Y:         float64(my),
+		Delta:     dy,
+		Timestamp: time.Now(),
+	})
+	for _, action := range actions {
+		g.applyNormalizedAction(action)
+	}
 }
 
 func (g *Game) handleDragging() {
@@ -654,7 +667,17 @@ func (g *Game) handleDragging() {
 	}
 
 	if g.isDragging && ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
-		g.updatePanPosition()
+		dx, dy := g.updatePanPosition()
+		actions := g.inputMapper.Normalize(inputnorm.RawEvent{
+			Source:    inputnorm.SourceMouse,
+			Type:      inputnorm.EventMove,
+			X:         dx,
+			Y:         dy,
+			Timestamp: time.Now(),
+		})
+		for _, action := range actions {
+			g.applyNormalizedAction(action)
+		}
 	}
 
 	// Right-click opens the radial menu on the hovered node.
@@ -668,12 +691,12 @@ func (g *Game) handleDragging() {
 	}
 }
 
-func (g *Game) updatePanPosition() {
+func (g *Game) updatePanPosition() (float64, float64) {
 	mx, my := ebiten.CursorPosition()
 	dx := float64(mx - g.dragStartX)
 	dy := float64(my - g.dragStartY)
-	g.camera.Pan(dx, dy)
 	g.dragStartX, g.dragStartY = mx, my
+	return dx, dy
 }
 
 // handleTouchInput processes Ebitengine touch events each frame and routes them
@@ -733,7 +756,16 @@ func (g *Game) handleTouchInput() {
 		}
 
 		if panDX != 0 || panDY != 0 {
-			g.camera.Pan(panDX, panDY)
+			actions := g.inputMapper.Normalize(inputnorm.RawEvent{
+				Source:    inputnorm.SourceTouch,
+				Type:      inputnorm.EventMove,
+				X:         panDX,
+				Y:         panDY,
+				Timestamp: time.Now(),
+			})
+			for _, action := range actions {
+				g.applyNormalizedAction(action)
+			}
 		}
 		if zoomFactor != 1.0 {
 			cx, cy := g.touchState.PinchCenter()
@@ -777,6 +809,22 @@ func containsTouchID(ids []ebiten.TouchID, id ebiten.TouchID) bool {
 		}
 	}
 	return false
+}
+
+func (g *Game) applyNormalizedAction(action inputnorm.NormalizedAction) {
+	switch action.Action {
+	case inputnorm.ActionPan:
+		g.camera.Pan(action.X, action.Y)
+	case inputnorm.ActionZoomIn:
+		factor := 1.0 + action.Delta*0.1
+		g.camera.Zoom(factor, action.X, action.Y, float64(g.screenWidth), float64(g.screenHeight))
+	case inputnorm.ActionZoomOut:
+		factor := 1.0 - action.Delta*0.1
+		if factor < 0.1 {
+			factor = 0.1
+		}
+		g.camera.Zoom(factor, action.X, action.Y, float64(g.screenWidth), float64(g.screenHeight))
+	}
 }
 
 // Draw renders the Pulse Map to the screen.
