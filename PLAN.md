@@ -837,27 +837,31 @@ BEFORE code. Do not start before Phase 4 completes.
          - Separate tunnel-traffic accounting from social-traffic accounting
          - **IN PROGRESS 2026-05-06**: Phase 6.4 foundational work completed (20% of total task). Created comprehensive implementation plan (docs/SHROUD_TUNNEL_INTEGRATION.md) breaking down work into 6 phases (10 days total). Completed infrastructure components: (1) Protobuf cell definitions (proto/tunnel.proto): TunnelRegisterCell, TunnelDataCell, TunnelTeardownCell with generated Go code (proto/tunnel.pb.go, 14KB); (2) Traffic accounting package (pkg/tunneling/accounting/): Recorder type with atomic counters for bytes sent/received, request/error/rebuild counts, quota enforcement, total 3.4KB implementation. All tests pass (72/72 packages), zero race conditions, go vet clean. **Remaining work**: Phase 6.4.1 (Shroud circuit integration, 3 days), Phase 6.4.4 (libp2p stream protocol, 2 days), Phase 6.4.5 (fallback & error recovery, 1 day), Phase 6.4.6 (end-to-end validation, 1 day). See SHROUD_TUNNEL_INTEGRATION.md for complete implementation sequence.
 
-[ ] 6.5  Incentive design for tunnel operators
+[x] 6.5  Incentive design for tunnel operators
          - Resonance reward? Explicit opt-in with bandwidth caps?
          - Avoid cryptocurrency unless absolutely necessary — it
            changes the legal and UX profile substantially
+         - **COMPLETED 2026-05-06**: Created docs/TUNNEL_OPERATOR_INCENTIVES.md with a non-cryptocurrency operator incentive model based on local Tunnel Service Credit (TSC) converted into bounded Resonance input. Defined explicit opt-in eligibility, mandatory abuse-policy compliance, bandwidth/session caps, anti-self-routing and anti-Sybil controls (diversity thresholds, delayed accrual, slashing/cooldown), and phased rollout (dry-run -> capped integration -> adaptive tuning). Model preserves anonymity, avoids tradable assets, and aligns with TUNNEL_ABUSE_POLICY.md host-rights constraints.
 
-[ ] 6.6  Write operator-facing documentation and a "tunnel host"
+[x] 6.6  Write operator-facing documentation and a "tunnel host"
          configuration profile
+         - **COMPLETED 2026-05-06**: Created docs/TUNNEL_HOST_PROFILE.md as an operator-facing tunnel host guide with two concrete profiles (`relay-only` and `exit-enabled`) including explicit opt-in, bandwidth/session limits, allowlist-first policy, executable default-deny, strike/cooldown abuse controls, accounting/metrics settings, and operational runbook (preflight, startup checks, runtime monitoring, incident response, graceful shutdown).
 
 PHASE 7: FRIEND-TO-FRIEND RESEED (Weeks 20–30)
 =====================================
 Shares infrastructure with tunneling. Build second, learn from Phase 6.
 
-[ ] 7.1  Define reseed semantics
+[x] 7.1  Define reseed semantics
          - What does a reseed server provide? (peer list, bootstrap
            keys, network parameters?)
          - How does a user authorize a friend to reseed them?
          - What is the trust model if a reseed host is compromised?
+         - **COMPLETED 2026-05-06**: Created docs/RESEED_SEMANTICS.md defining reseed host scope (signed bootstrap bundles with bounded peer sets and transport hints), friend-granted capability authorization (scope-limited, expiring, revocable, single-use by default), recovery flow, and compromised-host trust model with mitigations (expiry windows, diversity checks, optional multi-host quorum, denylisting). Documented explicit non-goals (no key/content recovery, no central trust anchor).
 
-[ ] 7.2  Design reseed as a specialized tunnel application
+[x] 7.2  Design reseed as a specialized tunnel application
          - Reuse Phase 6 infrastructure
          - Specific Wave type or protocol message for reseed requests
+         - **COMPLETED 2026-05-06**: Created docs/RESEED_TUNNEL_ARCHITECTURE.md defining reseed as a constrained tunnel application profile that reuses Shroud/tunnel transport, accounting, and policy controls. Specified protocol surface (`/murmur/reseed/1`, `RESEED_REQUEST`, `RESEED_BUNDLE`, `RESEED_DENY`), stricter policy defaults (no arbitrary proxying, bounded bundle payloads), implementation staging, and safety limits (capability expiry, rate limits, bundle size/TTL caps).
 
 [ ] 7.3  Implement out-of-band invitation codes
          - Friend shares a signed code (QR, text, paper)

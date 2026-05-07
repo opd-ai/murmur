@@ -9,6 +9,10 @@
 
 ### Progress Update (2026-05-07)
 
+- [x] Tunnel operator incentive design documented with non-cryptocurrency model (`docs/TUNNEL_OPERATOR_INCENTIVES.md`), including explicit opt-in, capped rewards, anti-Sybil controls, and abuse-policy-gated eligibility.
+- [x] Operator-facing tunnel host documentation and configuration profiles published (`docs/TUNNEL_HOST_PROFILE.md`) for relay-only and exit-enabled operation.
+- [x] Friend-to-friend reseed semantics documented (`docs/RESEED_SEMANTICS.md`) covering bundle scope, capability-based authorization, and compromised-host trust model.
+- [x] Reseed-over-tunnel application profile documented (`docs/RESEED_TUNNEL_ARCHITECTURE.md`) with dedicated protocol/message surface and bounded safety constraints.
 - [x] Pulse Map settings pipeline fully wired at runtime (`SettingsPanel` callbacks now drive privacy mode transitions through `identity/modes.Manager`).
 - [x] Shadow Gradient runtime behavior applied in UI layer (mode-specific layer blending + Specter panel reset when switching to Open mode).
 - [x] Search bar interaction correctness hardened (stale-result guard validated + debounce gating added + Escape non-consumption behavior tested).
