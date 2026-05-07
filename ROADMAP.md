@@ -9,6 +9,7 @@
 
 ### Progress Update (2026-05-07)
 
+- [x] Completed UI clarity remediation batch in active desktop UX paths: restored pointer-interactive device management flows, improved settings legibility with rendered labels/descriptions/live values, integrated minimap draw/update in Pulse Map runtime, removed forced returning-screen auto-advance in favor of explicit continuation, added Enter/Escape keyboard parity across onboarding phases, replaced silent node-detail placeholders with explicit informational feedback, and rendered real radial-menu glyph icons.
 - [x] Added `UI_AUDIT.md`, a MURMUR-specific static audit prompt for Ebitengine UI review that centers discoverability, onboarding clarity, Pulse Map orientation, and first-time usability.
 - [x] Completed UI audit follow-up reliability fixes in active Ebitengine paths: synchronous returning-screen handoff, pointer-based radial-menu targeting, continuous world simulation while modal panels consume input, UTF-8-safe first-wave backspace handling, tick-driven search caret blink, and time-based camera interpolation/momentum.
 - [x] Completed Ebitengine transition/input reliability remediation: one-shot returning-screen transition, onboarding generation re-entrancy guards, modal-safe global shortcut routing, `Ctrl+N` keybinding conflict resolution, UTF-8-safe backspace handling in UI text fields, and cached minimap static rendering.

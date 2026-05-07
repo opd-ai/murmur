@@ -28,3 +28,4 @@ Last updated: 2026-05-07
 - [x] Add a MURMUR-specific UI audit prompt in `UI_AUDIT.md` focused on first-run comprehension, discoverability, and obvious Pulse Map interaction guidance.
 - [x] Resolve Ebitengine transition/input audit findings: one-shot scene transitions, modal-safe shortcut routing, UTF-8 text deletion correctness, and minimap redraw caching.
 - [x] Apply follow-up UI audit fixes: synchronous returning-screen handoff, pointer-based radial-menu targeting, continuous world ticking during modal input consumption, tick-based caret blink, and time-based camera interpolation.
+- [x] Resolve remaining UI clarity audit issues in active UX paths: interactive device-management controls, visible settings labels/values, minimap integration in Pulse Map draw path, explicit returning-screen continuation, onboarding keyboard parity, explicit node-detail empty-state feedback, and radial-menu glyph icon rendering.

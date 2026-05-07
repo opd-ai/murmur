@@ -52,6 +52,22 @@ Verification:
 Verification:
 - `go test ./pkg/app ./pkg/pulsemap ./pkg/pulsemap/interaction ./pkg/onboarding/screens ./pkg/ui`
 
+## 2026-05-07 — UI Clarity Remediation Batch
+
+- Completed direct remediation of remaining high-friction Ebitengine UX paths identified in the static clarity audit.
+- Restored full pointer-based interaction in device management (`pkg/ui/device_management.go`) for add-device, revoke-device, and confirmation dialog flows.
+- Improved settings readability (`pkg/ui/settings.go`) by rendering row labels/descriptions and displaying live slider/select/text values.
+- Reconnected Pulse Map orientation aid by integrating minimap initialization/update/draw in active game flow (`pkg/pulsemap/game.go`).
+- Removed returning-screen forced auto-continue and required explicit user progression with visible prompt (`pkg/onboarding/screens/returning_screen.go`).
+- Added keyboard parity across onboarding phases (`pkg/onboarding/screens/identity.go`, `pkg/onboarding/screens/mode_screen.go`, `pkg/onboarding/screens/bootstrap_screen.go`, `pkg/onboarding/screens/completion_screen.go`) via Enter/Space progression and Escape back-step where appropriate.
+- Improved node-inspection feedback by replacing silent placeholders with explicit informational rows and connection rendering (`pkg/pulsemap/game.go`, `pkg/ui/node_detail.go`).
+- Replaced radial-menu placeholder dots with actual configured glyph icon rendering (`pkg/ui/radial_menu.go`).
+- Changed wave-result enqueue semantics in Pulse Map to avoid silent feedback loss under full-channel pressure (`pkg/pulsemap/game.go`).
+
+Verification:
+- `go test ./pkg/ui ./pkg/pulsemap/... ./pkg/onboarding/screens`
+- `go vet ./pkg/ui ./pkg/pulsemap/... ./pkg/onboarding/screens`
+
 ## Discarded Candidates
 | Candidate | Reason Discarded |
 |-----------|-----------------|
