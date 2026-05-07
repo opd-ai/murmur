@@ -3,6 +3,7 @@ package pulsemap
 import (
 	"testing"
 
+	"github.com/opd-ai/murmur/pkg/pulsemap/interaction"
 	"github.com/opd-ai/murmur/pkg/pulsemap/layout"
 	"github.com/opd-ai/murmur/pkg/pulsemap/rendering"
 	"github.com/opd-ai/murmur/pkg/ui"
@@ -143,5 +144,61 @@ func TestNodeActionsAndRadialActionsParity(t *testing.T) {
 				t.Fatalf("expected matching toast for %s action, direct=%q radial=%q", tc.name, directMessage, g.toast.message)
 			}
 		})
+	}
+}
+
+func TestBookmarkHandlers_ShowUserFeedback(t *testing.T) {
+	engine := layout.NewEngine()
+	bookmarkMgr, err := NewBookmarkManager(t.TempDir())
+	if err != nil {
+		t.Fatalf("NewBookmarkManager failed: %v", err)
+	}
+
+	g := &Game{
+		engine:           engine,
+		input:            interaction.NewInputState(),
+		bookmarkManager:  bookmarkMgr,
+		composePanel:     ui.NewComposePanel(ui.DefaultTheme(), func(string, uint8, string) {}),
+		nodeDetailPanel:  ui.NewNodeDetailPanel(ui.DefaultTheme(), ui.NodeDetailCallbacks{}),
+		searchBar:        ui.NewSearchBar(ui.DefaultTheme(), ui.SearchCallbacks{}),
+		settingsPanel:    ui.NewSettingsPanel(ui.DefaultTheme(), nil),
+		viewportControls: ui.NewViewportControls(ui.DefaultTheme(), ui.ViewportCallbacks{}),
+	}
+
+	// Failure path: selected node has no known position.
+	g.input.SelectNode("missing-node")
+	g.addBookmarkForSelectedNode()
+	if g.toast == nil || g.toast.message == "" || !g.toast.isError {
+		t.Fatal("expected error toast when bookmarking node without position")
+	}
+
+	// Success path: add, remove, and invalid navigate all emit user-visible feedback.
+	g.toast = nil
+	g.input.SelectNode("node-1")
+	engine.Positions().Swap(map[string]layout.Position{"node-1": {X: 12, Y: 34}})
+	g.addBookmarkForSelectedNode()
+	if g.toast == nil || g.toast.message == "" || g.toast.isError {
+		t.Fatal("expected success toast after bookmark add")
+	}
+
+	g.toast = nil
+	g.removeBookmarkForSelectedNode()
+	if g.toast == nil || g.toast.message == "" || g.toast.isError {
+		t.Fatal("expected success toast after bookmark remove")
+	}
+
+	g.toast = nil
+	g.navigateToBookmark(3)
+	if g.toast == nil || g.toast.message == "" || !g.toast.isError {
+		t.Fatal("expected error toast for empty bookmark slot")
+	}
+}
+
+func TestHandleSettingChange_PrivacyModeFeedback(t *testing.T) {
+	g := &Game{}
+
+	g.handleSettingChange("privacy_mode", "unknown-mode")
+	if g.toast == nil || g.toast.message == "" || !g.toast.isError {
+		t.Fatal("expected error toast for unknown privacy mode")
 	}
 }

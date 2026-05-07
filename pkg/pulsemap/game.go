@@ -447,6 +447,7 @@ func (g *Game) addBookmarkForSelectedNode() {
 	pos, ok := positions[nodeID]
 	if !ok {
 		log.Printf("Warning: cannot bookmark node %s: position not found", nodeID)
+		g.showToast("Cannot bookmark: node position unavailable", true)
 		return
 	}
 
@@ -460,8 +461,10 @@ func (g *Game) addBookmarkForSelectedNode() {
 
 	if err := g.bookmarkManager.Add(nodeID, label, pos.X, pos.Y); err != nil {
 		log.Printf("Error adding bookmark: %v", err)
+		g.showToast("Failed to save bookmark", true)
 	} else {
 		log.Printf("Bookmarked node: %s", label)
+		g.showToast("Bookmark saved", false)
 	}
 }
 
@@ -474,8 +477,10 @@ func (g *Game) removeBookmarkForSelectedNode() {
 
 	if err := g.bookmarkManager.Remove(nodeID); err != nil {
 		log.Printf("Error removing bookmark: %v", err)
+		g.showToast("Failed to remove bookmark", true)
 	} else {
 		log.Printf("Removed bookmark for node: %s", nodeID)
+		g.showToast("Bookmark removed", false)
 	}
 }
 
@@ -483,6 +488,7 @@ func (g *Game) removeBookmarkForSelectedNode() {
 func (g *Game) navigateToBookmark(index int) {
 	bookmarks := g.bookmarkManager.List()
 	if index >= len(bookmarks) {
+		g.showToast("Bookmark slot is empty", true)
 		return // Index out of range
 	}
 
@@ -1160,13 +1166,16 @@ func (g *Game) handleSettingChange(key, value string) {
 			if g.modeManager != nil {
 				if err := g.modeManager.Transition(mode); err != nil {
 					log.Printf("privacy_mode transition error: %v", err)
+					g.showToast("Privacy mode change failed", true)
 					return
 				}
 				mode = g.modeManager.Current()
 			}
 			g.applyModeVisuals(mode)
+			g.showToast("Privacy mode updated", false)
 		} else {
 			log.Printf("handleSettingChange: unknown privacy_mode value %q", value)
+			g.showToast("Unknown privacy mode", true)
 		}
 	}
 }
