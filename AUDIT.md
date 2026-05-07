@@ -447,7 +447,7 @@
 
 ---
 
-### [MEDIUM] `performSearch` drops the mutex, runs callback, re-acquires — results can be stale or lost
+### [MEDIUM][FIXED] `performSearch` drops the mutex, runs callback, re-acquires — results can be stale or lost
 
 - **File**: `pkg/ui/search.go` (lines 225–238 `performSearch()`)
 - **Category**: Convenience
@@ -464,9 +464,9 @@
   ```
   Also add debounce: only call `performSearch` when the query has not changed for ≥ 3 ticks (≈50ms at 60fps) to avoid queuing a search per keystroke.
 - **Remediation checklist**:
-  - [ ] Add stale-result guard after re-lock.
-  - [ ] Add `lastSearchTick int64` field and skip search if `tickCount - lastSearchTick < 3`.
-  - [ ] Add test: call `Hide()` between search dispatch and result delivery; assert `results` is not stored.
+  - [x] Add stale-result guard after re-lock.
+  - [x] Add `lastSearchTick int64` field and skip search if `tickCount - lastSearchTick < 3`.
+  - [x] Add test: call `Hide()` between search dispatch and result delivery; assert `results` is not stored.
 
 ---
 
