@@ -379,7 +379,7 @@
 
 ---
 
-### [MEDIUM] Bootstrap screen advances past peer discovery without real peer count
+### [MEDIUM][FIXED] Bootstrap screen advances past peer discovery without real peer count
 
 - **File**: `pkg/onboarding/screens/bootstrap_screen.go` (lines 456–459 `handleConnectingClick()`, lines 576–596 `SimulateDiscoveryComplete()`)
 - **Category**: Transition
@@ -396,7 +396,7 @@
   - [x] Inject `bootstrap.NetworkManager` (or an interface) into `BootstrapScreen` or its caller.
   - [x] Forward `OnPeerConnected` → `screen.NotifyPeerFound()`.
   - [x] Rename `SimulatePeerFound` → `NotifyPeerFound` to reduce confusion with test helpers.
-  - [ ] Add integration test: connect two in-process libp2p nodes, assert screen shows `discoveryDone=true`.
+  - [x] Add integration test: connect two in-process libp2p nodes, assert screen shows `discoveryDone=true`.
 
 ---
 

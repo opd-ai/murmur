@@ -13,7 +13,7 @@
 - [x] Shadow Gradient runtime behavior applied in UI layer (mode-specific layer blending + Specter panel reset when switching to Open mode).
 - [x] Search bar interaction correctness hardened (stale-result guard validated + debounce gating added + Escape non-consumption behavior tested).
 - [x] Bootstrap onboarding peer-discovery bridge added (`OnPeerConnected` forwarding interface + manager callback setter + focused test coverage).
-- [ ] Full in-process libp2p integration test for bootstrap-screen discovery completion remains pending (tracked in `AUDIT.md`).
+- [x] Full in-process libp2p integration test for bootstrap-screen discovery completion added and passing.
 
 ---
 
