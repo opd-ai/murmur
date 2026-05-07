@@ -46,7 +46,7 @@ func TestEndToEndTunnel(t *testing.T) {
 	time.Sleep(100 * time.Millisecond) // let relay start
 
 	// Step 3: Generate operator keypair and start tunnel initiator
-	pubkey, _, err := ed25519.GenerateKey(rand.Reader)
+	pubkey, privkey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		t.Fatalf("failed to generate key: %v", err)
 	}
@@ -57,7 +57,7 @@ func TestEndToEndTunnel(t *testing.T) {
 		ExitRelayAddr: relayAddr,
 		Ephemeral:     false,
 	}
-	init := initiator.NewInitiator(cfg, pubkey)
+	init := initiator.NewInitiator(cfg, pubkey, privkey)
 	tunnelID, err := init.Start(ctx)
 	if err != nil {
 		t.Fatalf("failed to start initiator: %v", err)

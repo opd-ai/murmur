@@ -20,6 +20,7 @@
 - [x] Full in-process libp2p integration test for bootstrap-screen discovery completion added and passing.
 - [x] Signed out-of-band invitation codes implemented (`murmur://invite2/`) with embedded bootstrap addresses, expiration, and Ed25519 tamper detection; onboarding bootstrap now falls back across multiple invitation-provided addresses when primary/default bootstrap routes are blocked.
 - [x] Reseed threat-model document published at root (`RESEED.md`) covering compromised host and coerced-friend scenarios, replay/resource-abuse controls, operational defaults, and failure handling.
+- [x] Tunnel multi-hop extension (PLAN 6.4) completed: operator/relay streams now use framed tunnel cells (`TunnelRegisterCell`, `TunnelDataCell`, `TunnelTeardownCell`) with signed registration verification, per-tunnel accounting/quota enforcement, and Shroud-aware mode selection with explicit fallback behavior.
 
 ---
 
@@ -913,7 +914,7 @@
 - [x] docs/SOCIAL_RECOVERY.md — Shamir Secret Sharing recovery design (completed 2026-05-06)
 - [x] docs/KEY_ROTATION.md — Cryptographic continuity specification (completed 2026-05-06)
 - [x] RECOVERY.md — User-facing recovery guide (completed 2026-05-06)
-- [x] AUDIT.md — security decisions and deviations log (updated 2026-05-04 with test suite validation)
+- [x] AUDIT.md — security decisions and deviations log (updated 2026-05-07 with tunnel protocol and Shroud-mode security decisions)
 - [x] PLAN.md — sprint-level task tracking (updated 2026-05-06 with recovery design completion)
 - [x] TEST_RESOLUTION_STATUS_2026-05-04.md — autonomous test failure classification report (100% pass rate)
 - [ ] API documentation for all exported types and functions

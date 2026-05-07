@@ -146,33 +146,9 @@ func (r *Relay) handleFramedOperator(ctx context.Context, conn net.Conn) {
 		conn.Close()
 	}()
 
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-r.stopCh:
-			return
-		default:
-		}
-
-		_ = conn.SetReadDeadline(time.Now().Add(1 * time.Second))
-		t, p, err := protocol.ReadFrame(conn)
-		if err != nil {
-			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
-				continue
-			}
-			return
-		}
-
-		if t == protocol.FrameTypeTeardown {
-			return
-		}
-
-		if t == protocol.FrameTypeData {
-			// Operator responses are consumed in request path while holding session lock.
-			_ = p
-			continue
-		}
+	select {
+	case <-ctx.Done():
+	case <-r.stopCh:
 	}
 }
 
@@ -206,6 +182,8 @@ func (r *Relay) handleClientRequest(ctx context.Context, clientConn net.Conn, fi
 	}
 
 	fullRequest := r.reconstructHTTPRequest(firstLine, reader)
+	session.mu.Lock()
+	defer session.mu.Unlock()
 
 	if !r.forwardRequestToOperator(session, tunnelID, fullRequest, clientConn) {
 		return
@@ -268,9 +246,6 @@ func (r *Relay) reconstructHTTPRequest(firstLine string, reader *bufio.Reader) s
 
 // forwardRequestToOperator sends the HTTP request to the operator connection.
 func (r *Relay) forwardRequestToOperator(session *operatorSession, tunnelID tunneling.TunnelID, fullRequest string, clientConn net.Conn) bool {
-	session.mu.Lock()
-	defer session.mu.Unlock()
-
 	cell := &pb.TunnelDataCell{
 		TunnelId: []byte(tunnelID),
 		Payload:  []byte(fullRequest),
