@@ -164,6 +164,8 @@ func (p *SettingsPanel) Update() bool {
 		return false
 	}
 
+	p.applyResponsiveLayout()
+
 	p.animTime += FrameTime
 
 	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
@@ -295,6 +297,49 @@ func (p *SettingsPanel) panelOrigin() (int, int) {
 	return (sw - p.width) / 2, (sh - p.height) / 2
 }
 
+func (p *SettingsPanel) applyResponsiveLayout() {
+	sw, sh := ebiten.WindowSize()
+
+	if sw <= 768 {
+		p.width = sw - 24
+		if p.width < 320 {
+			p.width = 320
+		}
+		p.height = sh - 24
+		if p.height < 320 {
+			p.height = 320
+		}
+		if p.height > 640 {
+			p.height = 640
+		}
+		p.position = PositionCenter
+		return
+	}
+
+	if sw <= 1024 {
+		p.width = sw - 40
+		if p.width > 640 {
+			p.width = 640
+		}
+		if p.width < 420 {
+			p.width = 420
+		}
+		p.height = sh - 40
+		if p.height > 520 {
+			p.height = 520
+		}
+		if p.height < 360 {
+			p.height = 360
+		}
+		p.position = PositionCenter
+		return
+	}
+
+	p.width = 500
+	p.height = 400
+	p.position = PositionCenter
+}
+
 func (p *SettingsPanel) panelOriginXForControl(controlX int) int {
 	_ = controlX
 	px, _ := p.panelOrigin()
@@ -405,6 +450,8 @@ func (p *SettingsPanel) handleScrolling() {
 func (p *SettingsPanel) Draw(screen *ebiten.Image) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
+
+	p.applyResponsiveLayout()
 
 	px, py, w, h, shouldRender := CheckPanelVisibilityAndCenter(screen, p.visible, p.width, p.height)
 	if !shouldRender {
