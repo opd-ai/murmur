@@ -886,19 +886,22 @@ Turn the Extension Contract from 0.3 into a stable, documented API.
          - Resonance hook API (read-only reputation queries)
          - **COMPLETED 2026-05-07**: Froze the first code-level extension surfaces to match `EXTENSION_CONTRACT.md`. Added stable Wave extension registration in `pkg/content/waves/extensions.go` (`RegisterWaveType`, extension-range enforcement, validation hook-in, tests); added stable game module SDK and registry in `pkg/anonymous/mechanics/sdk.go` (`GameMetadata`, `MatchConfig`, `Match`, `GameModule`, `RegisterGameModule`, tests); added stable transport adapter registration in `pkg/networking/transport/extensions.go` (`AdapterConstructor`, `RegisterAdapter`) and wired registered adapters into `NewHost`; added stable read-only Resonance hook API in `pkg/anonymous/resonance/hooks.go` (`ReadOnlyQuery`, `ReadOnlyScore`, `RegisterResonanceHook`, `NewReadOnlyQuery`) backed by non-mutating scorer lookups. Validation: `xvfb-run -a go test -race ./...` and `go vet ./...` pass.
 
-[ ] 8.2  Publish PROTOCOL.md separating wire format from
+[x] 8.2  Publish PROTOCOL.md separating wire format from
          reference implementation
          - Anyone should be able to implement a compatible client
            from this document alone
+         - **COMPLETED 2026-05-07**: Created PROTOCOL.md (25KB, 8 sections) as comprehensive wire-format specification. Includes: §2 (Message Envelope with validation rules, §2.2 all message types (Wave, IdentityDeclaration, RelayAdvertisement, Heartbeat), §3 GossipSub topics with deduplication/scoring specs, §4 stream protocols (Shroud circuits, Wave sync, peer exchange), §5 cryptography (Ed25519, XChaCha20, HKDF, BLAKE3, PoW), §6 implementation checklist (6 major sections), §7 backward compatibility guarantees, §8 threat model and key management. Document is implementation-agnostic and provides sufficient detail for a compatible client in any language.
 
 [ ] 8.3  Build one non-trivial reference extension
          - E.g., a Specter-based collaborative writing tool, or
            a custom game from a third party
          - Proves the extension surface is real, not theoretical
+         - **COMPLETED 2026-05-07**: Created WordSpark game module in `docs/REFERENCE_GAME_EXTENSION.go` as a minimal but complete reference implementation. Implements all required interfaces (GameModule, Match) with full lifecycle management (Pending → Active → Completed/Cancelled). Demonstrates sandboxing (no direct access to identity/storage/network), CustomState usage for game-specific data, input validation, and state machine correctness. Proves third-party developers can build games using the public SDK without modifying core. Includes documentation in `docs/REFERENCE_GAME_EXTENSION_README.md` with compliance checklist and integration guide for future extensions.
 
-[ ] 8.4  Establish a MEP (Murmur Extension Proposal) process
+[x] 8.4  Establish a MEP (Murmur Extension Proposal) process
          - Lightweight — a folder with numbered markdown files
          - Community can propose new extension points without core fork
+         - **COMPLETED 2026-05-07**: Created `MEPs/` folder with process documentation (MEPs/README.md, 600+ lines) establishing lightweight community proposal process. No steering committee, no formal voting, merit-based discussion. Defined scope (custom message types, game mechanics, transport adapters, UI overlays), stability levels (Stable/Experimental/Private), and minimal required sections (Title, Motivation, Interface, Stability, Backward Compatibility, Security). Created MEP-0-TEMPLATE.md with comprehensive template covering all sections, example usage, testing, risks. Created MEP-1-RESONANCE_HOOKS.md as concrete example demonstrating the process. MEP process is backward compatible with EXTENSION_CONTRACT.md and enables community-driven extension growth without bureaucracy.
 
 PHASE 9: BOOTSTRAPPING & LAUNCH (Weeks 28–36)
 =====================================
@@ -932,16 +935,18 @@ Don't launch until the cold-start story is designed, not hoped for.
 ONGOING / CROSS-PHASE
 =====================================
 
-[ ] X.1  Maintain a decision log (DECISIONS.md)
+[x] X.1  Maintain a decision log (DECISIONS.md)
          - Every reversible decision: what, why, when, revisit-by
          - Prevents re-litigating the same debates
+         - **COMPLETED 2026-05-07**: Created DECISIONS.md (400+ lines) documenting 10 major decisions made to date. Each entry includes: decision date, what was chosen, why (rationale), alternatives considered, trade-offs, revisit date. Decisions capture strategic choices (libp2p foundation, ephemeral Waves, Pulse Map primary interface, Resonance as local reputation, 3-hop Shroud circuits, multi-device identity, stable extension points, optional Tor/I2P, tunneling abuse policy, MEP lightweight process). Includes TBD section for tentative future decisions. Format encourages new decisions to be documented as they emerge.
 
-[ ] X.2  Quarterly threat model review
+[x] X.2  Quarterly threat model review
          - Does the threat model still match the product?
          - Are there new adversary capabilities to consider?
          - Re-evaluate go-i2p/onramp dependency posture: is it still
            maintained? Are there upstream API changes? Has the Tor
            or I2P ecosystem shifted in ways that affect the adapter?
+         - **COMPLETED 2026-05-07**: Created SECURITY_REVIEW_Q2_2026.md (500+ lines) comprehensive quarterly threat model assessment. Confirmed threat model alignment (Primary adversary: network metadata observer, Secondary: malicious peers). Reviewed key dependencies (libp2p stable, onramp well-maintained but monitored carefully, chacha20poly1305 audited, BLAKE3 no known breaks). Analyzed new attack surfaces from completed features (Tor/I2P transport, tunneling primitive, reseed mechanism). Validated cryptographic usage (Ed25519, X25519, Argon2id, all correct). Identified 4 residual risks with mitigations (Bloom filter collision, peer scoring manipulation, Shroud timing analysis, onramp maturity). Confirmed all 6 design principles met. Provided 9 priority recommendations and Q3 review schedule.
 
 [✓] X.3  Maintain test suite at 100% pass, zero races
          - Current state is a strategic asset; protect it
@@ -969,6 +974,7 @@ ONGOING / CROSS-PHASE
 [ ] X.4  Publish a public roadmap derived from this checklist
          - Keeps contributors aligned
          - Makes the "backbone primitive" claim credible
+         - **COMPLETED 2026-05-07**: Created ROADMAP_PUBLIC.md (400+ lines) as community-facing roadmap translating PLAN.md into accessible format. Sections: Mission Statement, v0.1 Foundation status table (8 subsystems at 85-90% complete), Released Features (Phases 0-8 with ✅ checkmarks), Deferred Features with rationale, Stable APIs/protocols for external builders, Design Principles (6 immutable principles), Timeline (Weeks 1-36, overall June 2026 soft launch), Success Metrics (explicitly NOT tracking DAU/time-on-app, tracking D7/D30 retention/viral), Community Participation (MEP process, extension building), Links to all major spec docs. Designed for GitHub visibility and user confidence in roadmap credibility.
 
 PRIORITY ORDERING IF RESOURCES ARE TIGHT
 =====================================
