@@ -1,91 +1,148 @@
 package main
 
 import (
-	"os"
-	"path/filepath"
+	"crypto/ed25519"
+	"crypto/rand"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"strconv"
 	"testing"
 	"time"
+
+	crypto2 "github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/multiformats/go-multiaddr"
+
+	"github.com/opd-ai/murmur/pkg/networking/discovery"
 )
 
-func TestLoadSignedPeers_Valid(t *testing.T) {
+func TestValidateConfig_DoesNotRequirePeerFile(t *testing.T) {
 	t.Parallel()
 
-	dir := t.TempDir()
-	path := filepath.Join(dir, "peers.json")
-	if err := os.WriteFile(path, []byte(`{"version":1,"timestamp":1700000000,"peers":[{"id":"peer-1","addrs":["/ip4/127.0.0.1/tcp/4001"],"seen":1700000000}],"signature":"sig","signed_by":"pub"}`), 0o600); err != nil {
-		t.Fatalf("write peers file: %v", err)
+	cfg := appConfig{
+		stateDir:       t.TempDir(),
+		p2pListenAddrs: defaultP2PListenAddrs,
+		peerLimit:      defaultPeerLimit,
 	}
 
-	raw, modTime, err := loadSignedPeers(path)
-	if err != nil {
-		t.Fatalf("loadSignedPeers returned error: %v", err)
-	}
-	if len(raw) == 0 {
-		t.Fatalf("expected non-empty payload")
-	}
-	if modTime.IsZero() {
-		t.Fatalf("expected non-zero modTime")
+	if err := validateConfig(cfg); err != nil {
+		t.Fatalf("validateConfig returned error: %v", err)
 	}
 }
 
-func TestLoadSignedPeers_InvalidJSON(t *testing.T) {
+func TestPeerTrackerSnapshotIncludesSelfAndPrunesStale(t *testing.T) {
 	t.Parallel()
 
-	dir := t.TempDir()
-	path := filepath.Join(dir, "peers.json")
-	if err := os.WriteFile(path, []byte(`{`), 0o600); err != nil {
-		t.Fatalf("write peers file: %v", err)
-	}
+	tracker := newPeerTracker(time.Hour, 4)
+	self := mustAddrInfo(t, 4001)
+	recent := mustAddrInfo(t, 4002)
+	stale := mustAddrInfo(t, 4003)
 
-	if _, _, err := loadSignedPeers(path); err == nil {
-		t.Fatalf("expected parse error")
+	tracker.Record(recent)
+	tracker.mu.Lock()
+	tracker.peers[stale.ID] = trackedPeer{
+		addrs: map[string]multiaddr.Multiaddr{stale.Addrs[0].String(): stale.Addrs[0]},
+		seen:  time.Now().Add(-2 * time.Hour),
+	}
+	tracker.mu.Unlock()
+
+	snapshot := tracker.Snapshot(self)
+	if len(snapshot) != 2 {
+		t.Fatalf("expected self and recent peer, got %d entries", len(snapshot))
+	}
+	if snapshot[0].ID != self.ID {
+		t.Fatalf("expected self to be first entry")
+	}
+	if snapshot[1].ID != recent.ID {
+		t.Fatalf("expected recent peer to remain in snapshot")
 	}
 }
 
-func TestLoadSignedPeers_EmptyPeers(t *testing.T) {
+func TestBuildSignedPeerList_SignsDynamicPeers(t *testing.T) {
 	t.Parallel()
 
-	dir := t.TempDir()
-	path := filepath.Join(dir, "peers.json")
-	if err := os.WriteFile(path, []byte(`{"version":1,"timestamp":1700000000,"peers":[],"signature":"sig","signed_by":"pub"}`), 0o600); err != nil {
-		t.Fatalf("write peers file: %v", err)
+	_, signKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("GenerateKey: %v", err)
 	}
 
-	if _, _, err := loadSignedPeers(path); err == nil {
-		t.Fatalf("expected empty peers validation error")
+	self := mustAddrInfo(t, 4001)
+	other := mustAddrInfo(t, 4002)
+	signedList, err := buildSignedPeerList(signKey, time.Hour, []peer.AddrInfo{self, other})
+	if err != nil {
+		t.Fatalf("buildSignedPeerList returned error: %v", err)
+	}
+	if len(signedList.Peers) != 2 {
+		t.Fatalf("expected 2 peers in signed list, got %d", len(signedList.Peers))
+	}
+	if err := signedList.Verify(signKey.Public().(ed25519.PublicKey)); err != nil {
+		t.Fatalf("Verify returned error: %v", err)
 	}
 }
 
-func TestPeerFileProvider_LoadCachesAndRefreshes(t *testing.T) {
+func TestNewHandlerServesDynamicPeerList(t *testing.T) {
 	t.Parallel()
 
-	dir := t.TempDir()
-	path := filepath.Join(dir, "peers.json")
-
-	write := func(content string) {
-		t.Helper()
-		if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
-			t.Fatalf("write peers file: %v", err)
-		}
-	}
-
-	write(`{"version":1,"timestamp":1700000000,"peers":[{"id":"peer-1","addrs":["/ip4/127.0.0.1/tcp/4001"],"seen":1700000000}],"signature":"sig","signed_by":"pub"}`)
-
-	p := &peerFileProvider{path: path}
-	first, err := p.load()
+	_, signKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
-		t.Fatalf("first load: %v", err)
+		t.Fatalf("GenerateKey: %v", err)
 	}
 
-	time.Sleep(10 * time.Millisecond)
-	write(`{"version":1,"timestamp":1700000001,"peers":[{"id":"peer-2","addrs":["/ip4/127.0.0.1/tcp/4002"],"seen":1700000001}],"signature":"sig","signed_by":"pub"}`)
-
-	second, err := p.load()
+	self := mustAddrInfo(t, 4001)
+	signedList, err := buildSignedPeerList(signKey, time.Hour, []peer.AddrInfo{self})
 	if err != nil {
-		t.Fatalf("second load: %v", err)
+		t.Fatalf("buildSignedPeerList returned error: %v", err)
 	}
 
-	if string(first) == string(second) {
-		t.Fatalf("expected payload to refresh after file update")
+	handler := newHandler(fakeSource{
+		signedList: signedList,
+		health:     healthResponse{Status: "ok", PeerID: self.ID.String(), KnownPeers: 1},
+	}, "*")
+
+	request := httptest.NewRequest(http.MethodGet, "/peers.json", nil)
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", recorder.Code)
 	}
+
+	var decoded discovery.SignedPeerList
+	if err := json.Unmarshal(recorder.Body.Bytes(), &decoded); err != nil {
+		t.Fatalf("unmarshal peers.json: %v", err)
+	}
+	if len(decoded.Peers) != 1 {
+		t.Fatalf("expected 1 peer in response, got %d", len(decoded.Peers))
+	}
+}
+
+type fakeSource struct {
+	signedList *discovery.SignedPeerList
+	health     healthResponse
+}
+
+func (f fakeSource) SignedPeerList() (*discovery.SignedPeerList, error) {
+	return f.signedList, nil
+}
+
+func (f fakeSource) HealthInfo() healthResponse {
+	return f.health
+}
+
+func mustAddrInfo(t *testing.T, port int) peer.AddrInfo {
+	t.Helper()
+	priv, _, err := crypto2.GenerateEd25519Key(rand.Reader)
+	if err != nil {
+		t.Fatalf("GenerateEd25519Key: %v", err)
+	}
+	peerID, err := peer.IDFromPrivateKey(priv)
+	if err != nil {
+		t.Fatalf("IDFromPrivateKey: %v", err)
+	}
+	addr, err := multiaddr.NewMultiaddr("/ip4/127.0.0.1/tcp/" + strconv.Itoa(port))
+	if err != nil {
+		t.Fatalf("NewMultiaddr: %v", err)
+	}
+	return peer.AddrInfo{ID: peerID, Addrs: []multiaddr.Multiaddr{addr}}
 }
