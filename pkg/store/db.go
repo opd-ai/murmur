@@ -1,3 +1,5 @@
+//go:build !js
+
 // Package store provides Bbolt-based persistent storage for MURMUR.
 // Per TECHNICAL_IMPLEMENTATION.md §1.5, the database is organized into buckets:
 // identity, peers, waves, threads, shroud, resonance, and config.
@@ -9,32 +11,6 @@ import (
 	"path/filepath"
 
 	"go.etcd.io/bbolt"
-)
-
-// Bucket names per TECHNICAL_IMPLEMENTATION.md §1.5.
-var (
-	BucketIdentity  = []byte("identity")
-	BucketPeers     = []byte("peers")
-	BucketWaves     = []byte("waves")
-	BucketThreads   = []byte("threads")
-	BucketShroud    = []byte("shroud")
-	BucketResonance = []byte("resonance")
-	BucketConfig    = []byte("config")
-	// Mechanics buckets for Anonymous Layer game state persistence.
-	BucketGifts        = []byte("gifts")
-	BucketMarks        = []byte("marks")
-	BucketPuzzles      = []byte("puzzles")
-	BucketHunts        = []byte("hunts")
-	BucketTerritories  = []byte("territories")
-	BucketOracles      = []byte("oracles")
-	BucketForge        = []byte("forge")
-	BucketShadowPlay   = []byte("shadowplay")
-	BucketCouncils     = []byte("councils")
-	BucketDailyLimits  = []byte("daily_limits")
-	BucketMaskedEvents = []byte("masked_events")
-	BucketDevices      = []byte("devices")
-	// Continuity chain storage per docs/KEY_ROTATION.md §Continuity Chain Management.
-	BucketContinuityChains = []byte("continuity_chains")
 )
 
 // DB wraps a Bbolt database with MURMUR-specific operations.

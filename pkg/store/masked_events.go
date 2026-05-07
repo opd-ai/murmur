@@ -1,3 +1,5 @@
+//go:build !js
+
 // Package store provides Bbolt-based persistent storage for MURMUR.
 // This file implements Masked Event persistence per ANONYMOUS_GAME_MECHANICS.md.
 package store

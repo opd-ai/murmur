@@ -1,3 +1,5 @@
+//go:build !js
+
 // Package store provides Bbolt-based persistent storage for MURMUR.
 // This file contains protobuf marshal/unmarshal helpers integrated with the store.
 package store

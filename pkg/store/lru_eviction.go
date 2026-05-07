@@ -1,6 +1,8 @@
 // Package store provides Bbolt-based persistent storage for MURMUR.
 // This file implements LRU eviction for space-bounded storage.
 // Per TECHNICAL_IMPLEMENTATION.md §6.4, Bbolt database size must remain below 50 MiB.
+//go:build !js
+
 package store
 
 import (
