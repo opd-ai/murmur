@@ -98,3 +98,52 @@ func TestPassphrasePromptPanel_CustomMessages(t *testing.T) {
 		t.Error("Panel should be visible with custom messages")
 	}
 }
+
+func TestPassphrasePromptPanel_HandleButtonsClick_Submit(t *testing.T) {
+	submitCalls := 0
+	panel := NewPassphrasePromptPanel(DefaultTheme(), func(passphrase string) error {
+		submitCalls++
+		if passphrase != "secret" {
+			t.Fatalf("unexpected passphrase: %q", passphrase)
+		}
+		return nil
+	}, nil)
+
+	panel.Show("", "")
+	panel.passphrase = "secret"
+	panel.submitBtnX, panel.submitBtnY = 100, 100
+	panel.submitBtnW, panel.submitBtnH = 100, 40
+
+	hit := panel.handleButtonsClick(120, 120, true)
+	if !hit {
+		t.Fatal("expected submit button click to be handled")
+	}
+	if submitCalls != 1 {
+		t.Fatalf("expected submit callback count 1, got %d", submitCalls)
+	}
+	if panel.Visible() {
+		t.Fatal("panel should hide after successful submit click")
+	}
+}
+
+func TestPassphrasePromptPanel_HandleButtonsClick_Cancel(t *testing.T) {
+	cancelCalls := 0
+	panel := NewPassphrasePromptPanel(DefaultTheme(), nil, func() {
+		cancelCalls++
+	})
+
+	panel.Show("", "")
+	panel.cancelBtnX, panel.cancelBtnY = 200, 150
+	panel.cancelBtnW, panel.cancelBtnH = 100, 40
+
+	hit := panel.handleButtonsClick(220, 170, true)
+	if !hit {
+		t.Fatal("expected cancel button click to be handled")
+	}
+	if cancelCalls != 1 {
+		t.Fatalf("expected cancel callback count 1, got %d", cancelCalls)
+	}
+	if panel.Visible() {
+		t.Fatal("panel should hide after cancel click")
+	}
+}

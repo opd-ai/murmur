@@ -154,10 +154,10 @@ Remediation checklist:
 - Fix: Cache button rectangles in Draw and handle left-click in Update to call onSubmit/onCancel.
 
 Remediation checklist:
-- [ ] Add submit button hit rectangle tracking.
-- [ ] Add cancel button hit rectangle tracking.
-- [ ] Process click events for both buttons in Update.
-- [ ] Add mouse interaction tests for submit and cancel.
+- [x] Add submit button hit rectangle tracking.
+- [x] Add cancel button hit rectangle tracking.
+- [x] Process click events for both buttons in Update.
+- [x] Add mouse interaction tests for submit and cancel.
 
 ### [HIGH] Settings panel controls are rendered but non-interactive
 - File: pkg/ui/settings.go (lines 152-170)
