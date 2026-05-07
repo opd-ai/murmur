@@ -109,6 +109,7 @@ const (
 	nodeDetailMaxVisibleItems = 5                                               // Max visible list items before scrolling
 	nodeDetailSlideSpeed      = 0.15                                            // Slide animation speed (progress per frame)
 	nodeDetailHeaderHeight    = 60                                              // Height of the name/fingerprint header section
+	nodeDetailResonanceHeight = 40                                              // Height of the Specter Resonance section
 	nodeDetailButtonGroupY    = nodeDetailPadding + nodeDetailHeaderHeight + 20 // Header + spacing before buttons
 )
 
@@ -354,10 +355,10 @@ func (p *NodeDetailPanel) Draw(screen *ebiten.Image) {
 	p.drawHeader(screen, headerY)
 
 	// Draw Resonance section (for Specters).
-	resonanceY := headerY + 60
+	resonanceY := headerY + nodeDetailHeaderHeight
 	if p.nodeInfo.IsSpecter {
 		p.drawResonance(screen, resonanceY)
-		resonanceY += 40
+		resonanceY += nodeDetailResonanceHeight
 	}
 
 	// Draw action buttons.

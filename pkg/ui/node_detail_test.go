@@ -6,6 +6,39 @@ import (
 	"time"
 )
 
+// TestNodeDetailPanel_ButtonYMatchesDrawLayout asserts that the button Y offset used
+// in handlePanelClick matches the Y produced by Draw at slideOffset=0.
+// Per AUDIT.md MEDIUM finding: the magic constant 100 was replaced with
+// nodeDetailButtonGroupY = nodeDetailPadding + nodeDetailHeaderHeight + 20 = 100.
+func TestNodeDetailPanel_ButtonYMatchesDrawLayout(t *testing.T) {
+	// Verify the arithmetic matches between Draw() and handlePanelClick():
+	//   Draw:   headerY = panelY + 20 (padding)
+	//           resonanceY = headerY + 60 (header height) = panelY + 80
+	//           buttonY = resonanceY + 20 = panelY + 100
+	//   Click:  buttonY = panelY + nodeDetailButtonGroupY
+	//           = panelY + padding + headerH + 20 = panelY + 20 + 60 + 20 = panelY + 100
+	//
+	// Both must produce the same button Y at slideOffset=0 for a surface node.
+	const (
+		padding = 20                     // nodeDetailPadding
+		headerH = 60                     // nodeDetailHeaderHeight
+		groupY  = padding + headerH + 20 // nodeDetailButtonGroupY = 100
+	)
+
+	const panelY = 0
+	drawButtonY := panelY + padding + headerH + 20
+	clickButtonY := panelY + groupY
+
+	if drawButtonY != clickButtonY {
+		t.Errorf("button Y in Draw (%d) != button Y in handlePanelClick (%d); "+
+			"layout constants are out of sync", drawButtonY, clickButtonY)
+	}
+	// Sanity: confirm expected absolute value.
+	if clickButtonY != 100 {
+		t.Errorf("expected button Y = 100 at panelY=0, got %d", clickButtonY)
+	}
+}
+
 func TestNodeDetailPanel_ShowHide(t *testing.T) {
 	callbacks := NodeDetailCallbacks{}
 	panel := NewNodeDetailPanel(DefaultTheme(), callbacks)

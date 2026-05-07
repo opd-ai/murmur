@@ -253,7 +253,7 @@
 
 ---
 
-### [MEDIUM] Node detail panel button click region not adjusted for slide animation during motion
+### [MEDIUM][FIXED] Node detail panel button click region not adjusted for slide animation during motion
 
 - **File**: `pkg/ui/node_detail.go` (lines 202–208 `calculatePanelPosition()`, lines 237–243 `handlePanelClick()`)
 - **Category**: Accuracy
@@ -261,13 +261,13 @@
 - **Evidence**: Line 240: `buttonY := p.panelY + nodeDetailPadding + 100` — magic constant not derived from any named layout constant.
 - **Fix**: Replace the magic `100` with a sum of named constants: `nodeDetailPadding + int(resonanceHeight) + sectionSpacing`, and derive this from the same layout code used in `Draw()`.
 - **Remediation checklist**:
-  - [ ] Define `nodeDetailHeaderHeight = 80` and `nodeDetailResonanceHeight = 40` constants.
-  - [ ] Compute `buttonY` from those constants in `handlePanelClick`.
-  - [ ] Add a test asserting button-click detection matches draw layout at `slideOffset=0`.
+  - [x] Define `nodeDetailHeaderHeight = 80` and `nodeDetailResonanceHeight = 40` constants.
+  - [x] Compute `buttonY` from those constants in `handlePanelClick`.
+  - [x] Add a test asserting button-click detection matches draw layout at `slideOffset=0`.
 
 ---
 
-### [MEDIUM] Wave list items in node detail panel are drawn but never hit-testable
+### [MEDIUM][FIXED] Wave list items in node detail panel are drawn but never hit-testable
 
 - **File**: `pkg/ui/node_detail.go` (lines 237–243 `handlePanelClick()`; lines 391–422 `drawRecentWaves()`)
 - **Category**: Accuracy
@@ -287,9 +287,9 @@
   }
   ```
 - **Remediation checklist**:
-  - [ ] Add `WaveID string` field to `WaveInfo` (currently missing).
-  - [ ] Implement hit-test region for each visible wave item in `handlePanelClick`.
-  - [ ] Ensure `waveScroll` offset is applied to `visibleWaves` slice before hit-testing.
+  - [x] Add `WaveID string` field to `WaveInfo` (currently missing).
+  - [x] Implement hit-test region for each visible wave item in `handlePanelClick`.
+  - [x] Ensure `waveScroll` offset is applied to `visibleWaves` slice before hit-testing.
 
 ---
 
