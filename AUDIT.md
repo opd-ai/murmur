@@ -201,9 +201,9 @@ Remediation checklist:
 - Fix: Open placeholder modal/toast stating unavailable, or disable actions until implemented.
 
 Remediation checklist:
-- [ ] Add visible toast/modal feedback for unimplemented actions.
-- [ ] Alternatively gate or disable unavailable actions in menu/panel.
-- [ ] Add UX tests asserting visible feedback for each action path.
+- [x] Add visible toast/modal feedback for unimplemented actions.
+- [x] Alternatively gate or disable unavailable actions in menu/panel.
+- [x] Add UX tests asserting visible feedback for each action path.
 
 ---
 

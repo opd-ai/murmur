@@ -1003,19 +1003,19 @@ func (g *Game) handleNodeDetailComposeWave(nodeID string) {
 // handleNodeDetailSendGift is called when user clicks "Send Gift" in the detail panel.
 func (g *Game) handleNodeDetailSendGift(nodeID string) {
 	log.Printf("Send Gift to node %s", nodeID)
-	// TODO: Open gift selection UI when Phantom Gift UI is implemented.
+	g.showToast("Send Gift is not yet available", true)
 }
 
 // handleNodeDetailPlaceMark is called when user clicks "Place Mark" in the detail panel.
 func (g *Game) handleNodeDetailPlaceMark(nodeID string) {
 	log.Printf("Place Mark on node %s", nodeID)
-	// TODO: Open mark type selection UI when Specter Mark UI is implemented.
+	g.showToast("Place Mark is not yet available", true)
 }
 
 // handleNodeDetailSendWhisper is called when user clicks "Send Whisper" in the detail panel.
 func (g *Game) handleNodeDetailSendWhisper(nodeID string) {
 	log.Printf("Send Whisper to node %s", nodeID)
-	// TODO: Open whisper compose UI when Whisper Chain UI is implemented.
+	g.showToast("Send Whisper is not yet available", true)
 }
 
 // handleNodeDetailClose is called when user closes the detail panel.
@@ -1050,8 +1050,8 @@ func (g *Game) handleRadialMenuAction(action ui.RadialMenuAction, nodeID string)
 	case ui.ActionSendWhisper:
 		g.handleNodeDetailSendWhisper(nodeID)
 	case ui.ActionJoinGame:
-		// TODO: Open active mini-game for this node (see ANONYMOUS_GAME_MECHANICS.md).
 		log.Printf("Join game with node %s (not yet implemented)", nodeID)
+		g.showToast("Join Game is not yet available", true)
 	case ui.ActionViewDetail:
 		if nodeInfo := g.buildNodeInfo(nodeID); nodeInfo != nil {
 			g.nodeDetailPanel.Show(nodeInfo)
