@@ -1,13 +1,27 @@
-# Bootstrap Node Operation Manual
+# Bootstrap Server Operation Manual
 
-This guide covers operating a MURMUR bootstrap node to help new peers join the network.
+This guide covers operating the standalone MURMUR bootstrap server at `cmd/bootstrap`.
+
+The bootstrap server is a freestanding HTTP service that publishes a signed bootstrap bundle at `/peers.json`. Clients use that bundle to discover initial peers when normal bootstrap routes are unavailable or when operators want to expose alternate ingress paths such as ngrok, Tor, or I2P.
 
 ## Overview
 
-Bootstrap nodes are well-known entry points that help new MURMUR peers discover the network. They should be:
+Bootstrap servers should be:
 - Highly available (99.9%+ uptime)
-- Well-connected (multiple IP addresses, good bandwidth)
-- Geographically distributed (minimize latency for global users)
+- Able to refresh signed peer bundles quickly
+- Reachable over one or more ingress transports
+- Operated with tight access and monitoring controls
+
+The server exposes:
+- `/peers.json` — signed bootstrap bundle served verbatim from `-peers-file`
+- `/health` — lightweight status endpoint
+- `/` — plaintext operator-facing index
+
+The server can listen on:
+- TCP via `-listen`
+- ngrok via `-ngrok` and optional `-ngrok-domain`
+- Tor via `-tor`, `-tor-name`, and `-tor-port`
+- I2P via `-i2p`, `-i2p-name`, and `-i2p-sam`
 
 ## Requirements
 
@@ -25,12 +39,15 @@ Bootstrap nodes are well-known entry points that help new MURMUR peers discover 
 - Linux (Ubuntu 22.04+ recommended)
 - Go 1.22+
 - systemd (for service management)
+- Optional: ngrok account + auth token for `-ngrok`
+- Optional: local Tor environment for `-tor`
+- Optional: local I2P SAM bridge for `-i2p`
 
 ### Network
 
-- Static public IP address
-- Ports 9000/tcp and 9000/udp open
-- Optional: IPv6 connectivity
+- Static public IP address if exposing direct TCP
+- Port open for the HTTP listener you choose (for example 8081/tcp)
+- Optional: Tor and I2P local services running on the host
 
 ## Installation
 
@@ -39,16 +56,35 @@ Bootstrap nodes are well-known entry points that help new MURMUR peers discover 
 ```bash
 git clone https://github.com/opd-ai/murmur.git
 cd murmur
-go build -o murmur ./cmd/murmur
-sudo mv murmur /usr/local/bin/
+go build -o murmur-bootstrap ./cmd/bootstrap
+sudo mv murmur-bootstrap /usr/local/bin/
 ```
+
+### Prepare Signed Peer Bundle
+
+`cmd/bootstrap` requires a signed bootstrap bundle passed through `-peers-file`.
+
+At minimum, the file must:
+- be valid JSON,
+- decode as a signed peer list,
+- contain at least one peer entry.
+
+Typical operator flow:
+
+```bash
+mkdir -p /var/lib/murmur-bootstrap
+cp peers.json /var/lib/murmur-bootstrap/peers.json
+chmod 600 /var/lib/murmur-bootstrap/peers.json
+```
+
+The bootstrap server does not generate or sign `peers.json`; it serves an already prepared signed file.
 
 ### Create Service User
 
 ```bash
-sudo useradd -r -s /bin/false murmur
-sudo mkdir -p /var/lib/murmur
-sudo chown murmur:murmur /var/lib/murmur
+sudo useradd -r -s /bin/false murmur-bootstrap
+sudo mkdir -p /var/lib/murmur-bootstrap
+sudo chown murmur-bootstrap:murmur-bootstrap /var/lib/murmur-bootstrap
 ```
 
 ### Configure Systemd Service
@@ -57,22 +93,17 @@ Create `/etc/systemd/system/murmur-bootstrap.service`:
 
 ```ini
 [Unit]
-Description=MURMUR Bootstrap Node
+Description=MURMUR Bootstrap Server
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-User=murmur
-Group=murmur
-ExecStart=/usr/local/bin/murmur \
-    --data-dir=/var/lib/murmur \
-    --listen=/ip4/0.0.0.0/tcp/9000 \
-    --listen=/ip4/0.0.0.0/udp/9000/quic-v1 \
-    --listen=/ip6/::/tcp/9000 \
-    --listen=/ip6/::/udp/9000/quic-v1 \
-    --dht-server \
-    --verbose
+User=murmur-bootstrap
+Group=murmur-bootstrap
+ExecStart=/usr/local/bin/murmur-bootstrap \
+        -peers-file=/var/lib/murmur-bootstrap/peers.json \
+        -listen=:8081
 Restart=always
 RestartSec=10
 LimitNOFILE=65536
@@ -81,11 +112,73 @@ LimitNOFILE=65536
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/var/lib/murmur
+ReadWritePaths=/var/lib/murmur-bootstrap
 PrivateTmp=true
 
 [Install]
 WantedBy=multi-user.target
+```
+
+### Optional Transport Variants
+
+Direct TCP only:
+
+```bash
+/usr/local/bin/murmur-bootstrap \
+    -peers-file=/var/lib/murmur-bootstrap/peers.json \
+    -listen=:8081
+```
+
+TCP + ngrok:
+
+```bash
+NGROK_AUTHTOKEN=... /usr/local/bin/murmur-bootstrap \
+    -peers-file=/var/lib/murmur-bootstrap/peers.json \
+    -listen=:8081 \
+    -ngrok
+```
+
+TCP + ngrok custom domain:
+
+```bash
+NGROK_AUTHTOKEN=... /usr/local/bin/murmur-bootstrap \
+    -peers-file=/var/lib/murmur-bootstrap/peers.json \
+    -listen=:8081 \
+    -ngrok \
+    -ngrok-domain=consuming-dangling-commodore.ngrok-free.dev
+```
+
+TCP + Tor hidden service:
+
+```bash
+/usr/local/bin/murmur-bootstrap \
+    -peers-file=/var/lib/murmur-bootstrap/peers.json \
+    -listen=:8081 \
+    -tor \
+    -tor-name=murmur-bootstrap \
+    -tor-port=8081
+```
+
+TCP + I2P:
+
+```bash
+/usr/local/bin/murmur-bootstrap \
+    -peers-file=/var/lib/murmur-bootstrap/peers.json \
+    -listen=:8081 \
+    -i2p \
+    -i2p-name=murmur-bootstrap \
+    -i2p-sam=127.0.0.1:7656
+```
+
+All configured together:
+
+```bash
+NGROK_AUTHTOKEN=... /usr/local/bin/murmur-bootstrap \
+    -peers-file=/var/lib/murmur-bootstrap/peers.json \
+    -listen=:8081 \
+    -ngrok \
+    -tor \
+    -i2p
 ```
 
 ### Enable and Start
@@ -102,13 +195,13 @@ sudo systemctl start murmur-bootstrap
 
 ```bash
 # UFW
-sudo ufw allow 9000/tcp
-sudo ufw allow 9000/udp
+sudo ufw allow 8081/tcp
 
 # iptables
-sudo iptables -A INPUT -p tcp --dport 9000 -j ACCEPT
-sudo iptables -A INPUT -p udp --dport 9000 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 8081 -j ACCEPT
 ```
+
+If you expose only ngrok, Tor, or I2P, you may not need to open a public firewall port beyond local loopback access.
 
 ### Resource Limits
 
@@ -150,46 +243,53 @@ sudo journalctl -u murmur-bootstrap -f
 
 ### Key Metrics to Monitor
 
-1. **Peer count**: Number of connected peers
-2. **DHT queries**: Queries served per minute
-3. **Memory usage**: Should stay under 256 MiB
-4. **Network I/O**: Bandwidth utilization
-5. **Connection errors**: Failed connection attempts
+1. **Bundle freshness**: `peers.json` timestamp and rotation cadence
+2. **HTTP reachability**: `GET /health` and `GET /peers.json`
+3. **Memory usage**: Should stay comfortably below normal service limits
+4. **Transport reachability**: ngrok URL, onion address, or I2P destination availability
+5. **Connection errors**: Listener startup and ingress failures
 
-### Prometheus Metrics (Future)
+### Health Check
 
-MURMUR will expose Prometheus metrics at `/metrics`:
+Example:
 
-```
-murmur_peers_total
-murmur_dht_queries_total
-murmur_memory_bytes
-murmur_connections_active
-murmur_connections_failed_total
+```bash
+curl http://127.0.0.1:8081/health
+curl http://127.0.0.1:8081/peers.json
 ```
 
-## Publishing Your Bootstrap Node
+### Prometheus Metrics
+
+`cmd/bootstrap` currently exposes `/health`, but does not expose a Prometheus `/metrics` endpoint.
+
+If you need metrics today, use an external HTTP probe and log-based monitoring around these endpoints:
+
+```
+GET /health
+GET /peers.json
+```
+
+## Publishing Your Bootstrap Server
 
 Once your node is stable (running 48+ hours without issues):
 
-1. Get your peer ID:
+1. Verify the served bundle:
    ```bash
-   sudo -u murmur cat /var/lib/murmur/peer_id
+    curl http://127.0.0.1:8081/peers.json
    ```
 
-2. Construct your multiaddr:
-   ```
-   /ip4/<YOUR_IP>/tcp/9000/p2p/<PEER_ID>
-   /ip4/<YOUR_IP>/udp/9000/quic-v1/p2p/<PEER_ID>
-   ```
+2. Publish the bootstrap URL you want clients to use:
+    ```
+    https://<ngrok-domain>/peers.json
+    http://<public-ip>:8081/peers.json
+    http://<onion-address>/peers.json
+    http://<i2p-destination>/peers.json
+    ```
 
-3. Submit a PR to add your node to `pkg/config/bootstrap.go`:
-   ```go
-   var DefaultBootstrapPeers = []string{
-       "/ip4/203.0.113.1/tcp/9000/p2p/12D3KooW...",
-       // Add your multiaddr here
-   }
-   ```
+3. Distribute the URL through the appropriate trust path:
+- public bootstrap distribution,
+- friend-to-friend reseed,
+- transport-specific recovery instructions.
 
 ## Maintenance
 
@@ -198,20 +298,18 @@ Once your node is stable (running 48+ hours without issues):
 ```bash
 cd /path/to/murmur
 git pull
-go build -o murmur ./cmd/murmur
-sudo mv murmur /usr/local/bin/
+go build -o murmur-bootstrap ./cmd/bootstrap
+sudo mv murmur-bootstrap /usr/local/bin/
 sudo systemctl restart murmur-bootstrap
 ```
 
-### Database Maintenance
+### Bundle Rotation
 
-The Bbolt database grows over time. Periodic compaction:
+Replace the signed peer bundle atomically when your source peer set changes:
 
 ```bash
-sudo systemctl stop murmur-bootstrap
-# Backup first!
-sudo -u murmur cp /var/lib/murmur/murmur.db /var/lib/murmur/murmur.db.bak
-sudo systemctl start murmur-bootstrap
+install -m 600 peers.json /var/lib/murmur-bootstrap/peers.json
+sudo systemctl restart murmur-bootstrap
 ```
 
 ### Log Rotation
@@ -233,25 +331,24 @@ Add to `/etc/logrotate.d/murmur`:
 
 ### High CPU Usage
 
-- Check for excessive DHT queries (possible attack)
-- Verify connection limits are enforced
+- Check for repeated HTTP probing or crash loops
+- Verify no transport listener is repeatedly failing and restarting
 
 ### Memory Growth
 
-- Peer table growing unbounded: check cleanup goroutine
-- Wave cache not expiring: verify TTL enforcement
+- Confirm `peers.json` is not being regenerated to excessively large payloads
+- Check for runaway logs or repeated listener initialization failures
 
 ### Connection Failures
 
-- Firewall rules blocking traffic
-- NAT/CGN issues (use static IP)
-- ISP blocking P2P traffic
+- Firewall rules blocking direct TCP access
+- Missing `NGROK_AUTHTOKEN` when `-ngrok` is enabled
+- Tor or I2P local services not running when `-tor` or `-i2p` is enabled
 
 ### Disk Full
 
-- Prune old database entries
-- Increase disk space
-- Enable more aggressive GC
+- Remove old bundle backups and log files
+- Increase disk space for retained signed bundle history
 
 ## Security
 
@@ -260,12 +357,15 @@ Add to `/etc/logrotate.d/murmur`:
 1. **Minimal exposure**: Only expose required ports
 2. **Regular updates**: Keep OS and MURMUR updated
 3. **Monitoring**: Set up alerts for anomalies
-4. **Backups**: Daily backups of critical data
+4. **Backups**: Keep signed bundle generation inputs and release process backed up
 5. **Isolation**: Run in container or VM if possible
+6. **Bundle integrity**: Never hand-edit `peers.json`; regenerate and sign it from your trusted pipeline
+7. **Restricted reseed**: For sensitive recovery use-cases, prefer Tor or I2P distribution paths and add an authorization layer in front of public URLs
 
 ### DDoS Mitigation
 
 - Rate limiting at firewall level
+- Reverse-proxy or CDN limits for public HTTP endpoints where appropriate
 - Connection limits per IP
 - Cloud-based DDoS protection if needed
 
