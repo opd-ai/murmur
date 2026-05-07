@@ -281,6 +281,114 @@ func TestSpecterDetailPanel_Callbacks(t *testing.T) {
 	}
 }
 
+func TestSpecterDetailPanel_HandleTabSelectionEdgeTriggered(t *testing.T) {
+	panel := NewSpecterDetailPanel(DefaultTheme(), SpecterDetailCallbacks{})
+	panel.panelX = 100
+	panel.panelY = 80
+	panel.panelW = 400
+	panel.panelH = 450
+	panel.mode = SpecterModeOverview
+	panel.selectedTrophy = 3
+
+	// Cursor in second tab area (Trophies), but no just-pressed edge.
+	clicked := panel.handleTabSelection(220, panel.panelY+65, false)
+	if clicked {
+		t.Fatal("expected no tab click when leftJustPressed=false")
+	}
+	if panel.mode != SpecterModeOverview {
+		t.Fatalf("expected mode unchanged, got %v", panel.mode)
+	}
+
+	// Edge-triggered click should switch tabs and clear selected trophy.
+	clicked = panel.handleTabSelection(220, panel.panelY+65, true)
+	if !clicked {
+		t.Fatal("expected tab click when leftJustPressed=true")
+	}
+	if panel.mode != SpecterModeTrophies {
+		t.Fatalf("expected mode SpecterModeTrophies, got %v", panel.mode)
+	}
+	if panel.selectedTrophy != -1 {
+		t.Fatalf("expected selectedTrophy reset to -1, got %d", panel.selectedTrophy)
+	}
+}
+
+func TestSpecterDetailPanel_HandleCloseButtonEdgeTriggered(t *testing.T) {
+	closeCount := 0
+	panel := NewSpecterDetailPanel(DefaultTheme(), SpecterDetailCallbacks{
+		OnClose: func() { closeCount++ },
+	})
+	panel.visible = true
+	panel.panelX = 100
+	panel.panelY = 80
+	panel.panelW = 400
+	panel.panelH = 450
+
+	mx := panel.panelX + panel.panelW - 20
+	my := panel.panelY + 15
+
+	closed := panel.handleCloseButton(mx, my, false)
+	if closed {
+		t.Fatal("expected no close when leftJustPressed=false")
+	}
+	if !panel.visible {
+		t.Fatal("panel should remain visible without click edge")
+	}
+	if closeCount != 0 {
+		t.Fatalf("expected close callback count 0, got %d", closeCount)
+	}
+
+	closed = panel.handleCloseButton(mx, my, true)
+	if !closed {
+		t.Fatal("expected close when leftJustPressed=true")
+	}
+	if panel.visible {
+		t.Fatal("panel should be hidden after close click")
+	}
+	if closeCount != 1 {
+		t.Fatalf("expected close callback count 1, got %d", closeCount)
+	}
+}
+
+func TestSpecterDetailPanel_CheckInteractButtonEdgeTriggered(t *testing.T) {
+	callCount := 0
+	panel := NewSpecterDetailPanel(DefaultTheme(), SpecterDetailCallbacks{})
+	panel.specter = &SpecterInfo{ID: [32]byte{7}}
+
+	cb := func(id [32]byte) {
+		callCount++
+		if id != ([32]byte{7}) {
+			t.Fatalf("unexpected specter id: %v", id)
+		}
+	}
+
+	// In-range Y without click edge should not fire.
+	fired := panel.checkInteractButton(130, 120, 40, false, cb)
+	if fired {
+		t.Fatal("expected no button activation when leftJustPressed=false")
+	}
+	if callCount != 0 {
+		t.Fatalf("expected callCount 0, got %d", callCount)
+	}
+
+	// Edge-triggered click should fire exactly once.
+	fired = panel.checkInteractButton(130, 120, 40, true, cb)
+	if !fired {
+		t.Fatal("expected button activation when leftJustPressed=true")
+	}
+	if callCount != 1 {
+		t.Fatalf("expected callCount 1, got %d", callCount)
+	}
+
+	// Held button frame (no edge) must not fire again.
+	fired = panel.checkInteractButton(130, 120, 40, false, cb)
+	if fired {
+		t.Fatal("expected no activation on non-edge repeat")
+	}
+	if callCount != 1 {
+		t.Fatalf("expected callCount to remain 1, got %d", callCount)
+	}
+}
+
 func TestSpecterDetailPanel_TrophyCount(t *testing.T) {
 	emptyCallbacks := SpecterDetailCallbacks{
 		GetTrophies: func(specterID [32]byte) []TrophyDisplayInfo {

@@ -69,9 +69,9 @@ Remediation checklist:
 - Fix: Replace with edge-triggered checks and centralize click dispatch to avoid repeated callback invocations.
 
 Remediation checklist:
-- [ ] Replace continuous-press checks with edge-triggered click checks.
-- [ ] Add one-click-one-action test for tab switch and close button.
-- [ ] Add interaction callback idempotency guard.
+- [x] Replace continuous-press checks with edge-triggered click checks.
+- [x] Add one-click-one-action test for tab switch and close button.
+- [x] Add interaction callback idempotency guard.
 
 ---
 

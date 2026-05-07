@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 	"github.com/opd-ai/murmur/pkg/anonymous/mechanics"
 )
@@ -125,20 +126,21 @@ func (p *SpecterDetailPanel) Update() bool {
 	p.animTime += FrameTime
 
 	mx, my := ebiten.CursorPosition()
+	leftJustPressed := inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft)
 
 	if !p.isMouseInPanel(mx, my) {
-		return p.handleOutsideClick()
+		return p.handleOutsideClick(leftJustPressed)
 	}
 
-	if p.handleTabSelection(mx, my) {
+	if p.handleTabSelection(mx, my, leftJustPressed) {
 		return true
 	}
 
-	if p.handleCloseButton(mx, my) {
+	if p.handleCloseButton(mx, my, leftJustPressed) {
 		return true
 	}
 
-	return p.handleModeInput(mx, my)
+	return p.handleModeInput(mx, my, leftJustPressed)
 }
 
 // isMouseInPanel checks if mouse is inside panel bounds.
@@ -148,8 +150,8 @@ func (p *SpecterDetailPanel) isMouseInPanel(mx, my int) bool {
 }
 
 // handleOutsideClick closes panel if user clicks outside.
-func (p *SpecterDetailPanel) handleOutsideClick() bool {
-	if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
+func (p *SpecterDetailPanel) handleOutsideClick(leftJustPressed bool) bool {
+	if leftJustPressed {
 		p.visible = false
 		if p.callbacks.OnClose != nil {
 			p.callbacks.OnClose()
@@ -160,7 +162,7 @@ func (p *SpecterDetailPanel) handleOutsideClick() bool {
 }
 
 // handleTabSelection processes tab clicks.
-func (p *SpecterDetailPanel) handleTabSelection(mx, my int) bool {
+func (p *SpecterDetailPanel) handleTabSelection(mx, my int, leftJustPressed bool) bool {
 	tabY := p.panelY + 60
 	tabHeight := 30
 	if my >= tabY && my < tabY+tabHeight {
@@ -168,7 +170,7 @@ func (p *SpecterDetailPanel) handleTabSelection(mx, my int) bool {
 		tabIndex := (mx - p.panelX) / tabWidth
 		if tabIndex >= 0 && tabIndex < 4 {
 			p.hoverButton = tabIndex
-			if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
+			if leftJustPressed {
 				p.mode = SpecterDetailMode(tabIndex)
 				p.selectedTrophy = -1
 				return true
@@ -181,11 +183,11 @@ func (p *SpecterDetailPanel) handleTabSelection(mx, my int) bool {
 }
 
 // handleCloseButton processes close button click.
-func (p *SpecterDetailPanel) handleCloseButton(mx, my int) bool {
+func (p *SpecterDetailPanel) handleCloseButton(mx, my int, leftJustPressed bool) bool {
 	closeX := p.panelX + p.panelW - 30
 	closeY := p.panelY + 10
 	if mx >= closeX && mx < closeX+20 && my >= closeY && my < closeY+20 {
-		if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
+		if leftJustPressed {
 			p.visible = false
 			if p.callbacks.OnClose != nil {
 				p.callbacks.OnClose()
@@ -197,18 +199,18 @@ func (p *SpecterDetailPanel) handleCloseButton(mx, my int) bool {
 }
 
 // handleModeInput dispatches to mode-specific handlers.
-func (p *SpecterDetailPanel) handleModeInput(mx, my int) bool {
+func (p *SpecterDetailPanel) handleModeInput(mx, my int, leftJustPressed bool) bool {
 	switch p.mode {
 	case SpecterModeTrophies:
-		return p.updateTrophies(mx, my)
+		return p.updateTrophies(mx, my, leftJustPressed)
 	case SpecterModeInteract:
-		return p.updateInteract(mx, my)
+		return p.updateInteract(mx, my, leftJustPressed)
 	}
 	return true
 }
 
 // updateTrophies handles input in trophy mode.
-func (p *SpecterDetailPanel) updateTrophies(mx, my int) bool {
+func (p *SpecterDetailPanel) updateTrophies(mx, my int, leftJustPressed bool) bool {
 	gridX := p.panelX + 20
 	gridY := p.panelY + 110
 	gridW := p.panelW - 40
@@ -218,7 +220,7 @@ func (p *SpecterDetailPanel) updateTrophies(mx, my int) bool {
 		cols = 1
 	}
 
-	p.handleTrophyHover(mx, my, gridX, gridY, gridW, trophySize, cols)
+	p.handleTrophyHover(mx, my, gridX, gridY, gridW, trophySize, cols, leftJustPressed)
 
 	if p.handleTrophyScroll(cols, trophySize) {
 		return true
@@ -228,7 +230,7 @@ func (p *SpecterDetailPanel) updateTrophies(mx, my int) bool {
 }
 
 // handleTrophyHover updates hover state and handles trophy selection.
-func (p *SpecterDetailPanel) handleTrophyHover(mx, my, gridX, gridY, gridW, trophySize, cols int) {
+func (p *SpecterDetailPanel) handleTrophyHover(mx, my, gridX, gridY, gridW, trophySize, cols int, leftJustPressed bool) {
 	relX := mx - gridX
 	relY := my - gridY + p.trophyScroll
 
@@ -243,7 +245,7 @@ func (p *SpecterDetailPanel) handleTrophyHover(mx, my, gridX, gridY, gridW, trop
 
 	if col < cols && idx >= 0 && idx < len(p.trophies) {
 		p.trophyHover = idx
-		if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
+		if leftJustPressed {
 			p.selectedTrophy = idx
 		}
 	} else {
@@ -274,22 +276,22 @@ func (p *SpecterDetailPanel) handleTrophyScroll(cols, trophySize int) bool {
 }
 
 // updateInteract handles input in interact mode.
-func (p *SpecterDetailPanel) updateInteract(mx, my int) bool {
+func (p *SpecterDetailPanel) updateInteract(mx, my int, leftJustPressed bool) bool {
 	buttonY := p.panelY + 120
 	buttonH := 40
 	buttonSpacing := 50
 
-	if p.checkInteractButton(my, buttonY, buttonH, p.callbacks.OnSendGift) {
+	if p.checkInteractButton(my, buttonY, buttonH, leftJustPressed, p.callbacks.OnSendGift) {
 		return true
 	}
 
 	buttonY += buttonSpacing
-	if p.checkInteractButton(my, buttonY, buttonH, p.callbacks.OnViewWaves) {
+	if p.checkInteractButton(my, buttonY, buttonH, leftJustPressed, p.callbacks.OnViewWaves) {
 		return true
 	}
 
 	buttonY += buttonSpacing
-	if p.checkInteractButton(my, buttonY, buttonH, p.callbacks.OnAddMark) {
+	if p.checkInteractButton(my, buttonY, buttonH, leftJustPressed, p.callbacks.OnAddMark) {
 		return true
 	}
 
@@ -297,9 +299,9 @@ func (p *SpecterDetailPanel) updateInteract(mx, my int) bool {
 }
 
 // checkInteractButton checks if a button is clicked and invokes the callback.
-func (p *SpecterDetailPanel) checkInteractButton(my, buttonY, buttonH int, callback func([32]byte)) bool {
+func (p *SpecterDetailPanel) checkInteractButton(my, buttonY, buttonH int, leftJustPressed bool, callback func([32]byte)) bool {
 	if my >= buttonY && my < buttonY+buttonH {
-		if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
+		if leftJustPressed {
 			if callback != nil && p.specter != nil {
 				callback(p.specter.ID)
 			}
