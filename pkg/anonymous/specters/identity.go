@@ -264,8 +264,8 @@ func (s *Specter) DestroyForModeDowngrade() {
 	s.Announced = false
 }
 
-// GetPublicKey returns a copy of the public key.
-func (s *Specter) GetPublicKey() [32]byte {
+// PublicKeyCopy returns a copy of the public key.
+func (s *Specter) PublicKeyCopy() [32]byte {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -274,23 +274,38 @@ func (s *Specter) GetPublicKey() [32]byte {
 	return key
 }
 
-// GetVersion returns the identity version (1 for original, 2+ for rotated).
-func (s *Specter) GetVersion() int {
+// IdentityVersion returns the identity version (1 for original, 2+ for rotated).
+func (s *Specter) IdentityVersion() int {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	return s.Version
 }
 
-// GetRotationSource returns the public key of the previous identity, if any.
+// RotationSource returns the public key of the previous identity, if any.
 // Returns zero value if this is the original identity (not rotated).
-func (s *Specter) GetRotationSource() [32]byte {
+func (s *Specter) RotationSource() [32]byte {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	var key [32]byte
 	copy(key[:], s.RotationFrom[:])
 	return key
+}
+
+// Deprecated: Use PublicKeyCopy instead.
+func (s *Specter) GetPublicKey() [32]byte {
+	return s.PublicKeyCopy()
+}
+
+// Deprecated: Use IdentityVersion instead.
+func (s *Specter) GetVersion() int {
+	return s.IdentityVersion()
+}
+
+// Deprecated: Use RotationSource instead.
+func (s *Specter) GetRotationSource() [32]byte {
+	return s.RotationSource()
 }
 
 // DeriveSharedSecret performs X25519 key exchange.

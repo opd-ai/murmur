@@ -13,7 +13,7 @@ func TestSettingsPanel_ActivateToggleControl(t *testing.T) {
 	if ok := panel.activateSettingControl(0, 0, 0, 0, 0, 0); !ok {
 		t.Fatal("expected toggle activation to return true")
 	}
-	if got := panel.categories[0].Settings[0].Value.(bool); got != false {
+	if got := panel.categories[0].Settings[0].Value.Toggle; got != false {
 		t.Fatalf("expected toggle to flip to false, got %v", got)
 	}
 	if changedKey != "dht_enabled" || changedValue != "false" {
@@ -32,7 +32,7 @@ func TestSettingsPanel_ActivateSelectControl(t *testing.T) {
 	if ok := panel.activateSettingControl(0, 0, 0, 0, 0, 0); !ok {
 		t.Fatal("expected select activation to return true")
 	}
-	if got := panel.categories[1].Settings[0].Value.(string); got != "Guarded" {
+	if got := panel.categories[1].Settings[0].Value.Text; got != "Guarded" {
 		t.Fatalf("expected select to cycle Hybrid->Guarded, got %q", got)
 	}
 	if changedKey != "privacy_mode" || changedValue != "Guarded" {
@@ -50,7 +50,7 @@ func TestSettingsPanel_SliderUpdateFromPointer(t *testing.T) {
 
 	// Simulate pointer at far-right of slider track to reach max.
 	panel.updateSliderValueAt(2, 10_000, 0)
-	v := panel.categories[0].Settings[2].Value.(float64)
+	v := panel.categories[0].Settings[2].Value.Slider
 	if v < 99.0 {
 		t.Fatalf("expected slider value near max, got %f", v)
 	}

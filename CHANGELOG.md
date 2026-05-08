@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (2026-05-08 — AUDIT getter naming migration)
+- **Idiomatic getter rollout with compatibility wrappers** (`pkg/anonymous/specters/identity.go`, `pkg/onboarding/screens/identity.go`, `pkg/pulsemap/interaction/input.go`): added `PublicKeyCopy`/`IdentityVersion`/`RotationSource`, `Keypair`/`DisplayName`/`Sigil`, and `ZoomLevel` methods while keeping `Get*` methods as deprecated wrappers for backward compatibility.
+- **Callsite migration to idiomatic getters** (`pkg/app/ui.go`, `pkg/anonymous/specters/identity_test.go`, `pkg/onboarding/screens/identity_test.go`, `pkg/pulsemap/interaction/input_test.go`): updated hot-path usage and tests to prefer non-`Get*` names.
+
+### Changed (2026-05-08 — AUDIT typed settings migration)
+- **Typed settings value model** (`pkg/ui/settings.go`, `pkg/ui/settings_stub.go`): replaced `Setting.Value interface{}` storage with typed `SettingValue` fields (`Toggle`, `Slider`, `Text`) and removed runtime value assertions from settings interaction/rendering paths.
+- **Typed settings API surface** (`pkg/ui/settings.go`, `pkg/ui/settings_stub.go`, `pkg/ui/panel_test.go`, `pkg/ui/settings_test.go`): added `GetSettingBool`/`GetSettingSlider`/`GetSettingText` and `SetSettingBool`/`SetSettingSlider`/`SetSettingText`; retained legacy `GetSetting`/`SetSetting` as deprecated edge wrappers for compatibility.
+
 ### Fixed (2026-05-08 — AUDIT gossip validating decode remediation)
 - **Typed validating-message decode path** (`pkg/networking/gossip/scoring.go`): removed placeholder `interface{}`/nil-dispatch flow; validating handlers now unmarshal into concrete `pb.GossipMessage` using `proto.Unmarshal` and dispatch typed payloads to topic handlers.
 - **Coverage for parsed-message dispatch** (`pkg/networking/gossip/scoring_test.go`): added `TestValidatingMessageHandlers_DispatchesParsedMessageToHandlers` asserting non-nil parsed messages are passed to wave/identity/shroud/pulse handlers.

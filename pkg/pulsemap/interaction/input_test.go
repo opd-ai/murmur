@@ -358,36 +358,36 @@ func TestInputStateDeltaResets(t *testing.T) {
 	}
 }
 
-func TestGetZoomLevel(t *testing.T) {
+func TestZoomLevel(t *testing.T) {
 	c := NewCamera()
 
 	// Test Macro level (scale < 0.5)
 	c.Scale = 0.3
-	if c.GetZoomLevel() != ZoomLevelMacro {
-		t.Errorf("expected ZoomLevelMacro for scale 0.3, got %v", c.GetZoomLevel())
+	if c.ZoomLevel() != ZoomLevelMacro {
+		t.Errorf("expected ZoomLevelMacro for scale 0.3, got %v", c.ZoomLevel())
 	}
 
 	// Test Meso level (0.5 <= scale < 2.0)
 	c.Scale = 1.0
-	if c.GetZoomLevel() != ZoomLevelMeso {
-		t.Errorf("expected ZoomLevelMeso for scale 1.0, got %v", c.GetZoomLevel())
+	if c.ZoomLevel() != ZoomLevelMeso {
+		t.Errorf("expected ZoomLevelMeso for scale 1.0, got %v", c.ZoomLevel())
 	}
 
 	// Test Micro level (scale >= 2.0)
 	c.Scale = 3.0
-	if c.GetZoomLevel() != ZoomLevelMicro {
-		t.Errorf("expected ZoomLevelMicro for scale 3.0, got %v", c.GetZoomLevel())
+	if c.ZoomLevel() != ZoomLevelMicro {
+		t.Errorf("expected ZoomLevelMicro for scale 3.0, got %v", c.ZoomLevel())
 	}
 
 	// Test boundary conditions
 	c.Scale = 0.5
-	if c.GetZoomLevel() != ZoomLevelMeso {
-		t.Errorf("expected ZoomLevelMeso at boundary 0.5, got %v", c.GetZoomLevel())
+	if c.ZoomLevel() != ZoomLevelMeso {
+		t.Errorf("expected ZoomLevelMeso at boundary 0.5, got %v", c.ZoomLevel())
 	}
 
 	c.Scale = 2.0
-	if c.GetZoomLevel() != ZoomLevelMicro {
-		t.Errorf("expected ZoomLevelMicro at boundary 2.0, got %v", c.GetZoomLevel())
+	if c.ZoomLevel() != ZoomLevelMicro {
+		t.Errorf("expected ZoomLevelMicro at boundary 2.0, got %v", c.ZoomLevel())
 	}
 }
 

@@ -384,8 +384,8 @@ func TestRotate(t *testing.T) {
 	}
 
 	// Save original keys.
-	originalPubKey := s.GetPublicKey()
-	originalVersion := s.GetVersion()
+	originalPubKey := s.PublicKeyCopy()
+	originalVersion := s.IdentityVersion()
 
 	// Original version should be 1.
 	if originalVersion != 1 {
@@ -414,18 +414,18 @@ func TestRotate(t *testing.T) {
 	}
 
 	// New Specter should have different keys.
-	newPubKey := newSpecter.GetPublicKey()
+	newPubKey := newSpecter.PublicKeyCopy()
 	if newPubKey == originalPubKey {
 		t.Error("rotated Specter should have different public key")
 	}
 
 	// New Specter should have version 2.
-	if newSpecter.GetVersion() != 2 {
-		t.Errorf("rotated Specter version should be 2, got %d", newSpecter.GetVersion())
+	if newSpecter.IdentityVersion() != 2 {
+		t.Errorf("rotated Specter version should be 2, got %d", newSpecter.IdentityVersion())
 	}
 
 	// New Specter should track rotation source.
-	rotationSource := newSpecter.GetRotationSource()
+	rotationSource := newSpecter.RotationSource()
 	if rotationSource != originalPubKey {
 		t.Error("rotation source should be original public key")
 	}
@@ -459,8 +459,8 @@ func TestRotateMultiple(t *testing.T) {
 	}
 
 	// Final version should be 4.
-	if s.GetVersion() != 4 {
-		t.Errorf("after 3 rotations, version should be 4, got %d", s.GetVersion())
+	if s.IdentityVersion() != 4 {
+		t.Errorf("after 3 rotations, version should be 4, got %d", s.IdentityVersion())
 	}
 }
 
@@ -475,7 +475,7 @@ func TestDestroyForModeDowngrade(t *testing.T) {
 	s.MarkAnnounced()
 
 	// Save original values.
-	originalPubKey := s.GetPublicKey()
+	originalPubKey := s.PublicKeyCopy()
 	originalName := s.Name
 
 	// Verify non-zero state.
@@ -500,7 +500,7 @@ func TestDestroyForModeDowngrade(t *testing.T) {
 	}
 
 	// Public key should be zeroed.
-	pubKey := s.GetPublicKey()
+	pubKey := s.PublicKeyCopy()
 	if pubKey != [32]byte{} {
 		t.Error("public key should be zeroed after destruction")
 	}
@@ -519,46 +519,46 @@ func TestDestroyForModeDowngrade(t *testing.T) {
 	}
 
 	// Rotation source should be zeroed.
-	rotationSource := s.GetRotationSource()
+	rotationSource := s.RotationSource()
 	if rotationSource != [32]byte{} {
 		t.Error("rotation source should be zeroed after destruction")
 	}
 }
 
-// TestGetPublicKey tests that GetPublicKey returns a copy.
-func TestGetPublicKey(t *testing.T) {
+// TestPublicKeyCopy tests that PublicKeyCopy returns a copy.
+func TestPublicKeyCopy(t *testing.T) {
 	s, _ := NewSpecter()
 
-	key1 := s.GetPublicKey()
-	key2 := s.GetPublicKey()
+	key1 := s.PublicKeyCopy()
+	key2 := s.PublicKeyCopy()
 
 	// Keys should be equal.
 	if key1 != key2 {
-		t.Error("GetPublicKey should return consistent values")
+		t.Error("PublicKeyCopy should return consistent values")
 	}
 
 	// Modifying returned key should not affect Specter.
 	key1[0] = ^key1[0]
-	key3 := s.GetPublicKey()
+	key3 := s.PublicKeyCopy()
 	if key1 == key3 {
-		t.Error("GetPublicKey should return a copy, not a reference")
+		t.Error("PublicKeyCopy should return a copy, not a reference")
 	}
 }
 
-// TestGetVersionOriginal tests version for newly created Specters.
-func TestGetVersionOriginal(t *testing.T) {
+// TestIdentityVersionOriginal tests version for newly created Specters.
+func TestIdentityVersionOriginal(t *testing.T) {
 	s, _ := NewSpecter()
 
-	if s.GetVersion() != 1 {
-		t.Errorf("original Specter version should be 1, got %d", s.GetVersion())
+	if s.IdentityVersion() != 1 {
+		t.Errorf("original Specter version should be 1, got %d", s.IdentityVersion())
 	}
 }
 
-// TestGetRotationSourceOriginal tests rotation source for non-rotated Specters.
-func TestGetRotationSourceOriginal(t *testing.T) {
+// TestRotationSourceOriginal tests rotation source for non-rotated Specters.
+func TestRotationSourceOriginal(t *testing.T) {
 	s, _ := NewSpecter()
 
-	rotationSource := s.GetRotationSource()
+	rotationSource := s.RotationSource()
 	if rotationSource != [32]byte{} {
 		t.Error("original Specter should have zero rotation source")
 	}
@@ -573,9 +573,9 @@ func TestSpecterLifecycleConcurrency(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		go func() {
 			s.IsAnnounced()
-			s.GetPublicKey()
-			s.GetVersion()
-			s.GetRotationSource()
+			s.PublicKeyCopy()
+			s.IdentityVersion()
+			s.RotationSource()
 			done <- true
 		}()
 	}

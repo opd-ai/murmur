@@ -104,8 +104,8 @@
 ### Priority 4: Finish Explicitly Deferred Identity/Platform Paths
 - [x] Implement legacy keystore migration flow (currently hard error).
   - Evidence: [pkg/identity/keys/keystore.go](pkg/identity/keys/keystore.go) — `MigrateLegacyKeystore` now fully implemented; decrypts 128-byte combined plaintext, splits into Surface + Specter keys, saves to separated keystores, renames legacy file to `.bak`.
-- [ ] Implement mobile native share-sheet bindings for invitation flow.
-  - Evidence: [pkg/identity/share.go](pkg/identity/share.go#L163)
+- [x] Implement mobile native share-sheet bindings for invitation flow.
+  - Evidence: [pkg/identity/share_mobile.go](pkg/identity/share_mobile.go) defines `RegisterMobileShareHandler` and mobile `openSystemShareImpl`; [pkg/identity/share.go](pkg/identity/share.go#L145) routes `android`/`ios` through `OpenSystemShare`.
 - [x] Add dedicated gomobile-compatible mobile entrypoint importing `golang.org/x/mobile/app`.
   - Evidence: [cmd/murmur-mobile/main.go](cmd/murmur-mobile/main.go), [cmd/murmur-mobile/mobile_app.go](cmd/murmur-mobile/mobile_app.go), [scripts/build-mobile.sh](scripts/build-mobile.sh)
 - [ ] Validation: migration tests from legacy keystore fixtures pass; mobile integration tests verify share-sheet invocation path.
@@ -124,6 +124,8 @@
   - [pkg/pulsemap/game.go](pkg/pulsemap/game.go#L735)
 
 ## Recent Execution Updates
+- 2026-05-08: Completed AUDIT remediation for type-erased settings values in the UI settings panel. `pkg/ui/settings.go` and `pkg/ui/settings_stub.go` now use typed `SettingValue` storage instead of `interface{}` fields; interaction/rendering paths no longer rely on runtime `.(type)` assertions. Added typed getters/setters (`GetSettingBool`/`GetSettingSlider`/`GetSettingText`, `SetSettingBool`/`SetSettingSlider`/`SetSettingText`) while retaining deprecated compatibility wrappers. Updated tests in `pkg/ui/panel_test.go` and `pkg/ui/settings_test.go`. Validation: `go vet ./...` and `xvfb-run -a go test -race ./...` pass.
+- 2026-05-08: Completed AUDIT remediation for exported `Get*` getter naming on hot paths. Added idiomatic getters (`PublicKeyCopy`/`IdentityVersion`/`RotationSource`, `Keypair`/`DisplayName`/`Sigil`, `ZoomLevel`) and retained deprecated compatibility wrappers in `pkg/anonymous/specters/identity.go`, `pkg/onboarding/screens/identity.go`, and `pkg/pulsemap/interaction/input.go`. Migrated app/test callsites in `pkg/app/ui.go`, `pkg/anonymous/specters/identity_test.go`, `pkg/onboarding/screens/identity_test.go`, and `pkg/pulsemap/interaction/input_test.go`. Validation: `go vet ./...` and `xvfb-run -a go test -race ./...` pass.
 - 2026-05-08: Completed AUDIT remediation for Shroud beacon key exposure. `Beacon.SecretKey()` was removed from the public API and circuit key agreements now use a fresh per-circuit ephemeral initiator keypair (`pkg/anonymous/shroud/circuit.go`). Validation test added: `TestBuildCircuitUsesEphemeralInitiatorKey` (`pkg/anonymous/shroud/circuit_test.go`).
 - 2026-05-08: Completed AUDIT remediation for non-idiomatic underscore package names in production transports. Package declarations were renamed to `onrampi2p` and `onramptor`; host transport constructors were updated in `pkg/networking/transport/host.go`. Validation: `go list ./...`, `go vet ./...`, and `xvfb-run -a go test -race ./...` pass.
 - 2026-05-08: Completed AUDIT remediation for gossip validating decode placeholders. `pkg/networking/gossip/scoring.go` now unmarshals to concrete `pb.GossipMessage` and dispatches typed payloads instead of `interface{}`/nil placeholders. Added `TestValidatingMessageHandlers_DispatchesParsedMessageToHandlers` in `pkg/networking/gossip/scoring_test.go`.

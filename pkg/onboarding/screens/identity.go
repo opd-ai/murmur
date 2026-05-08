@@ -786,19 +786,34 @@ func (s *Screen) completePhase1And2() {
 	}
 }
 
-// GetKeypair returns the generated keypair.
-func (s *Screen) GetKeypair() *keys.KeyPair {
+// Keypair returns the generated keypair.
+func (s *Screen) Keypair() *keys.KeyPair {
 	return s.keypair
 }
 
-// GetDisplayName returns the entered display name.
-func (s *Screen) GetDisplayName() string {
+// DisplayName returns the entered display name.
+func (s *Screen) DisplayName() string {
 	return s.displayName
 }
 
-// GetSigil returns the generated sigil image.
-func (s *Screen) GetSigil() *ebiten.Image {
+// Sigil returns the generated sigil image.
+func (s *Screen) Sigil() *ebiten.Image {
 	return s.sigil
+}
+
+// Deprecated: Use Keypair instead.
+func (s *Screen) GetKeypair() *keys.KeyPair {
+	return s.Keypair()
+}
+
+// Deprecated: Use DisplayName instead.
+func (s *Screen) GetDisplayName() string {
+	return s.DisplayName()
+}
+
+// Deprecated: Use Sigil instead.
+func (s *Screen) GetSigil() *ebiten.Image {
+	return s.Sigil()
 }
 
 // IsBackupDone returns whether the user completed backup.

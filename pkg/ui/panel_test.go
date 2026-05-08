@@ -226,7 +226,9 @@ func TestSettingsPanelSetSetting(t *testing.T) {
 	panel := NewSettingsPanel(theme, callback)
 
 	// Test setting a toggle.
-	panel.SetSetting("dht_enabled", false)
+	if ok := panel.SetSettingBool("dht_enabled", false); !ok {
+		t.Fatal("expected typed bool setter to update dht_enabled")
+	}
 	if changedKey != "dht_enabled" {
 		t.Errorf("Expected changed key 'dht_enabled', got '%s'", changedKey)
 	}
@@ -238,6 +240,37 @@ func TestSettingsPanelSetSetting(t *testing.T) {
 	dhtEnabled := panel.GetSetting("dht_enabled")
 	if dhtEnabled != false {
 		t.Errorf("Expected dht_enabled to be false, got %v", dhtEnabled)
+	}
+}
+
+func TestSettingsPanelTypedGetters(t *testing.T) {
+	theme := DefaultTheme()
+	panel := NewSettingsPanel(theme, nil)
+
+	if got, ok := panel.GetSettingBool("dht_enabled"); !ok || !got {
+		t.Fatalf("expected typed bool setting dht_enabled=true, got %v (ok=%v)", got, ok)
+	}
+
+	if got, ok := panel.GetSettingSlider("max_peers"); !ok || got <= 0 {
+		t.Fatalf("expected typed slider setting max_peers>0, got %v (ok=%v)", got, ok)
+	}
+
+	if got, ok := panel.GetSettingText("privacy_mode"); !ok || got == "" {
+		t.Fatalf("expected typed text setting privacy_mode to be non-empty, got %q (ok=%v)", got, ok)
+	}
+
+	if ok := panel.SetSettingSlider("max_peers", 64); !ok {
+		t.Fatal("expected typed slider setter to update max_peers")
+	}
+	if got, ok := panel.GetSettingSlider("max_peers"); !ok || got != 64 {
+		t.Fatalf("expected typed slider max_peers=64, got %v (ok=%v)", got, ok)
+	}
+
+	if ok := panel.SetSettingText("privacy_mode", "Fortress"); !ok {
+		t.Fatal("expected typed text/select setter to update privacy_mode")
+	}
+	if got, ok := panel.GetSettingText("privacy_mode"); !ok || got != "Fortress" {
+		t.Fatalf("expected typed text privacy_mode=Fortress, got %q (ok=%v)", got, ok)
 	}
 }
 
