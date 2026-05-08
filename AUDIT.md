@@ -1,206 +1,65 @@
-# AUDIT
+# IMPLEMENTATION GAP AUDIT — 2026-05-08
 
-Date: 2026-05-07
-Scope: Ebitengine UI/UX remediation from latest audit findings.
+## Project Architecture Overview
+- **Intended system**: decentralized P2P social network with dual identity layers (Surface + Specter), Wave-based ephemeral content, Shroud anonymity routing, Resonance reputation, Pulse Map UI, and onboarding flow (README.md, docs/DESIGN_DOCUMENT.md, docs/TECHNICAL_IMPLEMENTATION.md).
+- **Current module state**: `go.mod` is `github.com/opd-ai/murmur` on Go 1.25.7 with 86 packages discovered via `go list ./...`.
+- **Dependency graph highlights** (from `go list` import graph):
+  - Highest fan-out packages: `pkg/app` (19 internal imports), `pkg/tui/views` (13), `pkg/pulsemap` (12).
+  - Highest fan-in packages: `proto` (36 dependents), `pkg/store` (16), `pkg/anonymous/mechanics` (11).
+- **Baseline tooling results**:
+  - `go-stats-generator analyze . --skip-tests`: LOC 57,038; functions 1,649; methods 5,183; packages analyzed 79; overall doc coverage 81.64%.
+  - `go build ./...`: fails in this environment due missing system X11 headers (`X11/Xlib.h`) while compiling Ebitengine GLFW backend (`tmp/gap-build-results.txt`).
+  - `go vet ./...`: same environment-level X11 header failure (`tmp/gap-vet-results.txt`).
+- **Online research (brief)**:
+  - Open issues: 0.
+  - Open PRs: 0.
+  - Recent closed PRs are incremental backlog closures (#11, #10, #9, #8), indicating active staged implementation rather than a stable frozen architecture.
 
-## Changes Applied
+## Gap Summary
+| Category | Count | Critical | High | Medium | Low |
+|----------|-------|----------|------|--------|-----|
+| Stubs/TODOs | 3 | 0 | 2 | 1 | 0 |
+| Dead Code | 2 | 0 | 0 | 1 | 1 |
+| Partially Wired | 2 | 1 | 0 | 1 | 0 |
+| Interface Gaps | 1 | 0 | 1 | 0 | 0 |
+| Dependency Gaps | 0 | 0 | 0 | 0 | 0 |
 
-1. Touch target baseline raised in shared UI theme.
-- File: pkg/ui/panel.go
-- Change: DefaultTheme ButtonHeight changed from 36 to 44.
-- Outcome: Shared panel buttons now meet 44px minimum target height.
+## Implementation Completeness by Package
+| Package | Exported Functions | Implemented | Stubs | Dead | Coverage |
+|---------|-------------------:|------------:|------:|-----:|----------|
+| `pkg/content/waves` | 117 | 114 | 2 | 1 | N/A (`--skip-tests`) |
+| `pkg/pulsemap` | 68 | 67 | 0 | 1 | N/A (`--skip-tests`) |
+| `pkg/tui/views` | 56 | 55 | 0 | 1 | N/A (`--skip-tests`) |
+| `pkg/identity` | 220 | 218 | 1 | 1 | N/A (`--skip-tests`) |
+| `pkg/onboarding/screens` | 124 | 123 | 1 | 0 | N/A (`--skip-tests`) |
+| `pkg/onboarding/bootstrap` | 35 | 34 | 1 | 0 | N/A (`--skip-tests`) |
+| `pkg/anonymous/resonance` | 211 | 208 | 1 | 2 | N/A (`--skip-tests`) |
+| `pkg/networking/mesh` | 66 | 65 | 1 | 1 | N/A (`--skip-tests`) |
 
-2. Onboarding button baseline raised.
-- File: pkg/onboarding/screens/helpers.go
-- Change: DefaultButtonStyle Height changed from 40 to 44.
-- Outcome: Onboarding CTA/back actions now meet mobile touch target guidance.
+> Note: completeness counts are audit heuristics from confirmed findings; they are not raw go-stats fields.
 
-3. Passphrase prompt input and controls hardened.
-- File: pkg/ui/passphrase_prompt.go
-- Changes:
-  - Backspace now removes the last rune (UTF-8 safe) instead of byte slicing.
-  - Button draw height now uses theme ButtonHeight.
-- Outcome: No UTF-8 corruption while deleting; button hit area tracks global touch target policy.
+## Findings
+### CRITICAL
+- [ ] **Wave type execution path ignores type-specific constructors on active submit paths** — `pkg/pulsemap/game.go:974`, `pkg/tui/views/waves.go:116`, `pkg/content/waves/types.go:83` — both Pulse Map and TUI call generic `waves.Create(...)` for all selected types, but specialized Wave implementations exist separately (`pkg/content/waves/veiled.go`, `masked.go`, `abyssal.go`, `beacon.go`) and are bypassed in live creation flows. This blocks the stated goal that each Wave type has its own semantics/crypto path. — **Remediation:** Route Wave creation by type in submit handlers (or centrally inside `waves.Create`) to call the type-specific constructors and enforce type-specific validation; add integration tests covering at least Veiled/Specter/Masked/Beacon submissions from Pulse Map and TUI; validate with `go build ./...`, `go vet ./...`, and targeted package tests.
 
-4. Recovery screen input and layout hardened.
-- File: pkg/onboarding/screens/recovery_screen.go
-- Changes:
-  - Added explicit back button dimensions (120x44) and reused them for hit tests and drawing.
-  - Mnemonic and passphrase backspace paths made UTF-8 rune-safe.
-  - Added clipped masked passphrase rendering with ellipsis to prevent overflow in fixed-width input box.
-- Outcome: Correct Unicode deletion behavior, consistent button hit boxes, no passphrase text bleed.
+### HIGH
+- [ ] **Veiled encryption key wrapping is explicitly simplified and not the intended DH-based scheme** — `pkg/content/waves/veiled.go:184-186` — code uses XOR-wrapped symmetric key with derived hash material and comment states proper X25519 DH is not implemented. This conflicts with documented cryptographic intent for anonymous/private exchange and can produce incorrect security guarantees. — **Remediation:** Replace `wrapSymmetricKey`/`UnwrapSymmetricKey` flow with X25519 shared-secret derivation + HKDF and authenticated key wrapping; update `encryptVeiledContent` and decryption parity tests; verify with deterministic crypto round-trip tests and malformed-key negative tests.
+- [ ] **Resonance claim implementation contract mismatch (Pedersen/Bulletproof claim vs simplified arithmetic model)** — `pkg/anonymous/resonance/claims.go:1-3`, `pkg/anonymous/resonance/claims.go:149-153` — file-level contract claims Pedersen-style ZK path, but commitment combines points via XOR and comments call out simplification. This creates a documented-vs-implemented contract gap for security-sensitive claims. — **Remediation:** Either (a) delete/deprecate this legacy claim path and wire all claim generation/verification through `pedersen.go` adapter, or (b) implement real group operations and proofs; add compile-time and runtime wiring tests ensuring only one claim path is active.
 
-5. Compose/search small-screen layout overflow fixed.
-- Files:
-  - pkg/ui/compose.go
-  - pkg/ui/search.go
-- Changes:
-  - Compose panel width now clamps to viewport bounds even on very narrow windows.
-  - Search bar width now clamps to viewport-safe max width on narrow windows.
-- Outcome: Controls remain on-screen and centered at small resolutions.
+### MEDIUM
+- [ ] **Mobile invitation share-sheet path is stubbed with explicit runtime error** — `pkg/identity/share.go:159-163` — Android/iOS path returns "not yet implemented" and does not invoke platform bindings, blocking documented invite sharing behavior on mobile. — **Remediation:** Implement platform-specific mobile bridge (gomobile bindings) in `OpenSystemShare`; add mobile-targeted unit/integration tests for text/email/QR share requests; validate with mobile build pipeline.
+- [ ] **Onboarding completion invite generation is disconnected from signed invitation protocol** — `pkg/onboarding/screens/completion_screen.go:324-345` — completion flow generates display-only `MURMUR-XXXX-YYYY`-style code from key bytes instead of using `identity.GenerateSignedInvitation` + URI encoding; this bypasses invitation metadata and bootstrap addresses expected by onboarding bootstrap acceptance (`pkg/onboarding/bootstrap/invitation.go:14-30`). — **Remediation:** Replace `generateInviteCode` path with actual invitation generation/encoding and attach resulting URI to copy/share actions; add onboarding acceptance E2E test using generated code from completion screen.
+- [ ] **Invitation bootstrap fallback emits `/p2p/<peerID>` without transport address** — `pkg/onboarding/bootstrap/invitation.go:41-45` — fallback comment explicitly states this is incomplete and relies on later discovery. This weakens warm-start guarantees when signed bootstrap addrs are absent. — **Remediation:** Include at least one dialable multiaddr in invitation payloads by default and only use `/p2p/` as a last-resort diagnostic value; add failure-mode tests for unsigned/legacy invitation acceptance.
+- [ ] **Datacenter classification feature exists but is non-functional and unintegrated** — `pkg/networking/mesh/diversity.go:302-304` — `IsDatacenter` always returns `false`; test explicitly notes non-implementation (`pkg/networking/mesh/diversity_test.go:269`). This leaves geographic diversity scoring partially implemented. — **Remediation:** Implement CIDR/provider-backed classification and wire into diversity decisions; add tests with known datacenter/non-datacenter fixtures.
 
-6. Council proposal/member scrolling corrected.
-- Files:
-  - pkg/ui/councils.go
-  - pkg/ui/councils_draw.go
-- Changes:
-  - Added separate proposal selection index (`selectedProposal`) from scroll offset.
-  - Proposal scroll now follows selected row and clamps by visible row count.
-  - Member list rendering now respects scroll window and active-member filtering.
-- Outcome: No empty trailing viewport from over-scroll; keyboard navigation and highlighting stay coherent.
+### LOW
+- [ ] **Legacy resonance claims API appears dead in runtime wiring** — `pkg/anonymous/resonance/claims.go:80`, `pkg/anonymous/resonance/claims.go:203` — symbol search shows runtime mechanics use `pedersen.go` verifier adapter (`pkg/anonymous/mechanics/councils/councils.go:469`), while `NewClaimGenerator` / `NewClaimVerifier` are only referenced in tests. — **Remediation:** Remove or deprecate unused API surface (or wire it intentionally); if retained for external API, mark as legacy and add explicit compatibility tests.
 
-7. Hot-path formatting cleanup in territory overview.
-- File: pkg/ui/territory_overview.go
-- Changes:
-  - Replaced per-frame fmt.Sprintf usage in draw/status formatting with strconv-based formatting helpers.
-- Outcome: Reduced hot-path formatting overhead in Draw.
+## False Positives Considered and Rejected
+| Candidate Finding | Reason Rejected |
+|-------------------|----------------|
+| Build-tagged `*_stub.go` files under `pkg/ui`, `pkg/pulsemap`, `pkg/network`, `pkg/app` | Rejected as intentional test/headless/platform shims (`//go:build test`, `//go:build js && wasm`, etc.), not accidental unfinished production paths. |
+| `go build`/`go vet` failures as intrinsic code defect | Rejected as environment dependency issue (missing system X11 headers for Ebitengine GLFW) rather than direct implementation gap in repository logic. |
+| TODO in `pkg/content/storage/cache_test.go:398` | Rejected as test-only deferred scenario; does not block current production behavior. |
+| Exported invitation helpers with no internal caller | Rejected as possible public API surface; only flagged when coupled to an explicit broken wiring path (completion screen invite generation). |
 
-## Security/Privacy Notes
-- No cryptographic or networking behavior changed.
-- Changes are UI/input-only.
-
-## Validation Status
-- Tests:
-  - `go test ./...` passed.
-- Native desktop build:
-  - `GOOS=linux GOARCH=amd64 go build ./cmd/murmur` passed.
-- Cross-target compile coverage:
-  - `GOOS=<target> GOARCH=<arch> CGO_ENABLED=0 go build -tags noebiten ./cmd/murmur`
-    passed for:
-    - linux/amd64
-    - linux/arm64
-    - darwin/amd64
-    - darwin/arm64
-    - windows/amd64
-- WASM build:
-  - `GOOS=js GOARCH=wasm CGO_ENABLED=0 go build ./cmd/wasm` passed.
-
-## Update - 2026-05-07 (CI Native GUI Build Policy)
-
-### Change Summary
-- Updated CI artifact matrix to run native builds on each platform runner (`ubuntu-latest`, `macos-latest`, `windows-latest`).
-- Removed cross-compilation in the CI matrix (`GOOS/GOARCH` target overrides removed).
-- Removed `noebiten` build path from artifact packaging; executables are now built from `./cmd/murmur` with Ebitengine GUI enabled (`CGO_ENABLED=1`).
-
-### Security/Operational Impact
-- Improves release confidence by validating real platform toolchains and GUI-linked builds instead of headless/cross-compiled substitutes.
-- Reduces mismatch risk between released binaries and runtime graphics/input dependencies.
-- Linux runner explicitly installs required GUI system libraries to ensure deterministic desktop build success.
-
-### Follow-up
-- Keep wasm publishing in dedicated web workflows; CI executable artifact matrix remains native desktop only.
-
-## Update - 2026-05-08 (Release Action Migration)
-
-### Change Summary
-- Replaced the release creation action in `.github/workflows/build.yml` from `softprops/action-gh-release@v3` to `ncipollo/release-action@v1`.
-- Mapped `files` to `artifacts` and `generate_release_notes` to `generateReleaseNotes` to preserve release packaging behavior.
-
-### Security/Operational Impact
-- Reduces dependency on an older release publishing action and standardizes release automation on the selected maintained action.
-- Scope is limited to CI workflow configuration; no runtime networking, cryptography, storage, or application logic changed.
-
-### Validation Status
-- Prior baseline commands executed before change:
-  - `make lint` failed in this environment due to missing `X11/Xlib.h` during Ebitengine GLFW native compilation.
-  - `make test` partially passed but failed in GUI-linked packages for the same missing Linux X11 headers.
-  - `make build` failed for the same missing X11 development headers.
-- Workflow syntax validated post-change:
-  - `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/build.yml")'` passed.
-- Note: The baseline lint/test/build failures above are environment-specific (missing Linux X11 development headers for Ebitengine native GUI compilation) and are unrelated to the release-action migration itself.
-
-## Update - 2026-05-08 (gomobile Entrypoint Fix)
-
-### Change Summary
-- Added `cmd/murmur-mobile` as a dedicated mobile application entrypoint.
-- Added a mobile-only blank import of `golang.org/x/mobile/app` so `gomobile` recognizes the package as an app target.
-- Updated `scripts/build-mobile.sh` to build `github.com/opd-ai/murmur/cmd/murmur-mobile`.
-
-### Security/Operational Impact
-- No runtime cryptography, networking protocol behavior, or persistence logic changed.
-- Impact is limited to mobile build tooling and dependency resolution for `golang.org/x/mobile`.
-
-### Validation Status
-- `go list -tags=android -f '{{join .Imports "\n"}}' ./cmd/murmur-mobile` includes `golang.org/x/mobile/app`.
-- `go test ./...`, `go vet ./...`, and `go build ./cmd/murmur` still fail in this Linux environment because Ebitengine's native GLFW build cannot find `X11/Xlib.h`; this pre-existing environment issue is unrelated to the mobile entrypoint fix.
-## Update - 2026-05-08 (Bubble Tea TUI Introduction)
-
-### Change Summary
-- Added a standalone terminal UI binary at `cmd/murmur-tui`.
-- Added `pkg/tui/{views,components,styles,input,bridge}` implementing a Bubble Tea root model with tabbed domain views (Pulse Map, Identity, Waves, Anonymous, Onboarding, Networking), centralized keymap/theme, and generic event-stream bridge.
-- Added Phase 0 discovery artifact `docs/TUI_FEATURE_MATRIX.md` and architecture/user docs (`docs/TUI_ARCHITECTURE.md`, `cmd/murmur-tui/README.md`).
-
-### Security/Operational Impact
-- No cryptographic primitive substitutions; TUI uses existing domain packages for identity/waves/specters/modes/onboarding state transitions.
-- TUI package avoids direct Ebitengine coupling, reducing GUI runtime dependency for terminal operation.
-- New third-party dependencies added: Bubble Tea, Bubbles, Lipgloss (advisory database check: no known vulnerabilities at selected versions).
-
-### Validation Status
-- `go test ./pkg/tui/... ./cmd/murmur-tui` passed.
-- Repository-wide native GUI checks remain environment-limited here by missing Linux X11 headers (`X11/Xlib.h`) for Ebitengine-linked packages.
-
-## Update - 2026-05-08 (TUI Parity Expansion)
-
-### Change Summary
-- Expanded terminal parity surfaces in `pkg/tui/views`:
-  - Pulse Map now consumes `pkg/pulsemap/layout` for layout-driven node coordinates and provides search, node detail, minimap summary, edge rendering, bookmark hotkeys, and radial-action equivalent menu.
-  - Onboarding now tracks bootstrap progress via `pkg/onboarding/bootstrap` manager integration with a connector abstraction.
-  - Identity now surfaces recovery validation mode, privacy cooldown feedback, traffic-padding status, fingerprint, and invite code summary.
-  - Waves now provide thread-style reconstruction preview and reply-to-last compose flow.
-  - Anonymous view now includes explicit Shroud circuit health and Echo Index display.
-- Added root settings modal controls (`Ctrl+,`) with privacy mode and cross-layer blend toggles; emits UI action events through the TUI bridge output stream.
-
-### Security/Operational Impact
-- No changes to cryptographic algorithms or network protocol semantics.
-- TUI continues to call existing domain packages for state transitions and message creation; no direct substitution of core subsystem logic.
-
-### Validation Status
-- `go test ./pkg/tui/... ./cmd/murmur-tui` passed after parity expansion changes.
-
-## Update - 2026-05-08 (TUI P1 Parity Closure)
-
-### Change Summary
-- Completed remaining P1-facing terminal parity surfaces and marked all P0/P1 matrix rows done in `docs/TUI_FEATURE_MATRIX.md`.
-- Added additional user-facing state for declarations, amplification, relay discovery, whisper routing, mini-games boards, onboarding hints/resume branches, relay diagnostics, peer activity feed, and cross-layer overlay indicators.
-
-### Security/Operational Impact
-- No changes to cryptographic primitive selection or protocol wire format.
-- TUI features continue to consume existing package APIs; no Ebitengine behavior or domain package public API contracts were changed.
-
-### Validation Status
-- `go build ./cmd/murmur-tui`, `go vet ./pkg/tui/... ./cmd/murmur-tui`, and `go test -race ./pkg/tui/... ./cmd/murmur-tui` all passed.
-- Full repo `go test -tags test -race ./...` remains environment-limited by missing Linux X11 headers for Ebitengine-linked packages (`X11/Xlib.h`), unchanged by this TUI-only update.
-
-## Update - 2026-05-08 (TUI P2 Parity Completion)
-
-### Change Summary
-- Implemented terminal equivalents for all remaining P2 parity rows and marked the matrix fully complete (no `todo`/`deferred` statuses).
-- Added Pulse Map terminal effect equivalents (glow/ripple/particle counters, dynamic background blocks, contrast-mode substitute for blur/composite), Anonymous Sparks/Pulse Beats surfaces, protocol reference visibility, theme cycling, and wordlist source/regenerate controls.
-
-### Security/Operational Impact
-- No new external dependencies or cryptographic/protocol changes.
-- Added UI-only state and controls; all features remain constrained to TUI view/model layers and existing domain interfaces.
-
-### Validation Status
-- TUI build/vet/tests/race checks pass.
-- Full repository race test run still blocked by environment-level Ebitengine X11 header availability for non-TUI packages.
-
-## Update - 2026-05-08 (ROADMAP Priority Execution: Bootstrap, TURN, Migration, CI)
-
-### Change Summary
-- Cleared invalid placeholder peer IDs from `pkg/networking/discovery/bootstrap.go`; static bootstrap list is now empty, relying on the resolver chain (GitHub Gist → Pages) as the authoritative runtime mechanism.
-- Added `NewDefaultResolverChain` factory function; wires Gist/Pages resolvers with per-source timeouts (2s/3s).
-- `CommunityTURNServers()` now returns nil; hardcoded TURN credentials removed. Added `FilterHealthyTURNServers` for DHT-based health filtering.
-- Implemented `MigrateLegacyKeystore` in `pkg/identity/keys/keystore.go` to handle the previously stubbed migration path for combined Surface+Specter keystores.
-- Fixed `mobile.yml` CI go-version from hardcoded `1.22` to `go-version-file: 'go.mod'` (aligns with `go 1.25.7` in go.mod).
-- Added `.github/workflows/security.yml` with govulncheck and weekly dependency freshness gates.
-
-### Security/Privacy Notes
-- Removing hardcoded TURN credentials (`murmur`/`community`) eliminates static credentials that could not be rotated. TURN servers must now be discovered via DHT with health filtering.
-- `MigrateLegacyKeystore` zeroes all intermediate plaintext buffers per `SECURITY_PRIVACY.md §2.1`. The legacy file is renamed (not deleted) to allow manual recovery if needed.
-- No cryptographic primitive changes; identity isolation guarantees unchanged.
-
-### Validation Status
-- `go test -tags=test -race ./pkg/networking/discovery/... ./pkg/networking/relay/... ./pkg/identity/keys/... ./pkg/config/...` passed.
-- `go vet ./pkg/networking/discovery/... ./pkg/networking/relay/... ./pkg/identity/keys/...` passed.
-- `go-stats-generator diff`: new functions all have cyclomatic complexity ≤ 6. Pre-existing `SetState`/`SetEvents` complexity drift in `pkg/ui/` is unrelated to this session's changes.
