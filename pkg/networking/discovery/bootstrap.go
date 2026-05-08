@@ -10,27 +10,20 @@ import (
 	"github.com/multiformats/go-multiaddr"
 )
 
-// BootstrapNodes contains the default bootstrap nodes for MURMUR.
+// BootstrapNodes contains the hardcoded bootstrap nodes for MURMUR.
 // Per NETWORK_ARCHITECTURE.md §3: "The default configuration includes 8–12 bootstrap
 // nodes distributed across different geographic regions and network providers."
 //
-// Bootstrap nodes are community-operated and their addresses are updated with each
-// application release. These are placeholder addresses for development.
-// Production addresses should be replaced before release.
-var BootstrapNodes = []peer.AddrInfo{
-	// North America - East
-	mustParseAddrInfo("/dns4/bootstrap1.murmur.network/tcp/4001/p2p/12D3KooWBootstrap1NAEast"),
-	mustParseAddrInfo("/dns4/bootstrap2.murmur.network/tcp/4001/p2p/12D3KooWBootstrap2NAEast"),
-	// North America - West
-	mustParseAddrInfo("/dns4/bootstrap3.murmur.network/tcp/4001/p2p/12D3KooWBootstrap3NAWest"),
-	mustParseAddrInfo("/dns4/bootstrap4.murmur.network/tcp/4001/p2p/12D3KooWBootstrap4NAWest"),
-	// Europe
-	mustParseAddrInfo("/dns4/bootstrap5.murmur.network/tcp/4001/p2p/12D3KooWBootstrap5Europe"),
-	mustParseAddrInfo("/dns4/bootstrap6.murmur.network/tcp/4001/p2p/12D3KooWBootstrap6Europe"),
-	// Asia Pacific
-	mustParseAddrInfo("/dns4/bootstrap7.murmur.network/tcp/4001/p2p/12D3KooWBootstrap7AsiaPacific"),
-	mustParseAddrInfo("/dns4/bootstrap8.murmur.network/tcp/4001/p2p/12D3KooWBootstrap8AsiaPacific"),
-}
+// Production bootstrap infrastructure is discovered at runtime via the ResolverChain
+// (GitHub Gist → GitHub Pages → IPFS → DHT rendezvous), which is seeded and maintained
+// by the bootstrap-refresh CI workflow. The static list here is intentionally empty
+// until community-operated nodes are deployed and their multiaddrs verified.
+//
+// Per PLAN.md "Bootstrap Strategy: Zero-Infrastructure Peer Discovery", the live peer
+// list is hosted at https://opd-ai.github.io/murmur/peers.json and updated every 6h.
+// Operators running dedicated bootstrap nodes should add their verified multiaddrs here
+// via a pull request once their nodes have been running stably for ≥72 hours.
+var BootstrapNodes = []peer.AddrInfo{}
 
 // DefaultBootstrapCount is the number of bootstrap nodes to connect to.
 // Per NETWORK_ARCHITECTURE.md: "A new node connects to 2–3 randomly selected bootstrap nodes."

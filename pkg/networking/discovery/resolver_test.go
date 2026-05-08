@@ -235,3 +235,33 @@ func TestDeduplicatePeers_NoDuplicates(t *testing.T) {
 	result := deduplicatePeers(peers)
 	assert.Len(t, result, 3)
 }
+
+func TestNewDefaultResolverChain_Empty(t *testing.T) {
+	// Empty gist/pages URLs → resolver chain with no resolvers.
+	chain := NewDefaultResolverChain("", "", nil)
+	require.NotNil(t, chain)
+	_, err := chain.Resolve(context.Background())
+	assert.Error(t, err, "empty chain should return error on resolve")
+}
+
+func TestNewDefaultResolverChain_FallsBackToPages(t *testing.T) {
+	// Chain with only pagesURL set (gist is empty).
+	// The pages resolver will fail (no real URL), but the chain structure should be valid.
+	chain := NewDefaultResolverChain("", "http://127.0.0.1:0/peers.json", BootstrapVerifyKey)
+	require.NotNil(t, chain)
+	// Expect an error (unreachable URL), not a panic.
+	_, err := chain.Resolve(context.Background())
+	assert.Error(t, err)
+}
+
+func TestNewDefaultResolverChain_BothSources(t *testing.T) {
+	chain := NewDefaultResolverChain(
+		"http://127.0.0.1:0/gist.json",
+		"http://127.0.0.1:0/peers.json",
+		BootstrapVerifyKey,
+	)
+	require.NotNil(t, chain)
+	// Both resolvers will fail (unreachable); chain should report error.
+	_, err := chain.Resolve(context.Background())
+	assert.Error(t, err)
+}
