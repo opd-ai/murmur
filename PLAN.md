@@ -10,7 +10,7 @@ This file tracks only incomplete items pulled from ROADMAP.md.
 
 ### Testing
 
-- [ ] Wave TTL expiration correctness (end-to-end validation)
+- [x] Wave TTL expiration correctness (end-to-end validation) — six end-to-end TTL lifecycle tests added in `pkg/content/storage/ttl_e2e_test.go` (2026-05-08)
 - [ ] Mini-game network propagation end-to-end
 - [ ] **Ebitengine headless mode** screenshot comparison tests for rendering
 
