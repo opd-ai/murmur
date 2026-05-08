@@ -314,7 +314,7 @@ func TestJoinGameAction_ProximityFilteredViaRadialMenu(t *testing.T) {
 	}
 
 	positions := map[string][2]float64{
-		string(anchorPub):  {0, 0},
+		string(anchorPub):   {0, 0},
 		string(nearCreator): {10, 0},
 		string(farCreator):  {400, 400},
 	}

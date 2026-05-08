@@ -23,13 +23,12 @@ func TestRunWithConfig(t *testing.T) {
 
 	// Create a channel to capture run result.
 	runErr := make(chan error, 1)
-	var application *app.App
+	appChan := make(chan *app.App, 1)
 
 	// Run in a goroutine since it blocks.
 	go func() {
 		// We need to intercept the app creation to get a handle.
-		var createErr error
-		application, createErr = app.New(app.Config{
+		application, createErr := app.New(app.Config{
 			Version: "0.0.0-test",
 			DataDir: tmpDir,
 			SkipUI:  true, // Headless mode for testing.
@@ -39,29 +38,35 @@ func TestRunWithConfig(t *testing.T) {
 			return
 		}
 
+		appChan <- application
 		runErr <- application.Run()
 	}()
 
 	// Wait for app to be created.
-	time.Sleep(100 * time.Millisecond)
+	var application *app.App
+	select {
+	case application = <-appChan:
+	case err := <-runErr:
+		t.Fatalf("application startup failed: %v", err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("application was not created within timeout")
+	}
 
 	// Wait for init.
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	if application != nil {
-		if err := application.WaitReady(ctx); err != nil {
-			t.Fatalf("WaitReady() error = %v", err)
-		}
+	if err := application.WaitReady(ctx); err != nil {
+		t.Fatalf("WaitReady() error = %v", err)
+	}
 
-		// Verify version.
-		if application.Version() != "0.0.0-test" {
-			t.Errorf("Version() = %q, want %q", application.Version(), "0.0.0-test")
-		}
+	// Verify version.
+	if application.Version() != "0.0.0-test" {
+		t.Errorf("Version() = %q, want %q", application.Version(), "0.0.0-test")
+	}
 
-		// Clean shutdown.
-		if err := application.Close(); err != nil {
-			t.Errorf("Close() error = %v", err)
-		}
+	// Clean shutdown.
+	if err := application.Close(); err != nil {
+		t.Errorf("Close() error = %v", err)
 	}
 
 	select {
