@@ -28,21 +28,21 @@ func NewEventStream(ch chan EventMsg, unsubscribe func()) *EventStream {
 
 // Close unsubscribes and closes internal resources.
 func (s *EventStream) Close() {
-if s == nil {
-return
-}
-if s.unsubscribe != nil {
-s.unsubscribe()
-}
+	if s == nil {
+		return
+	}
+	if s.unsubscribe != nil {
+		s.unsubscribe()
+	}
 }
 
 // WaitCmd returns a command that waits for one event.
 func (s *EventStream) WaitCmd(ctx context.Context) tea.Cmd {
-if s == nil {
-return nil
-}
-return func() tea.Msg {
-select {
+	if s == nil {
+		return nil
+	}
+	return func() tea.Msg {
+		select {
 		case <-ctx.Done():
 			return nil
 		case ev := <-s.ch:

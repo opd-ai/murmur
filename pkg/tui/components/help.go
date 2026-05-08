@@ -1,12 +1,12 @@
 package components
 
 import (
-"strings"
+	"strings"
 
-"github.com/opd-ai/murmur/pkg/tui/styles"
+	"github.com/opd-ai/murmur/pkg/tui/styles"
 )
 
 // HelpOverlay renders key help content.
 func HelpOverlay(theme styles.Theme, lines []string) string {
-return theme.Panel.Render(strings.Join(lines, "\n"))
+	return theme.Panel.Render(strings.Join(lines, "\n"))
 }
