@@ -89,7 +89,8 @@
 - [x] Add end-to-end tests proving anonymous mechanics are discoverable and actionable from Pulse Map (not only present in isolated stores).
 - [x] Route active submit paths through type-specific Wave constructors (Veiled/Masked/Abyssal/Beacon) and add submit-path coverage tests for Veiled/Specter/Masked/Beacon.
   - Evidence: `pkg/content/waves/types.go` dispatches to `CreateVeiled`/`CreateMasked`/`CreateAbyssal`/`CreateBeacon`; tests in `pkg/content/waves/types_test.go` and `pkg/tui/views/models_test.go`.
-- [ ] Validation: UI-level integration tests confirm live mechanics appear by proximity and “Join Game” completes a network-backed flow.
+- [x] Validation: UI-level integration tests confirm live mechanics appear by proximity and “Join Game” completes a network-backed flow.
+  - Evidence: `TestJoinGameAction_ProximityFilteredViaRadialMenu` in [pkg/pulsemap/game_actions_test.go](pkg/pulsemap/game_actions_test.go) exercises `ActionJoinGame` via radial-menu dispatch and verifies proximity filtering through `SetNodePositioner` with near/far mechanics.
 
 ### Priority 3: Align Toolchain and CI to Actual Module Requirements
 - [x] Unify CI Go versions with `go.mod` (`go 1.25.7`) and remove outdated `1.22` matrix assumptions.

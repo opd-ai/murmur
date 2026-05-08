@@ -426,3 +426,6 @@ server. Nodes expose:
 | `crypto/rand` weakness | All security-critical randomness uses `crypto/rand.Read`; no `math/rand` found in sensitive paths |
 | ECDH low-order point attack on Curve25519 | `DeriveSharedSecret` in `keypair.go` explicitly checks for all-zero shared secret and returns an error |
 | Shamir share forgery | Share reconstruction requires `threshold` shares; a single compromised contact cannot reconstruct the master key |
+
+## Recent Execution Updates
+- 2026-05-08: Added UI-level integration validation for Priority 2 mechanics discoverability and joinability. `TestJoinGameAction_ProximityFilteredViaRadialMenu` in `pkg/pulsemap/game_actions_test.go` dispatches `ActionJoinGame` through the radial menu and verifies proximity filtering (near vs far mechanics) is reflected in the join toast count.
