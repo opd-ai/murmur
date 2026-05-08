@@ -39,8 +39,8 @@ import (
 	"github.com/multiformats/go-multiaddr"
 
 	"github.com/opd-ai/murmur/pkg/networking/transport/diagnostics"
-	"github.com/opd-ai/murmur/pkg/networking/transport/onramp_i2p"
-	"github.com/opd-ai/murmur/pkg/networking/transport/onramp_tor"
+	onrampi2p "github.com/opd-ai/murmur/pkg/networking/transport/onramp_i2p"
+	onramptor "github.com/opd-ai/murmur/pkg/networking/transport/onramp_tor"
 )
 
 // Host configuration constants per NETWORK_ARCHITECTURE.md.
@@ -359,7 +359,7 @@ func appendAnonymityTransports(opts []libp2p.Option, ctx context.Context, cfg Co
 // and wraps onramp.Onion to provide Dial and Listen semantics.
 func buildTorTransportOption(ctx context.Context, controlAddr string) libp2p.Option {
 	constructor := func(upgrader transport.Upgrader, rcmgr network.ResourceManager) (transport.Transport, error) {
-		return onramp_tor.NewTransport(ctx, "murmur-tor", upgrader, rcmgr)
+		return onramptor.NewTransport(ctx, "murmur-tor", upgrader, rcmgr)
 	}
 	return libp2p.Transport(constructor)
 }
@@ -370,7 +370,7 @@ func buildTorTransportOption(ctx context.Context, controlAddr string) libp2p.Opt
 func buildI2PTransportOption(ctx context.Context, samAddr string) libp2p.Option {
 	constructor := func(upgrader transport.Upgrader, rcmgr network.ResourceManager) (transport.Transport, error) {
 		// Empty options slice uses onramp defaults for tunnel parameters
-		return onramp_i2p.NewTransport(ctx, "murmur-i2p", samAddr, nil, upgrader, rcmgr)
+		return onrampi2p.NewTransport(ctx, "murmur-i2p", samAddr, nil, upgrader, rcmgr)
 	}
 	return libp2p.Transport(constructor)
 }

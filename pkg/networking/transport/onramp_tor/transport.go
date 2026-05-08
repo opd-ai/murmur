@@ -1,6 +1,6 @@
-// Package onramp_tor provides a libp2p transport adapter for Tor using go-i2p/onramp.
+// Package onramptor provides a libp2p transport adapter for Tor using go-i2p/onramp.
 // Per PLAN.md §5.3: Wrap onramp.Onion to provide libp2p transport interface.
-package onramp_tor
+package onramptor
 
 import (
 	"context"

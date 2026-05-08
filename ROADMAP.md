@@ -125,3 +125,4 @@
 
 ## Recent Execution Updates
 - 2026-05-08: Completed AUDIT remediation for Shroud beacon key exposure. `Beacon.SecretKey()` was removed from the public API and circuit key agreements now use a fresh per-circuit ephemeral initiator keypair (`pkg/anonymous/shroud/circuit.go`). Validation test added: `TestBuildCircuitUsesEphemeralInitiatorKey` (`pkg/anonymous/shroud/circuit_test.go`).
+- 2026-05-08: Completed AUDIT remediation for non-idiomatic underscore package names in production transports. Package declarations were renamed to `onrampi2p` and `onramptor`; host transport constructors were updated in `pkg/networking/transport/host.go`. Validation: `go list ./...`, `go vet ./...`, and `xvfb-run -a go test -race ./...` pass.
