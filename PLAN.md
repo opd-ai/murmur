@@ -26,6 +26,7 @@ This file tracks only incomplete items pulled from ROADMAP.md.
 - [ ] Platform-specific binary releases (linux/amd64, linux/arm64, darwin/amd64, darwin/arm64, windows/amd64)
   - [x] CI release publishing action migrated to `ncipollo/release-action` in `.github/workflows/build.yml` (2026-05-08)
 - [ ] Android APK distribution
+- [x] Dedicated `cmd/murmur-mobile` gomobile entrypoint now imports `golang.org/x/mobile/app` to satisfy mobile package detection (2026-05-08)
 - [ ] iOS xcframework distribution
 - [ ] Version upgrade protocol — dual-subscription migration (v1 + v2 topics)
 

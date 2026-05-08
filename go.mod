@@ -34,7 +34,8 @@ require (
 	go.opentelemetry.io/otel/trace v1.43.0
 	golang.ngrok.com/ngrok v1.13.0
 	golang.org/x/crypto v0.50.0
-	golang.org/x/image v0.31.0
+	golang.org/x/image v0.39.0
+	golang.org/x/mobile v0.0.0-20260410095206-2cfb76559b7b
 	golang.org/x/time v0.15.0
 	google.golang.org/protobuf v1.36.11
 )
@@ -177,14 +178,15 @@ require (
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
 	golang.ngrok.com/muxado/v2 v2.0.1 // indirect
 	golang.org/x/exp v0.0.0-20260312153236-7ab1446f8b90 // indirect
-	golang.org/x/mod v0.34.0 // indirect
+	golang.org/x/exp/shiny v0.0.0-20260312153236-7ab1446f8b90 // indirect
+	golang.org/x/mod v0.35.0 // indirect
 	golang.org/x/net v0.53.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.43.0 // indirect
-	golang.org/x/telemetry v0.0.0-20260311193753-579e4da9a98c // indirect
+	golang.org/x/telemetry v0.0.0-20260409153401-be6f6cb8b1fa // indirect
 	golang.org/x/term v0.42.0 // indirect
 	golang.org/x/text v0.36.0 // indirect
-	golang.org/x/tools v0.43.0 // indirect
+	golang.org/x/tools v0.44.0 // indirect
 	gonum.org/v1/gonum v0.17.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
