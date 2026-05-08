@@ -147,7 +147,6 @@ jobs:
           tag: latest
           makeLatest: true
           artifacts: artifacts/**/*
-          draft: true
           prerelease: true
           bodyFile: README.md
           removeArtifacts: true
