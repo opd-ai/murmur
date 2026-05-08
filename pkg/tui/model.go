@@ -104,6 +104,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case tea.KeyMsg:
+		if m.session.Settings.ShowSettings {
+			switch t.String() {
+			case "r":
+				m.session.Config.EnableRelay = !m.session.Config.EnableRelay
+				return m, m.emitActionCmd("config_toggle", map[string]any{"field": "enable_relay", "value": m.session.Config.EnableRelay})
+			case "o":
+				m.session.Config.EnableTor = !m.session.Config.EnableTor
+				return m, m.emitActionCmd("config_toggle", map[string]any{"field": "enable_tor", "value": m.session.Config.EnableTor})
+			case "i":
+				m.session.Config.EnableI2P = !m.session.Config.EnableI2P
+				return m, m.emitActionCmd("config_toggle", map[string]any{"field": "enable_i2p", "value": m.session.Config.EnableI2P})
+			case "h":
+				m.session.Config.EnableHealthEndpoint = !m.session.Config.EnableHealthEndpoint
+				return m, m.emitActionCmd("config_toggle", map[string]any{"field": "enable_health_endpoint", "value": m.session.Config.EnableHealthEndpoint})
+			}
+		}
 		switch t.String() {
 		case "q", "ctrl+c":
 			m.cancel()
@@ -123,7 +139,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "shift+tab":
 			m.active = (m.active - 1 + len(tabNames)) % len(tabNames)
 			return m, nil
-		case "1", "2", "3", "4", "5", "6":
+		case "1", "2", "3", "4", "5", "6", "7", "8", "9", "0":
 			if m.session.Settings.ShowSettings {
 				return m, m.applySettingKey(t.String())
 			}
@@ -194,18 +210,31 @@ func (m Model) View() string {
 			fmt.Sprintf("1-4 privacy mode  | current=%s", m.session.ModeManager.Current().String()),
 			fmt.Sprintf("5 blend down      | blend=%.0f%%", m.session.Settings.LayerBlend*100),
 			fmt.Sprintf("6 blend up        | anonymous-only=%t", m.session.Settings.AnonymousOnly),
+			fmt.Sprintf("7 heatmap [%t] 8 marks [%t] 9 gifts [%t] 0 echo [%t]",
+				m.session.Settings.Overlays["heatmap"],
+				m.session.Settings.Overlays["marks"],
+				m.session.Settings.Overlays["gifts"],
+				m.session.Settings.Overlays["echo"],
+			),
+			fmt.Sprintf("config relay=%t tor=%t i2p=%t health=%t",
+				m.session.Config.EnableRelay,
+				m.session.Config.EnableTor,
+				m.session.Config.EnableI2P,
+				m.session.Config.EnableHealthEndpoint,
+			),
+			fmt.Sprintf("config keys: r=relay o=tor i=i2p h=health | dataDir=%s", m.session.Config.DataDir),
 		}))
 	}
 	if m.showHelp {
 		parts = append(parts, components.HelpOverlay(m.theme, []string{
 			"Global: q/Ctrl+C quit, Tab/Shift+Tab switch views, 1-6 jump view",
-			"Pulse Map: hjkl/arrows pan, +/- zoom, n/home fit-reset, / search, enter/click detail, m actions",
-			"Identity: g generate keypair+mnemonic, 1-4 privacy mode",
-			"Waves: c compose, y reply-to-last toggle, 1-8 wave type, t/T TTL, enter submit",
-			"Anonymous: n new specter, s switch specter, c build shroud, g gift, m mark, p mini-games",
-			"Onboarding: enter advance phase, space skip",
-			"Networking: d refresh dht, g simulate gossip, r reset rate-limit indicator",
-			"Settings: Ctrl+, toggle modal, 1-4 mode, 5/6 layer blend",
+			"Pulse Map: hjkl/arrows pan, +/- zoom, n/home fit-reset, / search, enter/click detail, z double-tap center, m actions",
+			"Identity: g generate keypair+mnemonic, d declaration mode, n/b select name/bio field, u publish declaration",
+			"Waves: c compose, y reply-to-last toggle, a amplify, 1-8 wave type, t/T TTL, enter submit",
+			"Anonymous: n/s specters, c shroud, r relays, w whisper, p mini-games, 1-6 game boards",
+			"Onboarding: enter advance, space skip+resume, i invitation warm-start, r recovery branch, b returning mode, x/a hint dismiss/ack",
+			"Networking: d refresh dht, n relay diagnostics, g simulate gossip, r reset rate-limit indicator",
+			"Settings: Ctrl+, toggle modal, 1-4 mode, 5/6 layer blend, 7-0 overlays, r/o/i/h config toggles",
 		}))
 	}
 
@@ -240,12 +269,27 @@ func (m Model) applySettingKey(key string) tea.Cmd {
 		if m.session.Settings.LayerBlend > 1 {
 			m.session.Settings.LayerBlend = 1
 		}
+	case "7":
+		m.session.Settings.Overlays["heatmap"] = !m.session.Settings.Overlays["heatmap"]
+	case "8":
+		m.session.Settings.Overlays["marks"] = !m.session.Settings.Overlays["marks"]
+	case "9":
+		m.session.Settings.Overlays["gifts"] = !m.session.Settings.Overlays["gifts"]
+	case "0":
+		m.session.Settings.Overlays["echo"] = !m.session.Settings.Overlays["echo"]
 	}
 	return m.emitActionCmd("settings_changed", map[string]any{
 		"mode":             m.session.ModeManager.Current().String(),
 		"layer_blend":      m.session.Settings.LayerBlend,
 		"anonymous_only":   m.session.Settings.AnonymousOnly,
 		"settings_visible": m.session.Settings.ShowSettings,
+		"overlays":         m.session.Settings.Overlays,
+		"config": map[string]any{
+			"enable_relay":   m.session.Config.EnableRelay,
+			"enable_tor":     m.session.Config.EnableTor,
+			"enable_i2p":     m.session.Config.EnableI2P,
+			"health_enabled": m.session.Config.EnableHealthEndpoint,
+		},
 	})
 }
 

@@ -18,6 +18,8 @@ type NetworkingModel struct {
 	Topics       map[string]int
 	Transport    string
 	Health       string
+	RelayDiag    string
+	PeerFeed     []string
 }
 
 // NewNetworkingModel creates a networking status model.
@@ -30,6 +32,8 @@ func NewNetworkingModel() NetworkingModel {
 		Topics:       map[string]int{"/murmur/waves/1": 0, "/murmur/identity/1": 0, "/murmur/shroud/1": 0, "/murmur/pulse/1": 0},
 		Transport:    "noise/quic/tcp",
 		Health:       "ok",
+		RelayDiag:    "nat=unknown dcutr=pending relay=fallback-ready",
+		PeerFeed:     make([]string, 0, 16),
 	}
 }
 
@@ -41,6 +45,7 @@ func (m *NetworkingModel) ApplyEventType(eventType string) {
 		m.Peers++
 		m.DHTPeers++
 		m.MeshHealth = "improving"
+		m.PeerFeed = append([]string{"+" + eventType}, m.PeerFeed...)
 	case "PeerDisconnected":
 		if m.Peers > 0 {
 			m.Peers--
@@ -49,6 +54,7 @@ func (m *NetworkingModel) ApplyEventType(eventType string) {
 		if m.DHTPeers > 0 {
 			m.DHTPeers--
 		}
+		m.PeerFeed = append([]string{"-" + eventType}, m.PeerFeed...)
 	case "ShroudCircuitBuilt":
 		m.ShroudStatus = "circuit-built"
 	case "ShroudCircuitFailed":
@@ -63,6 +69,10 @@ func (m *NetworkingModel) ApplyEventType(eventType string) {
 		m.Topics["/murmur/identity/1"]++
 	case "ShroudRelayDiscovered":
 		m.Topics["/murmur/shroud/1"]++
+		m.RelayDiag = "nat=detected dcutr=attempting relay=discovered"
+	}
+	if len(m.PeerFeed) > 6 {
+		m.PeerFeed = m.PeerFeed[:6]
 	}
 }
 
@@ -79,6 +89,8 @@ func (m NetworkingModel) Update(msg tea.Msg) (NetworkingModel, tea.Cmd) {
 		case "g":
 			m.Topics["/murmur/waves/1"]++
 			m.LastEvent = "gossip-message-simulated"
+		case "n":
+			m.RelayDiag = "nat=restricted dcutr=failed relay=active"
 		}
 	}
 	return m, nil
@@ -87,19 +99,21 @@ func (m NetworkingModel) Update(msg tea.Msg) (NetworkingModel, tea.Cmd) {
 // View renders networking status.
 func (m NetworkingModel) View(width int) string {
 	return fmt.Sprintf(
-		"Peers: %d\nDHT: %s peers=%d\nMesh health: %s\nRate-limit: %s\nShroud: %s\nTransport: %s\nHealth endpoint: %s\nTopics: waves=%d identity=%d shroud=%d pulse=%d\nLast event: %s",
+		"Peers: %d\nDHT: %s peers=%d\nMesh health: %s\nRate-limit: %s\nShroud: %s\nRelay/NAT: %s\nTransport: %s\nHealth endpoint: %s\nTopics: waves=%d identity=%d shroud=%d pulse=%d\nPeer feed: %v\nLast event: %s",
 		m.Peers,
 		m.DHTStatus,
 		m.DHTPeers,
 		m.MeshHealth,
 		m.RateLimit,
 		m.ShroudStatus,
+		m.RelayDiag,
 		m.Transport,
 		m.Health,
 		m.Topics["/murmur/waves/1"],
 		m.Topics["/murmur/identity/1"],
 		m.Topics["/murmur/shroud/1"],
 		m.Topics["/murmur/pulse/1"],
+		m.PeerFeed,
 		m.LastEvent,
 	)
 }

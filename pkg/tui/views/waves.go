@@ -17,17 +17,18 @@ type waveCreatedMsg struct {
 
 // WavesModel handles wave compose and thread interactions.
 type WavesModel struct {
-	Session       *SessionState
-	Compose       bool
-	Content       string
-	TypeIndex     int
-	TTL           time.Duration
-	Difficulty    uint8
-	LastWave      *pb.Wave
-	Status        string
-	ThreadPreview []string
-	WaveLog       []*pb.Wave
-	ReplyToLast   bool
+	Session        *SessionState
+	Compose        bool
+	Content        string
+	TypeIndex      int
+	TTL            time.Duration
+	Difficulty     uint8
+	LastWave       *pb.Wave
+	Status         string
+	ThreadPreview  []string
+	WaveLog        []*pb.Wave
+	ReplyToLast    bool
+	Amplifications int
 }
 
 var waveTypes = []waves.WaveType{
@@ -116,6 +117,17 @@ func (m WavesModel) Update(msg tea.Msg) (WavesModel, tea.Cmd) {
 					return waveCreatedMsg{wave: w, err: err}
 				}
 			}
+		case "a":
+			if m.LastWave == nil || m.Session.KeyPair == nil {
+				m.Status = "need a received wave and identity to amplify"
+				return m, nil
+			}
+			if _, err := waves.CreateAmplificationWithComment(m.LastWave, m.Session.KeyPair, []byte("amplified via tui")); err != nil {
+				m.Status = "amplify failed: " + err.Error()
+				return m, nil
+			}
+			m.Amplifications++
+			m.Status = fmt.Sprintf("wave amplified (%d total)", m.Amplifications)
 		case "backspace":
 			if m.Compose && len(m.Content) > 0 {
 				m.Content = m.Content[:len(m.Content)-1]
@@ -149,7 +161,11 @@ func (m WavesModel) View(width int) string {
 	if m.ReplyToLast {
 		reply = "on"
 	}
-	return fmt.Sprintf("Compose: %s\nReply-to-last: %s\nWave type: %d (%v)\nTTL: %s\nDifficulty: %d\nDraft: %s\n\nThread view:\n%s\n\nLast wave: %s\nStatus: %s", composeState, reply, m.TypeIndex+1, currentType, m.TTL, m.Difficulty, m.Content, strings.Join(m.ThreadPreview, "\n"), last, m.Status)
+	firstWaveHint := ""
+	if len(m.WaveLog) == 0 {
+		firstWaveHint = "First-wave tip: press c to compose, choose type 1, then Enter to publish.\n"
+	}
+	return fmt.Sprintf("Compose: %s\nReply-to-last: %s\nAmplifications: %d\nWave type: %d (%v)\nTTL: %s\nDifficulty: %d\nDraft: %s\n\n%sThread view:\n%s\n\nLast wave: %s\nStatus: %s", composeState, reply, m.Amplifications, m.TypeIndex+1, currentType, m.TTL, m.Difficulty, m.Content, firstWaveHint, strings.Join(m.ThreadPreview, "\n"), last, m.Status)
 }
 
 func buildThreadPreview(log []*pb.Wave) []string {

@@ -142,3 +142,17 @@ Scope: Ebitengine UI/UX remediation from latest audit findings.
 
 ### Validation Status
 - `go test ./pkg/tui/... ./cmd/murmur-tui` passed after parity expansion changes.
+
+## Update - 2026-05-08 (TUI P1 Parity Closure)
+
+### Change Summary
+- Completed remaining P1-facing terminal parity surfaces and marked all P0/P1 matrix rows done in `docs/TUI_FEATURE_MATRIX.md`.
+- Added additional user-facing state for declarations, amplification, relay discovery, whisper routing, mini-games boards, onboarding hints/resume branches, relay diagnostics, peer activity feed, and cross-layer overlay indicators.
+
+### Security/Operational Impact
+- No changes to cryptographic primitive selection or protocol wire format.
+- TUI features continue to consume existing package APIs; no Ebitengine behavior or domain package public API contracts were changed.
+
+### Validation Status
+- `go build ./cmd/murmur-tui`, `go vet ./pkg/tui/... ./cmd/murmur-tui`, and `go test -race ./pkg/tui/... ./cmd/murmur-tui` all passed.
+- Full repo `go test -tags test -race ./...` remains environment-limited by missing Linux X11 headers for Ebitengine-linked packages (`X11/Xlib.h`), unchanged by this TUI-only update.

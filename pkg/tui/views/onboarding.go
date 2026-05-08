@@ -8,12 +8,13 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/opd-ai/murmur/pkg/identity/keys"
-	"github.com/opd-ai/murmur/pkg/onboarding/bootstrap"
+	obbootstrap "github.com/opd-ai/murmur/pkg/onboarding/bootstrap"
 	"github.com/opd-ai/murmur/pkg/onboarding/flow"
+	"github.com/opd-ai/murmur/pkg/onboarding/tutorials"
 )
 
 type bootstrapProgressMsg struct {
-	Progress bootstrap.Progress
+	Progress obbootstrap.Progress
 }
 
 type bootstrapCompleteMsg struct {
@@ -36,12 +37,16 @@ func (m *mockConnector) StartDiscovery(ctx context.Context) error { _ = ctx; m.p
 
 // OnboardingModel renders six-phase onboarding and first-week nudges.
 type OnboardingModel struct {
-	Session    *SessionState
-	Controller *flow.Controller
-	Nudges     []string
-	Status     string
-	Bootstrap  *bootstrap.Manager
-	progress   bootstrap.Progress
+	Session        *SessionState
+	Controller     *flow.Controller
+	Nudges         []string
+	Status         string
+	Bootstrap      *obbootstrap.Manager
+	Hints          *tutorials.Manager
+	Progress       obbootstrap.Progress
+	InviteURI      string
+	InviteStatus   string
+	RecoveryBranch bool
 }
 
 // NewOnboardingModel creates an onboarding model.
@@ -49,11 +54,16 @@ func NewOnboardingModel(session *SessionState) OnboardingModel {
 	controller := flow.NewController(flow.Callbacks{})
 	controller.Start()
 	connector := &mockConnector{}
-	bm := bootstrap.NewManager(bootstrap.DefaultConfig(), connector, bootstrap.Callbacks{})
+	bm := obbootstrap.NewManager(obbootstrap.DefaultConfig(), connector, obbootstrap.Callbacks{})
+
+	hints := tutorials.NewManager(tutorials.ManagerCallbacks{})
+	_ = hints.TriggerHint(tutorials.HintPulseMapPan)
+
 	return OnboardingModel{
 		Session:    session,
 		Controller: controller,
 		Bootstrap:  bm,
+		Hints:      hints,
 		Nudges: []string{
 			"Day 1: Explore the Pulse Map and select 3 nodes.",
 			"Day 2: Publish a Wave and reply to one thread.",
@@ -63,7 +73,7 @@ func NewOnboardingModel(session *SessionState) OnboardingModel {
 			"Day 6: Tune privacy mode based on usage.",
 			"Day 7: Invite one peer and review your graph.",
 		},
-		Status: "enter: complete phase, space: skip onboarding",
+		Status: "enter: advance, space: skip, i: invitation, r: recovery, x/a: dismiss/ack hint",
 	}
 }
 
@@ -92,7 +102,7 @@ func (m OnboardingModel) pollBootstrapCmd() tea.Cmd {
 func (m OnboardingModel) Update(msg tea.Msg) (OnboardingModel, tea.Cmd) {
 	switch t := msg.(type) {
 	case bootstrapProgressMsg:
-		m.progress = t.Progress
+		m.Progress = t.Progress
 		return m, m.pollBootstrapCmd()
 	case bootstrapCompleteMsg:
 		m.Status = fmt.Sprintf("bootstrap complete with %d peers", t.Peers)
@@ -110,6 +120,7 @@ func (m OnboardingModel) Update(msg tea.Msg) (OnboardingModel, tea.Cmd) {
 	case "enter":
 		if !m.Controller.IsComplete() {
 			phase := m.Controller.CurrentPhase()
+			m.Session.OnboardingResume.CompletedPhases[phase.String()] = true
 			if phase == flow.PhaseIdentityCreation && m.Session.KeyPair == nil {
 				kp, err := keys.GenerateKeyPair()
 				if err == nil {
@@ -126,7 +137,34 @@ func (m OnboardingModel) Update(msg tea.Msg) (OnboardingModel, tea.Cmd) {
 		}
 	case " ":
 		m.Controller.Skip()
-		m.Status = "onboarding skipped"
+		m.Session.OnboardingResume.Skipped = true
+		m.Status = "onboarding skipped (resume state saved)"
+	case "i":
+		m.InviteURI = "murmur://invite/demo"
+		if _, err := obbootstrap.AcceptInvitation(m.InviteURI); err != nil {
+			m.InviteStatus = "invitation warm-start: simulated"
+		} else {
+			m.InviteStatus = "invitation accepted"
+		}
+		m.Status = m.InviteStatus
+	case "r":
+		m.RecoveryBranch = !m.RecoveryBranch
+		if m.RecoveryBranch {
+			m.Status = "recovery onboarding branch enabled"
+		} else {
+			m.Status = "recovery onboarding branch disabled"
+		}
+	case "b":
+		m.Session.OnboardingResume.ReturningUser = true
+		m.Status = "returning-user continue screen enabled"
+	case "x":
+		m.Hints.DismissHint()
+		m.Status = "hint dismissed"
+	case "a":
+		if h := m.Hints.ActiveHint(); h != nil {
+			m.Hints.AcknowledgeHint(h.ID)
+			m.Status = "hint acknowledged"
+		}
 	}
 	return m, nil
 }
@@ -138,7 +176,7 @@ func (m OnboardingModel) View(width int) string {
 	rows := make([]string, 0, len(infos))
 	for _, info := range infos {
 		marker := "[ ]"
-		if m.Controller.Progress(info.Phase).Completed {
+		if m.Controller.Progress(info.Phase).Completed || m.Session.OnboardingResume.CompletedPhases[info.Phase.String()] {
 			marker = "[x]"
 		}
 		if info.Phase == phase && !m.Controller.IsComplete() {
@@ -146,6 +184,24 @@ func (m OnboardingModel) View(width int) string {
 		}
 		rows = append(rows, fmt.Sprintf("%s %s", marker, info.Title))
 	}
-	bootstrapLine := fmt.Sprintf("Bootstrap: %s peers=%d/%d elapsed=%s", m.progress.Status.String(), m.progress.ConnectedPeers, m.progress.TargetPeers, m.progress.ElapsedTime.Round(time.Second))
-	return fmt.Sprintf("Current phase: %s\nProgress: %.0f%%\n%s\n\n%s\n\nFirst-week nudges:\n%s\n\nStatus: %s", phase.String(), m.Controller.OverallProgress(), bootstrapLine, strings.Join(rows, "\n"), strings.Join(m.Nudges, "\n"), m.Status)
+
+	hintLine := "<none>"
+	if h := m.Hints.ActiveHint(); h != nil {
+		hintLine = fmt.Sprintf("%s — %s", h.Title, h.Content)
+	}
+
+	completion := ""
+	if m.Controller.IsComplete() {
+		invite := "<none>"
+		if m.Session.KeyPair != nil {
+			full := fmt.Sprintf("%x", m.Session.KeyPair.PublicKey)
+			if len(full) >= 12 {
+				invite = "MURMUR-" + full[:6] + "-" + full[6:12]
+			}
+		}
+		completion = fmt.Sprintf("\nCompletion summary: invite=%s returning=%t", invite, m.Session.OnboardingResume.ReturningUser)
+	}
+
+	bootstrapLine := fmt.Sprintf("Bootstrap: %s peers=%d/%d elapsed=%s invitation=%s", m.Progress.Status.String(), m.Progress.ConnectedPeers, m.Progress.TargetPeers, m.Progress.ElapsedTime.Round(time.Second), m.InviteStatus)
+	return fmt.Sprintf("Current phase: %s\nProgress: %.0f%%\n%s\nRecovery branch: %t\nHint: %s\n\n%s\n\nFirst-week nudges:\n%s\n%s\n\nStatus: %s", phase.String(), m.Controller.OverallProgress(), bootstrapLine, m.RecoveryBranch, hintLine, strings.Join(rows, "\n"), strings.Join(m.Nudges, "\n"), completion, m.Status)
 }

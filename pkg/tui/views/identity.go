@@ -7,6 +7,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/opd-ai/murmur/pkg/identity/declarations"
 	"github.com/opd-ai/murmur/pkg/identity/keys"
 	"github.com/opd-ai/murmur/pkg/identity/modes"
 	"github.com/opd-ai/murmur/pkg/identity/sigils"
@@ -19,12 +20,22 @@ type IdentityModel struct {
 	Mnemonic     string
 	RecoveryText string
 	RecoverMode  bool
+	DisplayName  string
+	Bio          string
+	Declaration  *declarations.Declaration
+	ProfileMode  bool
+	EditTarget   string
 	Status       string
 }
 
 // NewIdentityModel creates the identity view model.
 func NewIdentityModel(session *SessionState) IdentityModel {
-	return IdentityModel{Session: session, Status: "g: generate keypair, 1-4: mode, R: recovery mode, r: validate recovery mnemonic"}
+	return IdentityModel{
+		Session:     session,
+		Status:      "g: generate keypair, 1-4: mode, R: recovery mode, d: declaration mode, u: publish declaration",
+		DisplayName: "murmur-user",
+		EditTarget:  "name",
+	}
 }
 
 // Update handles identity interactions.
@@ -71,6 +82,32 @@ func (m IdentityModel) Update(msg tea.Msg) (IdentityModel, tea.Cmd) {
 		} else {
 			m.Status = "recovery mnemonic invalid"
 		}
+	case "d":
+		m.ProfileMode = !m.ProfileMode
+		if m.ProfileMode {
+			m.Status = "declaration mode enabled (n=append name, b=append bio, u=publish)"
+			m.EditTarget = "name"
+		} else {
+			m.Status = "declaration mode disabled"
+		}
+	case "u":
+		if m.Session.KeyPair == nil {
+			m.Status = "generate keypair before publishing declaration"
+			return m, nil
+		}
+		decl, err := declarations.New(m.Session.KeyPair, strings.TrimSpace(m.DisplayName))
+		if err != nil {
+			m.Status = "declaration create failed: " + err.Error()
+			return m, nil
+		}
+		_ = decl.SetBio(strings.TrimSpace(m.Bio))
+		decl.SetPrivacyMode(m.Session.ModeManager.Current())
+		if err := decl.Sign(m.Session.KeyPair); err != nil {
+			m.Status = "declaration sign failed: " + err.Error()
+			return m, nil
+		}
+		m.Declaration = decl
+		m.Status = fmt.Sprintf("declaration published v%d", decl.Version)
 	case "R":
 		m.RecoverMode = !m.RecoverMode
 		if m.RecoverMode {
@@ -79,10 +116,34 @@ func (m IdentityModel) Update(msg tea.Msg) (IdentityModel, tea.Cmd) {
 			m.Status = "recovery mode disabled"
 		}
 	case "backspace":
-		if len(m.RecoveryText) > 0 {
+		if m.ProfileMode {
+			if m.EditTarget == "bio" && len(m.Bio) > 0 {
+				m.Bio = m.Bio[:len(m.Bio)-1]
+			} else if m.EditTarget != "bio" && len(m.DisplayName) > 0 {
+				m.DisplayName = m.DisplayName[:len(m.DisplayName)-1]
+			}
+		} else if len(m.RecoveryText) > 0 {
 			m.RecoveryText = m.RecoveryText[:len(m.RecoveryText)-1]
 		}
 	default:
+		if m.ProfileMode && k.String() == "n" {
+			m.EditTarget = "name"
+			m.Status = "editing display name"
+			return m, nil
+		}
+		if m.ProfileMode && k.String() == "b" {
+			m.EditTarget = "bio"
+			m.Status = "editing bio"
+			return m, nil
+		}
+		if m.ProfileMode && len(k.Runes) > 0 {
+			if m.EditTarget == "bio" {
+				m.Bio += string(k.Runes)
+			} else {
+				m.DisplayName += string(k.Runes)
+			}
+			return m, nil
+		}
 		if len(k.Runes) > 0 {
 			m.RecoveryText += string(k.Runes)
 		}
@@ -103,8 +164,11 @@ func (m IdentityModel) View(width int) string {
 	mode := m.Session.ModeManager.Current().String()
 	pub := "<not-generated>"
 	sigilPreview := ""
+	specterSigilPreview := ""
+	maskedSigilPreview := ""
 	fingerprint := "<none>"
 	inviteCode := "<none>"
+	declState := "<unpublished>"
 	if m.Session.KeyPair != nil {
 		pub = fmt.Sprintf("%x", m.Session.KeyPair.PublicKey)
 		if len(pub) > 16 {
@@ -118,6 +182,11 @@ func (m IdentityModel) View(width int) string {
 			inviteCode = "MURMUR-" + full[:6] + "-" + full[6:12]
 		}
 		sigilPreview = renderANSISigil(m.Session.KeyPair.PublicKey)
+		specterSigilPreview = renderANSISigilFromSigil(sigils.GenerateSpecter(m.Session.KeyPair.PublicKey))
+		maskedSigilPreview = renderANSISigilFromSigil(sigils.GenerateMaskedEvent(m.Session.KeyPair.PublicKey))
+	}
+	if m.Declaration != nil {
+		declState = fmt.Sprintf("v%d signed=%t mode=%s", m.Declaration.Version, len(m.Declaration.Signature) > 0, m.Declaration.PrivacyMode.String())
 	}
 	mnemonic := m.Mnemonic
 	if mnemonic == "" {
@@ -136,11 +205,22 @@ func (m IdentityModel) View(width int) string {
 		m.RecoverMode,
 		m.RecoveryText,
 		m.Status,
+	) + fmt.Sprintf("\n\nSpecter Sigil:\n%s\nMasked Sigil:\n%s\n\nDeclaration mode: %t (target=%s)\nDisplay name: %s\nBio: %s\nDeclaration: %s",
+		specterSigilPreview,
+		maskedSigilPreview,
+		m.ProfileMode,
+		m.EditTarget,
+		m.DisplayName,
+		m.Bio,
+		declState,
 	)
 }
 
 func renderANSISigil(pub []byte) string {
-	s := sigils.Generate(pub)
+	return renderANSISigilFromSigil(sigils.Generate(pub))
+}
+
+func renderANSISigilFromSigil(s *sigils.Sigil) string {
 	if s == nil || s.Image == nil {
 		return "<no sigil>"
 	}

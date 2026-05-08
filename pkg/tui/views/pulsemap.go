@@ -42,6 +42,7 @@ type PulseMapModel struct {
 	searchMatches []int
 	bookmarks     map[int]struct{}
 	engine        *layout.Engine
+	lastSelectAt  time.Time
 }
 
 // NewPulseMapModel returns a Pulse Map model with layout-backed seed graph.
@@ -116,7 +117,12 @@ func (m PulseMapModel) Update(msg tea.Msg) (PulseMapModel, tea.Cmd) {
 				m.Focus = (m.Focus + 1) % len(m.Nodes)
 				m.showDetail = true
 				m.status = "Node detail opened: " + m.Nodes[m.Focus].ID
+				m.lastSelectAt = time.Now()
 			}
+		case "z":
+			m.centerOnFocus()
+			m.Zoom = clampZoom(m.Zoom * 1.2)
+			m.status = "Centered and zoomed on focus"
 		case "/":
 			m.searchMode = true
 			m.searchQuery = ""
@@ -170,9 +176,17 @@ func (m PulseMapModel) Update(msg tea.Msg) (PulseMapModel, tea.Cmd) {
 			if t.Button == tea.MouseButtonLeft {
 				m.dragging = false
 				if len(m.Nodes) > 0 {
+					if time.Since(m.lastSelectAt) < 500*time.Millisecond {
+						m.centerOnFocus()
+						m.Zoom = clampZoom(m.Zoom * 1.2)
+						m.status = "Double-click center/zoom"
+						m.lastSelectAt = time.Time{}
+						return m, nil
+					}
 					m.Focus = (m.Focus + 1) % len(m.Nodes)
 					m.showDetail = true
 					m.status = "Selected node: " + m.Nodes[m.Focus].ID
+					m.lastSelectAt = time.Now()
 				}
 			}
 		case tea.MouseActionMotion:
@@ -267,11 +281,29 @@ func (m PulseMapModel) View(width int) string {
 		dx := (n.X - m.CameraX) * m.Zoom
 		dy := (n.Y - m.CameraY) * m.Zoom
 		glyph := activityGlyph(n.Activity)
+		state := nodeStateLabel(n.Activity)
 		bookmark := " "
 		if _, ok := m.bookmarks[i]; ok {
 			bookmark = "★"
 		}
-		b.WriteString(fmt.Sprintf("%s%s %s %-8s (%6.1f,%6.1f)\n", marker, bookmark, glyph, n.ID, dx, dy))
+		markGlyph, giftGlyph, echoGlyph := " ", " ", " "
+		if m.Session.Settings.Overlays["marks"] && i%2 == 0 {
+			markGlyph = "✦"
+		}
+		if m.Session.Settings.Overlays["gifts"] && i%3 == 0 {
+			giftGlyph = "♦"
+		}
+		if m.Session.Settings.Overlays["echo"] {
+			switch {
+			case n.Activity > 0.7:
+				echoGlyph = "🔥"
+			case n.Activity < 0.35:
+				echoGlyph = "🌊"
+			default:
+				echoGlyph = "•"
+			}
+		}
+		b.WriteString(fmt.Sprintf("%s%s %s %-8s (%6.1f,%6.1f) %s %s%s%s\n", marker, bookmark, glyph, n.ID, dx, dy, state, markGlyph, giftGlyph, echoGlyph))
 	}
 	b.WriteString("\nEdges:\n")
 	for _, e := range m.Edges {
@@ -286,6 +318,15 @@ func (m PulseMapModel) View(width int) string {
 	if m.showActions {
 		b.WriteString("\n\nActions: [compose wave] [send gift] [place mark] [send whisper]\n")
 	}
+	if m.Session.Settings.Overlays["heatmap"] {
+		b.WriteString("\nHeatmap: " + heatmapBar(m.Nodes) + "\n")
+	}
+	b.WriteString(fmt.Sprintf("Overlay legends: marks[%t] gifts[%t] echo[%t] heatmap[%t]\n",
+		m.Session.Settings.Overlays["marks"],
+		m.Session.Settings.Overlays["gifts"],
+		m.Session.Settings.Overlays["echo"],
+		m.Session.Settings.Overlays["heatmap"],
+	))
 	b.WriteString("\nStatus: " + m.status)
 	return b.String()
 }
@@ -336,6 +377,39 @@ func activityGlyph(v float64) string {
 	default:
 		return "·"
 	}
+}
+
+func nodeStateLabel(activity float64) string {
+	switch {
+	case activity >= 0.75:
+		return "\x1b[31mHOT\x1b[0m"
+	case activity >= 0.5:
+		return "\x1b[33mWARM\x1b[0m"
+	case activity >= 0.25:
+		return "\x1b[36mCOOL\x1b[0m"
+	default:
+		return "\x1b[34mIDLE\x1b[0m"
+	}
+}
+
+func heatmapBar(nodes []PulseNode) string {
+	if len(nodes) == 0 {
+		return "<empty>"
+	}
+	var b strings.Builder
+	for _, n := range nodes {
+		switch {
+		case n.Activity >= 0.75:
+			b.WriteString("▓")
+		case n.Activity >= 0.5:
+			b.WriteString("▒")
+		case n.Activity >= 0.25:
+			b.WriteString("░")
+		default:
+			b.WriteString("·")
+		}
+	}
+	return b.String()
 }
 
 func clampZoom(z float64) float64 {
