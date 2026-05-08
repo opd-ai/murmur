@@ -267,38 +267,50 @@ func (r *Relay) forwardRequestToOperator(session *operatorSession, tunnelID tunn
 
 // forwardResponseToClient reads the operator's response and forwards it to the client.
 func (r *Relay) forwardResponseToClient(session *operatorSession, tunnelID tunneling.TunnelID, clientConn net.Conn) {
+	payload, ok := r.readOperatorDataFrame(session, tunnelID)
+	if !ok {
+		clientConn.Write([]byte("HTTP/1.1 502 Bad Gateway\r\n\r\n"))
+		return
+	}
+
+	responsePayload, ok := r.extractResponsePayload(payload, tunnelID)
+	if !ok {
+		clientConn.Write([]byte("HTTP/1.1 502 Bad Gateway\r\n\r\n"))
+		return
+	}
+
+	_, _ = clientConn.Write(responsePayload)
+}
+
+func (r *Relay) readOperatorDataFrame(session *operatorSession, tunnelID tunneling.TunnelID) ([]byte, bool) {
 	session.conn.SetReadDeadline(time.Now().Add(10 * time.Second))
 	frameType, payload, err := protocol.ReadFrame(session.conn)
 	if err != nil {
 		r.removeTunnel(tunnelID, session)
-		clientConn.Write([]byte("HTTP/1.1 502 Bad Gateway\r\n\r\n"))
-		return
+		return nil, false
 	}
 	if frameType == protocol.FrameTypeTeardown {
 		if !r.handleTeardownCell(payload, tunnelID) {
-			clientConn.Write([]byte("HTTP/1.1 502 Bad Gateway\r\n\r\n"))
-			return
+			return nil, false
 		}
 		r.removeTunnel(tunnelID, session)
-		clientConn.Write([]byte("HTTP/1.1 502 Bad Gateway\r\n\r\n"))
-		return
+		return nil, false
 	}
 	if frameType != protocol.FrameTypeData {
-		clientConn.Write([]byte("HTTP/1.1 502 Bad Gateway\r\n\r\n"))
-		return
+		return nil, false
 	}
+	return payload, true
+}
 
+func (r *Relay) extractResponsePayload(payload []byte, tunnelID tunneling.TunnelID) ([]byte, bool) {
 	respCell := &pb.TunnelDataCell{}
 	if err := proto.Unmarshal(payload, respCell); err != nil {
-		clientConn.Write([]byte("HTTP/1.1 502 Bad Gateway\r\n\r\n"))
-		return
+		return nil, false
 	}
 	if string(respCell.TunnelId) != string(tunnelID) {
-		clientConn.Write([]byte("HTTP/1.1 502 Bad Gateway\r\n\r\n"))
-		return
+		return nil, false
 	}
-
-	_, _ = clientConn.Write(respCell.Payload)
+	return respCell.Payload, true
 }
 
 func (r *Relay) removeTunnel(tunnelID tunneling.TunnelID, expectedSession *operatorSession) {
