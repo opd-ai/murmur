@@ -329,6 +329,11 @@ func TestJoinGameAction_ProximityFilteredViaRadialMenu(t *testing.T) {
 	renderer.AddNode(&rendering.NodeData{ID: "anchor-node", PublicKey: anchorPub})
 
 	g := &Game{store: db, renderer: renderer}
+	// countNearbyMechanics currently uses a 100-unit radius. With anchor at (0,0),
+	// nearCreator at (10,0) is included while farCreator at (400,400) is excluded.
+	if got := g.countNearbyMechanics(anchorPub); got != 1 {
+		t.Fatalf("expected one nearby mechanic from proximity filtering, got %d", got)
+	}
 	g.handleRadialMenuAction(ui.ActionJoinGame, "anchor-node")
 
 	if g.toast == nil || g.toast.message == "" {
