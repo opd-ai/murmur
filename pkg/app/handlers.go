@@ -33,8 +33,19 @@ const (
 	// Envelopes with timestamps more than 300s in the future are rejected.
 	MaxTimestampDrift = 300 * time.Second
 
-	// ProtocolVersion is the current protocol version.
+	// ProtocolVersion is the current (active) protocol version used when
+	// creating outbound envelopes.
 	ProtocolVersion uint32 = 1
+
+	// MaxSupportedVersion is the highest inbound envelope version accepted.
+	// During a rolling upgrade (Phase 1), both version 1 and 2 envelopes are
+	// accepted.  After the network fully migrates to v2, this constant is
+	// raised to 2 and MinSupportedVersion is set to 2 to drop v1 support.
+	// Per PLAN.md: "Version upgrade protocol — dual-subscription migration".
+	MaxSupportedVersion uint32 = 2
+
+	// MinSupportedVersion is the lowest inbound envelope version accepted.
+	MinSupportedVersion uint32 = 1
 )
 
 // Handler errors.
@@ -500,7 +511,7 @@ func (h *Handlers) validateEnvelope(data []byte, expectedType pb.MessageType) (*
 
 // validateEnvelopeStructure checks version, type, message ID, and timestamp.
 func (h *Handlers) validateEnvelopeStructure(envelope *pb.MurmurEnvelope, expectedType pb.MessageType) error {
-	if envelope.Version != ProtocolVersion {
+	if envelope.Version < MinSupportedVersion || envelope.Version > MaxSupportedVersion {
 		return ErrInvalidVersion
 	}
 
