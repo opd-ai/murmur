@@ -3,7 +3,10 @@
 ## Project Context
 - **What it claims to do**: A decentralized, peer-to-peer social network with dual-layer identity, no engagement algorithms, no permanent record, and a Pulse Map-first interface. Core promises include encrypted connectivity, onion-routed anonymous traffic, self-sovereign Ed25519 identity, ephemeral Waves (default 7d TTL, max 30d), first-class anonymity (Specters/Shroud/Resonance), and no likes/follower metrics (README).
 - **Target audience**: Privacy-conscious users, self-sovereign identity advocates, and communities preferring anonymous social mechanics and non-algorithmic interaction models (README + docs positioning).
-- **Architecture**: 78 Go packages currently organized around app/runtime, networking, identity, content, anonymous mechanics, Pulse Map, onboarding, storage, transport adapters, and CLI/bootstrap binaries (`go list ./...`).
+- **Architecture**: 78+ Go packages currently organized around app/runtime, networking, identity, content, anonymous mechanics, Pulse Map, onboarding, storage, transport adapters, and CLI/bootstrap/TUI binaries (`go list ./...`).
+- **Terminal UI track**: `cmd/murmur-tui` and `pkg/tui/*` now provide a Bubble Tea-based parity track with ongoing matrix-driven implementation.
+- **Terminal UI track**: feature matrix now reports all P0/P1 parity rows as implemented (`done`) for the Bubble Tea path; remaining items are P2 visual fidelity and optional enhancements.
+- **Terminal UI track**: feature matrix now reports all P0/P1/P2 rows as implemented (`done`) with terminal-native equivalents for visual-only effects.
 - **Module/dependency footprint**: module `github.com/opd-ai/murmur`, `go 1.25.7`, 29 direct + 128 indirect dependencies (`go.mod`).
 - **Existing CI/quality gates**:
   - Cross-OS build/test/race/vet/lint/license checks in [.github/workflows/ci.yml](.github/workflows/ci.yml)
