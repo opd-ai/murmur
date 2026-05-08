@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (2026-05-08 — AUDIT critical Wave submit-path routing)
+- **Centralized Wave type dispatch in `waves.Create`**: `pkg/content/waves/types.go` now routes Veiled/Masked/Abyssal/Beacon creation through their specialized constructors, so active submit flows (Pulse Map/TUI) no longer bypass type-specific semantics.
+- **Submit-path coverage tests**:
+  - Added `TestCreateRoutesSpecializedTypes` in `pkg/content/waves/types_test.go` for Veiled/Specter/Masked/Beacon routing and metadata/signature expectations.
+  - Added `TestWavesModelSubmitRoutesSpecializedTypes` in `pkg/tui/views/models_test.go` to validate TUI compose submissions for Veiled/Specter/Masked/Beacon.
+
 ### Added (2026-05-08 — ROADMAP Priority 2 anonymous layer integration)
 - **`NodePositionFunc` + `SetNodePositioner`**: New type and method on `pkg/store.DB` (`pkg/store/db.go`). Allows a layout engine's coordinate resolver to be injected into the store for proximity-aware queries. Uses `atomic.Pointer` for thread-safe injection with zero lock contention.
 - **Location-aware spatial queries** (7 methods in `pkg/store/typed_accessors.go`):

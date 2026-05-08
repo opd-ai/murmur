@@ -1,9 +1,12 @@
 package views
 
 import (
+	"bytes"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/opd-ai/murmur/pkg/content/waves"
+	pb "github.com/opd-ai/murmur/proto"
 )
 
 func TestPulseMapModelUpdate_Table(t *testing.T) {
@@ -109,6 +112,90 @@ func TestWavesModelUpdate_Table(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			got, _ := m.Update(tc.msg)
 			tc.check(t, got)
+		})
+	}
+}
+
+func TestWavesModelSubmitRoutesSpecializedTypes(t *testing.T) {
+	session := NewSessionState()
+	id := NewIdentityModel(session)
+	id, _ = id.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'g'}})
+	if session.KeyPair == nil {
+		t.Fatal("expected generated keypair")
+	}
+
+	base := NewWavesModel(session)
+	base.Compose = true
+	base.Content = "submit path coverage"
+	base.Difficulty = 8
+	base.TTL = waves.DefaultTTL
+
+	tests := []struct {
+		name      string
+		typeIndex int
+		check     func(t *testing.T, wave *pb.Wave)
+	}{
+		{
+			name:      "veiled",
+			typeIndex: 2,
+			check: func(t *testing.T, wave *pb.Wave) {
+				if !bytes.Equal(wave.Metadata[waves.VeiledMetadataKey], []byte(waves.VeiledMetadataValue)) {
+					t.Fatal("veiled submit should include veil metadata")
+				}
+			},
+		},
+		{
+			name:      "specter",
+			typeIndex: 3,
+			check: func(t *testing.T, wave *pb.Wave) {
+				if wave.WaveType != pb.WaveType(waves.TypeSpecter) {
+					t.Fatalf("expected specter wave type, got %d", wave.WaveType)
+				}
+			},
+		},
+		{
+			name:      "masked",
+			typeIndex: 6,
+			check: func(t *testing.T, wave *pb.Wave) {
+				if len(wave.Metadata[waves.MetaMaskedEventID]) == 0 {
+					t.Fatal("masked submit should include event_id metadata")
+				}
+			},
+		},
+		{
+			name:      "beacon",
+			typeIndex: 7,
+			check: func(t *testing.T, wave *pb.Wave) {
+				if len(wave.Metadata[waves.BeaconTypeKey]) == 0 {
+					t.Fatal("beacon submit should include beacon_type metadata")
+				}
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			m := base
+			m.TypeIndex = tc.typeIndex
+			updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+			if cmd == nil {
+				t.Fatal("expected submit command")
+			}
+			msg := cmd()
+			created, ok := msg.(waveCreatedMsg)
+			if !ok {
+				t.Fatalf("expected waveCreatedMsg, got %T", msg)
+			}
+			if created.err != nil {
+				t.Fatalf("submit command returned error: %v", created.err)
+			}
+			if created.wave == nil {
+				t.Fatal("expected created wave")
+			}
+			tc.check(t, created.wave)
+			if updated.Status == "" {
+				t.Fatal("expected status update")
+			}
 		})
 	}
 }

@@ -1,10 +1,12 @@
 package waves
 
 import (
+	"bytes"
 	"testing"
 	"time"
 
 	"github.com/opd-ai/murmur/pkg/identity/keys"
+	pb "github.com/opd-ai/murmur/proto"
 )
 
 func TestCreateSurface(t *testing.T) {
@@ -296,6 +298,51 @@ func TestWaveTypes(t *testing.T) {
 		if uint8(wave.WaveType) != uint8(wt) {
 			t.Errorf("wave type mismatch: got %d, want %d", wave.WaveType, wt)
 		}
+	}
+}
+
+func TestCreateRoutesSpecializedTypes(t *testing.T) {
+	kp, err := keys.GenerateKeyPair()
+	if err != nil {
+		t.Fatalf("GenerateKeyPair failed: %v", err)
+	}
+
+	opts := DefaultCreateOptions()
+	opts.Difficulty = 8
+
+	veiled, err := Create(TypeVeiled, []byte("veiled"), kp, opts)
+	if err != nil {
+		t.Fatalf("Create veiled failed: %v", err)
+	}
+	if !bytes.Equal(veiled.Metadata[VeiledMetadataKey], []byte(VeiledMetadataValue)) {
+		t.Fatal("veiled wave missing specialized metadata")
+	}
+
+	specter, err := Create(TypeSpecter, []byte("specter"), kp, opts)
+	if err != nil {
+		t.Fatalf("Create specter failed: %v", err)
+	}
+	if specter.WaveType != pb.WaveType(TypeSpecter) {
+		t.Fatalf("expected specter wave type %d, got %d", TypeSpecter, specter.WaveType)
+	}
+
+	masked, err := Create(TypeMasked, []byte("masked"), kp, opts)
+	if err != nil {
+		t.Fatalf("Create masked failed: %v", err)
+	}
+	if len(masked.Metadata[MetaMaskedEventID]) == 0 {
+		t.Fatal("masked wave missing event metadata")
+	}
+
+	beacon, err := Create(TypeBeacon, []byte("beacon"), kp, opts)
+	if err != nil {
+		t.Fatalf("Create beacon failed: %v", err)
+	}
+	if len(beacon.Metadata[BeaconTypeKey]) == 0 {
+		t.Fatal("beacon wave missing beacon type metadata")
+	}
+	if len(beacon.Signature) != 0 {
+		t.Fatal("beacon wave should not have signature")
 	}
 }
 

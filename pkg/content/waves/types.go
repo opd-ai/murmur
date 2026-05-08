@@ -81,6 +81,10 @@ func DefaultCreateOptions() CreateOptions {
 
 // Create creates a new signed Wave with PoW.
 func Create(waveType WaveType, content []byte, kp *keys.KeyPair, opts CreateOptions) (*pb.Wave, error) {
+	if wave, handled, err := createSpecializedWave(waveType, content, kp, opts); handled {
+		return wave, err
+	}
+
 	if err := validateCreateParams(kp, content, opts); err != nil {
 		return nil, err
 	}
@@ -91,6 +95,71 @@ func Create(waveType WaveType, content []byte, kp *keys.KeyPair, opts CreateOpti
 	}
 
 	return wave, nil
+}
+
+// createSpecializedWave routes Wave creation to type-specific constructors
+// when the selected type has custom semantics.
+func createSpecializedWave(waveType WaveType, content []byte, kp *keys.KeyPair, opts CreateOptions) (*pb.Wave, bool, error) {
+	switch waveType {
+	case TypeVeiled:
+		if err := validateCreateParams(kp, content, opts); err != nil {
+			return nil, true, err
+		}
+		veiledOpts := DefaultVeiledOptions()
+		veiledOpts.TTL = opts.TTL
+		veiledOpts.Difficulty = opts.Difficulty
+		wave, err := CreateVeiled(content, keyPairSpecterSigner{kp: kp}, veiledOpts)
+		return wave, true, err
+	case TypeAbyssal:
+		if err := validateCreateParams(kp, content, opts); err != nil {
+			return nil, true, err
+		}
+		abyssalOpts := DefaultAbyssalOptions()
+		abyssalOpts.TTL = opts.TTL
+		abyssalOpts.Difficulty = opts.Difficulty
+		abyssalWave, err := CreateAbyssal(content, kp.PrivateKey, abyssalOpts)
+		if err != nil {
+			return nil, true, err
+		}
+		return abyssalWave.Wave, true, nil
+	case TypeMasked:
+		if err := validateCreateParams(kp, content, opts); err != nil {
+			return nil, true, err
+		}
+		maskedKeypair, err := GenerateMaskedKeypair()
+		if err != nil {
+			return nil, true, err
+		}
+		defer maskedKeypair.Dispose()
+		maskedOpts := DefaultMaskedOptions(defaultMaskedEventID)
+		maskedOpts.TTL = opts.TTL
+		maskedOpts.Difficulty = opts.Difficulty
+		maskedOpts.ParentHash = opts.ParentHash
+		wave, err := CreateMasked(content, maskedKeypair, maskedOpts)
+		return wave, true, err
+	case TypeBeacon:
+		beaconOpts := DefaultBeaconOptions()
+		beaconOpts.TTL = opts.TTL
+		beaconOpts.Difficulty = opts.Difficulty
+		wave, err := CreateBeacon(content, beaconOpts)
+		return wave, true, err
+	default:
+		return nil, false, nil
+	}
+}
+
+const defaultMaskedEventID = "masked-submit"
+
+type keyPairSpecterSigner struct {
+	kp *keys.KeyPair
+}
+
+func (s keyPairSpecterSigner) Sign(data []byte) []byte {
+	return s.kp.Sign(data)
+}
+
+func (s keyPairSpecterSigner) SpecterPublicKey() []byte {
+	return s.kp.PublicKey
 }
 
 // validateCreateParams checks prerequisites for Wave creation.

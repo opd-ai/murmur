@@ -86,6 +86,8 @@
 - [x] Implement currently stubbed user action path for joining mechanics from Pulse Map radial menu.
   - Evidence: `handleJoinGame` + `countNearbyMechanics` in `pkg/pulsemap/game.go`; `ActionJoinGame` queries store and reports mechanic count via toast.
 - [x] Add end-to-end tests proving anonymous mechanics are discoverable and actionable from Pulse Map (not only present in isolated stores).
+- [x] Route active submit paths through type-specific Wave constructors (Veiled/Masked/Abyssal/Beacon) and add submit-path coverage tests for Veiled/Specter/Masked/Beacon.
+  - Evidence: `pkg/content/waves/types.go` dispatches to `CreateVeiled`/`CreateMasked`/`CreateAbyssal`/`CreateBeacon`; tests in `pkg/content/waves/types_test.go` and `pkg/tui/views/models_test.go`.
 - [ ] Validation: UI-level integration tests confirm live mechanics appear by proximity and “Join Game” completes a network-backed flow.
 
 ### Priority 3: Align Toolchain and CI to Actual Module Requirements
