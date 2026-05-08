@@ -1,0 +1,113 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Quality Gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install Linux graphics dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libc6-dev \
+            libgl1-mesa-dev \
+            libx11-dev \
+            libxcursor-dev \
+            libxrandr-dev \
+            libxinerama-dev \
+            libxi-dev \
+            libxxf86vm-dev \
+            libglfw3-dev \
+            libasound2-dev \
+            pkg-config \
+            xvfb
+
+      - name: Run go vet
+        run: go vet ./...
+
+      - name: Run race tests
+        run: xvfb-run --auto-servernum --server-args='-screen 0 1024x768x24' go test -race ./...
+
+  go-stats:
+    name: Go Stats Regression Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install go-stats-generator
+        run: go install github.com/opd-ai/go-stats-generator@latest
+
+      - name: Resolve baseline commit
+        id: baseline
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base_sha="${{ github.event.pull_request.base.sha }}"
+          elif [ -n "${{ github.event.before }}" ] && [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
+            base_sha="${{ github.event.before }}"
+          else
+            base_sha="$(git rev-list --max-count=1 HEAD^ 2>/dev/null || git rev-parse HEAD)"
+          fi
+
+          echo "base_sha=${base_sha}" >> "${GITHUB_OUTPUT}"
+
+      - name: Compare go-stats metrics
+        env:
+          PATH: ${{ env.PATH }}:${{ github.workspace }}/../go/bin:${{ runner.tool_cache }}/go/bin:${{ env.GOPATH }}/bin
+        run: |
+          set -euo pipefail
+
+          worktree_dir="$(mktemp -d /tmp/murmur-base-XXXXXX)"
+          trap 'git worktree remove --force "${worktree_dir}" >/dev/null 2>&1 || true' EXIT
+
+          git worktree add --detach "${worktree_dir}" "${{ steps.baseline.outputs.base_sha }}"
+
+          export PATH="$(go env GOPATH)/bin:${PATH}"
+          go-stats-generator analyze "${worktree_dir}" --skip-tests --format json --sections functions,duplication,documentation > baseline.json
+          go-stats-generator analyze . --skip-tests --format json --sections functions,duplication,documentation > current.json
+          go-stats-generator diff baseline.json current.json | tee diff.txt
+
+          {
+            echo "### go-stats-generator diff"
+            echo '```'
+            cat diff.txt
+            echo '```'
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+          if grep -q "Overall Trend: regression" diff.txt; then
+            echo "::error::go-stats-generator reported metric regressions"
+            exit 1
+          fi

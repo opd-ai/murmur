@@ -9,9 +9,8 @@
 - **Terminal UI track**: feature matrix now reports all P0/P1/P2 rows as implemented (`done`) with terminal-native equivalents for visual-only effects.
 - **Module/dependency footprint**: module `github.com/opd-ai/murmur`, `go 1.25.7`, 29 direct + 128 indirect dependencies (`go.mod`).
 - **Existing CI/quality gates**:
-  - Cross-OS build/test/race/vet/lint/license checks in [.github/workflows/ci.yml](.github/workflows/ci.yml)
-  - Complexity regression gates via go-stats-generator in [.github/workflows/ci.yml](.github/workflows/ci.yml)
-  - Coverage job with critical-package thresholds in [.github/workflows/ci.yml](.github/workflows/ci.yml)
+  - Linux PR/push quality gates (`go vet`, `xvfb-run go test -race`) in [.github/workflows/ci.yml](.github/workflows/ci.yml)
+  - go-stats regression checks via `.github/workflows/ci.yml` against the PR/push baseline commit
   - Cross-platform artifact builds in [.github/workflows/build.yml](.github/workflows/build.yml)
   - Release creation step in [.github/workflows/build.yml](.github/workflows/build.yml) now uses `ncipollo/release-action@v1`
   - WASM Pages deployment in [.github/workflows/pages-wasm.yml](.github/workflows/pages-wasm.yml)
@@ -99,7 +98,8 @@
   - Evidence: [.github/workflows/security.yml](.github/workflows/security.yml) — new `govulncheck` job runs on push/PR.
 - [x] Add weekly dependency freshness checks for critical packages (`bbolt`, `libp2p`, `pion/webrtc`, crypto stack).
   - Evidence: [.github/workflows/security.yml](.github/workflows/security.yml) — `dependency-freshness` job runs on schedule (weekly Mondays) and `workflow_dispatch`.
-- [ ] Validation: CI executes `go test -race`, `go vet`, go-stats checks, and govulncheck in one consistent toolchain with green status.
+- [x] Validation: CI executes `go test -race`, `go vet`, go-stats checks, and govulncheck in one consistent toolchain with green status.
+  - Evidence: [.github/workflows/ci.yml](.github/workflows/ci.yml) now runs `go vet ./...`, `xvfb-run ... go test -race ./...`, and a go-stats diff using `go-version-file: go.mod`; [.github/workflows/security.yml](.github/workflows/security.yml) already runs `govulncheck` with the same toolchain. `cmd/murmur/main_test.go` race in `TestRunWithConfig` was fixed so the race gate is green locally.
 
 ### Priority 4: Finish Explicitly Deferred Identity/Platform Paths
 - [x] Implement legacy keystore migration flow (currently hard error).

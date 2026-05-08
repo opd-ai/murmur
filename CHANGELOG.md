@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (2026-05-08 — AUDIT CI quality-gate remediation)
+- **Dedicated CI quality workflow restored** (`.github/workflows/ci.yml`): added a PR/push workflow that uses `go-version-file: go.mod`, installs the Linux/X11/Ebitengine dependencies, runs `go vet ./...`, executes `xvfb-run --auto-servernum --server-args='-screen 0 1024x768x24' go test -race ./...`, and compares go-stats metrics against the PR/push baseline commit with `go-stats-generator diff`.
+- **Race-safe entrypoint startup test** (`cmd/murmur/main_test.go`): replaced the unsynchronized shared `*app.App` handoff in `TestRunWithConfig` with a channel-based handoff so the repository race gate passes consistently under `go test -race ./...`.
+
 ### Added (2026-05-08 — ROADMAP Priority 2 validation follow-up)
 - **UI-level Join Game proximity integration test** (`pkg/pulsemap/game_actions_test.go`): added `TestJoinGameAction_ProximityFilteredViaRadialMenu`, which drives `ActionJoinGame` through radial-menu dispatch, injects spatial positions via `SetNodePositioner`, and verifies only nearby active mechanics are counted in the user-facing toast.
 
