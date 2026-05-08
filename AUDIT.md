@@ -108,3 +108,19 @@ Scope: Ebitengine UI/UX remediation from latest audit findings.
 - Workflow syntax validated post-change:
   - `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/build.yml")'` passed.
 - Note: The baseline lint/test/build failures above are environment-specific (missing Linux X11 development headers for Ebitengine native GUI compilation) and are unrelated to the release-action migration itself.
+
+## Update - 2026-05-08 (Bubble Tea TUI Introduction)
+
+### Change Summary
+- Added a standalone terminal UI binary at `cmd/murmur-tui`.
+- Added `pkg/tui/{views,components,styles,input,bridge}` implementing a Bubble Tea root model with tabbed domain views (Pulse Map, Identity, Waves, Anonymous, Onboarding, Networking), centralized keymap/theme, and generic event-stream bridge.
+- Added Phase 0 discovery artifact `docs/TUI_FEATURE_MATRIX.md` and architecture/user docs (`docs/TUI_ARCHITECTURE.md`, `cmd/murmur-tui/README.md`).
+
+### Security/Operational Impact
+- No cryptographic primitive substitutions; TUI uses existing domain packages for identity/waves/specters/modes/onboarding state transitions.
+- TUI package avoids direct Ebitengine coupling, reducing GUI runtime dependency for terminal operation.
+- New third-party dependencies added: Bubble Tea, Bubbles, Lipgloss (advisory database check: no known vulnerabilities at selected versions).
+
+### Validation Status
+- `go test ./pkg/tui/... ./cmd/murmur-tui` passed.
+- Repository-wide native GUI checks remain environment-limited here by missing Linux X11 headers (`X11/Xlib.h`) for Ebitengine-linked packages.

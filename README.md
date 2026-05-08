@@ -104,6 +104,7 @@ See `DESIGN_DOCUMENT.md` for the complete specification.
 - ✅ **Content**: 8 Wave types, SHA-256 PoW (20-bit default), TTL enforcement, threading
 - ✅ **Anonymous Layer**: Specters, 3-hop Shroud circuits, Resonance (13 milestones), 10 mini-games
 - ✅ **Pulse Map**: Force-directed layout (60fps @ 500 nodes), Ebitengine rendering, visual effects
+- ✅ **TUI**: Bubble Tea terminal interface (`cmd/murmur-tui`) with tabbed Pulse Map/Identity/Waves/Anonymous/Onboarding/Networking views
 - ✅ **Storage**: Bbolt with 7 canonical buckets, typed accessors, LRU eviction
 - ✅ **Security**: Key zeroing, Bloom filter deduplication, per-peer rate limiting, ZK Resonance proofs
 - ✅ **Onboarding**: All 6 phases complete (Welcome, Identity, Mode, Bootstrap, Exploration, First Wave) with first-week nudges

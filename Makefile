@@ -28,6 +28,7 @@ build:
 	@echo "Building $(BINARY_NAME) $(VERSION)..."
 	@mkdir -p $(BINARY_DIR)
 	$(GOBUILD) $(LDFLAGS) -o $(BINARY_DIR)/$(BINARY_NAME) ./cmd/murmur
+	$(GOBUILD) $(LDFLAGS) -o $(BINARY_DIR)/murmur-tui ./cmd/murmur-tui
 
 wasm-site:
 	@echo "Building WASM GitHub Pages bundle..."
@@ -194,6 +195,7 @@ help:
 	@echo ""
 	@echo "Build targets:"
 	@echo "  build              - Build the binary for current platform"
+	@echo "                       (builds bin/murmur and bin/murmur-tui)"
 	@echo "  build-all          - Build for all platforms (linux, darwin, windows)"
 	@echo "  build-linux        - Build for Linux (amd64, arm64)"
 	@echo "  build-darwin       - Build for macOS (amd64, arm64)"
