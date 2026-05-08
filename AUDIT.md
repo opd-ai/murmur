@@ -17,10 +17,10 @@ MURMUR is a decentralized P2P Go application (desktop/mobile/TUI plus bootstrap 
 | pkg/tunneling/initiator | 3 | 0 | 0 | 0 | 6 | ❌ |
 | pkg/tunneling/relay | 0 | 0 | 0 | 0 | 0 | ✅ |
 
-Supporting baseline metrics (`go-stats-generator`): 57,187 LOC, 1,657 functions, 79 packages, 393 Go files.
+Supporting baseline metrics (`go-stats-generator`, measured 2026-05-08): 57,187 LOC, 1,657 functions, 79 packages, 393 Go files.
 
 ## Dependency Vulnerability Check
-- `govulncheck ./...` was attempted but failed in this environment due missing X11 headers required by Ebitengine transitive build (`X11/Xlib.h`), so full call-graph vulnerability confirmation is blocked.
+- `govulncheck ./...` was attempted but failed in this environment due to missing X11 headers required by Ebitengine transitive build (`X11/Xlib.h`), so full call-graph vulnerability confirmation is blocked.
 - GitHub issue/advisory search for this repository found no open security issues or published repository advisories.
 - `gh-advisory-database` reported vulnerabilities for `github.com/hashicorp/vault v1.21.4`; this codebase imports only `github.com/hashicorp/vault/shamir`, so exploitability for the reported Vault server issues is currently unproven and requires targeted dependency scoping/upgrade review.
 
