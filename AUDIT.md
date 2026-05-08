@@ -108,3 +108,18 @@ Scope: Ebitengine UI/UX remediation from latest audit findings.
 - Workflow syntax validated post-change:
   - `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/build.yml")'` passed.
 - Note: The baseline lint/test/build failures above are environment-specific (missing Linux X11 development headers for Ebitengine native GUI compilation) and are unrelated to the release-action migration itself.
+
+## Update - 2026-05-08 (gomobile Entrypoint Fix)
+
+### Change Summary
+- Added `cmd/murmur-mobile` as a dedicated mobile application entrypoint.
+- Added a mobile-only blank import of `golang.org/x/mobile/app` so `gomobile` recognizes the package as an app target.
+- Updated `scripts/build-mobile.sh` to build `github.com/opd-ai/murmur/cmd/murmur-mobile`.
+
+### Security/Operational Impact
+- No runtime cryptography, networking protocol behavior, or persistence logic changed.
+- Impact is limited to mobile build tooling and dependency resolution for `golang.org/x/mobile`.
+
+### Validation Status
+- `go list -tags=android -f '{{join .Imports "\n"}}' ./cmd/murmur-mobile` includes `golang.org/x/mobile/app`.
+- `go test ./...`, `go vet ./...`, and `go build ./cmd/murmur` still fail in this Linux environment because Ebitengine's native GLFW build cannot find `X11/Xlib.h`; this pre-existing environment issue is unrelated to the mobile entrypoint fix.

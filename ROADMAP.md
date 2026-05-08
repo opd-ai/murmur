@@ -12,7 +12,7 @@
   - Cross-platform artifact builds in [.github/workflows/build.yml](.github/workflows/build.yml)
   - Release creation step in [.github/workflows/build.yml](.github/workflows/build.yml) now uses `ncipollo/release-action@v1`
   - WASM Pages deployment in [.github/workflows/pages-wasm.yml](.github/workflows/pages-wasm.yml)
-  - Mobile build pipeline in [.github/workflows/mobile.yml](.github/workflows/mobile.yml)
+  - Mobile build pipeline in [.github/workflows/mobile.yml](.github/workflows/mobile.yml), now targeting dedicated `cmd/murmur-mobile` gomobile entrypoint
 
 ## External Research (Brief)
 - **Repository signal**: Public GitHub has 0 open issues and 0 open PRs at review time; no active public backlog/discussion signal from issues/PR flow.
@@ -95,6 +95,8 @@
   - Evidence: [pkg/identity/keys/keystore.go](pkg/identity/keys/keystore.go#L317)
 - [ ] Implement mobile native share-sheet bindings for invitation flow.
   - Evidence: [pkg/identity/share.go](pkg/identity/share.go#L163)
+- [x] Add dedicated gomobile-compatible mobile entrypoint importing `golang.org/x/mobile/app`.
+  - Evidence: [cmd/murmur-mobile/main.go](cmd/murmur-mobile/main.go), [cmd/murmur-mobile/mobile_app.go](cmd/murmur-mobile/mobile_app.go), [scripts/build-mobile.sh](scripts/build-mobile.sh)
 - [ ] Validation: migration tests from legacy keystore fixtures pass; mobile integration tests verify share-sheet invocation path.
 
 ### Priority 5: Keep Claims and Evidence in Sync
