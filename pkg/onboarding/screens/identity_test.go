@@ -57,9 +57,9 @@ func TestKeypairGeneration(t *testing.T) {
 		t.Error("OnKeypairGenerated callback not called")
 	}
 
-	kp := screen.GetKeypair()
+	kp := screen.Keypair()
 	if kp == nil {
-		t.Error("GetKeypair returned nil after generation")
+		t.Error("Keypair returned nil after generation")
 	}
 
 	if screen.State() != StateDisplayName {
@@ -87,8 +87,8 @@ func TestDisplayNameEntry(t *testing.T) {
 		t.Errorf("expected OnDisplayNameSet with %q, got %q", testName, setName)
 	}
 
-	if screen.GetDisplayName() != testName {
-		t.Errorf("GetDisplayName returned %q, expected %q", screen.GetDisplayName(), testName)
+	if screen.DisplayName() != testName {
+		t.Errorf("DisplayName returned %q, expected %q", screen.DisplayName(), testName)
 	}
 
 	if screen.State() != StateBackupPrompt {
@@ -194,12 +194,12 @@ func TestFullOnboardingFlow(t *testing.T) {
 		t.Error("backup should be complete")
 	}
 
-	if screen.GetKeypair() == nil {
+	if screen.Keypair() == nil {
 		t.Error("keypair should be set")
 	}
 
-	if screen.GetDisplayName() != "NewUser" {
-		t.Errorf("display name should be 'NewUser', got %q", screen.GetDisplayName())
+	if screen.DisplayName() != "NewUser" {
+		t.Errorf("display name should be 'NewUser', got %q", screen.DisplayName())
 	}
 }
 

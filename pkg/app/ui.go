@@ -231,9 +231,9 @@ func (g *onboardingTransitionGame) syncOnboardingScreenByPhase() {
 		if g.modeScreen == nil {
 			g.modeScreen = screens.NewModeScreen(
 				g.controller,
-				g.identityScreen.GetKeypair(),
-				g.identityScreen.GetSigil(),
-				g.identityScreen.GetDisplayName(),
+				g.identityScreen.Keypair(),
+				g.identityScreen.Sigil(),
+				g.identityScreen.DisplayName(),
 				screens.ModeScreenCallbacks{},
 			)
 		}

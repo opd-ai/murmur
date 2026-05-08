@@ -54,8 +54,8 @@ const (
 	ZoomLevelMicro
 )
 
-// GetZoomLevel returns the current level of detail based on scale.
-func (c *Camera) GetZoomLevel() ZoomLevel {
+// ZoomLevel returns the current level of detail based on scale.
+func (c *Camera) ZoomLevel() ZoomLevel {
 	if c.Scale < 0.5 {
 		return ZoomLevelMacro
 	}
@@ -63,6 +63,11 @@ func (c *Camera) GetZoomLevel() ZoomLevel {
 		return ZoomLevelMeso
 	}
 	return ZoomLevelMicro
+}
+
+// Deprecated: Use ZoomLevel instead.
+func (c *Camera) GetZoomLevel() ZoomLevel {
+	return c.ZoomLevel()
 }
 
 // Pan moves the camera by the given screen-space delta.
