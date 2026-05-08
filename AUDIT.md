@@ -89,3 +89,22 @@ Scope: Ebitengine UI/UX remediation from latest audit findings.
 
 ### Follow-up
 - Keep wasm publishing in dedicated web workflows; CI executable artifact matrix remains native desktop only.
+
+## Update - 2026-05-08 (Release Action Migration)
+
+### Change Summary
+- Replaced the release creation action in `.github/workflows/build.yml` from `softprops/action-gh-release@v3` to `ncipollo/release-action@v1`.
+- Mapped `files` to `artifacts` and `generate_release_notes` to `generateReleaseNotes` to preserve release packaging behavior.
+
+### Security/Operational Impact
+- Reduces dependency on an older release publishing action and standardizes release automation on the selected maintained action.
+- Scope is limited to CI workflow configuration; no runtime networking, cryptography, storage, or application logic changed.
+
+### Validation Status
+- Prior baseline commands executed before change:
+  - `make lint` failed in this environment due to missing `X11/Xlib.h` during Ebitengine GLFW native compilation.
+  - `make test` partially passed but failed in GUI-linked packages for the same missing Linux X11 headers.
+  - `make build` failed for the same missing X11 development headers.
+- Workflow syntax validated post-change:
+  - `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/build.yml")'` passed.
+- Note: The baseline lint/test/build failures above are environment-specific (missing Linux X11 development headers for Ebitengine native GUI compilation) and are unrelated to the release-action migration itself.
