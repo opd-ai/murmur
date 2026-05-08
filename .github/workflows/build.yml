@@ -24,7 +24,7 @@ jobs:
             artifact_name: murmur-linux-amd64
           - goos: linux
             goarch: arm64
-            runner: ubuntu-latest
+            runner: ubuntu-24.04-arm
             artifact_name: murmur-linux-arm64
           # macOS builds
           - goos: darwin
@@ -37,6 +37,7 @@ jobs:
             artifact_name: murmur-darwin-arm64
           # Windows builds
           - goos: windows
+            shell: bash
             goarch: amd64
             runner: windows-latest
             artifact_name: murmur-windows-amd64.exe
