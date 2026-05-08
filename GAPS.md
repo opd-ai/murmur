@@ -39,8 +39,10 @@ None identified from the targeted audit findings.
 
 ## Verification Gap
 
-Final verification is pending:
-- Full test suite pass
-- Multi-target compile pass including wasm
+Status: Closed
 
-This section will be updated after validation execution.
+Validation completed:
+- Full test suite pass (`go test ./...`).
+- Native desktop compile pass (`GOOS=linux GOARCH=amd64 go build ./cmd/murmur`).
+- Cross-target noebiten compile pass for linux/amd64, linux/arm64, darwin/amd64, darwin/arm64, windows/amd64.
+- WASM compile pass (`GOOS=js GOARCH=wasm go build ./cmd/wasm`).

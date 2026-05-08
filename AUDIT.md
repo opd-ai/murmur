@@ -60,4 +60,17 @@ Scope: Ebitengine UI/UX remediation from latest audit findings.
 - Changes are UI/input-only.
 
 ## Validation Status
-- Pending full test run and cross-target build checks (including wasm).
+- Tests:
+  - `go test ./...` passed.
+- Native desktop build:
+  - `GOOS=linux GOARCH=amd64 go build ./cmd/murmur` passed.
+- Cross-target compile coverage:
+  - `GOOS=<target> GOARCH=<arch> CGO_ENABLED=0 go build -tags noebiten ./cmd/murmur`
+    passed for:
+    - linux/amd64
+    - linux/arm64
+    - darwin/amd64
+    - darwin/arm64
+    - windows/amd64
+- WASM build:
+  - `GOOS=js GOARCH=wasm CGO_ENABLED=0 go build ./cmd/wasm` passed.

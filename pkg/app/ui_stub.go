@@ -1,7 +1,7 @@
 // UI initialization stub for headless builds.
 //
-//go:build test
-// +build test
+//go:build test || noebiten
+// +build test noebiten
 
 package app
 
