@@ -16,7 +16,7 @@ This file tracks only incomplete items pulled from ROADMAP.md.
 
 ### Documentation
 
-- [ ] API documentation for all exported types and functions
+- [x] API documentation for all exported types and functions — added doc comments to 13 previously undocumented exported identifiers across `pkg/pulsemap/overlays`, `pkg/anonymous/shroud`, `pkg/anonymous/mechanics/oracle` (2026-05-08)
 - [ ] Architecture decision records (ADRs) for key design choices
 
 ### Deployment

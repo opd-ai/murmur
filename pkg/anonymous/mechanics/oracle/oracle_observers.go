@@ -6,6 +6,9 @@ import (
 	"time"
 )
 
+// GossipVolumeObserver is a MetricObserver that measures message throughput
+// on a GossipSub topic over a time window.  The GetVolume dependency is
+// injected so it can be replaced in tests without a real network.
 type GossipVolumeObserver struct {
 	// GetVolume queries the network for message count.
 	// Injected dependency to allow testing without actual network.

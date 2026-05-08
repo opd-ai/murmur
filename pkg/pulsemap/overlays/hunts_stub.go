@@ -12,6 +12,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
+// HuntInfo holds the display data for a single Specter Hunt shown on the Pulse Map overlay.
 type HuntInfo struct {
 	HuntID      [32]byte
 	State       HuntStatus
@@ -22,6 +23,7 @@ type HuntInfo struct {
 	Leaderboard map[[32]byte]int
 }
 
+// FragmentInfo holds the display data for a single hunt fragment on the overlay.
 type FragmentInfo struct {
 	FragmentID [32]byte
 	Index      int
@@ -31,6 +33,7 @@ type FragmentInfo struct {
 	ClueLevel  int
 }
 
+// HuntStatus represents the lifecycle phase of a Specter Hunt for overlay rendering.
 type HuntStatus uint8
 
 const (
@@ -40,6 +43,7 @@ const (
 	HuntExpired
 )
 
+// FragmentStatus represents the claim state of a single hunt fragment.
 type FragmentStatus uint8
 
 const (
@@ -48,11 +52,13 @@ const (
 	FragmentExpired
 )
 
+// HuntsOverlay renders active Specter Hunt fragments as map-pinned icons on the Pulse Map.
 type HuntsOverlay struct {
 	visible bool
 	hunts   map[[32]byte]*HuntInfo
 }
 
+// NewHuntsOverlay creates an empty, visible HuntsOverlay.
 func NewHuntsOverlay() *HuntsOverlay {
 	return &HuntsOverlay{
 		visible: true,
