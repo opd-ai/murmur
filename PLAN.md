@@ -35,9 +35,9 @@ This file tracks only incomplete items pulled from ROADMAP.md.
 ### Anti-Sybil & Spam Resistance
 
 - [x] Resonance gating on all privileged actions (gifts, marks, games, councils) — `GiftStoreGated`, `MarkStoreGated`, `NewPhantomCouncilGated` added; oracle/puzzles/shadowplay/masked_events already had gated constructors (2026-05-08)
-- [ ] Connection pruning for consistently low-score peers
-- [ ] PoW requirement for identity creation
-- [ ] Sybil defense: PoW cost scales linearly per identity
+- [x] Connection pruning for consistently low-score peers — `LowScoreStrikeLimit` (3 strikes) and `LowScoreStrikes` counter in `PeerState`; `pruneByScore` now requires 3 consecutive bad rounds before disconnecting (2026-05-08)
+- [x] PoW requirement for identity creation — `DeclarationWithPoW` with `ComputePoW`/`VerifyPoW` already implemented; confirmed in `pkg/identity/declarations/profile.go` (2026-05-08)
+- [x] Sybil defense: PoW cost scales linearly per identity — `ScaledIdentityPoWDifficulty`, `ComputePoWScaled`, `VerifyPoWScaled` added to `pkg/identity/declarations/profile.go` (2026-05-08)
 
 ### Protocol Versioning
 

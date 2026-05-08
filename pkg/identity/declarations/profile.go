@@ -126,13 +126,30 @@ func (d *Declaration) ValidateTimestamp() error {
 
 // PoW constants for identity creation anti-spam.
 const (
-	// IdentityPoWDifficulty is the PoW difficulty for identity creation.
+	// IdentityPoWDifficulty is the base PoW difficulty for the first identity.
 	// Per DESIGN_DOCUMENT.md, 2-5 seconds compute time is target.
 	IdentityPoWDifficulty = 18
+
+	// IdentityPoWMaxDifficulty caps the scaled difficulty so a single node
+	// cannot be computationally crippled by its own identity count.
+	IdentityPoWMaxDifficulty = 28
 
 	// PoWNonceSize is the size of the PoW nonce in bytes.
 	PoWNonceSize = 8
 )
+
+// ScaledIdentityPoWDifficulty returns the PoW difficulty for creating the
+// nth identity (zero-indexed) from the same device or IP.
+// Difficulty increases linearly per PLAN.md: "PoW cost scales linearly per identity".
+// Each additional identity adds one leading-zero-bit to the target, capped at
+// IdentityPoWMaxDifficulty.
+func ScaledIdentityPoWDifficulty(existingIdentityCount int) uint {
+	difficulty := IdentityPoWDifficulty + existingIdentityCount
+	if difficulty > IdentityPoWMaxDifficulty {
+		difficulty = IdentityPoWMaxDifficulty
+	}
+	return uint(difficulty)
+}
 
 // Errors for PoW operations.
 var (
@@ -160,8 +177,17 @@ func NewWithPoW(kp *keys.KeyPair, displayName string) (*DeclarationWithPoW, erro
 // ComputePoW computes the Proof of Work nonce for the declaration.
 // This should take 2-5 seconds per DESIGN_DOCUMENT.md.
 func (d *DeclarationWithPoW) ComputePoW() error {
+	return d.ComputePoWScaled(0)
+}
+
+// ComputePoWScaled computes the PoW nonce using difficulty scaled by
+// existingIdentityCount.  Each additional identity created from the same
+// device costs one extra leading-zero-bit of work, capped at
+// IdentityPoWMaxDifficulty.  Per PLAN.md: "PoW cost scales linearly per identity".
+func (d *DeclarationWithPoW) ComputePoWScaled(existingIdentityCount int) error {
+	difficulty := ScaledIdentityPoWDifficulty(existingIdentityCount)
 	payload := d.powPayload()
-	target := computeIdentityPoWTarget(IdentityPoWDifficulty)
+	target := computeIdentityPoWTarget(int(difficulty))
 
 	for nonce := uint64(0); ; nonce++ {
 		d.PoWNonce = nonce
@@ -171,10 +197,17 @@ func (d *DeclarationWithPoW) ComputePoW() error {
 	}
 }
 
-// VerifyPoW verifies the Proof of Work nonce.
+// VerifyPoW verifies the Proof of Work nonce using the base difficulty.
 func (d *DeclarationWithPoW) VerifyPoW() error {
+	return d.VerifyPoWScaled(0)
+}
+
+// VerifyPoWScaled verifies the Proof of Work nonce using scaled difficulty.
+// Use the same existingIdentityCount that was used during ComputePoWScaled.
+func (d *DeclarationWithPoW) VerifyPoWScaled(existingIdentityCount int) error {
+	difficulty := ScaledIdentityPoWDifficulty(existingIdentityCount)
 	payload := d.powPayload()
-	target := computeIdentityPoWTarget(IdentityPoWDifficulty)
+	target := computeIdentityPoWTarget(int(difficulty))
 
 	if !verifyIdentityPoWAttempt(payload, d.PoWNonce, target) {
 		return ErrInvalidIdentityPoW

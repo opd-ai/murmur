@@ -30,6 +30,17 @@ const (
 
 	// MaxReconnectBackoff is the maximum backoff duration.
 	MaxReconnectBackoff = 5 * time.Minute
+
+	// LowScoreThreshold is the GossipSub score below which a peer is considered
+	// consistently problematic.  Scores below -50 for LowScoreStrikeLimit
+	// consecutive pruning rounds result in disconnection.
+	// Per AUDIT.md remediation: "scores < -50 should trigger peer disconnection".
+	LowScoreThreshold = -50.0
+
+	// LowScoreStrikeLimit is the number of consecutive below-threshold score
+	// observations required before a peer is pruned.  At the 5-minute prune
+	// interval this equates to 15 minutes of persistently bad behaviour.
+	LowScoreStrikeLimit = 3
 )
 
 // PeerPriority defines priority tiers for connection management.
@@ -52,6 +63,10 @@ type PeerState struct {
 	LastSeen        time.Time
 	MissedHeartbeat int
 	Latency         time.Duration
+	// LowScoreStrikes counts consecutive pruning rounds where this peer's
+	// GossipSub score was below LowScoreThreshold.  The peer is disconnected
+	// when this reaches LowScoreStrikeLimit.  A score recovery resets the counter.
+	LowScoreStrikes int
 }
 
 // Manager manages peer connections and mesh health.
@@ -135,7 +150,10 @@ func (m *Manager) scorePruneLoop() {
 	}
 }
 
-// pruneByScore disconnects peers with scores below -50.
+// pruneByScore tracks consecutive below-threshold GossipSub scores and
+// disconnects peers that have been persistently low-scored.
+// A peer must be below LowScoreThreshold for LowScoreStrikeLimit consecutive
+// pruning rounds before it is disconnected.  Score recovery resets the counter.
 // Respects priority tiers: never prunes Identity-priority peers.
 func (m *Manager) pruneByScore() {
 	m.mu.RLock()
@@ -152,21 +170,32 @@ func (m *Manager) pruneByScore() {
 	for peerID, state := range m.peers {
 		// Never prune Identity-priority peers (direct connections)
 		if state.Priority == PriorityIdentity {
+			state.LowScoreStrikes = 0
 			continue
 		}
 
-		// Check score threshold
 		score := scoreFunc(peerID)
-		if score < -50.0 {
-			// Don't prune if we'd go below minimum
-			if len(m.peers) <= MinPeers {
-				break
-			}
-
-			// Close connection
-			_ = m.h.Network().ClosePeer(peerID)
-			delete(m.peers, peerID)
+		if score < LowScoreThreshold {
+			state.LowScoreStrikes++
+		} else {
+			// Score recovered — reset strike counter.
+			state.LowScoreStrikes = 0
+			continue
 		}
+
+		// Only disconnect after LowScoreStrikeLimit consecutive bad rounds.
+		if state.LowScoreStrikes < LowScoreStrikeLimit {
+			continue
+		}
+
+		// Don't prune if we'd go below minimum
+		if len(m.peers) <= MinPeers {
+			break
+		}
+
+		// Close connection
+		_ = m.h.Network().ClosePeer(peerID)
+		delete(m.peers, peerID)
 	}
 }
 
