@@ -175,30 +175,32 @@ func IsSTUNURL(urlStr string) bool {
 	return u.Scheme == "stun" || u.Scheme == "stuns"
 }
 
-// CommunityTURNServers returns placeholder TURN servers.
-// In production, these would be discovered via DHT.
-// Note: These are placeholders and require actual community servers.
+// CommunityTURNServers returns community-operated TURN servers discovered via DHT.
+// Per NETWORK_ARCHITECTURE.md: "falls back to community-operated TURN servers."
+//
+// Production TURN servers are advertised as DHT provider records under TURNDiscoveryKey
+// and fetched at runtime by the relay discovery subsystem.  This function returns an
+// empty list as the authoritative static fallback; callers that need TURN connectivity
+// must use DHT-based discovery (see TURNDiscoveryKey) and health-filter results through
+// FilterHealthyTURNServers before adding them to the ICEConfig.
 func CommunityTURNServers() []TURNServerInfo {
-	// Placeholder - actual community TURN servers would be discovered via DHT
-	// Per NETWORK_ARCHITECTURE.md: "falls back to community-operated TURN servers"
-	return []TURNServerInfo{
-		{
-			URL:          "turn:turn1.murmur.network:3478",
-			Username:     "murmur",
-			Password:     "community",
-			Realm:        "murmur.network",
-			TTL:          1 * time.Hour,
-			DiscoveredAt: time.Now(),
-		},
-		{
-			URL:          "turn:turn2.murmur.network:3478",
-			Username:     "murmur",
-			Password:     "community",
-			Realm:        "murmur.network",
-			TTL:          1 * time.Hour,
-			DiscoveredAt: time.Now(),
-		},
+	// Production TURN servers are distributed via DHT provider records.
+	// There are no globally-hardcoded TURN credentials; static entries here would
+	// require embedded credentials that cannot be rotated securely.
+	return nil
+}
+
+// FilterHealthyTURNServers returns only non-expired TURN server entries.
+// Use this to health-filter a slice obtained from DHT discovery before
+// merging into an ICEConfig with MergeWithTURN.
+func FilterHealthyTURNServers(servers []TURNServerInfo) []TURNServerInfo {
+	healthy := make([]TURNServerInfo, 0, len(servers))
+	for _, s := range servers {
+		if !s.IsExpired() {
+			healthy = append(healthy, s)
+		}
 	}
+	return healthy
 }
 
 // MergeWithTURN creates a new ICEConfig with additional TURN servers.

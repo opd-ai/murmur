@@ -142,15 +142,28 @@ func TestTURNServerInfo_ToICEServer(t *testing.T) {
 }
 
 func TestCommunityTURNServers(t *testing.T) {
+	// CommunityTURNServers returns nil; production servers are discovered via DHT.
 	servers := CommunityTURNServers()
+	assert.Nil(t, servers, "static TURN list must be empty — use DHT discovery instead")
+}
 
-	assert.NotEmpty(t, servers)
-	for _, s := range servers {
-		assert.NotEmpty(t, s.URL)
-		assert.NotEmpty(t, s.Username)
-		assert.NotEmpty(t, s.Password)
-		assert.False(t, s.IsExpired())
+func TestFilterHealthyTURNServers(t *testing.T) {
+	now := time.Now()
+	servers := []TURNServerInfo{
+		{URL: "turn:turn1.example.com:3478", TTL: 1 * time.Hour, DiscoveredAt: now},
+		{URL: "turn:turn2.example.com:3478", TTL: 1 * time.Hour, DiscoveredAt: now.Add(-2 * time.Hour)}, // expired
+		{URL: "turn:turn3.example.com:3478", TTL: 30 * time.Minute, DiscoveredAt: now},
 	}
+
+	healthy := FilterHealthyTURNServers(servers)
+	assert.Len(t, healthy, 2)
+	assert.Equal(t, "turn:turn1.example.com:3478", healthy[0].URL)
+	assert.Equal(t, "turn:turn3.example.com:3478", healthy[1].URL)
+}
+
+func TestFilterHealthyTURNServers_Empty(t *testing.T) {
+	healthy := FilterHealthyTURNServers(nil)
+	assert.Empty(t, healthy)
 }
 
 func TestICEConfig_MergeWithTURN(t *testing.T) {

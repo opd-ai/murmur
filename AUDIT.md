@@ -184,3 +184,23 @@ Scope: Ebitengine UI/UX remediation from latest audit findings.
 ### Validation Status
 - TUI build/vet/tests/race checks pass.
 - Full repository race test run still blocked by environment-level Ebitengine X11 header availability for non-TUI packages.
+
+## Update - 2026-05-08 (ROADMAP Priority Execution: Bootstrap, TURN, Migration, CI)
+
+### Change Summary
+- Cleared invalid placeholder peer IDs from `pkg/networking/discovery/bootstrap.go`; static bootstrap list is now empty, relying on the resolver chain (GitHub Gist → Pages) as the authoritative runtime mechanism.
+- Added `NewDefaultResolverChain` factory function; wires Gist/Pages resolvers with per-source timeouts (2s/3s).
+- `CommunityTURNServers()` now returns nil; hardcoded TURN credentials removed. Added `FilterHealthyTURNServers` for DHT-based health filtering.
+- Implemented `MigrateLegacyKeystore` in `pkg/identity/keys/keystore.go` to handle the previously stubbed migration path for combined Surface+Specter keystores.
+- Fixed `mobile.yml` CI go-version from hardcoded `1.22` to `go-version-file: 'go.mod'` (aligns with `go 1.25.7` in go.mod).
+- Added `.github/workflows/security.yml` with govulncheck and weekly dependency freshness gates.
+
+### Security/Privacy Notes
+- Removing hardcoded TURN credentials (`murmur`/`community`) eliminates static credentials that could not be rotated. TURN servers must now be discovered via DHT with health filtering.
+- `MigrateLegacyKeystore` zeroes all intermediate plaintext buffers per `SECURITY_PRIVACY.md §2.1`. The legacy file is renamed (not deleted) to allow manual recovery if needed.
+- No cryptographic primitive changes; identity isolation guarantees unchanged.
+
+### Validation Status
+- `go test -tags=test -race ./pkg/networking/discovery/... ./pkg/networking/relay/... ./pkg/identity/keys/... ./pkg/config/...` passed.
+- `go vet ./pkg/networking/discovery/... ./pkg/networking/relay/... ./pkg/identity/keys/...` passed.
+- `go-stats-generator diff`: new functions all have cyclomatic complexity ≤ 6. Pre-existing `SetState`/`SetEvents` complexity drift in `pkg/ui/` is unrelated to this session's changes.

@@ -8,10 +8,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestBootstrapNodes_Count(t *testing.T) {
-	// Per NETWORK_ARCHITECTURE.md: 8-12 bootstrap nodes.
-	assert.GreaterOrEqual(t, len(BootstrapNodes), 8, "Should have at least 8 bootstrap nodes")
-	assert.LessOrEqual(t, len(BootstrapNodes), 12, "Should have at most 12 bootstrap nodes")
+func TestBootstrapNodes_AllEntriesValid(t *testing.T) {
+	// All entries in BootstrapNodes must have valid peer IDs and at least one address.
+	// The static list may be empty while runtime discovery (ResolverChain) is the
+	// primary bootstrap mechanism.  No invalid placeholder entries are allowed.
+	for i, ai := range BootstrapNodes {
+		assert.NotEmpty(t, ai.ID, "BootstrapNodes[%d] must have a non-empty peer ID", i)
+		assert.NotEmpty(t, ai.Addrs, "BootstrapNodes[%d] must have at least one address", i)
+	}
 }
 
 func TestDefaultBootstrapCount(t *testing.T) {
@@ -62,7 +66,7 @@ func TestAllBootstrapNodes(t *testing.T) {
 	custom.AddAddrInfo(peer.AddrInfo{ID: "custom2"})
 
 	all := AllBootstrapNodes(custom)
-	assert.Equal(t, len(BootstrapNodes)+2, len(all))
+	assert.Equal(t, len(BootstrapNodes)+2, len(all), "should include static + custom nodes")
 }
 
 func TestAllBootstrapNodes_NilCustom(t *testing.T) {

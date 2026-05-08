@@ -597,3 +597,132 @@ func TestKeySeparationSecurity(t *testing.T) {
 		t.Error("Specter keystore contains Surface public key (isolation violated)")
 	}
 }
+
+// buildLegacyKeystoreFixture creates a legacy combined keystore (Surface+Specter in
+// one encrypted file) and returns the fixture path, the original surface/specter public
+// keys for verification, and any error.
+func buildLegacyKeystoreFixture(t *testing.T, dir, passphrase string) (path string, surfPub []byte, specPub [32]byte) {
+	t.Helper()
+
+	kp, err := GenerateKeyPair()
+	if err != nil {
+		t.Fatalf("GenerateKeyPair: %v", err)
+	}
+	defer kp.ZeroKeyPair()
+
+	akp, err := GenerateAnonymousKeyPair()
+	if err != nil {
+		t.Fatalf("GenerateAnonymousKeyPair: %v", err)
+	}
+	defer akp.ZeroAnonymousKeyPair()
+
+	surfPub = make([]byte, len(kp.PublicKey))
+	copy(surfPub, kp.PublicKey)
+	specPub = akp.PublicKey
+
+	// Construct legacy 128-byte plaintext.
+	plain := make([]byte, 128)
+	copy(plain[0:64], kp.PrivateKey)
+	copy(plain[64:96], akp.PrivateKey[:])
+	copy(plain[96:128], akp.PublicKey[:])
+	defer ZeroBytes(plain)
+
+	encrypted, err := EncryptKeystore(plain, passphrase)
+	if err != nil {
+		t.Fatalf("EncryptKeystore: %v", err)
+	}
+
+	path = filepath.Join(dir, "legacy.keystore")
+	if err := writeKeystoreFile(path, encrypted); err != nil {
+		t.Fatalf("writeKeystoreFile: %v", err)
+	}
+
+	return path, surfPub, specPub
+}
+
+func TestMigrateLegacyKeystore(t *testing.T) {
+	tempDir := t.TempDir()
+	passphrase := "migrate-test-pass"
+
+	legacyPath, origSurfPub, origSpecPub := buildLegacyKeystoreFixture(t, tempDir, passphrase)
+
+	newPaths := KeystorePaths{
+		Surface: filepath.Join(tempDir, "surface.keystore"),
+		Specter: filepath.Join(tempDir, "specter.keystore"),
+	}
+
+	if err := MigrateLegacyKeystore(legacyPath, passphrase, newPaths); err != nil {
+		t.Fatalf("MigrateLegacyKeystore() error = %v", err)
+	}
+
+	// Legacy file should be renamed.
+	if fileExists(legacyPath) {
+		t.Error("Legacy keystore file should have been renamed after migration")
+	}
+	if !fileExists(legacyPath + ".bak") {
+		t.Error("Legacy keystore backup (.bak) should exist after migration")
+	}
+
+	// New keystores should load correctly.
+	loaded, err := LoadIdentityBundle(newPaths, passphrase)
+	if err != nil {
+		t.Fatalf("LoadIdentityBundle() after migration error = %v", err)
+	}
+	defer loaded.Zero()
+
+	if !bytes.Equal(loaded.Surface.PublicKey, origSurfPub) {
+		t.Error("Migrated Surface public key does not match original")
+	}
+	if loaded.Specter.PublicKey != origSpecPub {
+		t.Error("Migrated Specter public key does not match original")
+	}
+}
+
+func TestMigrateLegacyKeystore_WrongPassphrase(t *testing.T) {
+	tempDir := t.TempDir()
+	legacyPath, _, _ := buildLegacyKeystoreFixture(t, tempDir, "correct-pass")
+
+	newPaths := KeystorePaths{
+		Surface: filepath.Join(tempDir, "surface.keystore"),
+		Specter: filepath.Join(tempDir, "specter.keystore"),
+	}
+
+	if err := MigrateLegacyKeystore(legacyPath, "wrong-pass", newPaths); err == nil {
+		t.Error("MigrateLegacyKeystore() should fail with wrong passphrase")
+	}
+}
+
+func TestMigrateLegacyKeystore_EmptyPassphrase(t *testing.T) {
+	tempDir := t.TempDir()
+	legacyPath := filepath.Join(tempDir, "legacy.keystore")
+	// File doesn't even need to exist — empty passphrase check is first.
+	newPaths := DefaultKeystorePaths(tempDir)
+
+	if err := MigrateLegacyKeystore(legacyPath, "", newPaths); err == nil {
+		t.Error("MigrateLegacyKeystore() should fail with empty passphrase")
+	}
+}
+
+func TestMigrateLegacyKeystore_NotLegacyFormat(t *testing.T) {
+	tempDir := t.TempDir()
+	passphrase := "test-pass"
+
+	// Save a single-key keystore (Surface only) — plaintext is 64 bytes, not 128.
+	kp, _ := GenerateKeyPair()
+	defer kp.ZeroKeyPair()
+	legacyPath := filepath.Join(tempDir, "single.keystore")
+	if err := SaveSurfaceKeyPair(kp, legacyPath, passphrase); err != nil {
+		t.Fatalf("SaveSurfaceKeyPair: %v", err)
+	}
+
+	newPaths := KeystorePaths{
+		Surface: filepath.Join(tempDir, "surface.keystore"),
+		Specter: filepath.Join(tempDir, "specter.keystore"),
+	}
+
+	// Should fail because plaintext is 64 bytes, not the expected 128.
+	if err := MigrateLegacyKeystore(legacyPath, passphrase, newPaths); err == nil {
+		t.Error("MigrateLegacyKeystore() should fail for non-combined keystore")
+	}
+}
+

@@ -307,14 +307,98 @@ func IsLegacyKeystore(path string) (bool, error) {
 }
 
 // MigrateLegacyKeystore migrates a legacy combined keystore to separated keystores.
-// This function is intentionally not implemented yet — it's a placeholder for future migration logic.
-// When implemented, it should:
-// 1. Decrypt the legacy keystore with the passphrase
-// 2. Parse the combined data into Surface + Specter keys
-// 3. Call SaveIdentityBundle to write separated keystores
-// 4. Optionally delete or rename the legacy keystore
+// A legacy keystore stores Surface and Specter keys in a single encrypted file.
+// The plaintext format is:
+//
+//	surface_private_key (64 bytes, Ed25519)
+//	specter_private_key (32 bytes, Curve25519) || specter_public_key (32 bytes)
+//
+// On success the new separated keystores are written to newPaths, then the legacy
+// file is renamed to legacyPath + ".bak" so it can be manually removed after
+// the caller verifies the new keystores load correctly.
 func MigrateLegacyKeystore(legacyPath, passphrase string, newPaths KeystorePaths) error {
-	return errors.New("legacy keystore migration not yet implemented")
+	if passphrase == "" {
+		return errors.New("passphrase cannot be empty")
+	}
+	if err := VerifyKeystoreSeparation(newPaths); err != nil {
+		return fmt.Errorf("invalid new keystore paths: %w", err)
+	}
+	bundle, err := decryptLegacyBundle(legacyPath, passphrase)
+	if err != nil {
+		return err
+	}
+	defer bundle.Zero()
+	if err := SaveIdentityBundle(bundle, newPaths, passphrase); err != nil {
+		return fmt.Errorf("saving migrated keystores: %w", err)
+	}
+	return renameLegacyFile(legacyPath)
+}
+
+// renameLegacyFile renames a legacy keystore to ".bak" after successful migration.
+func renameLegacyFile(path string) error {
+	if err := os.Rename(path, path+".bak"); err != nil {
+		return fmt.Errorf("migrated successfully but could not rename legacy file: %w", err)
+	}
+	return nil
+}
+
+// decryptLegacyBundle decrypts a legacy combined keystore and returns an IdentityBundle.
+// The legacy plaintext is exactly 128 bytes:
+// bytes[0:64]   — Ed25519 private key (Surface)
+// bytes[64:128] — Curve25519 private(32) || public(32) key (Specter)
+func decryptLegacyBundle(legacyPath, passphrase string) (*IdentityBundle, error) {
+	plaintext, err := readAndDecryptLegacy(legacyPath, passphrase)
+	if err != nil {
+		return nil, err
+	}
+	defer ZeroBytes(plaintext)
+	return parseLegacyPlaintext(plaintext)
+}
+
+// readAndDecryptLegacy reads and decrypts a legacy keystore file.
+func readAndDecryptLegacy(legacyPath, passphrase string) ([]byte, error) {
+	encrypted, err := readKeystoreFile(legacyPath)
+	if err != nil {
+		return nil, fmt.Errorf("reading legacy keystore: %w", err)
+	}
+	plaintext, err := DecryptKeystore(encrypted, passphrase)
+	if err != nil {
+		return nil, fmt.Errorf("decrypting legacy keystore: %w", err)
+	}
+	return plaintext, nil
+}
+
+// parseLegacyPlaintext extracts Surface and Specter keypairs from 128-byte legacy plaintext.
+func parseLegacyPlaintext(plaintext []byte) (*IdentityBundle, error) {
+	const legacySize = 128
+	if len(plaintext) != legacySize {
+		return nil, fmt.Errorf(
+			"unexpected legacy keystore size: got %d, want %d (not a combined keystore?)",
+			len(plaintext), legacySize,
+		)
+	}
+	surface, err := importSurfaceFromLegacy(plaintext[0:64])
+	if err != nil {
+		return nil, err
+	}
+	specter, err := importAnonymousKeyPair(plaintext[64:128])
+	if err != nil {
+		surface.ZeroKeyPair()
+		return nil, fmt.Errorf("importing specter key from legacy keystore: %w", err)
+	}
+	return &IdentityBundle{Surface: surface, Specter: specter}, nil
+}
+
+// importSurfaceFromLegacy imports an Ed25519 surface key from a copy of the legacy bytes.
+func importSurfaceFromLegacy(raw []byte) (*KeyPair, error) {
+	buf := make([]byte, len(raw))
+	copy(buf, raw)
+	defer ZeroBytes(buf)
+	kp, err := ImportKeyPair(buf)
+	if err != nil {
+		return nil, fmt.Errorf("importing surface key from legacy keystore: %w", err)
+	}
+	return kp, nil
 }
 
 // SaveSurfaceKeyPair saves only the Surface keypair to a file.

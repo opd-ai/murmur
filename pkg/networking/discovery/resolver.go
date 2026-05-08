@@ -121,6 +121,32 @@ type TimeoutResolver struct {
 	timeout  time.Duration
 }
 
+// NewDefaultResolverChain builds the standard layered resolver chain used at runtime.
+// Per PLAN.md "Bootstrap Strategy: Zero-Infrastructure Peer Discovery", the chain
+// tries sources in the following short-circuit order:
+//
+//  1. gistURL  — GitHub Gist (fast, mutable; 2s timeout)
+//  2. pagesURL — GitHub Pages (durable, versioned; 3s timeout)
+//
+// verifyKey is the Ed25519 public key used to authenticate the signed peer list.
+// Pass a nil verifyKey to disable signature verification (development/test only).
+//
+// The returned chain can be passed directly to Discovery.SetFallbackResolvers.
+func NewDefaultResolverChain(gistURL, pagesURL string, verifyKey []byte) *ResolverChain {
+	var resolvers []BootstrapResolver
+
+	if gistURL != "" {
+		resolvers = append(resolvers,
+			NewTimeoutResolver(NewGistResolver(gistURL, verifyKey), 2*time.Second))
+	}
+	if pagesURL != "" {
+		resolvers = append(resolvers,
+			NewTimeoutResolver(NewPagesResolver(pagesURL, verifyKey), 3*time.Second))
+	}
+
+	return NewResolverChain(nil, resolvers...)
+}
+
 // NewTimeoutResolver wraps a resolver with a timeout.
 func NewTimeoutResolver(resolver BootstrapResolver, timeout time.Duration) *TimeoutResolver {
 	return &TimeoutResolver{

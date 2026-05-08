@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (2026-05-08 — ROADMAP priority execution session)
+- **Bootstrap placeholder cleanup**: Removed 8 invalid placeholder peer entries from `pkg/networking/discovery/bootstrap.go`. Static list is now intentionally empty; the resolver chain (GitHub Gist → Pages) is the live runtime mechanism.
+- **`NewDefaultResolverChain`**: Factory function in `pkg/networking/discovery/resolver.go` that builds the layered Gist→Pages resolver chain from URL strings. Wires directly to `Discovery.SetFallbackResolvers`.
+- **Bootstrap integration tests**: `TestNewDefaultResolverChain_*` tests in `pkg/networking/discovery/resolver_test.go` confirm fallback/fail-fast behavior.
+- **TURN DHT discovery**: `CommunityTURNServers()` in `pkg/networking/relay/turn.go` now returns nil (no hardcoded credentials). Added `FilterHealthyTURNServers()` helper for health-filtering DHT-discovered servers.
+- **`MigrateLegacyKeystore`** fully implemented in `pkg/identity/keys/keystore.go`. Decrypts 128-byte combined plaintext, splits into Surface + Specter keypairs, saves to separated keystores, renames legacy file to `.bak`.
+- **Legacy keystore migration tests**: `TestMigrateLegacyKeystore`, `TestMigrateLegacyKeystore_WrongPassphrase`, `TestMigrateLegacyKeystore_EmptyPassphrase`, `TestMigrateLegacyKeystore_NotLegacyFormat` in `pkg/identity/keys/keystore_test.go`.
+- **Security CI workflow**: `.github/workflows/security.yml` with `govulncheck` job (runs on push/PR) and `dependency-freshness` job (runs weekly on Mondays).
+
+### Changed (2026-05-08 — ROADMAP priority execution session)
+- **`mobile.yml` go-version**: Both android and iOS build steps changed from `go-version: '1.22'` to `go-version-file: 'go.mod'` to stay aligned with `go 1.25.7` in `go.mod`.
+- **README package counts**: Updated from stale `64 with tests / 72 total` to current `86 packages (all with tests)`.
+
 ### Added (2026-05-08 — backlog execution session)
 - **Wave TTL E2E tests**: Added six lifecycle tests covering creation, expiry verification, early pruning, boundary TTL, GC sweep and persistence round-trip (`pkg/content/storage/ttl_e2e_test.go`).
 - **Mini-game network propagation E2E tests**: Full hunt lifecycle propagation tests (`pkg/anonymous/mechanics/hunts/network_propagation_e2e_test.go`).
