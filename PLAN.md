@@ -43,7 +43,7 @@ This file tracks only incomplete items pulled from ROADMAP.md.
 
 - [x] Topic versioning in GossipSub topic strings — v2 constants and `topicUpgradePairs` map in `pkg/networking/gossip/version_upgrade.go` (2026-05-08)
 - [x] MurmurEnvelope version field handling (currently always 1) — `MinSupportedVersion`/`MaxSupportedVersion` range check (v1–v2) in `pkg/app/handlers.go` `validateEnvelopeStructure` (2026-05-08)
-- [ ] Protocol negotiation via multistream-select
+- [x] Protocol negotiation via multistream-select — v2 protocol IDs added to `WaveSyncProtocolV2` and `PEXProtocolIDV2`; both v1+v2 handlers registered; clients prefer v2 with v1 fallback (2026-05-08)
 - [x] Gradual migration: new-version nodes subscribe to both v1 and v2 topics — `DualTopicManager.SubscribeBoth` in `pkg/networking/gossip/version_upgrade.go` (2026-05-08)
 - [ ] Breaking change consensus mechanism
 
