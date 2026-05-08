@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (2026-05-08 — ROADMAP Priority 2 validation follow-up)
+- **UI-level Join Game proximity integration test** (`pkg/pulsemap/game_actions_test.go`): added `TestJoinGameAction_ProximityFilteredViaRadialMenu`, which drives `ActionJoinGame` through radial-menu dispatch, injects spatial positions via `SetNodePositioner`, and verifies only nearby active mechanics are counted in the user-facing toast.
+
 ### Security (2026-05-08 — AUDIT.md remediation, session 2)
 - **Abyssal Wave key derivation hardened** (`pkg/content/waves/abyssal.go`): introduced `deriveAbyssalMasterKey` via HKDF-SHA-256 with info="murmur-abyssal-master-v1". `deriveAbyssalKeypairFromNonce` now uses `abyssal_master || nonce` as the SHA-256 input, ensuring Specter key compromise alone does not retroactively expose all Abyssal one-time keys.
 - **Shroud hop-key derivation: BLAKE3 → HKDF-SHA-256** (`pkg/anonymous/shroud/circuit.go`): `deriveHopKey` now uses `hkdf.New(sha256.New, shared[:], nil, info)` where `info = "murmur-shroud-hop-v1" || hopIndex || ephemeralPublicKey`. This matches the spec-required key-derivation primitive (TECHNICAL_IMPLEMENTATION.md table) and eliminates the BLAKE3 deviation.

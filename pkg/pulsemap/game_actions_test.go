@@ -289,3 +289,55 @@ func TestHandleJoinGame_NoMechanics_ShowsUnavailableToast(t *testing.T) {
 		t.Fatalf("expected non-error toast for empty mechanics, got: %q", g.toast.message)
 	}
 }
+
+// TestJoinGameAction_ProximityFilteredViaRadialMenu validates UI-level action
+// wiring by invoking ActionJoinGame through the radial menu dispatcher and
+// verifying proximity-aware store filtering controls the reported mechanic count.
+func TestJoinGameAction_ProximityFilteredViaRadialMenu(t *testing.T) {
+	db := openTestDB(t)
+
+	anchorPub := []byte("anchor-pubkey")
+	nearCreator := []byte("near-creator")
+	farCreator := []byte("far-creator")
+
+	for i, creator := range [][]byte{nearCreator, farCreator} {
+		puzzle := &pb.CipherPuzzle{
+			Id:            []byte{byte(i + 10)},
+			CreatorPubkey: creator,
+			State:         pb.PuzzleState_PUZZLE_STATE_ACTIVE,
+		}
+		if err := db.PutCipherPuzzle(puzzle); err != nil {
+			t.Fatalf("PutCipherPuzzle(%d): %v", i, err)
+		}
+	}
+
+	positions := map[string][2]float64{
+		string(anchorPub):  {0, 0},
+		string(nearCreator): {10, 0},
+		string(farCreator):  {400, 400},
+	}
+	db.SetNodePositioner(func(pubkey []byte) (x, y float64, ok bool) {
+		p, found := positions[string(pubkey)]
+		return p[0], p[1], found
+	})
+
+	engine := layout.NewEngine()
+	renderer, err := rendering.NewRenderer(engine, nil)
+	if err != nil {
+		t.Fatalf("NewRenderer failed: %v", err)
+	}
+	renderer.AddNode(&rendering.NodeData{ID: "anchor-node", PublicKey: anchorPub})
+
+	g := &Game{store: db, renderer: renderer}
+	g.handleRadialMenuAction(ui.ActionJoinGame, "anchor-node")
+
+	if g.toast == nil || g.toast.message == "" {
+		t.Fatal("expected non-empty toast after Join Game radial action")
+	}
+	if g.toast.isError {
+		t.Fatalf("expected non-error toast for joinable mechanics, got: %q", g.toast.message)
+	}
+	if !strings.Contains(g.toast.message, "1 active mechanic(s) nearby") {
+		t.Fatalf("expected proximity-filtered count of 1, got toast: %q", g.toast.message)
+	}
+}
