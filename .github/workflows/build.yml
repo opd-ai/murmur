@@ -9,6 +9,8 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions: write-all
+
 jobs:
   build-matrix:
     name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
