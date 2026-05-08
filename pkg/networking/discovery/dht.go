@@ -56,14 +56,14 @@ func (d *Discovery) Bootstrap(ctx context.Context, peers []peer.AddrInfo) error 
 }
 
 func (d *Discovery) doBootstrap(ctx context.Context, peers []peer.AddrInfo) error {
-	if len(peers) == 0 {
-		return nil
-	}
-
 	ctx, cancel := context.WithTimeout(ctx, BootstrapTimeout)
 	defer cancel()
 
-	connected, lastErr := d.connectToPeers(ctx, peers)
+	connected := 0
+	var lastErr error
+	if len(peers) > 0 {
+		connected, lastErr = d.connectToPeers(ctx, peers)
+	}
 
 	// If no connections succeeded, try fallback resolvers
 	if connected == 0 && d.fallbackChain != nil {

@@ -153,11 +153,11 @@ func (a *App) markNudgeShown(nudgeKey string) {
 // In CLI mode, logs to stdout. In UI mode, the PulseMap can show a notification.
 func (a *App) sendNudge(nudge Nudge) {
 	if a.subsystems.EventBus != nil {
-		// TODO: Define a proper NudgeEvent type in eventbus.go and dispatch here.
-		// For now, log to stdout as MVP implementation.
-		fmt.Printf("📢 MURMUR Nudge (Day %d): %s\n", nudge.Day, nudge.Message)
-	} else {
-		// Fallback: log directly.
-		fmt.Printf("📢 MURMUR Nudge (Day %d): %s\n", nudge.Day, nudge.Message)
+		a.subsystems.EventBus.EmitNudge(nudge.Day, nudge.Message, nudge.Mode.String())
+		fmt.Printf("MURMUR Nudge (Day %d): %s\n", nudge.Day, nudge.Message)
+		return
 	}
+
+	// Fallback for headless/CLI mode when event bus is unavailable.
+	fmt.Printf("MURMUR Nudge (Day %d): %s\n", nudge.Day, nudge.Message)
 }

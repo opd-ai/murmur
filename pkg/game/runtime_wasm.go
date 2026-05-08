@@ -4,10 +4,12 @@ package game
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"sync"
 	"syscall/js"
+	"time"
 
 	"github.com/opd-ai/murmur/pkg/identity/keys"
 	"github.com/opd-ai/murmur/pkg/store"
@@ -123,9 +125,8 @@ func (wa *wasmApp) initIdentity() error {
 	return nil
 }
 
-// Run starts the WASM application.
-// For now, this is a placeholder that prevents the Go runtime main() from blocking indefinitely.
-// In a production phase, this would initialize the Ebitengine game loop and draw the Pulse Map.
+// Run starts the WASM application runtime and publishes ready-state metadata.
+// The browser entrypoint keeps the Go process alive after this method returns.
 func (wa *wasmApp) Run() error {
 	wa.mu.Lock()
 	if wa.running {
@@ -135,12 +136,64 @@ func (wa *wasmApp) Run() error {
 	wa.running = true
 	wa.mu.Unlock()
 
-	// TODO: Initialize full Pulse Map + UI stack
-	// For now, just keep the runtime alive
-	logToConsole("WASM app running (full UI integration pending)")
+	if err := wa.publishRuntimeState(); err != nil {
+		return err
+	}
 
-	<-wa.ctx.Done()
-	return wa.ctx.Err()
+	wa.registerCloseHook()
+	wa.startHeartbeat()
+
+	logToConsole("WASM app runtime initialized")
+	return nil
+}
+
+func (wa *wasmApp) publishRuntimeState() error {
+	if wa.identity == nil {
+		return errors.New("WASM identity is not initialized")
+	}
+
+	murmurNS := js.Global().Get("murmur")
+	if murmurNS.IsUndefined() || murmurNS.IsNull() {
+		obj := js.Global().Get("Object")
+		if obj.IsUndefined() {
+			return errors.New("browser Object constructor unavailable")
+		}
+		murmurNS = obj.New()
+		js.Global().Set("murmur", murmurNS)
+	}
+
+	murmurNS.Set("runtimeVersion", wa.version)
+	murmurNS.Set("identityPublicKeyHex", hex.EncodeToString(wa.identity.PublicKey))
+	murmurNS.Set("runtimeStartedAt", time.Now().Unix())
+	return nil
+}
+
+func (wa *wasmApp) registerCloseHook() {
+	cleanup := js.FuncOf(func(this js.Value, args []js.Value) any {
+		_ = wa.Close()
+		return nil
+	})
+
+	js.Global().Set("murmurClose", cleanup)
+	js.Global().Call("addEventListener", "beforeunload", cleanup)
+}
+
+func (wa *wasmApp) startHeartbeat() {
+	go func() {
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-wa.ctx.Done():
+				return
+			case <-ticker.C:
+				if wa.storage != nil {
+					_ = wa.storage.Put(store.BucketConfig, []byte("wasm_last_seen"), []byte(fmt.Sprintf("%d", time.Now().Unix())))
+				}
+			}
+		}
+	}()
 }
 
 // Close shuts down the WASM application.

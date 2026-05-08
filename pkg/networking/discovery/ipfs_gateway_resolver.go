@@ -4,6 +4,7 @@ package discovery
 
 import (
 	"context"
+	"crypto/ed25519"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -102,10 +103,11 @@ func (i *IPFSGatewayResolver) fetchURL(ctx context.Context, url string, client *
 
 // verifySignature checks the peer list signature if a verification key is configured.
 func (i *IPFSGatewayResolver) verifySignature(signedList *SignedPeerList) error {
-	if len(i.verifyKey) > 0 {
-		if err := signedList.Verify(i.verifyKey); err != nil {
-			return fmt.Errorf("signature verification failed: %w", err)
-		}
+	if len(i.verifyKey) != ed25519.PublicKeySize {
+		return fmt.Errorf("invalid bootstrap verification key size: got %d, want %d", len(i.verifyKey), ed25519.PublicKeySize)
+	}
+	if err := signedList.Verify(i.verifyKey); err != nil {
+		return fmt.Errorf("signature verification failed: %w", err)
 	}
 	return nil
 }

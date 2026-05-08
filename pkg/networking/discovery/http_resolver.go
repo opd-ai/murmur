@@ -3,6 +3,7 @@ package discovery
 
 import (
 	"context"
+	"crypto/ed25519"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -62,8 +63,8 @@ func parsePeerList(body []byte) (*SignedPeerList, error) {
 
 // verifyPeerListSignature checks signature if verify key is provided.
 func verifyPeerListSignature(signedList *SignedPeerList, verifyKey []byte) error {
-	if len(verifyKey) == 0 {
-		return nil
+	if len(verifyKey) != ed25519.PublicKeySize {
+		return fmt.Errorf("invalid bootstrap verification key size: got %d, want %d", len(verifyKey), ed25519.PublicKeySize)
 	}
 	if err := signedList.Verify(verifyKey); err != nil {
 		return fmt.Errorf("signature verification failed: %w", err)

@@ -477,8 +477,10 @@ func (g *Game) addBookmarkForSelectedNode() {
 
 	// Get node display name (fallback to ID if not found)
 	label := nodeID
-	// TODO: Get display name from node data when available
-	// For now, use node ID truncated to 16 chars
+	if nodeData := g.renderer.GetNodeData(nodeID); nodeData != nil && nodeData.DisplayName != "" {
+		label = nodeData.DisplayName
+	}
+
 	if len(label) > 16 {
 		label = label[:16] + "..."
 	}
@@ -1191,7 +1193,7 @@ func (g *Game) handleSearch(query string) []ui.SearchResult {
 		result := ui.SearchResult{
 			NodeID:      node.ID,
 			DisplayName: node.DisplayName,
-			Pseudonym:   "", // TODO: Add pseudonym field to NodeData if needed
+			Pseudonym:   node.DisplayName,
 			IsSpecter:   node.IsSpecter,
 			Relevance:   1.0, // Default relevance
 			Resonance:   node.Resonance,

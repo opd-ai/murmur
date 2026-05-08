@@ -7,7 +7,9 @@
 package app
 
 import (
+	"crypto/ed25519"
 	"fmt"
+	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/opd-ai/murmur/pkg/identity/keys"
@@ -16,6 +18,7 @@ import (
 	"github.com/opd-ai/murmur/pkg/onboarding/screens"
 	"github.com/opd-ai/murmur/pkg/pulsemap"
 	"github.com/opd-ai/murmur/pkg/store"
+	pb "github.com/opd-ai/murmur/proto"
 )
 
 // runUI initializes and starts the Pulse Map UI via Ebitengine.
@@ -99,7 +102,36 @@ func (a *App) runOnboardingUI() error {
 		},
 		OnDisplayNameSet: func(name string) {
 			fmt.Printf("Onboarding: Display name set to %q\n", name)
-			// TODO: Store display name in identity declaration.
+
+			if err := a.subsystems.Storage.Put(store.BucketIdentity, []byte("display_name"), []byte(name)); err != nil {
+				fmt.Printf("Warning: failed to persist display name: %v\n", err)
+				return
+			}
+
+			if a.subsystems.Identity == nil {
+				return
+			}
+
+			decl, err := a.subsystems.Storage.GetIdentityDeclaration(a.subsystems.Identity.PublicKey)
+			if err != nil {
+				fmt.Printf("Warning: failed to load identity declaration: %v\n", err)
+				return
+			}
+
+			now := time.Now().Unix()
+			if decl == nil {
+				decl = &pb.IdentityDeclaration{
+					PublicKey: a.subsystems.Identity.PublicKey,
+					CreatedAt: now,
+				}
+			}
+			decl.DisplayName = name
+			decl.UpdatedAt = now
+			decl.Signature = ed25519.Sign(a.subsystems.Identity.PrivateKey, identityDeclarationSignatureData(decl))
+
+			if err := a.subsystems.Storage.PutIdentityDeclaration(decl); err != nil {
+				fmt.Printf("Warning: failed to persist identity declaration: %v\n", err)
+			}
 		},
 		OnBackupComplete: func(method string) {
 			fmt.Printf("Onboarding: Backup completed via %s\n", method)

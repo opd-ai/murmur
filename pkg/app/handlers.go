@@ -9,6 +9,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -331,54 +332,67 @@ func (h *Handlers) handlePulseMessage(ctx context.Context, msg *pubsub.Message) 
 }
 
 // handleAnonymousWavesMessage processes Specter and Masked Waves from /murmur/anonymous/waves/1.0.
-// Per AUDIT.md remediation, this enables network propagation of anonymous layer Waves.
 func (h *Handlers) handleAnonymousWavesMessage(ctx context.Context, msg *pubsub.Message) {
+	_ = ctx
+
 	// Increment gossip and anonymous metrics
 	metrics.GossipMessagesReceivedTotal.WithLabelValues(gossip.TopicAnonymousWaves).Inc()
-	metrics.AnonymousEventsReceivedTotal.WithLabelValues("wave").Inc()
 
-	// Per gossip/anonymous.go, anonymous waves use quantized timestamps.
-	// Basic validation - full implementation would parse Specter/Masked Wave payloads
-	// and route to pkg/anonymous/specters/ handlers.
-	envelope := &pb.MurmurEnvelope{}
-	if err := proto.Unmarshal(msg.Data, envelope); err != nil {
-		return // Silently drop invalid messages
-	}
-
-	// For now, just acknowledge receipt. Full implementation will:
-	// 1. Parse Wave from envelope.Payload
-	// 2. Validate Specter signature or Masked Wave encryption
-	// 3. Store in anonymous Wave cache
-	// 4. Emit event to event bus for UI rendering
-	_ = envelope
-}
-
-// handleAnonymousMechanicsMessage processes anonymous mini-game events from /murmur/anonymous/mechanics/1.0.
-// Per AUDIT.md remediation, this enables Phantom Gifts, Specter Marks, and other mechanics to propagate.
-func (h *Handlers) handleAnonymousMechanicsMessage(ctx context.Context, msg *pubsub.Message) {
-	// Increment gossip and anonymous metrics
-	metrics.GossipMessagesReceivedTotal.WithLabelValues(gossip.TopicAnonymousMechanics).Inc()
-	metrics.AnonymousEventsReceivedTotal.WithLabelValues("mechanic").Inc()
-
-	// Per pkg/anonymous/mechanics/publisher.go, all mechanics use TopicAnonymousMechanics.
-	// Parse GossipMessage from envelope payload to determine event type.
-	envelope := &pb.MurmurEnvelope{}
-	if err := proto.Unmarshal(msg.Data, envelope); err != nil {
+	payload, _, err := h.decodeAnonymousPayload(msg.Data, pb.MessageType_MESSAGE_TYPE_WAVE)
+	if err != nil {
 		return
 	}
 
-	// For now, just acknowledge receipt. Full implementation will:
-	// 1. Parse GossipMessage from envelope.Payload
-	// 2. Route to appropriate mechanic handler (gifts, marks, puzzles, etc.)
-	// 3. Verify signatures and ZK proofs where applicable
-	// 4. Store events in respective mechanic stores
-	// 5. Emit events to event bus for cross-layer rendering
-	_ = envelope
+	wave := &pb.Wave{}
+	if err := proto.Unmarshal(payload, wave); err != nil {
+		var gossipMsg pb.GossipMessage
+		if err := proto.Unmarshal(payload, &gossipMsg); err != nil {
+			return
+		}
+		wave = gossipMsg.GetWave()
+		if wave == nil {
+			return
+		}
+	}
+
+	if err := h.validateWave(wave); err != nil {
+		return
+	}
+
+	metrics.AnonymousEventsReceivedTotal.WithLabelValues("wave").Inc()
+	h.storeWaveIfCacheAvailable(wave)
+	h.invokeWaveCallback(wave)
+}
+
+// handleAnonymousMechanicsMessage processes anonymous mini-game events from /murmur/anonymous/mechanics/1.0.
+func (h *Handlers) handleAnonymousMechanicsMessage(ctx context.Context, msg *pubsub.Message) {
+	_ = ctx
+
+	// Increment gossip and anonymous metrics
+	metrics.GossipMessagesReceivedTotal.WithLabelValues(gossip.TopicAnonymousMechanics).Inc()
+
+	payload, _, err := h.decodeAnonymousPayload(msg.Data, pb.MessageType_MESSAGE_TYPE_WAVE)
+	if err != nil {
+		return
+	}
+
+	var gossipMsg pb.GossipMessage
+	if err := proto.Unmarshal(payload, &gossipMsg); err != nil {
+		return
+	}
+
+	kind, ok := anonymousMechanicsKind(&gossipMsg)
+	if !ok {
+		return
+	}
+
+	metrics.AnonymousEventsReceivedTotal.WithLabelValues(kind).Inc()
 }
 
 // handleAnonymousBeaconsMessage processes Beacon Waves from /murmur/anonymous/beacons/1.0.
-// Per AUDIT.md remediation, this enables Shroud relay discovery via elevated-PoW Beacon Waves.
 func (h *Handlers) handleAnonymousBeaconsMessage(ctx context.Context, msg *pubsub.Message) {
+	_ = ctx
+
 	// Beacon Waves have PoW difficulty 24 (vs 20 for standard Waves).
 	// Decode the BeaconWave from the message payload.
 	beaconWave, err := shroud.DecodeBeaconWave(msg.Data)
@@ -392,16 +406,77 @@ func (h *Handlers) handleAnonymousBeaconsMessage(ctx context.Context, msg *pubsu
 		return
 	}
 
+	if err := h.validateBeaconWave(beaconWave); err != nil {
+		return
+	}
+
 	// If we have a beacon registry, add the relay to it.
 	if h.beacon != nil {
 		relayInfo := beaconWave.ToRelayInfo()
 		h.beacon.AddRelay(relayInfo)
 	}
+}
 
-	// Note: Full PoW validation (24 leading zero bits) is deferred.
-	// The BeaconWave format doesn't currently include the PoW nonce,
-	// so we rely on peer scoring to filter out spam.
-	// Future enhancement: Add nonce field to BeaconWave protobuf.
+func (h *Handlers) decodeAnonymousPayload(data []byte, expectedType pb.MessageType) ([]byte, *pb.MurmurEnvelope, error) {
+	envelope, err := h.validateEnvelope(data, expectedType)
+	if err == nil {
+		return envelope.Payload, envelope, nil
+	}
+
+	// Anonymous mechanics publishers may emit direct GossipMessage payloads.
+	return data, nil, nil
+}
+
+func anonymousMechanicsKind(msg *pb.GossipMessage) (string, bool) {
+	switch {
+	case msg.GetGiftEvent() != nil:
+		return "gift", true
+	case msg.GetMarkEvent() != nil:
+		return "mark", true
+	case msg.GetPuzzleEvent() != nil:
+		return "puzzle", true
+	case msg.GetHuntEvent() != nil:
+		return "hunt", true
+	case msg.GetTerritoryEvent() != nil:
+		return "territory", true
+	case msg.GetOracleEvent() != nil:
+		return "oracle", true
+	case msg.GetForgeEvent() != nil:
+		return "forge", true
+	case msg.GetShadowPlayEvent() != nil:
+		return "shadowplay", true
+	case msg.GetCouncilEvent() != nil:
+		return "council", true
+	case msg.GetSparkEvent() != nil:
+		return "spark", true
+	default:
+		return "", false
+	}
+}
+
+func (h *Handlers) validateBeaconWave(wave *shroud.BeaconWave) error {
+	if wave == nil {
+		return ErrInvalidPayload
+	}
+	if wave.RelayPeerID == "" {
+		return fmt.Errorf("relay peer ID is empty")
+	}
+	if wave.TTL == 0 {
+		return fmt.Errorf("beacon TTL is zero")
+	}
+	if wave.MaxCircuits > 0 && wave.CurrentLoad > wave.MaxCircuits {
+		return fmt.Errorf("beacon load exceeds max circuits")
+	}
+	if len(wave.Signature) > 0 && len(wave.Signature) != ed25519.SignatureSize {
+		return fmt.Errorf("invalid beacon signature size")
+	}
+
+	msgTime := time.Unix(wave.Timestamp, 0)
+	if msgTime.After(time.Now().Add(MaxTimestampDrift)) {
+		return ErrInvalidTimestamp
+	}
+
+	return nil
 }
 
 // validateEnvelope validates a MurmurEnvelope and checks for duplicates.

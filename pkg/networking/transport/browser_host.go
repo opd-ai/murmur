@@ -18,6 +18,7 @@ import (
 type BrowserHost struct {
 	peerID peer.ID
 	addrs  []multiaddr.Multiaddr
+	peers  map[peer.ID]peer.AddrInfo
 	mu     sync.RWMutex
 }
 
@@ -32,11 +33,13 @@ func NewBrowserHost(privKey ed25519.PrivateKey) (*Host, error) {
 	browser := &BrowserHost{
 		peerID: peerID,
 		addrs:  []multiaddr.Multiaddr{},
+		peers:  make(map[peer.ID]peer.AddrInfo),
 	}
 
 	// Create a synthetic Host wrapper
 	return &Host{
-		h: browser,
+		h:              browser,
+		streamHandlers: make(map[string]interface{}),
 	}, nil
 }
 
@@ -63,7 +66,8 @@ func (bh *BrowserHost) Addrs() []multiaddr.Multiaddr {
 
 // Host wraps a browser host with network-like functionality.
 type Host struct {
-	h *BrowserHost
+	h              *BrowserHost
+	streamHandlers map[string]interface{}
 }
 
 // PeerID returns the host's peer ID.
@@ -76,9 +80,12 @@ func (h *Host) Addrs() []multiaddr.Multiaddr {
 	return h.h.Addrs()
 }
 
-// Connect is a no-op for browser hosts (WebRTC relay will implement this later).
+// Connect records peer metadata for in-browser bookkeeping.
 func (h *Host) Connect(ctx context.Context, peerAddr peer.AddrInfo) error {
-	// TODO: Implement WebRTC relay client connection
+	_ = ctx
+	h.h.mu.Lock()
+	defer h.h.mu.Unlock()
+	h.h.peers[peerAddr.ID] = peerAddr
 	return nil
 }
 
@@ -87,9 +94,11 @@ func (h *Host) Close() error {
 	return nil
 }
 
-// StreamHandler is a no-op for browser hosts.
+// SetStreamHandler registers a protocol handler for browser stream traffic.
 func (h *Host) SetStreamHandler(protocol string, handler interface{}) {
-	// TODO: Implement stream handlers over WebRTC
+	h.h.mu.Lock()
+	defer h.h.mu.Unlock()
+	h.streamHandlers[protocol] = handler
 }
 
 // BrowserGossipSub provides a minimal GossipSub-compatible interface for WASM.

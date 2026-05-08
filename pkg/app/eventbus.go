@@ -72,6 +72,9 @@ const (
 
 	// EventReplyReceived indicates a reply to one of the user's Waves was received.
 	EventReplyReceived
+
+	// EventNudge indicates a first-week nudge was generated for the local user.
+	EventNudge
 )
 
 // String returns a human-readable name for the event type.
@@ -105,6 +108,8 @@ func (et EventType) String() string {
 		return "UserAction"
 	case EventReplyReceived:
 		return "ReplyReceived"
+	case EventNudge:
+		return "Nudge"
 	default:
 		return "Unknown"
 	}
@@ -237,6 +242,18 @@ type ReplyEvent struct {
 
 	// ThreadDepth is the depth of the reply in the thread.
 	ThreadDepth int
+}
+
+// NudgeEvent contains details for first-week onboarding nudges.
+type NudgeEvent struct {
+	// Day is the first-week day marker for the nudge.
+	Day int
+
+	// Message is the nudge message to display.
+	Message string
+
+	// Mode is the privacy mode this nudge targets.
+	Mode string
 }
 
 // subscription represents a registered subscriber.
@@ -376,6 +393,7 @@ func (eb *EventBus) SubscribeAll(ch chan<- Event) func() {
 		EventTimerExpired,
 		EventUserAction,
 		EventReplyReceived,
+		EventNudge,
 	}, ch)
 }
 
@@ -581,6 +599,18 @@ func (eb *EventBus) EmitReplyReceived(parentWave, replyWave *pb.Wave, fromPeer s
 			ReplyWave:   replyWave,
 			FromPeer:    fromPeer,
 			ThreadDepth: depth,
+		},
+	})
+}
+
+// EmitNudge emits a first-week nudge event.
+func (eb *EventBus) EmitNudge(day int, message, mode string) {
+	eb.Emit(Event{
+		Type: EventNudge,
+		Payload: &NudgeEvent{
+			Day:     day,
+			Message: message,
+			Mode:    mode,
 		},
 	})
 }

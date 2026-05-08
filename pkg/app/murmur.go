@@ -6,6 +6,8 @@ package app
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"os"
@@ -14,17 +16,27 @@ import (
 	"sync"
 	"time"
 
+	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/multiformats/go-multiaddr"
 	"github.com/opd-ai/murmur/pkg/anonymous/shroud"
 	"github.com/opd-ai/murmur/pkg/content/pow"
 	"github.com/opd-ai/murmur/pkg/content/storage"
 	"github.com/opd-ai/murmur/pkg/identity/keys"
 	"github.com/opd-ai/murmur/pkg/identity/modes"
 	"github.com/opd-ai/murmur/pkg/murerr"
+	"github.com/opd-ai/murmur/pkg/networking/discovery"
 	"github.com/opd-ai/murmur/pkg/networking/gossip"
 	"github.com/opd-ai/murmur/pkg/networking/health"
+	"github.com/opd-ai/murmur/pkg/networking/metrics"
 	"github.com/opd-ai/murmur/pkg/networking/transport"
 	"github.com/opd-ai/murmur/pkg/store"
 	pb "github.com/opd-ai/murmur/proto"
+)
+
+const (
+	identityKeypairLegacyKey    = "keypair"
+	identityKeypairEncryptedKey = "keypair_encrypted"
+	keystorePassphraseFile      = "keystore.passphrase"
 )
 
 // Config holds application configuration options.
@@ -345,9 +357,16 @@ func (a *App) initStorage() error {
 	a.subsystems.Storage = db
 
 	// Check if this is first run by looking for identity key.
-	identityKey, err := db.Get(store.BucketIdentity, []byte("keypair"))
+	identityKey, err := db.Get(store.BucketIdentity, []byte(identityKeypairEncryptedKey))
 	if err != nil {
 		return fmt.Errorf("checking identity: %w", err)
+	}
+	if identityKey == nil {
+		legacyIdentityKey, legacyErr := db.Get(store.BucketIdentity, []byte(identityKeypairLegacyKey))
+		if legacyErr != nil {
+			return fmt.Errorf("checking legacy identity: %w", legacyErr)
+		}
+		identityKey = legacyIdentityKey
 	}
 	a.firstRun = identityKey == nil
 
@@ -357,6 +376,11 @@ func (a *App) initStorage() error {
 // initIdentity initializes or loads the Surface Layer identity keypair.
 // Per SECURITY_PRIVACY.md, Surface identity uses Ed25519 for signatures.
 func (a *App) initIdentity() error {
+	passphrase, err := a.loadOrCreateKeystorePassphrase()
+	if err != nil {
+		return fmt.Errorf("loading keystore passphrase: %w", err)
+	}
+
 	if a.firstRun {
 		// Generate new keypair for first run.
 		kp, err := keys.GenerateKeyPair()
@@ -365,24 +389,56 @@ func (a *App) initIdentity() error {
 		}
 		a.subsystems.Identity = kp
 
-		// Store the keypair (unencrypted for now; TODO: add passphrase).
+		encrypted, err := keys.EncryptKeystore(kp.PrivateKey, passphrase)
+		if err != nil {
+			return fmt.Errorf("encrypting keypair: %w", err)
+		}
+
+		// Store encrypted keypair.
 		if err := a.subsystems.Storage.Put(
 			store.BucketIdentity,
-			[]byte("keypair"),
-			kp.PrivateKey,
+			[]byte(identityKeypairEncryptedKey),
+			encrypted,
 		); err != nil {
 			return fmt.Errorf("storing keypair: %w", err)
 		}
 		fmt.Println("  -> Generated new identity")
 	} else {
-		// Load existing keypair.
+		// Load existing encrypted keypair.
 		privKeyBytes, err := a.subsystems.Storage.Get(
 			store.BucketIdentity,
-			[]byte("keypair"),
+			[]byte(identityKeypairEncryptedKey),
 		)
 		if err != nil {
 			return fmt.Errorf("loading keypair: %w", err)
 		}
+
+		if len(privKeyBytes) == 0 {
+			legacyKey, legacyErr := a.subsystems.Storage.Get(store.BucketIdentity, []byte(identityKeypairLegacyKey))
+			if legacyErr != nil {
+				return fmt.Errorf("loading legacy keypair: %w", legacyErr)
+			}
+			if len(legacyKey) == 0 {
+				return errors.New("stored identity keypair not found")
+			}
+
+			encrypted, encErr := keys.EncryptKeystore(legacyKey, passphrase)
+			if encErr != nil {
+				return fmt.Errorf("migrating legacy keypair: %w", encErr)
+			}
+			if putErr := a.subsystems.Storage.Put(store.BucketIdentity, []byte(identityKeypairEncryptedKey), encrypted); putErr != nil {
+				return fmt.Errorf("persisting migrated keypair: %w", putErr)
+			}
+			_ = a.subsystems.Storage.Delete(store.BucketIdentity, []byte(identityKeypairLegacyKey))
+			privKeyBytes = legacyKey
+		} else {
+			decrypted, decErr := keys.DecryptKeystore(privKeyBytes, passphrase)
+			if decErr != nil {
+				return fmt.Errorf("decrypting keypair: %w", decErr)
+			}
+			privKeyBytes = decrypted
+		}
+
 		if len(privKeyBytes) != 64 {
 			return errors.New("invalid stored keypair length")
 		}
@@ -398,12 +454,18 @@ func (a *App) initIdentity() error {
 // initNetworking initializes the libp2p host and GossipSub.
 // Per NETWORK_ARCHITECTURE.md, uses Noise XX encryption and Kademlia DHT.
 func (a *App) initNetworking() error {
+	bootstrapPeers, err := parseBootstrapPeers(a.config.BootstrapPeers)
+	if err != nil {
+		return fmt.Errorf("parsing bootstrap peers: %w", err)
+	}
+
 	// Create libp2p host.
 	hostCfg := transport.Config{
-		PrivateKey:    a.subsystems.Identity.PrivateKey,
-		ListenAddrs:   a.config.ListenAddrs,
-		EnableDHT:     true,
-		DHTServerMode: true,
+		PrivateKey:     a.subsystems.Identity.PrivateKey,
+		ListenAddrs:    a.config.ListenAddrs,
+		BootstrapPeers: bootstrapPeers,
+		EnableDHT:      true,
+		DHTServerMode:  true,
 	}
 	host, err := transport.NewHost(a.ctx, hostCfg)
 	if err != nil {
@@ -432,7 +494,85 @@ func (a *App) initNetworking() error {
 		}
 	}
 
+	d := discovery.New(host.Host, host.DHT())
+	d.SetFallbackResolvers(buildBootstrapResolverChain(bootstrapPeers))
+	metrics.DHTBootstrapAttemptsTotal.Inc()
+	if err := d.Bootstrap(a.ctx, bootstrapPeers); err != nil {
+		fmt.Printf("Warning: bootstrap discovery failed: %v\n", err)
+	} else {
+		metrics.DHTBootstrapSuccessesTotal.Inc()
+	}
+
 	return nil
+}
+
+func (a *App) loadOrCreateKeystorePassphrase() (string, error) {
+	passphrasePath := filepath.Join(a.config.DataDir, keystorePassphraseFile)
+
+	if existing, err := os.ReadFile(passphrasePath); err == nil {
+		if len(existing) == 0 {
+			return "", errors.New("empty keystore passphrase file")
+		}
+		return string(existing), nil
+	}
+
+	if err := os.MkdirAll(a.config.DataDir, 0o700); err != nil {
+		return "", fmt.Errorf("creating data directory: %w", err)
+	}
+
+	raw := make([]byte, 32)
+	if _, err := rand.Read(raw); err != nil {
+		return "", fmt.Errorf("generating keystore passphrase: %w", err)
+	}
+	passphrase := base64.RawURLEncoding.EncodeToString(raw)
+
+	if err := os.WriteFile(passphrasePath, []byte(passphrase), 0o600); err != nil {
+		return "", fmt.Errorf("writing keystore passphrase: %w", err)
+	}
+
+	return passphrase, nil
+}
+
+func parseBootstrapPeers(peers []string) ([]peer.AddrInfo, error) {
+	if len(peers) == 0 {
+		return nil, nil
+	}
+
+	out := make([]peer.AddrInfo, 0, len(peers))
+	for _, raw := range peers {
+		addr, err := multiaddr.NewMultiaddr(raw)
+		if err != nil {
+			return nil, fmt.Errorf("invalid bootstrap address %q: %w", raw, err)
+		}
+
+		info, err := peer.AddrInfoFromP2pAddr(addr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid bootstrap peer %q: %w", raw, err)
+		}
+
+		out = append(out, *info)
+	}
+
+	return out, nil
+}
+
+func buildBootstrapResolverChain(userPeers []peer.AddrInfo) *discovery.ResolverChain {
+	resolvers := make([]discovery.BootstrapResolver, 0, 4)
+
+	if staticPeers := discovery.ValidBootstrapNodes(); len(staticPeers) > 0 {
+		resolvers = append(resolvers, discovery.NewStaticResolver(staticPeers))
+	}
+
+	verifyKey := []byte(discovery.BootstrapVerifyKey)
+	if os.Getenv("MURMUR_ENABLE_REMOTE_BOOTSTRAP") == "1" && len(verifyKey) == 32 {
+		resolvers = append(resolvers,
+			discovery.NewPagesResolver("https://opd-ai.github.io/murmur/peers.json", verifyKey),
+			discovery.NewGistResolver("https://gist.githubusercontent.com/opd-ai/murmur-peers/raw/peers.json", verifyKey),
+			discovery.NewIPFSGatewayResolver("https://opd-ai.github.io/murmur/cid.txt", "https://dweb.link", verifyKey),
+		)
+	}
+
+	return discovery.NewResolverChain(userPeers, resolvers...)
 }
 
 // initHealthServer initializes the HTTP health check endpoint.
@@ -741,6 +881,19 @@ func (a *App) checkMemory(cache *storage.Cache) {
 
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
+	metrics.MemoryAllocatedBytesGauge.Set(float64(m.Alloc))
+	metrics.WaveCacheEntriesGauge.Set(float64(cache.Size()))
+	if a.subsystems.CircuitManager != nil {
+		health := a.subsystems.CircuitManager.Health()
+		active := 0
+		if health.HasPrimary {
+			active++
+		}
+		if health.HasBackup {
+			active++
+		}
+		metrics.ShroudCircuitsActiveGauge.Set(float64(active))
+	}
 	allocMB := m.Alloc / (1024 * 1024)
 
 	if m.Alloc < targetMemory {
