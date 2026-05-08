@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Security (2026-05-08 — AUDIT.md remediation)
+- **Shroud beacon key-exposure hardening** (`pkg/anonymous/shroud/circuit.go`, `pkg/anonymous/shroud/circuit_test.go`): removed the exported `Beacon.SecretKey()` accessor so long-term Curve25519 key material is no longer exposed through the public API. `BuildCircuit` now derives hop keys from a fresh per-circuit ephemeral initiator keypair, then zeroes the ephemeral secret after key agreement. Added `TestBuildCircuitUsesEphemeralInitiatorKey` to ensure shared hop keys are not reused across circuits built with the same relay set.
+
+### Security (2026-05-08 — AUDIT.md remediation)
 - **Tunnel relay UNREGISTER hardening** (`pkg/tunneling/relay/relay.go`, `pkg/tunneling/initiator/initiator.go`, `pkg/tunneling/relay/relay_test.go`): removed plaintext unauthenticated tunnel teardown behavior. Relay now returns `401 Unauthorized` for plaintext `UNREGISTER` attempts and only accepts teardown through framed operator protocol on the authenticated operator connection. Initiator shutdown no longer sends legacy plaintext `UNREGISTER`. Added `TestPlaintextUnregisterIsRejected` to verify unauthorized teardown attempts cannot remove active tunnel registrations.
 
 ### Security (2026-05-08 — AUDIT.md remediation)

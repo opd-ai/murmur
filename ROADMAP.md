@@ -121,3 +121,6 @@
   - [pkg/network/adapter_wasm.go](pkg/network/adapter_wasm.go#L196)
   - [pkg/identity/invitation.go](pkg/identity/invitation.go#L298)
   - [pkg/pulsemap/game.go](pkg/pulsemap/game.go#L735)
+
+## Recent Execution Updates
+- 2026-05-08: Completed AUDIT remediation for Shroud beacon key exposure. `Beacon.SecretKey()` was removed from the public API and circuit key agreements now use a fresh per-circuit ephemeral initiator keypair (`pkg/anonymous/shroud/circuit.go`). Validation test added: `TestBuildCircuitUsesEphemeralInitiatorKey` (`pkg/anonymous/shroud/circuit_test.go`).

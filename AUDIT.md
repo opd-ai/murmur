@@ -86,7 +86,7 @@ server. Nodes expose:
   **Verification test:** `UNREGISTER <valid-id>` from an unauthenticated TCP connection should
   receive `HTTP/1.1 401 Unauthorized\r\n\r\n` and not remove the tunnel.
 
-- [ ] **`Beacon.SecretKey()` Exposes Long-Term Shroud Private Key**
+- [x] **`Beacon.SecretKey()` Exposes Long-Term Shroud Private Key**
   — `pkg/anonymous/shroud/circuit.go:307-310`
   — **Vector:** Any code path that calls `beacon.SecretKey()` — the method returns the 32-byte
   Curve25519 private key used for every circuit key derivation. In
@@ -111,6 +111,12 @@ server. Nodes expose:
        completes. This provides forward secrecy.
     3. Use HKDF-SHA-256 (spec-mandated) rather than BLAKE3 for hop key derivation (see
        separate finding below).
+  — **Status (2026-05-08):** Completed items (1) and (2). `Beacon.SecretKey()` removed from
+    `pkg/anonymous/shroud/circuit.go`; `BuildCircuit` now generates a fresh ephemeral
+    Curve25519 initiator keypair per circuit and zeroes the ephemeral secret after use. Added
+    `TestBuildCircuitUsesEphemeralInitiatorKey` in
+    `pkg/anonymous/shroud/circuit_test.go` to verify shared keys are not reused across
+    circuits built over the same relay set.
 
 - [ ] **Abyssal Wave Specter-Key Compromise Retroactively Deanonymises All Abyssal Waves**
   — `pkg/content/waves/abyssal.go:deriveAbyssalKeypairFromNonce` (approx. line 62-72)

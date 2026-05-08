@@ -304,12 +304,6 @@ func (b *Beacon) PublicKey() [32]byte {
 	return b.publicKey
 }
 
-// SecretKey returns the beacon's Curve25519 secret key.
-// Used for signing advertisements.
-func (b *Beacon) SecretKey() [32]byte {
-	return b.secretKey
-}
-
 // SelfInfo returns this node's relay info if it is a relay.
 func (b *Beacon) SelfInfo() *RelayInfo {
 	b.mu.RLock()
@@ -580,12 +574,22 @@ func (b *Beacon) initializeCircuit(circuitID [16]byte, relays [CircuitLength]*Re
 
 // performKeyAgreements establishes shared keys with each hop.
 func (b *Beacon) performKeyAgreements(circuit *Circuit, relays [CircuitLength]*RelayInfo) error {
+	ephemeralSecretKey, ephemeralPublicKey, err := b.generateEphemeralKeyPair()
+	if err != nil {
+		return err
+	}
+	defer b.zeroSensitiveData(ephemeralSecretKey[:])
+
+	return b.performKeyAgreementsWithEphemeral(circuit, relays, ephemeralSecretKey, ephemeralPublicKey)
+}
+
+func (b *Beacon) performKeyAgreementsWithEphemeral(circuit *Circuit, relays [CircuitLength]*RelayInfo, ephemeralSecretKey, ephemeralPublicKey [32]byte) error {
 	for i, relay := range relays {
 		if relay == nil {
 			return ErrRelayNotFound
 		}
 
-		sharedKey := b.deriveHopKey(relay, i)
+		sharedKey := b.deriveHopKey(relay, i, ephemeralSecretKey, ephemeralPublicKey)
 		copy(circuit.sharedKeys[i][:], sharedKey[:32])
 		b.zeroSensitiveData(sharedKey)
 	}
@@ -593,12 +597,15 @@ func (b *Beacon) performKeyAgreements(circuit *Circuit, relays [CircuitLength]*R
 }
 
 // deriveHopKey performs X25519 key agreement and derives the hop encryption key.
-func (b *Beacon) deriveHopKey(relay *RelayInfo, hopIndex int) []byte {
+func (b *Beacon) deriveHopKey(relay *RelayInfo, hopIndex int, ephemeralSecretKey, ephemeralPublicKey [32]byte) []byte {
 	var shared [32]byte
-	curve25519.ScalarMult(&shared, &b.secretKey, &relay.PublicKey)
+	curve25519.ScalarMult(&shared, &ephemeralSecretKey, &relay.PublicKey)
 
 	h := blake3.New()
 	h.Write(shared[:])
+	h.Write(ephemeralPublicKey[:])
+	// TODO: Switch hop-key derivation from BLAKE3 to HKDF-SHA-256 per AUDIT.md finding
+	// "Shroud Hop Key Uses BLAKE3 Instead of Spec-Required HKDF-SHA-256".
 	h.Write([]byte("shroud-hop-key"))
 	h.Write([]byte{byte(hopIndex)})
 	key := h.Sum(nil)
@@ -612,6 +619,23 @@ func (b *Beacon) zeroSensitiveData(data []byte) {
 	for j := range data {
 		data[j] = 0
 	}
+}
+
+// generateEphemeralKeyPair creates a fresh Curve25519 keypair for one circuit build.
+func (b *Beacon) generateEphemeralKeyPair() ([32]byte, [32]byte, error) {
+	var secretKey [32]byte
+	var publicKey [32]byte
+
+	if _, err := rand.Read(secretKey[:]); err != nil {
+		return secretKey, publicKey, err
+	}
+
+	secretKey[0] &= 248
+	secretKey[31] &= 127
+	secretKey[31] |= 64
+
+	curve25519.ScalarBaseMult(&publicKey, &secretKey)
+	return secretKey, publicKey, nil
 }
 
 // Encrypt wraps data in three layers of encryption (onion skin).
