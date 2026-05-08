@@ -194,6 +194,7 @@ jobs:
           - runner: macos-latest
             artifact: murmur-darwin-amd64
           - runner: windows-latest
+            shell: bash
             artifact: murmur-windows-amd64.exe
     steps:
       - uses: actions/checkout@v4
