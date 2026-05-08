@@ -126,7 +126,6 @@ func (a *App) runOnboardingUI() error {
 				}
 			}
 			decl.DisplayName = name
-			decl.UpdatedAt = now
 			decl.Signature = ed25519.Sign(a.subsystems.Identity.PrivateKey, identityDeclarationSignatureData(decl))
 
 			if err := a.subsystems.Storage.PutIdentityDeclaration(decl); err != nil {
