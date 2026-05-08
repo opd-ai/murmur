@@ -22,11 +22,18 @@ func newMockSpecterSigner() *mockSpecterSigner {
 }
 
 // genCurve25519KeyPair generates a deterministic Curve25519 keypair for testing.
+// Uses seed byte 0x01 (i+1 pattern). For distinct parties, use genCurve25519KeyPairWithSeed.
 func genCurve25519KeyPair() (priv, pub []byte) {
+	return genCurve25519KeyPairWithSeed(1)
+}
+
+// genCurve25519KeyPairWithSeed generates a deterministic Curve25519 keypair using
+// the given seed byte for each key byte (offset by index). Use distinct seed values
+// to simulate different parties in encryption round-trip tests.
+func genCurve25519KeyPairWithSeed(seed byte) (priv, pub []byte) {
 	var privArr [32]byte
-	// Use a fixed seed for deterministic tests.
 	for i := range privArr {
-		privArr[i] = byte(i + 1)
+		privArr[i] = byte(int(seed) + i)
 	}
 	// Clamp per Curve25519 spec.
 	privArr[0] &= 248
@@ -143,8 +150,8 @@ func TestCreateVeiledEncrypted(t *testing.T) {
 	content := []byte("Secret veiled content")
 
 	// Generate a proper Curve25519 keypair for the recipient.
-	recipientPrivKey, recipientPubKey := genCurve25519KeyPair()
-	_ = recipientPrivKey
+	// The private key is not needed for this test (we only test encryption, not decryption).
+	_, recipientPubKey := genCurve25519KeyPair()
 
 	opts := VeiledOptions{
 		TTL:             DefaultTTL,
@@ -185,20 +192,8 @@ func TestDecryptVeiledContent(t *testing.T) {
 	specter := newMockSpecterSigner()
 	content := []byte("Secret message for recipient")
 
-	// Generate a proper Curve25519 keypair for the recipient.
-	recipientPrivKey, recipientPubKey := genCurve25519KeyPair()
-	// Use a different seed from sender to simulate distinct parties.
-	var recipPrivArr [32]byte
-	for i := range recipPrivArr {
-		recipPrivArr[i] = byte(i + 50)
-	}
-	recipPrivArr[0] &= 248
-	recipPrivArr[31] &= 127
-	recipPrivArr[31] |= 64
-	var recipPubArr [32]byte
-	curve25519.ScalarBaseMult(&recipPubArr, &recipPrivArr)
-	recipientPrivKey = recipPrivArr[:]
-	recipientPubKey = recipPubArr[:]
+	// Use seed 50 for the recipient to simulate a distinct party from the sender (seed 1).
+	recipientPrivKey, recipientPubKey := genCurve25519KeyPairWithSeed(50)
 
 	opts := VeiledOptions{
 		TTL:             DefaultTTL,
@@ -281,21 +276,8 @@ func TestIsVeiled(t *testing.T) {
 
 func TestIsEncryptedVeiled(t *testing.T) {
 	specter := newMockSpecterSigner()
-	_, recipientPubKey := genCurve25519KeyPair()
-	// Use distinct key from sender.
-	var recipPubArr [32]byte
-	for i := range recipPubArr {
-		recipPubArr[i] = byte(i + 50)
-	}
-	var recipPrivArr [32]byte
-	for i := range recipPrivArr {
-		recipPrivArr[i] = byte(i + 50)
-	}
-	recipPrivArr[0] &= 248
-	recipPrivArr[31] &= 127
-	recipPrivArr[31] |= 64
-	curve25519.ScalarBaseMult(&recipPubArr, &recipPrivArr)
-	recipientPubKey = recipPubArr[:]
+	// Use seed 50 for the recipient (distinct from sender seed 1) to simulate distinct parties.
+	_, recipientPubKey := genCurve25519KeyPairWithSeed(50)
 
 	// Create encrypted veiled wave.
 	encOpts := VeiledOptions{

@@ -88,6 +88,7 @@ func IsBareP2PAddr(addr string) bool {
 	}
 	// A dialable address with a transport would have more path components, e.g.
 	// /ip4/1.2.3.4/tcp/4001/p2p/QmXXX. A bare peer addr is exactly /p2p/<id>.
+	// Peer IDs are base58-encoded multihashes and never contain '/' themselves.
 	rest := strings.TrimPrefix(trimmed, "/p2p/")
-	return !strings.ContainsRune(rest, '/')
+	return len(rest) > 0 && !strings.ContainsRune(rest, '/')
 }

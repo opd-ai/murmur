@@ -285,21 +285,42 @@ func deriveRegionFromIP(ip net.IP) Region {
 // IPClassification provides IP address classification utilities.
 type IPClassification struct{}
 
-// IsAnycasted returns true if the IP appears to be anycast.
-// Note: This is a heuristic that checks for well-known anycast prefixes.
-func (ic *IPClassification) IsAnycasted(ip net.IP) bool {
-	// Check for well-known anycast prefixes
-	anycasts := []string{
+// parsedAnycasts and parsedDatacenters hold pre-parsed CIDR networks for efficient
+// classification. Parsed once at package init to avoid repeated net.ParseCIDR calls.
+var (
+	parsedAnycasts    []*net.IPNet
+	parsedDatacenters []*net.IPNet
+)
+
+func init() {
+	parsedAnycasts = parseCIDRs([]string{
 		"1.1.1.1/32",      // Cloudflare DNS
 		"8.8.8.8/32",      // Google DNS
 		"8.8.4.4/32",      // Google DNS
 		"9.9.9.9/32",      // Quad9
 		"208.67.222.0/24", // OpenDNS
-	}
+	})
+	parsedDatacenters = parseCIDRs(datacenterCIDRs)
+}
 
-	for _, cidr := range anycasts {
+// parseCIDRs converts a list of CIDR strings to *net.IPNet values, silently
+// dropping any entries that fail to parse.
+func parseCIDRs(cidrs []string) []*net.IPNet {
+	out := make([]*net.IPNet, 0, len(cidrs))
+	for _, cidr := range cidrs {
 		_, network, err := net.ParseCIDR(cidr)
-		if err == nil && network.Contains(ip) {
+		if err == nil {
+			out = append(out, network)
+		}
+	}
+	return out
+}
+
+// IsAnycasted returns true if the IP appears to be anycast.
+// Note: This is a heuristic that checks for well-known anycast prefixes.
+func (ic *IPClassification) IsAnycasted(ip net.IP) bool {
+	for _, network := range parsedAnycasts {
+		if network.Contains(ip) {
 			return true
 		}
 	}
@@ -311,6 +332,9 @@ func (ic *IPClassification) IsAnycasted(ip net.IP) bool {
 // ranges for major cloud providers (AWS, GCP, Azure, Cloudflare, Hetzner,
 // DigitalOcean, OVH, Linode/Akamai) and large hosting networks.
 //
+// CIDR ranges are pre-parsed at package init so lookups are O(n) Contains checks
+// with no allocation on the hot path.
+//
 // This heuristic is conservative: it only classifies IPs with known mappings
 // and returns false when uncertain.  Per SECURITY_PRIVACY.md, datacenter peers
 // are deprioritised in diversity scoring to reduce reliance on centralised
@@ -319,10 +343,8 @@ func (ic *IPClassification) IsDatacenter(ip net.IP) bool {
 	if ip == nil {
 		return false
 	}
-
-	for _, cidr := range datacenterCIDRs {
-		_, network, err := net.ParseCIDR(cidr)
-		if err == nil && network.Contains(ip) {
+	for _, network := range parsedDatacenters {
+		if network.Contains(ip) {
 			return true
 		}
 	}

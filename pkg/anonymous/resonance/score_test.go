@@ -604,35 +604,35 @@ func TestZKClaimMilestones(t *testing.T) {
 }
 
 func TestClaimMilestone(t *testing.T) {
-tests := []struct {
-score int
-want  int
-}{
-{0, 0},
-{24, 0},
-{25, MilestoneShade},
-{50, MilestoneWraith},
-{75, MilestoneShadeWraith},
-{100, MilestonePhantom},
-{200, MilestoneCouncil},
-{500, MilestoneAbyss},
-{1000, MilestoneAbyss},
-}
+	tests := []struct {
+		score int
+		want  int
+	}{
+		{0, 0},
+		{24, 0},
+		{25, MilestoneShade},
+		{50, MilestoneWraith},
+		{75, MilestoneShadeWraith},
+		{100, MilestonePhantom},
+		{200, MilestoneCouncil},
+		{500, MilestoneAbyss},
+		{1000, MilestoneAbyss},
+	}
 
-for _, tc := range tests {
-got := ClaimMilestone(tc.score)
-if got != tc.want {
-t.Errorf("ClaimMilestone(%d) = %d, want %d", tc.score, got, tc.want)
-}
-}
+	for _, tc := range tests {
+		got := ClaimMilestone(tc.score)
+		if got != tc.want {
+			t.Errorf("ClaimMilestone(%d) = %d, want %d", tc.score, got, tc.want)
+		}
+	}
 }
 
 func TestCanClaimMilestone(t *testing.T) {
-if !CanClaimMilestone(50, MilestoneShade) {
-t.Error("score 50 should be able to claim Shade (25)")
-}
+	if !CanClaimMilestone(50, MilestoneShade) {
+		t.Error("score 50 should be able to claim Shade (25)")
+	}
 
-if CanClaimMilestone(20, MilestoneShade) {
-t.Error("score 20 should not be able to claim Shade (25)")
-}
+	if CanClaimMilestone(20, MilestoneShade) {
+		t.Error("score 20 should not be able to claim Shade (25)")
+	}
 }

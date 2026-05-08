@@ -107,6 +107,9 @@ func createSpecializedWave(waveType WaveType, content []byte, kp *keys.KeyPair, 
 			return nil, true, err
 		}
 		// Generate an ephemeral Curve25519 keypair for the DH key exchange.
+		// Ephemeral keys are never reused or stored, providing per-Wave forward secrecy:
+		// even if a long-term key is later compromised it cannot decrypt past Veiled Waves.
+		// Per SECURITY_PRIVACY.md §Veiled Wave encryption.
 		anonKP, err := keys.GenerateAnonymousKeyPair()
 		if err != nil {
 			return nil, true, fmt.Errorf("generating anonymous keypair for Veiled Wave: %w", err)

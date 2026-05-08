@@ -266,14 +266,14 @@ func TestIPClassification_IsDatacenter(t *testing.T) {
 
 	// Known datacenter IPs — should be classified as datacenter.
 	datacenterIPs := []string{
-		"104.16.0.1",  // Cloudflare
-		"13.32.0.1",   // AWS CloudFront
-		"35.192.0.1",  // Google Cloud
-		"20.0.0.1",    // Azure
-		"45.55.0.1",   // DigitalOcean
-		"78.46.0.1",   // Hetzner
-		"45.33.0.1",   // Linode
-		"51.68.0.1",   // OVH
+		"104.16.0.1", // Cloudflare
+		"13.32.0.1",  // AWS CloudFront
+		"35.192.0.1", // Google Cloud
+		"20.0.0.1",   // Azure
+		"45.55.0.1",  // DigitalOcean
+		"78.46.0.1",  // Hetzner
+		"45.33.0.1",  // Linode
+		"51.68.0.1",  // OVH
 	}
 
 	for _, ipStr := range datacenterIPs {
@@ -288,10 +288,10 @@ func TestIPClassification_IsDatacenter(t *testing.T) {
 
 	// Residential / non-datacenter IPs — should NOT be classified as datacenter.
 	nonDatacenterIPs := []string{
-		"192.168.1.1",  // RFC1918 private
-		"10.0.0.1",     // RFC1918 private
-		"127.0.0.1",    // Loopback
-		"8.8.8.8",      // Google DNS (anycast, but not a datacenter host block)
+		"192.168.1.1", // RFC1918 private
+		"10.0.0.1",    // RFC1918 private
+		"127.0.0.1",   // Loopback
+		"8.8.8.8",     // Google DNS (anycast, but not a datacenter host block)
 	}
 
 	for _, ipStr := range nonDatacenterIPs {
