@@ -1,12 +1,16 @@
 package pulsemap
 
 import (
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/opd-ai/murmur/pkg/pulsemap/interaction"
 	"github.com/opd-ai/murmur/pkg/pulsemap/layout"
 	"github.com/opd-ai/murmur/pkg/pulsemap/rendering"
+	"github.com/opd-ai/murmur/pkg/store"
 	"github.com/opd-ai/murmur/pkg/ui"
+	pb "github.com/opd-ai/murmur/proto"
 )
 
 func TestNodeActionHandlers_ShowUnavailableToast(t *testing.T) {
@@ -200,5 +204,88 @@ func TestHandleSettingChange_PrivacyModeFeedback(t *testing.T) {
 	g.handleSettingChange("privacy_mode", "unknown-mode")
 	if g.toast == nil || g.toast.message == "" || !g.toast.isError {
 		t.Fatal("expected error toast for unknown privacy mode")
+	}
+}
+
+// openTestDB opens a bbolt store in a temporary directory for use in tests.
+func openTestDB(t *testing.T) *store.DB {
+	t.Helper()
+	db, err := store.Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("open test DB: %v", err)
+	}
+	t.Cleanup(func() { db.Close() })
+	return db
+}
+
+// TestCountNearbyMechanics_WithStore_ReturnsCount verifies that countNearbyMechanics
+// returns a non-zero count when an active CipherPuzzle is present in the store.
+// When no NodePositionFunc is configured, nodeWithinRadius returns true for all
+// nodes, so every active puzzle is counted.
+// Validation for ROADMAP.md Priority 2: "mechanics appear by proximity".
+func TestCountNearbyMechanics_WithStore_ReturnsCount(t *testing.T) {
+	db := openTestDB(t)
+
+	puzzle := &pb.CipherPuzzle{
+		Id:            []byte("puzzle-1"),
+		CreatorPubkey: []byte("creator-key"),
+		State:         pb.PuzzleState_PUZZLE_STATE_ACTIVE,
+	}
+	if err := db.PutCipherPuzzle(puzzle); err != nil {
+		t.Fatalf("PutCipherPuzzle: %v", err)
+	}
+
+	g := &Game{store: db}
+	count := g.countNearbyMechanics([]byte("anchor-key"))
+	if count == 0 {
+		t.Fatal("expected at least one mechanic near node, got 0")
+	}
+}
+
+// TestHandleJoinGame_WithStore_ShowsMechanicCount verifies that handleJoinGame
+// shows a toast containing the mechanic count when mechanics are present in the store.
+// Validation for ROADMAP.md Priority 2: "'Join Game' completes a network-backed flow".
+func TestHandleJoinGame_WithStore_ShowsMechanicCount(t *testing.T) {
+	db := openTestDB(t)
+
+	puzzle := &pb.CipherPuzzle{
+		Id:            []byte("puzzle-2"),
+		CreatorPubkey: []byte("creator-key"),
+		State:         pb.PuzzleState_PUZZLE_STATE_ACTIVE,
+	}
+	if err := db.PutCipherPuzzle(puzzle); err != nil {
+		t.Fatalf("PutCipherPuzzle: %v", err)
+	}
+
+	g := &Game{store: db}
+	g.handleJoinGame("node-1")
+
+	if g.toast == nil {
+		t.Fatal("expected toast after handleJoinGame with available mechanics")
+	}
+	if g.toast.message == "" {
+		t.Fatal("expected non-empty toast message")
+	}
+	// Should NOT be an error toast and should include the mechanic count.
+	if g.toast.isError {
+		t.Fatalf("expected non-error toast, got error toast: %q", g.toast.message)
+	}
+	if !strings.Contains(g.toast.message, "mechanic") {
+		t.Fatalf("expected toast to mention mechanics, got: %q", g.toast.message)
+	}
+}
+
+// TestHandleJoinGame_NoMechanics_ShowsUnavailableToast verifies that handleJoinGame
+// shows a non-error "no mechanics" toast when the store is empty.
+func TestHandleJoinGame_NoMechanics_ShowsUnavailableToast(t *testing.T) {
+	db := openTestDB(t)
+	g := &Game{store: db}
+	g.handleJoinGame("node-1")
+
+	if g.toast == nil || g.toast.message == "" {
+		t.Fatal("expected toast when no mechanics are available")
+	}
+	if g.toast.isError {
+		t.Fatalf("expected non-error toast for empty mechanics, got: %q", g.toast.message)
 	}
 }
