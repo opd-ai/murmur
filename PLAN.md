@@ -34,7 +34,7 @@ This file tracks only incomplete items pulled from ROADMAP.md.
 
 ### Anti-Sybil & Spam Resistance
 
-- [ ] Resonance gating on all privileged actions (gifts, marks, games, councils)
+- [x] Resonance gating on all privileged actions (gifts, marks, games, councils) — `GiftStoreGated`, `MarkStoreGated`, `NewPhantomCouncilGated` added; oracle/puzzles/shadowplay/masked_events already had gated constructors (2026-05-08)
 - [ ] Connection pruning for consistently low-score peers
 - [ ] PoW requirement for identity creation
 - [ ] Sybil defense: PoW cost scales linearly per identity
