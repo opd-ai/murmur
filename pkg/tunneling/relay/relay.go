@@ -126,7 +126,7 @@ func (r *Relay) handleFramedOperator(ctx context.Context, conn net.Conn) {
 		return
 	}
 
-	tunnelID := tunneling.TunnelID(string(cell.TunnelId))
+	tunnelID := tunneling.TunnelID(cell.TunnelId)
 	if err := tunnelID.Validate(); err != nil {
 		conn.Close()
 		return
@@ -159,7 +159,9 @@ func (r *Relay) handleTeardownCell(payload []byte, expectedTunnelID tunneling.Tu
 	if err := proto.Unmarshal(payload, cell); err != nil {
 		return false
 	}
-	if tunneling.TunnelID(string(cell.TunnelId)) != expectedTunnelID {
+	// Teardown is accepted only on the already authenticated operator TCP
+	// session that originally registered this tunnel.
+	if tunneling.TunnelID(cell.TunnelId) != expectedTunnelID {
 		return false
 	}
 	return true
@@ -303,6 +305,8 @@ func (r *Relay) removeTunnel(tunnelID tunneling.TunnelID, expectedSession *opera
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	session, ok := r.tunnels[tunnelID]
+	// Session pointer match ensures only the currently registered operator
+	// session for this tunnel ID can remove the mapping.
 	if !ok || session != expectedSession {
 		return
 	}

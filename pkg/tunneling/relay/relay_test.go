@@ -69,7 +69,9 @@ func TestPlaintextUnregisterIsRejected(t *testing.T) {
 	if _, err := fmt.Fprintf(attackerConn, "UNREGISTER %s\n", tunnelID); err != nil {
 		t.Fatalf("write unregister: %v", err)
 	}
-	_ = attackerConn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	if err := attackerConn.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
+		t.Fatalf("set read deadline: %v", err)
+	}
 	buf := make([]byte, 256)
 	n, err := attackerConn.Read(buf)
 	if err != nil {
