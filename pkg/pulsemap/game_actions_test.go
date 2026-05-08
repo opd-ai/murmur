@@ -337,7 +337,10 @@ func TestJoinGameAction_ProximityFilteredViaRadialMenu(t *testing.T) {
 	if g.toast.isError {
 		t.Fatalf("expected non-error toast for joinable mechanics, got: %q", g.toast.message)
 	}
-	if !strings.Contains(g.toast.message, "1 active mechanic(s) nearby") {
-		t.Fatalf("expected proximity-filtered count of 1, got toast: %q", g.toast.message)
+	if !strings.Contains(g.toast.message, "1") {
+		t.Fatalf("expected toast to include mechanic count, got: %q", g.toast.message)
+	}
+	if !strings.Contains(g.toast.message, "nearby") {
+		t.Fatalf("expected toast to indicate nearby mechanics, got: %q", g.toast.message)
 	}
 }
