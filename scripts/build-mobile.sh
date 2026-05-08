@@ -100,6 +100,7 @@ build_android() {
     # Build APK
     log_info "Running: gomobile build -target=android -o ${BUILD_DIR}/murmur.apk ${MODULE_PATH}"
     gomobile build \
+        -ldflags "-checklinkname=0" \
         -target=android \
         -androidapi=21 \
         -o "${BUILD_DIR}/murmur.apk" \
