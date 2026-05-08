@@ -335,6 +335,7 @@ func MigrateLegacyKeystore(legacyPath, passphrase string, newPaths KeystorePaths
 }
 
 // renameLegacyFile renames a legacy keystore to ".bak" after successful migration.
+// The original file is preserved as a backup for manual recovery if needed.
 func renameLegacyFile(path string) error {
 	if err := os.Rename(path, path+".bak"); err != nil {
 		return fmt.Errorf("migrated successfully but could not rename legacy file: %w", err)

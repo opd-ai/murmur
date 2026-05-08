@@ -144,7 +144,7 @@ func TestTURNServerInfo_ToICEServer(t *testing.T) {
 func TestCommunityTURNServers(t *testing.T) {
 	// CommunityTURNServers returns nil; production servers are discovered via DHT.
 	servers := CommunityTURNServers()
-	assert.Nil(t, servers, "static TURN list must be empty — use DHT discovery instead")
+	assert.Nil(t, servers, "static TURN list must be empty — use DHT discovery instead.")
 }
 
 func TestFilterHealthyTURNServers(t *testing.T) {

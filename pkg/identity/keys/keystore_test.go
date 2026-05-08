@@ -725,4 +725,3 @@ func TestMigrateLegacyKeystore_NotLegacyFormat(t *testing.T) {
 		t.Error("MigrateLegacyKeystore() should fail for non-combined keystore")
 	}
 }
-
