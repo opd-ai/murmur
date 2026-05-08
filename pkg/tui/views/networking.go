@@ -99,7 +99,7 @@ func (m NetworkingModel) Update(msg tea.Msg) (NetworkingModel, tea.Cmd) {
 // View renders networking status.
 func (m NetworkingModel) View(width int) string {
 	return fmt.Sprintf(
-		"Peers: %d\nDHT: %s peers=%d\nMesh health: %s\nRate-limit: %s\nShroud: %s\nRelay/NAT: %s\nTransport: %s\nHealth endpoint: %s\nTopics: waves=%d identity=%d shroud=%d pulse=%d\nPeer feed: %v\nLast event: %s",
+		"Peers: %d\nDHT: %s peers=%d\nMesh health: %s\nRate-limit: %s\nShroud: %s\nRelay/NAT: %s\nTransport: %s\nHealth endpoint: %s\nTopics: waves=%d identity=%d shroud=%d pulse=%d\nProtocol refs: /murmur/shroud-circuit/1 /murmur/wave-sync/1 /murmur/peer-exchange/1\nPeer feed: %v\nLast event: %s",
 		m.Peers,
 		m.DHTStatus,
 		m.DHTPeers,

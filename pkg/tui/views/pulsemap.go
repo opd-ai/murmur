@@ -43,6 +43,8 @@ type PulseMapModel struct {
 	bookmarks     map[int]struct{}
 	engine        *layout.Engine
 	lastSelectAt  time.Time
+	animStep      int
+	sparkCount    int
 }
 
 // NewPulseMapModel returns a Pulse Map model with layout-backed seed graph.
@@ -94,6 +96,8 @@ func (m PulseMapModel) Update(msg tea.Msg) (PulseMapModel, tea.Cmd) {
 	case pulseTickMsg:
 		m.engine.Tick()
 		m.syncFromLayout()
+		m.animStep = (m.animStep + 1) % 4
+		m.sparkCount = (m.sparkCount + 3) % 128
 		return m, m.InitCmd()
 	case tea.KeyMsg:
 		if m.searchMode {
@@ -143,6 +147,13 @@ func (m PulseMapModel) Update(msg tea.Msg) (PulseMapModel, tea.Cmd) {
 			m.Zoom = 3.0
 		case "m":
 			m.showActions = !m.showActions
+		case "v":
+			m.Session.Settings.ContrastMode = !m.Session.Settings.ContrastMode
+			if m.Session.Settings.ContrastMode {
+				m.status = "Contrast mode enabled (blur/composite substitute)"
+			} else {
+				m.status = "Contrast mode disabled"
+			}
 		case "ctrl+b":
 			m.bookmarks[m.Focus] = struct{}{}
 			m.status = "Bookmark added"
@@ -268,6 +279,7 @@ func (m PulseMapModel) View(width int) string {
 		return "No nodes"
 	}
 	var b strings.Builder
+	b.WriteString("Background: " + backgroundThemeBlocks(m.Session.Settings.Theme, m.animStep) + "\n")
 	b.WriteString(fmt.Sprintf("Camera x=%.1f y=%.1f zoom=%.2f blend=%.0f%%\n", m.CameraX, m.CameraY, m.Zoom, m.Session.Settings.LayerBlend*100))
 	if m.searchMode {
 		b.WriteString("Search: " + m.searchQuery + "\n")
@@ -318,6 +330,8 @@ func (m PulseMapModel) View(width int) string {
 	if m.showActions {
 		b.WriteString("\n\nActions: [compose wave] [send gift] [place mark] [send whisper]\n")
 	}
+	b.WriteString("\nEffects: glow=" + pulseGlyph(m.animStep) + " ripple=" + rippleGlyph(m.animStep) + fmt.Sprintf(" particles=spark:%d ✶\n", m.sparkCount))
+	b.WriteString(fmt.Sprintf("Contrast mode (blur substitute): %t\n", m.Session.Settings.ContrastMode))
 	if m.Session.Settings.Overlays["heatmap"] {
 		b.WriteString("\nHeatmap: " + heatmapBar(m.Nodes) + "\n")
 	}
@@ -410,6 +424,30 @@ func heatmapBar(nodes []PulseNode) string {
 		}
 	}
 	return b.String()
+}
+
+func pulseGlyph(step int) string {
+	frames := []string{"◐", "◓", "◑", "◒"}
+	return frames[step%len(frames)]
+}
+
+func rippleGlyph(step int) string {
+	frames := []string{"·", "◌", "◎", "◉"}
+	return frames[step%len(frames)]
+}
+
+func backgroundThemeBlocks(theme string, step int) string {
+	switch theme {
+	case "midnight":
+		frames := []string{"▓▒░", "▒░▒", "░▒▓", "▒▓▒"}
+		return frames[step%len(frames)]
+	case "high-contrast":
+		frames := []string{"██░", "█░█", "░██", "█░█"}
+		return frames[step%len(frames)]
+	default:
+		frames := []string{"░▒▓", "▒▓▒", "▓▒░", "▒░▒"}
+		return frames[step%len(frames)]
+	}
 }
 
 func clampZoom(z float64) float64 {

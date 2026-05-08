@@ -6,6 +6,7 @@
 - **Architecture**: 78+ Go packages currently organized around app/runtime, networking, identity, content, anonymous mechanics, Pulse Map, onboarding, storage, transport adapters, and CLI/bootstrap/TUI binaries (`go list ./...`).
 - **Terminal UI track**: `cmd/murmur-tui` and `pkg/tui/*` now provide a Bubble Tea-based parity track with ongoing matrix-driven implementation.
 - **Terminal UI track**: feature matrix now reports all P0/P1 parity rows as implemented (`done`) for the Bubble Tea path; remaining items are P2 visual fidelity and optional enhancements.
+- **Terminal UI track**: feature matrix now reports all P0/P1/P2 rows as implemented (`done`) with terminal-native equivalents for visual-only effects.
 - **Module/dependency footprint**: module `github.com/opd-ai/murmur`, `go 1.25.7`, 29 direct + 128 indirect dependencies (`go.mod`).
 - **Existing CI/quality gates**:
   - Cross-OS build/test/race/vet/lint/license checks in [.github/workflows/ci.yml](.github/workflows/ci.yml)

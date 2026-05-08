@@ -23,10 +23,14 @@ type SessionState struct {
 
 // SettingsState stores cross-view runtime settings.
 type SettingsState struct {
-	ShowSettings  bool
-	LayerBlend    float64
-	AnonymousOnly bool
-	Overlays      map[string]bool
+	ShowSettings   bool
+	LayerBlend     float64
+	AnonymousOnly  bool
+	Overlays       map[string]bool
+	Theme          string
+	ContrastMode   bool
+	WordlistSource string
+	WordlistSample string
 }
 
 // OnboardingResumeState tracks lightweight onboarding persistence for the TUI.
@@ -49,6 +53,8 @@ func NewSessionState() *SessionState {
 				"gifts":   true,
 				"echo":    true,
 			},
+			Theme:          "default",
+			WordlistSource: "assets/wordlists/specter-names.txt",
 		},
 		Config: config.DefaultConfig(),
 		OnboardingResume: OnboardingResumeState{

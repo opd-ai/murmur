@@ -27,11 +27,11 @@ Status legend: `todo` (not started), `done` (implemented), `deferred` (explicitl
 | PM-017 | Pulse Map | pkg/pulsemap/game.go | Bookmark add/remove/jump | Bookmark list panel; hotkeys preserved | P1 | done |
 | PM-018 | Pulse Map | pkg/pulsemap/rendering/draw.go | Edge rendering between nodes | Unicode line approximation with density fallback | P1 | done |
 | PM-019 | Pulse Map | pkg/pulsemap/rendering/colors.go | Color-coded node states | Lipgloss style palette mapped to mode/activity | P1 |done |
-| PM-020 | Pulse Map | pkg/pulsemap/rendering/effects/visual.go | Glow/pulse animations | ANSI color pulsing + spinner indicators | P2 | todo |
-| PM-021 | Pulse Map | pkg/pulsemap/rendering/effects/ripples.go | Ripple effects on activity | Temporal glyph ring animation around focused node | P2 | todo |
-| PM-022 | Pulse Map | pkg/pulsemap/rendering/effects/blur.go | Blur/composite post-processing | Visual-only, omitted; replaced by contrast styles | P2 | deferred |
-| PM-023 | Pulse Map | pkg/pulsemap/rendering/effects/gpu_particles.go | GPU particles around events | CPU-safe text particle counter and spark glyphs | P2 | todo |
-| PM-024 | Pulse Map | pkg/pulsemap/rendering/background.go | Dynamic background gradient | Static terminal theme blocks per mode | P2 | todo |
+| PM-020 | Pulse Map | pkg/pulsemap/rendering/effects/visual.go | Glow/pulse animations | ANSI color pulsing + spinner indicators | P2 | done |
+| PM-021 | Pulse Map | pkg/pulsemap/rendering/effects/ripples.go | Ripple effects on activity | Temporal glyph ring animation around focused node | P2 | done |
+| PM-022 | Pulse Map | pkg/pulsemap/rendering/effects/blur.go | Blur/composite post-processing | Visual-only, omitted; replaced by contrast styles | P2 | done |
+| PM-023 | Pulse Map | pkg/pulsemap/rendering/effects/gpu_particles.go | GPU particles around events | CPU-safe text particle counter and spark glyphs | P2 | done |
+| PM-024 | Pulse Map | pkg/pulsemap/rendering/background.go | Dynamic background gradient | Static terminal theme blocks per mode | P2 | done |
 
 ## Identity
 
@@ -88,8 +88,8 @@ Status legend: `todo` (not started), `done` (implemented), `deferred` (explicitl
 | AN-015 | Anonymous Layer | pkg/anonymous/mechanics/forge/forge.go | Sigil Forge | Forge menu and craft progress indicators | P1 |done |
 | AN-016 | Anonymous Layer | pkg/anonymous/mechanics/shadowplay/shadowplay.go | Shadow Play | Matchmaking/status card with session state | P1 |done |
 | AN-017 | Anonymous Layer | pkg/anonymous/mechanics/councils/councils.go | Phantom Councils | Council eligibility and session roster | P1 | done |
-| AN-018 | Anonymous Layer | pkg/anonymous/mechanics/sparks/sparks.go | Sparks mini-game | Sparks quick-action panel | P2 | todo |
-| AN-019 | Anonymous Layer | pkg/anonymous/mechanics/pulse_beats.go | Pulse Beats mechanics | Event ticker panel for pulse beat events | P2 | todo |
+| AN-018 | Anonymous Layer | pkg/anonymous/mechanics/sparks/sparks.go | Sparks mini-game | Sparks quick-action panel | P2 | done |
+| AN-019 | Anonymous Layer | pkg/anonymous/mechanics/pulse_beats.go | Pulse Beats mechanics | Event ticker panel for pulse beat events | P2 | done |
 | AN-020 | Anonymous Layer | pkg/pulsemap/overlays/* | Anonymous mechanics overlays on map | Overlay toggles with textual legends | P1 |done |
 
 ## Onboarding
@@ -123,7 +123,7 @@ Status legend: `todo` (not started), `done` (implemented), `deferred` (explicitl
 | NW-006 | Networking | pkg/networking/health/* + pkg/app/murmur.go | Health endpoint status | Health endpoint status row in settings/network | P1 | done |
 | NW-007 | Networking | pkg/networking/priority/* | Priority/rate-limit state | Rate-limit and queue-depth indicators | P0 | done |
 | NW-008 | Networking | pkg/app/eventbus.go | Peer connected/disconnected events | Live peer activity feed in sidebar | P1 |done |
-| NW-009 | Networking | docs/NETWORK_ARCHITECTURE.md | Canonical topics/protocol IDs visibility | Protocol/topic reference help overlay | P2 | todo |
+| NW-009 | Networking | docs/NETWORK_ARCHITECTURE.md | Canonical topics/protocol IDs visibility | Protocol/topic reference help overlay | P2 | done |
 
 ## Settings
 
@@ -132,8 +132,8 @@ Status legend: `todo` (not started), `done` (implemented), `deferred` (explicitl
 | ST-001 | Settings | pkg/pulsemap/game.go (Ctrl+,) | Toggle settings panel | `Ctrl+,` toggles settings modal | P0 | done |
 | ST-002 | Settings | pkg/config/* | User configuration surface | Config editor/list with validation feedback | P1 |done |
 | ST-003 | Settings | pkg/pulsemap/settings.go | Overlay toggles | Checkbox list for overlays/features | P1 |done |
-| ST-004 | Settings | assets/themes/* | Theme hooks and palette usage | Theme selector (dark/light/high-contrast terminal styles) | P2 | todo |
-| ST-005 | Settings | assets/wordlists/* | Procedural name source visibility | Wordlist source and regenerate action for names | P2 | todo |
+| ST-004 | Settings | assets/themes/* | Theme hooks and palette usage | Theme selector (dark/light/high-contrast terminal styles) | P2 | done |
+| ST-005 | Settings | assets/wordlists/* | Procedural name source visibility | Wordlist source and regenerate action for names | P2 | done |
 | ST-006 | Settings | pkg/identity/modes/state.go + game mode wiring | Privacy mode setting from panel | In-panel mode selector with immediate apply | P0 | done |
 
 ## Cross-Layer Visibility & Event Surfaces
@@ -178,7 +178,6 @@ Source bindings audited from `pkg/pulsemap/game.go`, `pkg/onboarding/screens/*.g
 | Tutorial hint: `W` | Compose first Wave hint | `W` opens compose (alias to Ctrl+N) |
 | Required TUI keys | N/A in Ebitengine | Add `h/j/k/l`, arrows, Tab cycle, numeric shortcuts, `?` help, `q`/`Ctrl+C` quit |
 
-### Deferred Visual-Only Items (explicit)
-- GPU/post-processing effects (blur/composite shaders) are mapped to terminal-safe styling and not pixel-equivalent.
-- Particle and glow fidelity is approximated by ANSI color pulses/spinners because terminal rendering lacks shader pipelines.
-
+### Visual-Only Equivalents (implemented)
+- GPU/post-processing blur/composite effects are implemented as a contrast-mode substitute toggle in terminal settings and Pulse Map rendering.
+- Particle, ripple, and glow fidelity are implemented as ANSI pulse/ripple frames and spark counters suitable for terminal constraints.

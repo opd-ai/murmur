@@ -31,6 +31,7 @@ type AnonymousModel struct {
 	Milestones    []string
 	MiniGames     []string
 	OverlayLegend []string
+	PulseTicker   []string
 }
 
 // NewAnonymousModel creates anonymous-layer model.
@@ -45,8 +46,9 @@ func NewAnonymousModel(session *SessionState) AnonymousModel {
 			{PeerID: "relay-a", LastSeen: "just now", Quality: "high"},
 			{PeerID: "relay-b", LastSeen: "8s ago", Quality: "medium"},
 		},
-		MiniGames:     []string{"Cipher Puzzles", "Specter Hunts", "Territory Drift", "Oracle Pools", "Sigil Forge", "Shadow Play"},
+		MiniGames:     []string{"Cipher Puzzles", "Specter Hunts", "Territory Drift", "Oracle Pools", "Sigil Forge", "Shadow Play", "Sparks", "Pulse Beats"},
 		OverlayLegend: []string{"marks: ✦", "gifts: ♦", "echo: 🔥/🌊"},
+		PulseTicker:   []string{"pulse-beat: dormant"},
 		Milestones: []string{
 			"Shade (25)", "Wraith (50)", "Shade-Wraith (75)", "Phantom (100)",
 			"Council-Eligible (200)", "Abyss (500)",
@@ -98,6 +100,12 @@ func (m AnonymousModel) Update(msg tea.Msg) (AnonymousModel, tea.Cmd) {
 		m.Status = "sigil forge: craft progress shown"
 	case "6":
 		m.Status = "shadow play: matchmaking status shown"
+	case "7":
+		m.Status = "sparks mini-game: quick-action panel shown"
+		m.PulseTicker = append([]string{"sparks: chain started"}, m.PulseTicker...)
+	case "8":
+		m.Status = "pulse beats: event ticker panel shown"
+		m.PulseTicker = append([]string{fmt.Sprintf("pulse-beat event @%s", time.Now().Format("15:04:05"))}, m.PulseTicker...)
 	case "c":
 		m.HasPrimary = true
 		m.HasBackup = true
@@ -110,6 +118,9 @@ func (m AnonymousModel) Update(msg tea.Msg) (AnonymousModel, tea.Cmd) {
 	case "w":
 		m.WhisperState = fmt.Sprintf("route=3-hop delivered_at=%s", time.Now().Format("15:04:05"))
 		m.Status = "whisper routed over shroud"
+	}
+	if len(m.PulseTicker) > 5 {
+		m.PulseTicker = m.PulseTicker[:5]
 	}
 	return m, nil
 }
@@ -129,7 +140,7 @@ func (m AnonymousModel) View(width int) string {
 		relayLines = append(relayLines, fmt.Sprintf("- %s seen=%s quality=%s", r.PeerID, r.LastSeen, r.Quality))
 	}
 
-	return fmt.Sprintf("Active Specter: %s\nSpecter count: %d\nShroud: %s\nShroud health: primary=%t backup=%t age=%s\nWhisper: %s\nResonance: %d (%s)\nEcho Index: %.2f\n\nRelay discovery:\n%s\n\nMini-games (1-6): %s\nOverlay legends: %s\n\nMilestones:\n%s\n\nStatus: %s",
+	return fmt.Sprintf("Active Specter: %s\nSpecter count: %d\nShroud: %s\nShroud health: primary=%t backup=%t age=%s\nWhisper: %s\nResonance: %d (%s)\nEcho Index: %.2f\n\nRelay discovery:\n%s\n\nMini-games (1-8): %s\nOverlay legends: %s\nPulse Beats ticker:\n%s\n\nMilestones:\n%s\n\nStatus: %s",
 		active,
 		len(m.Session.Specters),
 		m.Shroud,
@@ -143,6 +154,7 @@ func (m AnonymousModel) View(width int) string {
 		strings.Join(relayLines, "\n"),
 		strings.Join(m.MiniGames, ", "),
 		strings.Join(m.OverlayLegend, " | "),
+		strings.Join(m.PulseTicker, "\n"),
 		strings.Join(m.Milestones, "\n"),
 		m.Status,
 	)

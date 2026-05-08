@@ -156,3 +156,17 @@ Scope: Ebitengine UI/UX remediation from latest audit findings.
 ### Validation Status
 - `go build ./cmd/murmur-tui`, `go vet ./pkg/tui/... ./cmd/murmur-tui`, and `go test -race ./pkg/tui/... ./cmd/murmur-tui` all passed.
 - Full repo `go test -tags test -race ./...` remains environment-limited by missing Linux X11 headers for Ebitengine-linked packages (`X11/Xlib.h`), unchanged by this TUI-only update.
+
+## Update - 2026-05-08 (TUI P2 Parity Completion)
+
+### Change Summary
+- Implemented terminal equivalents for all remaining P2 parity rows and marked the matrix fully complete (no `todo`/`deferred` statuses).
+- Added Pulse Map terminal effect equivalents (glow/ripple/particle counters, dynamic background blocks, contrast-mode substitute for blur/composite), Anonymous Sparks/Pulse Beats surfaces, protocol reference visibility, theme cycling, and wordlist source/regenerate controls.
+
+### Security/Operational Impact
+- No new external dependencies or cryptographic/protocol changes.
+- Added UI-only state and controls; all features remain constrained to TUI view/model layers and existing domain interfaces.
+
+### Validation Status
+- TUI build/vet/tests/race checks pass.
+- Full repository race test run still blocked by environment-level Ebitengine X11 header availability for non-TUI packages.

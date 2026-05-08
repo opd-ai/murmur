@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/opd-ai/murmur/pkg/anonymous/specters"
 	"github.com/opd-ai/murmur/pkg/identity/modes"
 	"github.com/opd-ai/murmur/pkg/tui/bridge"
 	"github.com/opd-ai/murmur/pkg/tui/components"
@@ -118,6 +119,24 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "h":
 				m.session.Config.EnableHealthEndpoint = !m.session.Config.EnableHealthEndpoint
 				return m, m.emitActionCmd("config_toggle", map[string]any{"field": "enable_health_endpoint", "value": m.session.Config.EnableHealthEndpoint})
+			case "t":
+				switch m.session.Settings.Theme {
+				case "default":
+					m.session.Settings.Theme = "midnight"
+				case "midnight":
+					m.session.Settings.Theme = "high-contrast"
+				default:
+					m.session.Settings.Theme = "default"
+				}
+				return m, m.emitActionCmd("theme_changed", map[string]any{"theme": m.session.Settings.Theme})
+			case "v":
+				m.session.Settings.ContrastMode = !m.session.Settings.ContrastMode
+				return m, m.emitActionCmd("contrast_mode", map[string]any{"enabled": m.session.Settings.ContrastMode})
+			case "w":
+				if s, err := specters.NewSpecter(); err == nil {
+					m.session.Settings.WordlistSample = s.Name
+				}
+				return m, m.emitActionCmd("wordlist_regenerate", map[string]any{"sample": m.session.Settings.WordlistSample})
 			}
 		}
 		switch t.String() {
@@ -223,6 +242,8 @@ func (m Model) View() string {
 				m.session.Config.EnableHealthEndpoint,
 			),
 			fmt.Sprintf("config keys: r=relay o=tor i=i2p h=health | dataDir=%s", m.session.Config.DataDir),
+			fmt.Sprintf("theme: %s (t cycle) | contrast mode (v): %t", m.session.Settings.Theme, m.session.Settings.ContrastMode),
+			fmt.Sprintf("wordlist: %s | sample: %s (w regenerate)", m.session.Settings.WordlistSource, m.session.Settings.WordlistSample),
 		}))
 	}
 	if m.showHelp {
@@ -233,8 +254,8 @@ func (m Model) View() string {
 			"Waves: c compose, y reply-to-last toggle, a amplify, 1-8 wave type, t/T TTL, enter submit",
 			"Anonymous: n/s specters, c shroud, r relays, w whisper, p mini-games, 1-6 game boards",
 			"Onboarding: enter advance, space skip+resume, i invitation warm-start, r recovery branch, b returning mode, x/a hint dismiss/ack",
-			"Networking: d refresh dht, n relay diagnostics, g simulate gossip, r reset rate-limit indicator",
-			"Settings: Ctrl+, toggle modal, 1-4 mode, 5/6 layer blend, 7-0 overlays, r/o/i/h config toggles",
+			"Networking: d refresh dht, n relay diagnostics, g simulate gossip, r reset rate-limit indicator, protocol refs visible",
+			"Settings: Ctrl+, toggle modal, 1-4 mode, 5/6 layer blend, 7-0 overlays, r/o/i/h config toggles, t theme, v contrast, w wordlist regen",
 		}))
 	}
 
@@ -290,6 +311,9 @@ func (m Model) applySettingKey(key string) tea.Cmd {
 			"enable_i2p":     m.session.Config.EnableI2P,
 			"health_enabled": m.session.Config.EnableHealthEndpoint,
 		},
+		"theme":           m.session.Settings.Theme,
+		"contrast_mode":   m.session.Settings.ContrastMode,
+		"wordlist_sample": m.session.Settings.WordlistSample,
 	})
 }
 
