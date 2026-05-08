@@ -2,33 +2,44 @@
 
 Last updated: 2026-05-07
 
-## Active Track: Desktop + WASM Deployment
+## Active Plan
 
-- [x] Create browser entry scaffolding under cmd/wasm with version metadata.
-- [x] Add shared runtime layer for platform selection in pkg/game.
-- [x] Define transport abstraction in pkg/network for desktop libp2p and browser WebRTC adapters.
-- [x] Define input normalization contract in pkg/input for touch + keyboard/mouse parity.
-- [x] Add static web shell under web/ (index.html, boot.js, style.css).
-- [x] Add reproducible site build script (scripts/build-wasm-site.sh).
-- [x] Add GitHub Pages workflow to build and deploy WASM bundle.
+This file now tracks only incomplete roadmap items.
 
-## Next Steps
+## Incomplete Items (from ROADMAP.md)
 
-- [x] Repair the desktop first-run onboarding handoff so completing onboarding enters the Pulse Map immediately instead of canceling the app.
-- [x] Implement concrete desktop adapter in pkg/network backed by pkg/networking/transport + GossipSub.
-- [x] Implement concrete wasm adapter in pkg/network backed by pion/webrtc data channels.
-- [x] Add relay/bootstrap discovery policy for browser peers (no mDNS dependency).
-- [x] Integrate input mapper with Pulse Map interaction handlers.
-- [x] Add responsive layout policies for mobile viewport breakpoints.
-- [x] Add desktop-browser interop integration tests.
-- [x] Add dynamic bootstrap server command (`cmd/bootstrap`) with DHT server-mode participation, automatic peer learning/distribution, and multi-listener support for HTTP/ngrok/Tor/I2P ingress.
-- [x] Add container deployment assets for the dynamic bootstrap server (`Dockerfile.bootstrap`, Compose example, and operator docs covering configurable ngrok domains and announced public libp2p addresses).
-- [x] Repair corrupted transport integration tests in `pkg/networking/transport/integration_test.go` and realign to current diagnostics/host APIs.
-- [x] Harden bootstrap Docker build path for restricted DNS environments with host-network compose builds and configurable Go module proxy args.
-- [x] Add a MURMUR-specific UI audit prompt in `UI_AUDIT.md` focused on first-run comprehension, discoverability, and obvious Pulse Map interaction guidance.
-- [x] Resolve Ebitengine transition/input audit findings: one-shot scene transitions, modal-safe shortcut routing, UTF-8 text deletion correctness, and minimap redraw caching.
-- [x] Apply follow-up UI audit fixes: synchronous returning-screen handoff, pointer-based radial-menu targeting, continuous world ticking during modal input consumption, tick-based caret blink, and time-based camera interpolation.
-- [x] Resolve remaining UI clarity audit issues in active UX paths: interactive device-management controls, visible settings labels/values, minimap integration in Pulse Map draw path, explicit returning-screen continuation, onboarding keyboard parity, explicit node-detail empty-state feedback, and radial-menu glyph icon rendering.
-- [x] Resolve transition/input audit findings end-to-end: onboarding phase sequencing to Pulse Map, visible-overlay input isolation for SearchBar, minimap Draw allocation reuse, ComposePanel Update-time hit-test positioning, and viewport-responsive RecoveryScreen hit targets/layout.
-- [x] Close follow-up transition/input findings: same-node detail reopen continuity, SearchBar hide ghost state, display-name Enter focus guard, responsive mode-card hit-testing layout, touch deferred-tap reset clearing, recovery-frame background clearing, scalable onboarding text sizing, and micro-zoom gating for cross-layer artifact queries.
-- [x] Replace CI cross-compilation with native per-OS executable builds and enforce GUI-enabled `cmd/murmur` artifact generation.
+### Testing
+
+- [ ] **Ebitengine headless mode** screenshot comparison tests for rendering
+### Documentation
+
+- [ ] API documentation for all exported types and functions
+- [ ] Architecture decision records (ADRs) for key design choices
+### Deployment
+
+- [ ] Bootstrap node infrastructure (8–12 community-operated nodes)
+- [ ] Docker container image for bootstrap/relay operators
+- [ ] Platform-specific binary releases (linux/amd64, linux/arm64, darwin/amd64, darwin/arm64, windows/amd64)
+- [ ] Android APK distribution
+- [ ] iOS xcframework distribution
+- [ ] Version upgrade protocol — dual-subscription migration (v1 + v2 topics)
+### Anti-Sybil & Spam Resistance
+
+- [ ] Resonance gating on all privileged actions (gifts, marks, games, councils)
+- [ ] Connection pruning for consistently low-score peers
+- [ ] PoW requirement for identity creation
+- [ ] Sybil defense: PoW cost scales linearly per identity
+### Protocol Versioning
+
+- [ ] Topic versioning in GossipSub topic strings
+- [ ] MurmurEnvelope version field handling (currently always 1)
+- [ ] Protocol negotiation via multistream-select
+- [ ] Gradual migration: new-version nodes subscribe to both v1 and v2 topics
+- [ ] Breaking change consensus mechanism
+### Accessibility & UX
+
+- [ ] Compose panel — Wave input interface with character count
+- [ ] Settings panel — configuration options (privacy mode, difficulty, filters)
+- [ ] Help button — reopen onboarding tutorials at any time
+- [ ] Modal dialogs — confirmations and warnings for destructive actions
+- [ ] Status indicators — identity publication, Shroud circuit, connection count, PoW progress
