@@ -6,6 +6,7 @@ package filtering
 
 import (
 	"encoding/hex"
+	"fmt"
 	"strings"
 	"sync"
 
@@ -82,10 +83,19 @@ func (f *Filter) MutedAuthors() [][]byte {
 	return authors
 }
 
+// MaxKeywordPatterns is the maximum number of keyword patterns allowed in the filter.
+// Per AUDIT.md LOW finding: a large number of wildcard patterns applied to every
+// incoming Wave can cause significant latency in the Ebitengine rendering thread.
+const MaxKeywordPatterns = 100
+
+// ErrTooManyPatterns is returned when MuteKeyword would exceed MaxKeywordPatterns.
+var ErrTooManyPatterns = fmt.Errorf("keyword pattern limit reached (%d max)", MaxKeywordPatterns)
+
 // MuteKeyword adds a keyword pattern to the mute list.
 // Patterns support * as a wildcard that matches any characters.
 // Examples: "spam*", "*casino*", "buy*now"
-func (f *Filter) MuteKeyword(pattern string) {
+// Returns ErrTooManyPatterns if MaxKeywordPatterns would be exceeded.
+func (f *Filter) MuteKeyword(pattern string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -93,10 +103,14 @@ func (f *Filter) MuteKeyword(pattern string) {
 	// Check for duplicates.
 	for _, existing := range f.mutedKeywords {
 		if existing == pattern {
-			return
+			return nil
 		}
 	}
+	if len(f.mutedKeywords) >= MaxKeywordPatterns {
+		return ErrTooManyPatterns
+	}
 	f.mutedKeywords = append(f.mutedKeywords, pattern)
+	return nil
 }
 
 // UnmuteKeyword removes a keyword pattern from the mute list.

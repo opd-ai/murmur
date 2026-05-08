@@ -2,6 +2,7 @@
 package filtering
 
 import (
+	"fmt"
 	"testing"
 
 	pb "github.com/opd-ai/murmur/proto"
@@ -42,7 +43,7 @@ func TestFilterMuteKeyword(t *testing.T) {
 	f := NewFilter()
 
 	// Add a keyword.
-	f.MuteKeyword("spam")
+	_ = f.MuteKeyword("spam")
 
 	keywords := f.MutedKeywords()
 	if len(keywords) != 1 || keywords[0] != "spam" {
@@ -50,13 +51,13 @@ func TestFilterMuteKeyword(t *testing.T) {
 	}
 
 	// Add duplicate - should not add again.
-	f.MuteKeyword("spam")
+	_ = f.MuteKeyword("spam")
 	if len(f.MutedKeywords()) != 1 {
 		t.Error("duplicate keyword should not be added")
 	}
 
 	// Add another keyword.
-	f.MuteKeyword("casino")
+	_ = f.MuteKeyword("casino")
 	if len(f.MutedKeywords()) != 2 {
 		t.Error("second keyword should be added")
 	}
@@ -68,6 +69,28 @@ func TestFilterMuteKeyword(t *testing.T) {
 		t.Errorf("expected ['casino'], got %v", keywords)
 	}
 }
+
+func TestFilterMuteKeywordLimit(t *testing.T) {
+	f := NewFilter()
+
+	// Fill up to the limit.
+	for i := 0; i < MaxKeywordPatterns; i++ {
+		if err := f.MuteKeyword(fmt.Sprintf("keyword-%d", i)); err != nil {
+			t.Fatalf("expected no error adding keyword %d, got %v", i, err)
+		}
+	}
+	if len(f.MutedKeywords()) != MaxKeywordPatterns {
+		t.Errorf("expected %d keywords, got %d", MaxKeywordPatterns, len(f.MutedKeywords()))
+	}
+
+	// Adding one more should fail.
+	if err := f.MuteKeyword("overflow"); err == nil {
+		t.Error("expected ErrTooManyPatterns, got nil")
+	} else if err != ErrTooManyPatterns {
+		t.Errorf("expected ErrTooManyPatterns, got %v", err)
+	}
+}
+
 
 func TestFilterShouldFilterByAuthor(t *testing.T) {
 	f := NewFilter()
@@ -105,7 +128,7 @@ func TestFilterShouldFilterByKeyword(t *testing.T) {
 	}
 
 	// Mute keyword (case-insensitive).
-	f.MuteKeyword("spam")
+	_ = f.MuteKeyword("spam")
 
 	if !f.ShouldFilter(wave) {
 		t.Error("wave should be filtered due to keyword")
@@ -150,7 +173,7 @@ func TestFilterKeywordWildcard(t *testing.T) {
 
 	for _, tc := range tests {
 		f.Clear()
-		f.MuteKeyword(tc.pattern)
+		_ = f.MuteKeyword(tc.pattern)
 
 		wave := &pb.Wave{
 			AuthorPubkey: []byte("pubkey"),
@@ -253,7 +276,7 @@ func TestFilterClear(t *testing.T) {
 	f := NewFilter()
 
 	f.MuteAuthor([]byte("author"))
-	f.MuteKeyword("spam")
+	_ = f.MuteKeyword("spam")
 	f.SetMinResonance(50)
 
 	stats := f.Stats()
@@ -279,7 +302,7 @@ func TestFilterStats(t *testing.T) {
 
 	f.MuteAuthor([]byte("a1"))
 	f.MuteAuthor([]byte("a2"))
-	f.MuteKeyword("k1")
+	_ = f.MuteKeyword("k1")
 	f.SetMinResonance(25)
 
 	stats = f.Stats()
@@ -299,7 +322,7 @@ func TestFilterCombinedCriteria(t *testing.T) {
 
 	// Set up multiple filter criteria.
 	f.MuteAuthor([]byte("banned"))
-	f.MuteKeyword("spam")
+	_ = f.MuteKeyword("spam")
 	f.SetMinResonance(25)
 	f.SetResonanceLookup(func(pubkey []byte) int {
 		if string(pubkey) == "lowres" {

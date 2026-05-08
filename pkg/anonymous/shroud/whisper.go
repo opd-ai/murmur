@@ -126,8 +126,9 @@ func (k *WhisperKeyExchange) DeriveKey(peerPublicKey [32]byte) ([32]byte, error)
 		return zero, ErrWhisperInvalidKey
 	}
 
-	// Derive key using HKDF-SHA-256.
-	kdf := hkdf.New(sha256.New, shared[:], nil, []byte("murmur-whisper"))
+	// Derive key using HKDF-SHA-256 with a fixed domain-separator salt
+	// per AUDIT.md LOW finding for auditability with Curve25519 DH inputs.
+	kdf := hkdf.New(sha256.New, shared[:], []byte("murmur-whisper-salt-v1"), []byte("murmur-whisper"))
 
 	var derived [32]byte
 	if _, err := io.ReadFull(kdf, derived[:]); err != nil {

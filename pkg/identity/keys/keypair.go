@@ -10,6 +10,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"runtime"
 	"time"
 
 	pb "github.com/opd-ai/murmur/proto"
@@ -216,10 +217,16 @@ func decryptWithKey(key, nonce, ciphertext []byte) ([]byte, error) {
 // ZeroBytes zeros a byte slice to help prevent key material leakage.
 // Per TECHNICAL_IMPLEMENTATION.md §1.4, key material should be zeroed
 // before backing arrays become GC-eligible.
+// //go:noinline prevents the compiler from inlining and potentially
+// eliminating the write as a dead store. runtime.KeepAlive ensures the
+// slice header remains live after the loop, per AUDIT.md MEDIUM finding.
+//
+//go:noinline
 func ZeroBytes(b []byte) {
 	for i := range b {
 		b[i] = 0
 	}
+	runtime.KeepAlive(b)
 }
 
 // ZeroKeyPair zeros the private key material in a KeyPair.

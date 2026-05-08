@@ -118,7 +118,7 @@ server. Nodes expose:
     `pkg/anonymous/shroud/circuit_test.go` to verify shared keys are not reused across
     circuits built over the same relay set.
 
-- [ ] **Abyssal Wave Specter-Key Compromise Retroactively Deanonymises All Abyssal Waves**
+- [x] **Abyssal Wave Specter-Key Compromise Retroactively Deanonymises All Abyssal Waves**
   — `pkg/content/waves/abyssal.go:deriveAbyssalKeypairFromNonce` (approx. line 62-72)
   — **Vector:** `deriveAbyssalKeypairFromNonce` computes:
   ```
@@ -151,7 +151,7 @@ server. Nodes expose:
     3. For maximum security, derive per-session abyssal master keys: rotate the abyssal
        sub-key on each Specter session initialisation.
 
-- [ ] **Shroud Hop Key Uses BLAKE3 Instead of Spec-Required HKDF-SHA-256**
+- [x] **Shroud Hop Key Uses BLAKE3 Instead of Spec-Required HKDF-SHA-256**
   — `pkg/anonymous/shroud/circuit.go:595-607`
   — **Vector:**
   ```go
@@ -187,7 +187,7 @@ server. Nodes expose:
 
 ### MEDIUM
 
-- [ ] **Gossip Timestamp Validator Rejects Messages Older Than 300s — Breaks Wave TTL**
+- [x] **Gossip Timestamp Validator Rejects Messages Older Than 300s — Breaks Wave TTL**
   — `pkg/networking/gossip/handlers.go:validateTimestamp`
   — **Vector:**
   ```go
@@ -214,7 +214,7 @@ server. Nodes expose:
     This allows long-lived Waves to be relayed to late-joining peers while still protecting
     against messages with timestamps far in the future.
 
-- [ ] **Health and Metrics Endpoints Bind on All Interfaces Without Authentication**
+- [x] **Health and Metrics Endpoints Bind on All Interfaces Without Authentication**
   — `pkg/networking/health/health.go:79` — `Addr: fmt.Sprintf(":%d", port)`
   — **Vector:** When `EnableHealthEndpoint: true` is set in config (intended for bootstrap
   nodes), the HTTP server listens on `0.0.0.0:<port>`. No authentication middleware is
@@ -237,7 +237,7 @@ server. Nodes expose:
        printed to stdout on startup for bootstrap operators.
     3. Omit PeerID from the response body, or add an explicit privacy warning in docs.
 
-- [ ] **Biased Relay Selection in Shroud Circuit Construction**
+- [x] **Biased Relay Selection in Shroud Circuit Construction**
   — `pkg/anonymous/shroud/circuit.go:518-527`
   — **Vector:**
   ```go
@@ -273,7 +273,7 @@ server. Nodes expose:
   Alternatively, use `rand.Shuffle` with a crypto-seeded source on the eligible slice and
   take the first `CircuitLength` elements.
 
-- [ ] **`ZeroBytes` Loop May Be Optimised Away by the Go Compiler**
+- [x] **`ZeroBytes` Loop May Be Optimised Away by the Go Compiler**
   — `pkg/identity/keys/keypair.go:216-222`
   — **Vector:**
   ```go
@@ -309,7 +309,7 @@ server. Nodes expose:
 
 ### LOW
 
-- [ ] **Missing HKDF Salt in Veiled Wave, Whisper, and Recovery Key Derivation**
+- [x] **Missing HKDF Salt in Veiled Wave, Whisper, and Recovery Key Derivation**
   — `pkg/content/waves/veiled.go:205`, `pkg/anonymous/shroud/whisper.go:130`,
     `pkg/identity/recovery/recovery.go:71`
   — **Vector:** All three HKDF invocations use `nil` as the salt parameter:
@@ -327,7 +327,7 @@ server. Nodes expose:
   — **Remediation:** Supply a 16-byte random salt per key derivation instance, or use the
   spec-recommended HKDF salt = `"murmur-domain-v1"` as a fixed domain separator.
 
-- [ ] **Legacy Keystore `.bak` File Retention**
+- [x] **Legacy Keystore `.bak` File Retention**
   — `pkg/identity/keys/keystore.go:renameLegacyFile`
   — **Vector:** `MigrateLegacyKeystore` renames the legacy combined keystore to `<path>.bak`
   on successful migration. The `.bak` file contains the encrypted combined Surface + Specter
@@ -342,7 +342,7 @@ server. Nodes expose:
   a user-visible warning: "Migration complete. Delete `surface.keystore.bak` when you have
   verified your new keystores load correctly."
 
-- [ ] **`AbyssalStore` Nonces Stored in Unencrypted In-Memory Map**
+- [x] **`AbyssalStore` Nonces Stored in Unencrypted In-Memory Map**
   — `pkg/content/waves/abyssal.go:AbyssalStore`
   — **Vector:** `AbyssalStore.records` maps wave IDs (as `string(waveID)`) to their 32-byte
   derivation nonces in a plain Go map. If the process is suspended (SIGSTOP) and its memory
@@ -355,7 +355,7 @@ server. Nodes expose:
   If authorship provability is a feature, store nonces in the encrypted bbolt database
   (`BucketWaves`) using the keystore-encrypted symmetric key rather than in a plain Go map.
 
-- [ ] **Wave Content Filter Wildcard Pattern DoS — Pathological Input**
+- [x] **Wave Content Filter Wildcard Pattern DoS — Pathological Input**
   — `pkg/content/filtering/filter.go:matchWildcard`
   — **Vector:** The content filter applies user-configured wildcard patterns against Wave
   content bytes cast to lowercase string. A pattern like `"a*b*c*d*e*f*g*h*i*j*k*l*m"` with

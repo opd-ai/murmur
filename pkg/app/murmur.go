@@ -583,7 +583,7 @@ func (a *App) initHealthServer() error {
 	a.subsystems.HealthServer = server
 
 	port := a.config.HealthEndpointPort
-	if err := server.Start(a.ctx, port); err != nil {
+	if err := server.Start(a.ctx, port, a.config.HealthBindAll); err != nil {
 		return fmt.Errorf("starting health server on port %d: %w", port, err)
 	}
 

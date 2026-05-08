@@ -78,6 +78,10 @@ type Envelope struct {
 	Signature     []byte
 	TimestampUnix int64
 	MessageID     []byte
+	// TTLSeconds holds the Wave TTL when Type==MessageTypeWave.
+	// Used by validateTimestamp to allow relay of Waves within their TTL window
+	// rather than rejecting any Wave older than MaxTimestampDrift.
+	TTLSeconds int64
 }
 
 // ValidateEnvelope validates a raw message and returns a parsed envelope.
@@ -103,7 +107,7 @@ func ValidateEnvelope(data []byte, now time.Time) (*Envelope, error) {
 
 	env.MessageID = computeMessageID(data)
 
-	if err := validateTimestamp(env.TimestampUnix, now); err != nil {
+	if err := validateTimestamp(env.TimestampUnix, env.TTLSeconds, now); err != nil {
 		return nil, err
 	}
 
@@ -142,10 +146,12 @@ func extractWaveFields(env *Envelope, msg *pb.GossipMessage) {
 		env.SenderPubkey = wave.GetAuthorPubkey()
 		env.Signature = wave.GetSignature()
 		env.TimestampUnix = wave.GetCreatedAt()
+		env.TTLSeconds = wave.GetTtlSeconds()
 	} else if reply := msg.GetReply(); reply != nil && reply.GetWave() != nil {
 		env.SenderPubkey = reply.GetWave().GetAuthorPubkey()
 		env.Signature = reply.GetWave().GetSignature()
 		env.TimestampUnix = reply.GetWave().GetCreatedAt()
+		env.TTLSeconds = reply.GetWave().GetTtlSeconds()
 	} else if amp := msg.GetAmplification(); amp != nil {
 		env.SenderPubkey = amp.GetAmplifierPubkey()
 		env.Signature = amp.GetSignature()
@@ -201,17 +207,26 @@ func validateEnvelopeSignature(env *Envelope) error {
 }
 
 // validateTimestamp checks if timestamp is within acceptable range.
-func validateTimestamp(timestampUnix int64, now time.Time) error {
+// Future timestamps are always limited to MaxTimestampDrift (300s).
+// Past timestamps are limited by the message TTL when available, allowing
+// long-lived Waves to be relayed to late-joining peers while still
+// protecting against messages with timestamps far in the past (per AUDIT.md MEDIUM finding).
+func validateTimestamp(timestampUnix int64, ttlSeconds int64, now time.Time) error {
 	msgTime := time.Unix(timestampUnix, 0)
 	drift := now.Sub(msgTime)
 
-	// Check future drift
+	// Reject messages timestamped too far in the future.
 	if drift < -MaxTimestampDrift {
 		return ErrInvalidTimestamp
 	}
 
-	// Check past drift (use TTL if available, default to MaxTimestampDrift)
-	if drift > MaxTimestampDrift {
+	// Determine the allowable past window: use TTL when present, else 300s.
+	pastLimit := MaxTimestampDrift
+	if ttlSeconds > 0 {
+		pastLimit = time.Duration(ttlSeconds) * time.Second
+	}
+
+	if drift > pastLimit {
 		return ErrInvalidTimestamp
 	}
 

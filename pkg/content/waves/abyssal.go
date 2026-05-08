@@ -1,8 +1,13 @@
 // Package waves provides Wave creation, signing, and validation.
 // Abyssal Waves are the most deeply anonymous Wave type, available only to
-// Fortress-mode Specters. They use one-time keypairs derived from the Specter's
-// keypair using: abyssal_key = Ed25519_keygen(SHA-256(specter_private_key || abyssal_nonce))
+// Fortress-mode Specters. They use one-time keypairs derived via:
+//
+//	abyssal_master = HKDF-SHA-256(specter_private_key, salt=nil, info="murmur-abyssal-master-v1")
+//	abyssal_key = Ed25519_keygen(SHA-256(abyssal_master || abyssal_nonce))
+//
 // Per WAVES.md, each Abyssal Wave has a unique, disposable author key.
+// The HKDF sub-key derivation ensures Specter key compromise alone does not
+// immediately yield all Abyssal keys (per AUDIT.md HIGH finding).
 package waves
 
 import (
@@ -10,10 +15,12 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"errors"
+	"io"
 	"time"
 
 	pb "github.com/opd-ai/murmur/proto"
 	"github.com/zeebo/blake3"
+	"golang.org/x/crypto/hkdf"
 )
 
 // Abyssal Wave constants per WAVES.md.
@@ -52,18 +59,44 @@ type AbyssalKeyPair struct {
 	SpecterPubKey []byte
 }
 
+// deriveAbyssalMasterKey derives an abyssal sub-key from the Specter private key via HKDF-SHA-256.
+// Per AUDIT.md HIGH finding: using a sub-key means Specter key compromise alone does not
+// immediately yield all Abyssal one-time keys.
+func deriveAbyssalMasterKey(specterPrivateKey []byte) ([32]byte, error) {
+	var master [32]byte
+	kdf := hkdf.New(sha256.New, specterPrivateKey, nil, []byte("murmur-abyssal-master-v1"))
+	if _, err := io.ReadFull(kdf, master[:]); err != nil {
+		return master, err
+	}
+	return master, nil
+}
+
 // deriveAbyssalKeypairFromNonce derives an Ed25519 keypair from a Specter private key and nonce.
-// This is the core derivation: Ed25519_keygen(SHA-256(specter_private_key || abyssal_nonce))
-func deriveAbyssalKeypairFromNonce(specterPrivateKey []byte, nonce [32]byte) (ed25519.PublicKey, ed25519.PrivateKey) {
+// Per AUDIT.md HIGH finding the derivation uses a HKDF-derived sub-key rather than the raw
+// Specter private key:
+//
+//	abyssal_master = HKDF-SHA-256(specter_priv, salt=nil, info="murmur-abyssal-master-v1")
+//	seed = SHA-256(abyssal_master || nonce)
+func deriveAbyssalKeypairFromNonce(specterPrivateKey []byte, nonce [32]byte) (ed25519.PublicKey, ed25519.PrivateKey, error) {
+	master, err := deriveAbyssalMasterKey(specterPrivateKey)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	h := sha256.New()
-	h.Write(specterPrivateKey)
+	h.Write(master[:])
 	h.Write(nonce[:])
 	seed := h.Sum(nil)
+
+	// Zero the master key immediately after use.
+	for i := range master {
+		master[i] = 0
+	}
 
 	privateKey := ed25519.NewKeyFromSeed(seed)
 	publicKey := privateKey.Public().(ed25519.PublicKey)
 
-	return publicKey, privateKey
+	return publicKey, privateKey, nil
 }
 
 // DeriveAbyssalKeyPair derives a one-time keypair for an Abyssal Wave.
@@ -79,7 +112,10 @@ func DeriveAbyssalKeyPair(specterPrivateKey []byte) (*AbyssalKeyPair, error) {
 		return nil, err
 	}
 
-	publicKey, privateKey := deriveAbyssalKeypairFromNonce(specterPrivateKey, nonce)
+	publicKey, privateKey, err := deriveAbyssalKeypairFromNonce(specterPrivateKey, nonce)
+	if err != nil {
+		return nil, err
+	}
 
 	// Extract parent Specter public key from private key.
 	specterPubKey := specterPrivateKey[32:]
@@ -230,7 +266,10 @@ func CanProveAuthorship(
 	}
 
 	// Re-derive the key using the shared derivation function.
-	publicKey, _ := deriveAbyssalKeypairFromNonce(specterPrivateKey, nonce)
+	publicKey, _, err := deriveAbyssalKeypairFromNonce(specterPrivateKey, nonce)
+	if err != nil {
+		return false
+	}
 
 	// Check if derived public key matches Wave author.
 	if len(wave.AuthorPubkey) != len(publicKey) {
@@ -271,6 +310,14 @@ func AbyssalWaveID(wave *pb.Wave) []byte {
 // AbyssalStore manages local records of authored Abyssal Waves.
 // This allows the author to prove authorship if needed, while keeping
 // the nonces private.
+//
+// SECURITY NOTE (AUDIT.md LOW finding): Nonces are stored in a plain Go map in
+// process memory. A memory dump combined with a future Specter key compromise
+// would allow retroactive computation of all one-time keys for waves whose nonces
+// are in this store. For maximum security, nonces should be stored in the
+// encrypted bbolt database (BucketWaves) using the keystore-derived symmetric key.
+// TODO: Migrate AbyssalStore.records to encrypted bbolt storage once the
+// encrypted bbolt accessor API is available (see pkg/store/db.go).
 type AbyssalStore struct {
 	// records maps Wave ID to the nonce used for derivation.
 	records map[string][32]byte
