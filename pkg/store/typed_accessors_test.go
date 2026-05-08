@@ -969,7 +969,7 @@ func TestSpatialQueryFallback(t *testing.T) {
 			State:         pb.PuzzleState_PUZZLE_STATE_ACTIVE,
 		}
 		if err := db.PutCipherPuzzle(p); err != nil {
-			t.Fatalf("StoreCipherPuzzle() error: %v", err)
+			t.Fatalf("PutCipherPuzzle() error: %v", err)
 		}
 	}
 
@@ -1006,7 +1006,7 @@ func TestSpatialQueryWithPositioner(t *testing.T) {
 			State:         pb.PuzzleState_PUZZLE_STATE_ACTIVE,
 		}
 		if err := db.PutCipherPuzzle(p); err != nil {
-			t.Fatalf("StoreCipherPuzzle() error: %v", err)
+			t.Fatalf("PutCipherPuzzle() error: %v", err)
 		}
 	}
 
@@ -1053,7 +1053,7 @@ func TestSpatialQueryClearPositioner(t *testing.T) {
 		State:         pb.PuzzleState_PUZZLE_STATE_ACTIVE,
 	}
 	if err := db.PutCipherPuzzle(p); err != nil {
-		t.Fatalf("StoreCipherPuzzle() error: %v", err)
+		t.Fatalf("PutCipherPuzzle() error: %v", err)
 	}
 
 	// Set positioner that places creator far from anchor.
@@ -1096,20 +1096,20 @@ func TestGetTerritoryInfluenceAt(t *testing.T) {
 	unrelated := []byte{0x20}
 
 	t1 := &pb.Territory{
-		Id:              []byte{0x01},
+		Id:               []byte{0x01},
 		ControllerPubkey: controller,
-		Influence:       50,
+		Influence:        50,
 	}
 	t2 := &pb.Territory{
-		Id:              []byte{0x02},
+		Id:               []byte{0x02},
 		ControllerPubkey: unrelated,
-		Influence:       90, // Higher influence but unrelated to controller key.
+		Influence:        90, // Higher influence but unrelated to controller key.
 	}
 	if err := db.PutTerritory(t1); err != nil {
-		t.Fatalf("StoreTerritory(t1) error: %v", err)
+		t.Fatalf("PutTerritory(t1) error: %v", err)
 	}
 	if err := db.PutTerritory(t2); err != nil {
-		t.Fatalf("StoreTerritory(t2) error: %v", err)
+		t.Fatalf("PutTerritory(t2) error: %v", err)
 	}
 
 	// Query for the controller node — should return t1.
@@ -1136,4 +1136,3 @@ func TestGetTerritoryInfluenceAt(t *testing.T) {
 		t.Errorf("fallback: got territory %v, want %v (highest influence)", got.Id, t2.Id)
 	}
 }
-

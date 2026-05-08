@@ -1228,6 +1228,7 @@ func (g *Game) countNearbyMechanics(pubkey []byte) int {
 	return len(puzzles) + len(hunts) + len(oracles) + len(forges) + len(plays) + len(masked)
 }
 
+// handleSearch is called when user types in the search bar.
 // It searches all nodes by display name, pseudonym, or node ID.
 func (g *Game) handleSearch(query string) []ui.SearchResult {
 	if query == "" {

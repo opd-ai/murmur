@@ -126,7 +126,6 @@ func (db *DB) getNodePosition(pubkey []byte) (x, y float64, ok bool) {
 	return (*ptr)(pubkey)
 }
 
-
 // Put stores a key-value pair in the specified bucket.
 func (db *DB) Put(bucket, key, value []byte) error {
 	return db.bolt.Update(func(tx *bbolt.Tx) error {

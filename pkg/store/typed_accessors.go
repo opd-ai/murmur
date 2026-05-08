@@ -910,7 +910,7 @@ func (db *DB) GetActivePuzzlesNearNode(anchorPubkey []byte, radius float64) ([]*
 	if err != nil {
 		return nil, err
 	}
-	result := all[:0:0]
+	result := make([]*pb.CipherPuzzle, 0, len(all))
 	for _, p := range all {
 		if db.nodeWithinRadius(anchorPubkey, p.CreatorPubkey, radius) {
 			result = append(result, p)
@@ -996,7 +996,7 @@ func (db *DB) GetActiveOraclePoolsNearNode(anchorPubkey []byte, radius float64) 
 	if err != nil {
 		return nil, err
 	}
-	result := all[:0:0]
+	result := make([]*pb.OraclePool, 0, len(all))
 	for _, p := range all {
 		if db.nodeWithinRadius(anchorPubkey, p.CreatorPubkey, radius) {
 			result = append(result, p)
