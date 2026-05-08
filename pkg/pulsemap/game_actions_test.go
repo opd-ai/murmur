@@ -2,6 +2,8 @@ package pulsemap
 
 import (
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -329,8 +331,8 @@ func TestJoinGameAction_ProximityFilteredViaRadialMenu(t *testing.T) {
 	renderer.AddNode(&rendering.NodeData{ID: "anchor-node", PublicKey: anchorPub})
 
 	g := &Game{store: db, renderer: renderer}
-	// countNearbyMechanics currently uses a 100-unit radius. With anchor at (0,0),
-	// nearCreator at (10,0) is included while farCreator at (400,400) is excluded.
+	// With the current countNearbyMechanics proximity threshold, nearCreator at
+	// (10,0) is included while farCreator at (400,400) is excluded from results.
 	if got := g.countNearbyMechanics(anchorPub); got != 1 {
 		t.Fatalf("expected one nearby mechanic from proximity filtering, got %d", got)
 	}
@@ -342,10 +344,16 @@ func TestJoinGameAction_ProximityFilteredViaRadialMenu(t *testing.T) {
 	if g.toast.isError {
 		t.Fatalf("expected non-error toast for joinable mechanics, got: %q", g.toast.message)
 	}
-	if !strings.Contains(g.toast.message, "1") {
-		t.Fatalf("expected toast to include mechanic count, got: %q", g.toast.message)
+	re := regexp.MustCompile(`^(\d+)\s+active mechanic\(s\) nearby`)
+	matches := re.FindStringSubmatch(g.toast.message)
+	if len(matches) != 2 {
+		t.Fatalf("expected toast to include '<count> active mechanic(s) nearby', got: %q", g.toast.message)
 	}
-	if !strings.Contains(g.toast.message, "nearby") {
-		t.Fatalf("expected toast to indicate nearby mechanics, got: %q", g.toast.message)
+	count, err := strconv.Atoi(matches[1])
+	if err != nil {
+		t.Fatalf("expected numeric mechanic count in toast %q: %v", g.toast.message, err)
+	}
+	if count != 1 {
+		t.Fatalf("expected proximity-filtered count of 1, got %d in toast %q", count, g.toast.message)
 	}
 }
