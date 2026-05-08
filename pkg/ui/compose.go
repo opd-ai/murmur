@@ -6,8 +6,8 @@
 package ui
 
 import (
-	"fmt"
 	"image/color"
+	"strconv"
 	"sync"
 	"unicode/utf8"
 
@@ -353,8 +353,14 @@ func (p *ComposePanel) calculatePosition(screenW, screenH int) (int, int) {
 func (p *ComposePanel) applyResponsiveLayout(screenW, screenH int) {
 	if screenW <= 768 {
 		p.width = screenW - 24
-		if p.width < 280 {
-			p.width = 280
+		if p.width < 200 {
+			p.width = screenW - 8
+		}
+		if p.width < 120 {
+			p.width = 120
+		}
+		if p.width > screenW {
+			p.width = screenW
 		}
 		p.height = screenH - 24
 		if p.height > 360 {
@@ -546,7 +552,7 @@ func (p *ComposePanel) drawCharCount(screen *ebiten.Image, px, py int) {
 	} else {
 		countColor = p.theme.TextSecondary
 	}
-	countText := fmt.Sprintf("%d/%d", charCount, MaxWaveLength)
+	countText := strconv.Itoa(charCount) + "/" + strconv.Itoa(MaxWaveLength)
 	drawUIText(screen, countText, float64(countX), float64(countY), countColor)
 }
 

@@ -195,7 +195,8 @@ func (p *PassphrasePromptPanel) handleButtonsClick(mx, my int, leftJustPressed b
 func (p *PassphrasePromptPanel) handleBackspaceKey() bool {
 	if inpututil.IsKeyJustPressed(ebiten.KeyBackspace) {
 		if len(p.passphrase) > 0 {
-			p.passphrase = p.passphrase[:len(p.passphrase)-1]
+			runes := []rune(p.passphrase)
+			p.passphrase = string(runes[:len(runes)-1])
 		}
 		return true
 	}
@@ -281,7 +282,7 @@ func (p *PassphrasePromptPanel) Draw(screen *ebiten.Image) {
 // drawButtons draws submit and cancel buttons.
 func (p *PassphrasePromptPanel) drawButtons(screen *ebiten.Image, x, y int) {
 	btnWidth := 100
-	btnHeight := 40
+	btnHeight := p.theme.ButtonHeight
 	btnSpacing := 20
 
 	// Cancel button

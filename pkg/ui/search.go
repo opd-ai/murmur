@@ -226,6 +226,13 @@ func (s *SearchBar) calculateBarPosition() {
 		if s.barW < 260 {
 			s.barW = 260
 		}
+		maxBarW := screenW - 8
+		if maxBarW < 120 {
+			maxBarW = 120
+		}
+		if s.barW > maxBarW {
+			s.barW = maxBarW
+		}
 	}
 	s.barH = searchBarHeight
 	s.barX = (screenW - s.barW) / 2

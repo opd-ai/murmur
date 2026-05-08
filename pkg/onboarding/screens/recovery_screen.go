@@ -22,6 +22,11 @@ const (
 	RecoveryMethodKeyFile
 )
 
+const (
+	recoveryBackButtonWidth  = float32(120)
+	recoveryBackButtonHeight = float32(44)
+)
+
 // RecoveryScreen handles identity recovery during onboarding.
 // Per ROADMAP.md, supports mnemonic phrase entry and key file import.
 type RecoveryScreen struct {
@@ -87,7 +92,7 @@ func (s *RecoveryScreen) handleKeyFileBackButton() {
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		x, y := ebiten.CursorPosition()
 		backX, backY := s.backButtonCenter()
-		if isInButton(float32(x), float32(y), backX, backY, 120, 40) {
+		if isInButton(float32(x), float32(y), backX, backY, recoveryBackButtonWidth, recoveryBackButtonHeight) {
 			s.method = RecoveryMethodNone
 			s.errorMsg = ""
 		}
@@ -134,7 +139,8 @@ func (s *RecoveryScreen) updateMnemonicEntry() {
 
 	// Handle backspace.
 	if inpututil.IsKeyJustPressed(ebiten.KeyBackspace) && len(s.mnemonicText) > 0 {
-		s.mnemonicText = s.mnemonicText[:len(s.mnemonicText)-1]
+		runes := []rune(s.mnemonicText)
+		s.mnemonicText = string(runes[:len(runes)-1])
 	}
 
 	// Handle Enter to attempt recovery.
@@ -146,7 +152,7 @@ func (s *RecoveryScreen) updateMnemonicEntry() {
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		x, y := ebiten.CursorPosition()
 		backX, backY := s.backButtonCenter()
-		if isInButton(float32(x), float32(y), backX, backY, 120, 40) {
+		if isInButton(float32(x), float32(y), backX, backY, recoveryBackButtonWidth, recoveryBackButtonHeight) {
 			s.method = RecoveryMethodNone
 			s.mnemonicText = ""
 			s.errorMsg = ""
@@ -179,7 +185,8 @@ func (s *RecoveryScreen) appendPassphraseInput() {
 // handlePassphraseBackspace removes last character on backspace.
 func (s *RecoveryScreen) handlePassphraseBackspace() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyBackspace) && len(s.passphrase) > 0 {
-		s.passphrase = s.passphrase[:len(s.passphrase)-1]
+		runes := []rune(s.passphrase)
+		s.passphrase = string(runes[:len(runes)-1])
 	}
 }
 
@@ -188,7 +195,7 @@ func (s *RecoveryScreen) handlePassphraseBackButton() {
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		x, y := ebiten.CursorPosition()
 		backX, backY := s.backButtonCenter()
-		if isInButton(float32(x), float32(y), backX, backY, 120, 40) {
+		if isInButton(float32(x), float32(y), backX, backY, recoveryBackButtonWidth, recoveryBackButtonHeight) {
 			s.resetPassphraseState()
 		}
 	}
@@ -434,6 +441,33 @@ func measureLine(s string) (float64, float64) {
 	return text.Measure(s, helperFaceForSize(14), 0)
 }
 
+// clipTextWithEllipsis trims text to maxWidth and appends an ellipsis when clipped.
+func clipTextWithEllipsis(content string, maxWidth float64) string {
+	if content == "" {
+		return content
+	}
+	w, _ := measureLine(content)
+	if w <= maxWidth {
+		return content
+	}
+	ellipsis := "..."
+	maxTextWidth := maxWidth
+	ew, _ := measureLine(ellipsis)
+	if maxTextWidth > ew {
+		maxTextWidth -= ew
+	}
+	runes := []rune(content)
+	for len(runes) > 0 {
+		runes = runes[:len(runes)-1]
+		candidate := string(runes)
+		cw, _ := measureLine(candidate)
+		if cw <= maxTextWidth {
+			return candidate + ellipsis
+		}
+	}
+	return ellipsis
+}
+
 // isInButton checks if a point is within a button's bounds.
 func isInButton(x, y, centerX, centerY, width, height float32) bool {
 	left := centerX - width/2
@@ -474,7 +508,8 @@ func (s *RecoveryScreen) drawKeyFileEntry(screen *ebiten.Image) {
 		drawInputBox(screen, boxX, boxY, boxWidth, boxHeight)
 
 		// Draw passphrase as asterisks.
-		masked := strings.Repeat("*", len(s.passphrase))
+		masked := strings.Repeat("*", len([]rune(s.passphrase)))
+		masked = clipTextWithEllipsis(masked, float64(boxWidth-20))
 		DrawCenteredText(screen, masked, centerX, boxY+15, 14, color.RGBA{220, 220, 230, 255})
 
 		// Error message.
@@ -488,7 +523,8 @@ func (s *RecoveryScreen) drawKeyFileEntry(screen *ebiten.Image) {
 
 	// Back button (click is handled in Update, not here).
 	style := DefaultButtonStyle()
-	style.Width = 120
+	style.Width = recoveryBackButtonWidth
+	style.Height = recoveryBackButtonHeight
 	DrawButton(screen, "← Back", backX, backY, style)
 }
 

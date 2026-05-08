@@ -186,7 +186,7 @@ func DefaultTheme() Theme {
 		FontSize:         14,
 		Padding:          12,
 		BorderRadius:     6,
-		ButtonHeight:     36,
+		ButtonHeight:     44,
 		InputHeight:      40,
 	}
 }

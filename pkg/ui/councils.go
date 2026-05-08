@@ -193,7 +193,8 @@ type CouncilPanel struct {
 	selectedVote VoteValue
 
 	// Scroll state.
-	scrollOffset int
+	scrollOffset     int
+	selectedProposal int
 
 	// Animation state.
 	animPhase float64
@@ -483,6 +484,7 @@ func (cp *CouncilPanel) handleMemberActionKeys() {
 func (cp *CouncilPanel) switchToMode(mode CouncilPanelMode) {
 	cp.mode = mode
 	cp.scrollOffset = 0
+	cp.selectedProposal = 0
 }
 
 // attemptLeaveCouncil tries to leave the current council.
@@ -507,9 +509,9 @@ func (cp *CouncilPanel) handleMembersInput() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyDown) {
 		cp.scrollOffset++
 	}
-	// Clamp to list length so the view cannot scroll past the last member.
+	// Clamp to visible rows so the view cannot scroll into mostly empty space.
 	if cp.currentCouncil != nil {
-		maxScroll := len(cp.currentCouncil.Members) - 1
+		maxScroll := cp.maxScrollOffset(len(cp.currentCouncil.Members), 40)
 		if maxScroll < 0 {
 			maxScroll = 0
 		}
@@ -533,23 +535,37 @@ func (cp *CouncilPanel) handleScrollInput() {
 
 // handleScrollNavigation processes up/down scroll input.
 func (cp *CouncilPanel) handleScrollNavigation() {
-	if inpututil.IsKeyJustPressed(ebiten.KeyUp) && cp.scrollOffset > 0 {
-		cp.scrollOffset--
+	if cp.currentCouncil == nil {
+		return
 	}
-	if inpututil.IsKeyJustPressed(ebiten.KeyDown) {
-		cp.scrollOffset++
+	if inpututil.IsKeyJustPressed(ebiten.KeyUp) && cp.selectedProposal > 0 {
+		cp.selectedProposal--
 	}
+	if inpututil.IsKeyJustPressed(ebiten.KeyDown) && cp.selectedProposal < len(cp.currentCouncil.Proposals)-1 {
+		cp.selectedProposal++
+	}
+	cp.syncProposalScrollWindow()
 }
 
 // enforceScrollBounds clamps scroll offset to valid range.
 func (cp *CouncilPanel) enforceScrollBounds() {
 	if cp.currentCouncil != nil {
-		maxScroll := len(cp.currentCouncil.Proposals) - 1
+		if cp.selectedProposal < 0 {
+			cp.selectedProposal = 0
+		}
+		if cp.selectedProposal >= len(cp.currentCouncil.Proposals) && len(cp.currentCouncil.Proposals) > 0 {
+			cp.selectedProposal = len(cp.currentCouncil.Proposals) - 1
+		}
+
+		maxScroll := cp.maxScrollOffset(len(cp.currentCouncil.Proposals), 60)
 		if maxScroll < 0 {
 			maxScroll = 0
 		}
 		if cp.scrollOffset > maxScroll {
 			cp.scrollOffset = maxScroll
+		}
+		if cp.scrollOffset < 0 {
+			cp.scrollOffset = 0
 		}
 	}
 }
@@ -559,11 +575,11 @@ func (cp *CouncilPanel) handleProposalSelection() {
 	if !inpututil.IsKeyJustPressed(ebiten.KeyEnter) || cp.currentCouncil == nil {
 		return
 	}
-	if cp.scrollOffset >= len(cp.currentCouncil.Proposals) {
+	if cp.selectedProposal >= len(cp.currentCouncil.Proposals) {
 		return
 	}
 
-	prop := &cp.currentCouncil.Proposals[cp.scrollOffset]
+	prop := &cp.currentCouncil.Proposals[cp.selectedProposal]
 	if prop.Resolved {
 		return
 	}
@@ -572,6 +588,36 @@ func (cp *CouncilPanel) handleProposalSelection() {
 	cp.voteType = VoteTypeProposal
 	cp.selectedVote = VoteValueAbstain
 	cp.mode = CouncilModeVote
+}
+
+func (cp *CouncilPanel) syncProposalScrollWindow() {
+	if cp.currentCouncil == nil {
+		return
+	}
+	visibleRows := cp.visibleRows(60)
+	if cp.selectedProposal < cp.scrollOffset {
+		cp.scrollOffset = cp.selectedProposal
+	}
+	if cp.selectedProposal >= cp.scrollOffset+visibleRows {
+		cp.scrollOffset = cp.selectedProposal - visibleRows + 1
+	}
+}
+
+func (cp *CouncilPanel) maxScrollOffset(totalItems int, itemHeight int) int {
+	maxScroll := totalItems - cp.visibleRows(itemHeight)
+	if maxScroll < 0 {
+		maxScroll = 0
+	}
+	return maxScroll
+}
+
+func (cp *CouncilPanel) visibleRows(itemHeight int) int {
+	const contentHeight = 380 // panelH(450) - title/footer allocation(70)
+	rows := (contentHeight - cp.theme.Padding) / itemHeight
+	if rows < 1 {
+		return 1
+	}
+	return rows
 }
 
 // handleInviteInput handles input in invite mode.

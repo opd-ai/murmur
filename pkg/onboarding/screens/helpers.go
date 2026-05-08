@@ -198,7 +198,7 @@ type ButtonStyle struct {
 func DefaultButtonStyle() ButtonStyle {
 	return ButtonStyle{
 		Width:     160,
-		Height:    40,
+		Height:    44,
 		TextSize:  14,
 		TextColor: color.RGBA{220, 220, 230, 255},
 	}

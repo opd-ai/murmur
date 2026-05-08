@@ -289,12 +289,29 @@ func (cp *CouncilPanel) drawMembersList(screen *ebiten.Image, x, y, w, h float32
 
 	padding := float32(cp.theme.Padding)
 	itemHeight := float32(40)
-
-	for i, member := range cp.currentCouncil.Members {
-		if member.Status != MemberStatusActive {
-			continue
+	activeMembers := make([]CouncilMemberInfo, 0, len(cp.currentCouncil.Members))
+	for _, member := range cp.currentCouncil.Members {
+		if member.Status == MemberStatusActive {
+			activeMembers = append(activeMembers, member)
 		}
-		itemY := y + padding + float32(i)*itemHeight
+	}
+
+	if len(activeMembers) == 0 {
+		return
+	}
+	start := cp.scrollOffset
+	if start < 0 {
+		start = 0
+	}
+	maxVisible := cp.visibleRows(40)
+	end := start + maxVisible
+	if end > len(activeMembers) {
+		end = len(activeMembers)
+	}
+
+	for i := start; i < end; i++ {
+		member := activeMembers[i]
+		itemY := y + padding + float32(i-start)*itemHeight
 
 		// Status indicator.
 		statusColor := cp.theme.Success
@@ -337,7 +354,7 @@ func (cp *CouncilPanel) isProposalOutOfView(itemY, y, h, itemHeight float32) boo
 
 // drawProposalItem renders a single proposal item.
 func (cp *CouncilPanel) drawProposalItem(screen *ebiten.Image, index int, prop *CouncilProposalInfo, x, itemY, w, padding, itemHeight float32) {
-	if index == cp.scrollOffset {
+	if index == cp.selectedProposal {
 		vector.DrawFilledRect(screen, x+padding, itemY, w-padding*2, itemHeight-5, cp.theme.Selection, true)
 	}
 

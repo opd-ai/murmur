@@ -9,8 +9,8 @@
 package ui
 
 import (
-	"fmt"
 	"image/color"
+	"strconv"
 	"sync"
 	"time"
 
@@ -265,7 +265,7 @@ func (p *TerritoryOverviewPanel) drawHeader(screen *ebiten.Image, x, y float32, 
 
 	p.drawTextAt(screen, "Territory Overview", x+float32(padding), y+float32(padding), p.theme.TextPrimary)
 	p.drawTextAt(screen, p.formatCycleStatus(), x+float32(padding), y+float32(padding)+20, p.theme.TextSecondary)
-	p.drawTextAt(screen, fmt.Sprintf("Your influence: %.1f", p.myInfluence), x+float32(padding), y+float32(padding)+40, p.theme.AccentPrimary)
+	p.drawTextAt(screen, "Your influence: "+formatOneDecimal(p.myInfluence), x+float32(padding), y+float32(padding)+40, p.theme.AccentPrimary)
 }
 
 func (p *TerritoryOverviewPanel) drawTerritoryList(screen *ebiten.Image, panelX, panelY float32, panelWidth, padding, rowHeight int) {
@@ -295,8 +295,8 @@ func (p *TerritoryOverviewPanel) drawTerritoryRow(screen *ebiten.Image, t Territ
 			idText = idText[:12] + "…"
 		}
 		p.drawTextAt(screen, idText, panelX+float32(padding)+20, rowY, p.theme.TextPrimary)
-		p.drawTextAt(screen, fmt.Sprintf("%.1f", t.Influence), panelX+float32(padding)+140, rowY, p.theme.AccentPrimary)
-		p.drawTextAt(screen, fmt.Sprintf("%d nodes", t.MemberCount), panelX+float32(padding)+200, rowY, p.theme.TextSecondary)
+		p.drawTextAt(screen, formatOneDecimal(t.Influence), panelX+float32(padding)+140, rowY, p.theme.AccentPrimary)
+		p.drawTextAt(screen, strconv.Itoa(t.MemberCount)+" nodes", panelX+float32(padding)+200, rowY, p.theme.TextSecondary)
 	}
 }
 
@@ -335,9 +335,13 @@ func (p *TerritoryOverviewPanel) formatCycleStatus() string {
 	hours := int(remaining.Hours()) % 24
 
 	if days > 0 {
-		return fmt.Sprintf("Cycle ends in %dd %dh", days, hours)
+		return "Cycle ends in " + strconv.Itoa(days) + "d " + strconv.Itoa(hours) + "h"
 	}
-	return fmt.Sprintf("Cycle ends in %dh", hours)
+	return "Cycle ends in " + strconv.Itoa(hours) + "h"
+}
+
+func formatOneDecimal(value float64) string {
+	return strconv.FormatFloat(value, 'f', 1, 64)
 }
 
 // GetSelectedTerritory returns the currently selected territory ID.
