@@ -477,8 +477,10 @@ func (g *Game) addBookmarkForSelectedNode() {
 
 	// Get node display name (fallback to ID if not found)
 	label := nodeID
-	if nodeData := g.renderer.GetNodeData(nodeID); nodeData != nil && nodeData.DisplayName != "" {
-		label = nodeData.DisplayName
+	if g.renderer != nil {
+		if nodeData := g.renderer.GetNodeData(nodeID); nodeData != nil && nodeData.DisplayName != "" {
+			label = nodeData.DisplayName
+		}
 	}
 
 	if len(label) > 16 {
