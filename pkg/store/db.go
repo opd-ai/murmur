@@ -9,14 +9,23 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 
 	"go.etcd.io/bbolt"
 )
 
+// NodePositionFunc is a function that resolves the 2-D Pulse Map layout
+// coordinates for a node identified by its public key.  It is used by
+// spatial query methods to filter game mechanics by proximity.
+// Returns (x, y, true) when a position is known, (0, 0, false) otherwise.
+// Per PULSE_MAP.md, coordinates are in force-directed layout units.
+type NodePositionFunc func(pubkey []byte) (x, y float64, ok bool)
+
 // DB wraps a Bbolt database with MURMUR-specific operations.
 type DB struct {
-	bolt *bbolt.DB
-	path string
+	bolt         *bbolt.DB
+	path         string
+	nodePosition atomic.Pointer[NodePositionFunc]
 }
 
 // Open opens or creates a MURMUR database at the given path.
@@ -93,6 +102,30 @@ func (db *DB) Close() error {
 func (db *DB) Path() string {
 	return db.path
 }
+
+// SetNodePositioner wires a layout-engine position resolver into the DB so that
+// spatial query methods (GetActivePuzzlesNearNode, etc.) can filter by actual
+// Pulse Map proximity rather than returning all records.
+// fn may be nil to clear a previously set positioner.
+// Per PULSE_MAP.md §2, position coordinates are in force-directed layout units.
+func (db *DB) SetNodePositioner(fn NodePositionFunc) {
+	if fn == nil {
+		db.nodePosition.Store(nil)
+		return
+	}
+	db.nodePosition.Store(&fn)
+}
+
+// getNodePosition looks up the current layout position for pubkey.
+// Returns (0, 0, false) when no positioner is configured or the node is unknown.
+func (db *DB) getNodePosition(pubkey []byte) (x, y float64, ok bool) {
+	ptr := db.nodePosition.Load()
+	if ptr == nil {
+		return 0, 0, false
+	}
+	return (*ptr)(pubkey)
+}
+
 
 // Put stores a key-value pair in the specified bucket.
 func (db *DB) Put(bucket, key, value []byte) error {

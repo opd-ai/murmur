@@ -7,7 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added (2026-05-08 — ROADMAP priority execution session)
+### Added (2026-05-08 — ROADMAP Priority 2 anonymous layer integration)
+- **`NodePositionFunc` + `SetNodePositioner`**: New type and method on `pkg/store.DB` (`pkg/store/db.go`). Allows a layout engine's coordinate resolver to be injected into the store for proximity-aware queries. Uses `atomic.Pointer` for thread-safe injection with zero lock contention.
+- **Location-aware spatial queries** (7 methods in `pkg/store/typed_accessors.go`):
+  - `GetActivePuzzlesNearNode` — filters by creator proximity; falls back to all-active when no positioner set.
+  - `GetActiveHuntsWithFragmentsNear` — filters by organiser proximity.
+  - `GetTerritoryInfluenceAt` — returns territory where queried node is controller/contender; falls back to highest-influence territory.
+  - `GetActiveOraclePoolsNearNode` — filters by creator proximity.
+  - `GetActiveForgeEventsNearNode` — filters by creator proximity.
+  - `GetActiveShadowPlayNearNode` — filters by director proximity.
+  - `GetMaskedEventsNearNode` — filters active masked events by creator Specter key proximity; delegates to `MaskedEventStore.ListActiveEvents()`.
+- **`buildNodePositionFunc`** method on `pkg/pulsemap/rendering.Renderer` (`renderer.go`): builds a `store.NodePositionFunc` snapshot from the current frame's layout positions and node metadata. Injected into the store at the start of each `Draw()` call.
+- **`handleJoinGame`** in `pkg/pulsemap/game.go`: queries all 6 mechanic types near the selected node via the spatial store APIs and reports the count via toast notification.
+- **Spatial query tests** (`pkg/store/typed_accessors_test.go`): `TestSpatialQueryFallback`, `TestSpatialQueryWithPositioner`, `TestSpatialQueryClearPositioner`, `TestGetTerritoryInfluenceAt` — verifying filter-on/off and correct territory selection.
+
+### Fixed (2026-05-08 — pre-existing compile errors)
+- **`pkg/ui/help_button.go`**: Updated `theme.ButtonColor → ButtonBackground`, `theme.HighlightColor → AccentPrimary`, `theme.BorderColor → PanelBorder`, `theme.TextColor → TextPrimary` to match actual `Theme` struct field names.
+- **`pkg/ui/status_bar.go`**: Updated `theme.TextColor → TextPrimary` in `drawPeerCount` and `drawPowStatus` for the same reason.
+
 - **Bootstrap placeholder cleanup**: Removed 8 invalid placeholder peer entries from `pkg/networking/discovery/bootstrap.go`. Static list is now intentionally empty; the resolver chain (GitHub Gist → Pages) is the live runtime mechanism.
 - **`NewDefaultResolverChain`**: Factory function in `pkg/networking/discovery/resolver.go` that builds the layered Gist→Pages resolver chain from URL strings. Wires directly to `Discovery.SetFallbackResolvers`.
 - **Bootstrap integration tests**: `TestNewDefaultResolverChain_*` tests in `pkg/networking/discovery/resolver_test.go` confirm fallback/fail-fast behavior.

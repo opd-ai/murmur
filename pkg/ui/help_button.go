@@ -73,9 +73,9 @@ func (h *HelpButton) Draw(screen *ebiten.Image) {
 		return
 	}
 
-	bg := h.theme.ButtonColor
+	bg := h.theme.ButtonBackground
 	if h.hovered {
-		bg = h.theme.HighlightColor
+		bg = h.theme.AccentPrimary
 	}
 
 	x, y := float32(h.x), float32(h.y)
@@ -85,10 +85,10 @@ func (h *HelpButton) Draw(screen *ebiten.Image) {
 	vector.DrawFilledCircle(screen, x+sz/2, y+sz/2, sz/2, bg, true)
 
 	// Border.
-	vector.StrokeCircle(screen, x+sz/2, y+sz/2, sz/2, 1.5, h.theme.BorderColor, true)
+	vector.StrokeCircle(screen, x+sz/2, y+sz/2, sz/2, 1.5, h.theme.PanelBorder, true)
 
 	// Draw "?" glyph using a simple pixel representation.
-	drawQuestionMark(screen, h.x+HelpButtonSize/2, h.y+HelpButtonSize/2, h.theme.TextColor)
+	drawQuestionMark(screen, h.x+HelpButtonSize/2, h.y+HelpButtonSize/2, h.theme.TextPrimary)
 }
 
 // drawQuestionMark draws a minimal "?" using small rectangles.

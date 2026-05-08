@@ -947,3 +947,193 @@ func TestSpecterMarkAccessors(t *testing.T) {
 		}
 	})
 }
+
+// TestSpatialQueryFallback verifies that spatial query methods return all
+// records when no NodePositionFunc has been configured.
+// Per ROADMAP.md: "Replace placeholder cross-layer spatial queries with
+// actual location-aware selectors."
+func TestSpatialQueryFallback(t *testing.T) {
+	dir := t.TempDir()
+	db, err := Open(filepath.Join(dir, "spatial.db"))
+	if err != nil {
+		t.Fatalf("Open() error: %v", err)
+	}
+	defer db.Close()
+
+	// Store two active cipher puzzles with different creator keys.
+	creators := [][]byte{{0x01, 0x02}, {0x03, 0x04}}
+	for i, creator := range creators {
+		p := &pb.CipherPuzzle{
+			Id:            []byte{byte(i + 1)},
+			CreatorPubkey: creator,
+			State:         pb.PuzzleState_PUZZLE_STATE_ACTIVE,
+		}
+		if err := db.PutCipherPuzzle(p); err != nil {
+			t.Fatalf("StoreCipherPuzzle() error: %v", err)
+		}
+	}
+
+	anchor := []byte{0xAA}
+	puzzles, err := db.GetActivePuzzlesNearNode(anchor, 10.0)
+	if err != nil {
+		t.Fatalf("GetActivePuzzlesNearNode() error: %v", err)
+	}
+	// Without a positioner, all active puzzles should be returned.
+	if len(puzzles) != 2 {
+		t.Errorf("fallback: got %d puzzles, want 2", len(puzzles))
+	}
+}
+
+// TestSpatialQueryWithPositioner verifies that spatial queries filter by
+// Euclidean distance when a NodePositionFunc is configured.
+func TestSpatialQueryWithPositioner(t *testing.T) {
+	dir := t.TempDir()
+	db, err := Open(filepath.Join(dir, "spatial2.db"))
+	if err != nil {
+		t.Fatalf("Open() error: %v", err)
+	}
+	defer db.Close()
+
+	// nearCreator is at (0, 0); farCreator is at (200, 200).
+	nearCreator := []byte{0x01}
+	farCreator := []byte{0x02}
+	anchor := []byte{0xAA}
+
+	for i, creator := range [][]byte{nearCreator, farCreator} {
+		p := &pb.CipherPuzzle{
+			Id:            []byte{byte(i + 1)},
+			CreatorPubkey: creator,
+			State:         pb.PuzzleState_PUZZLE_STATE_ACTIVE,
+		}
+		if err := db.PutCipherPuzzle(p); err != nil {
+			t.Fatalf("StoreCipherPuzzle() error: %v", err)
+		}
+	}
+
+	// Set positioner: anchor at (0,0), nearCreator at (0,0), farCreator at (200,200).
+	positions := map[string][2]float64{
+		string(anchor):      {0, 0},
+		string(nearCreator): {0, 0},
+		string(farCreator):  {200, 200},
+	}
+	db.SetNodePositioner(func(pubkey []byte) (x, y float64, ok bool) {
+		p, found := positions[string(pubkey)]
+		return p[0], p[1], found
+	})
+
+	puzzles, err := db.GetActivePuzzlesNearNode(anchor, 50.0)
+	if err != nil {
+		t.Fatalf("GetActivePuzzlesNearNode() error: %v", err)
+	}
+	// Only the near creator should pass the 50-unit radius filter.
+	if len(puzzles) != 1 {
+		t.Errorf("with positioner: got %d puzzles, want 1", len(puzzles))
+	}
+	if len(puzzles) > 0 && string(puzzles[0].CreatorPubkey) != string(nearCreator) {
+		t.Errorf("wrong puzzle returned: creator = %v, want %v", puzzles[0].CreatorPubkey, nearCreator)
+	}
+}
+
+// TestSpatialQueryClearPositioner verifies that clearing the positioner
+// reverts to the fallback (return-all) behaviour.
+func TestSpatialQueryClearPositioner(t *testing.T) {
+	dir := t.TempDir()
+	db, err := Open(filepath.Join(dir, "spatial3.db"))
+	if err != nil {
+		t.Fatalf("Open() error: %v", err)
+	}
+	defer db.Close()
+
+	creator := []byte{0x01}
+	anchor := []byte{0xAA}
+
+	p := &pb.CipherPuzzle{
+		Id:            []byte{0x01},
+		CreatorPubkey: creator,
+		State:         pb.PuzzleState_PUZZLE_STATE_ACTIVE,
+	}
+	if err := db.PutCipherPuzzle(p); err != nil {
+		t.Fatalf("StoreCipherPuzzle() error: %v", err)
+	}
+
+	// Set positioner that places creator far from anchor.
+	db.SetNodePositioner(func(pubkey []byte) (x, y float64, ok bool) {
+		if string(pubkey) == string(anchor) {
+			return 0, 0, true
+		}
+		return 999, 999, true
+	})
+	puzzles, err := db.GetActivePuzzlesNearNode(anchor, 10.0)
+	if err != nil {
+		t.Fatalf("GetActivePuzzlesNearNode() error (with positioner): %v", err)
+	}
+	if len(puzzles) != 0 {
+		t.Errorf("expected 0 puzzles with far positioner, got %d", len(puzzles))
+	}
+
+	// Clear the positioner — fallback should return all again.
+	db.SetNodePositioner(nil)
+	puzzles, err = db.GetActivePuzzlesNearNode(anchor, 10.0)
+	if err != nil {
+		t.Fatalf("GetActivePuzzlesNearNode() error (after clear): %v", err)
+	}
+	if len(puzzles) != 1 {
+		t.Errorf("after clear: expected 1 puzzle, got %d", len(puzzles))
+	}
+}
+
+// TestGetTerritoryInfluenceAt verifies that the territory lookup prefers
+// the territory where the queried node is controller or contender.
+func TestGetTerritoryInfluenceAt(t *testing.T) {
+	dir := t.TempDir()
+	db, err := Open(filepath.Join(dir, "territory.db"))
+	if err != nil {
+		t.Fatalf("Open() error: %v", err)
+	}
+	defer db.Close()
+
+	controller := []byte{0x10}
+	unrelated := []byte{0x20}
+
+	t1 := &pb.Territory{
+		Id:              []byte{0x01},
+		ControllerPubkey: controller,
+		Influence:       50,
+	}
+	t2 := &pb.Territory{
+		Id:              []byte{0x02},
+		ControllerPubkey: unrelated,
+		Influence:       90, // Higher influence but unrelated to controller key.
+	}
+	if err := db.PutTerritory(t1); err != nil {
+		t.Fatalf("StoreTerritory(t1) error: %v", err)
+	}
+	if err := db.PutTerritory(t2); err != nil {
+		t.Fatalf("StoreTerritory(t2) error: %v", err)
+	}
+
+	// Query for the controller node — should return t1.
+	got, err := db.GetTerritoryInfluenceAt(controller)
+	if err != nil {
+		t.Fatalf("GetTerritoryInfluenceAt() error: %v", err)
+	}
+	if got == nil {
+		t.Fatal("GetTerritoryInfluenceAt() returned nil")
+	}
+	if string(got.Id) != string(t1.Id) {
+		t.Errorf("got territory %v, want %v", got.Id, t1.Id)
+	}
+
+	// Query for an unknown node — should fall back to highest-influence territory.
+	got, err = db.GetTerritoryInfluenceAt([]byte{0xFF})
+	if err != nil {
+		t.Fatalf("GetTerritoryInfluenceAt() fallback error: %v", err)
+	}
+	if got == nil {
+		t.Fatal("GetTerritoryInfluenceAt() fallback returned nil")
+	}
+	if string(got.Id) != string(t2.Id) {
+		t.Errorf("fallback: got territory %v, want %v (highest influence)", got.Id, t2.Id)
+	}
+}
+

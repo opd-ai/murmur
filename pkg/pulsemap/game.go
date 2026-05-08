@@ -1172,8 +1172,7 @@ func (g *Game) handleRadialMenuAction(action ui.RadialMenuAction, nodeID string)
 	case ui.ActionSendWhisper:
 		g.handleNodeDetailSendWhisper(nodeID)
 	case ui.ActionJoinGame:
-		log.Printf("Join game with node %s (not yet implemented)", nodeID)
-		g.showToast("Join Game is not yet available", true)
+		g.handleJoinGame(nodeID)
 	case ui.ActionViewDetail:
 		if nodeInfo := g.buildNodeInfo(nodeID); nodeInfo != nil {
 			g.nodeDetailPanel.Show(nodeInfo)
@@ -1181,7 +1180,54 @@ func (g *Game) handleRadialMenuAction(action ui.RadialMenuAction, nodeID string)
 	}
 }
 
-// handleSearch is called when user types in the search bar.
+// handleJoinGame queries available anonymous mechanics near a Pulse Map node and
+// reports what is joinable via a toast notification.
+// Per ROADMAP.md: "Implement currently stubbed user action path for joining
+// mechanics from Pulse Map radial menu."
+func (g *Game) handleJoinGame(nodeID string) {
+	log.Printf("Join game with node %s", nodeID)
+	if g.store == nil {
+		g.showToast("No mechanics available nearby", true)
+		return
+	}
+
+	pubkey := g.nodePublicKey(nodeID)
+	count := g.countNearbyMechanics(pubkey)
+
+	if count == 0 {
+		g.showToast("No active mechanics nearby", false)
+		return
+	}
+	g.showToast(fmt.Sprintf("%d active mechanic(s) nearby — open Anonymous layer to join", count), false)
+}
+
+// nodePublicKey returns the public key for a node ID by looking it up in the
+// renderer node data.  Returns nil when the node is unknown.
+func (g *Game) nodePublicKey(nodeID string) []byte {
+	if g.renderer == nil {
+		return nil
+	}
+	data := g.renderer.GetNodeData(nodeID)
+	if data == nil {
+		return nil
+	}
+	return data.PublicKey
+}
+
+// countNearbyMechanics returns the total number of active game mechanics
+// discoverable near the node identified by pubkey using the spatial store queries.
+// Errors are silently ignored; the count represents what was successfully retrieved.
+func (g *Game) countNearbyMechanics(pubkey []byte) int {
+	const radius = 100.0
+	puzzles, _ := g.store.GetActivePuzzlesNearNode(pubkey, radius)
+	hunts, _ := g.store.GetActiveHuntsWithFragmentsNear(pubkey, radius)
+	oracles, _ := g.store.GetActiveOraclePoolsNearNode(pubkey, radius)
+	forges, _ := g.store.GetActiveForgeEventsNearNode(pubkey, radius)
+	plays, _ := g.store.GetActiveShadowPlayNearNode(pubkey, radius)
+	masked, _ := g.store.GetMaskedEventsNearNode(pubkey, radius)
+	return len(puzzles) + len(hunts) + len(oracles) + len(forges) + len(plays) + len(masked)
+}
+
 // It searches all nodes by display name, pseudonym, or node ID.
 func (g *Game) handleSearch(query string) []ui.SearchResult {
 	if query == "" {
