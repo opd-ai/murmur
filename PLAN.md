@@ -12,7 +12,7 @@ This file tracks only incomplete items pulled from ROADMAP.md.
 
 - [x] Wave TTL expiration correctness (end-to-end validation) — six end-to-end TTL lifecycle tests added in `pkg/content/storage/ttl_e2e_test.go` (2026-05-08)
 - [x] Mini-game network propagation end-to-end — publish→network→receive→state-update tests added in `pkg/anonymous/mechanics/hunts/network_propagation_e2e_test.go` (2026-05-08)
-- [ ] **Ebitengine headless mode** screenshot comparison tests for rendering
+- [x] **Ebitengine headless mode** screenshot comparison tests for rendering — `TestMain` game-loop harness + 4 pixel-comparison tests in `pkg/pulsemap/rendering/screenshot_comparison_test.go` (build tag `ebitentest`, run via `xvfb-run`) (2026-05-08)
 
 ### Documentation
 
