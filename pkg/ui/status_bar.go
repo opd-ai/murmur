@@ -58,7 +58,7 @@ const statusColSpacing = 160
 
 func (s *StatusBar) drawPeerCount(screen *ebiten.Image, x int) int {
 	label := fmt.Sprintf("⬡ %d peers", s.PeerCount)
-	c := s.theme.TextColor
+	c := s.theme.TextPrimary
 	if s.PeerCount < 6 {
 		c = color.RGBA{R: 220, G: 100, B: 60, A: 255} // amber — below minimum mesh
 	}
@@ -101,7 +101,7 @@ func (s *StatusBar) drawPowStatus(screen *ebiten.Image, x int) {
 		color.RGBA{R: 50, G: 50, B: 60, A: 200}, false)
 	vector.DrawFilledRect(screen, bx, by, barW*s.PowProgress, barH,
 		color.RGBA{R: 120, G: 180, B: 240, A: 255}, false)
-	drawSmallText(screen, "PoW…", x+84, s.y+(s.height/2), s.theme.TextColor)
+	drawSmallText(screen, "PoW…", x+84, s.y+(s.height/2), s.theme.TextPrimary)
 }
 
 // drawSmallText is a minimal single-pixel-raster text fallback for the status bar.

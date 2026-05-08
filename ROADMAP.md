@@ -58,7 +58,7 @@
 | Privacy is structural (encrypted transport, onion-routed anonymous traffic) | ✅ Achieved | Ed25519 + X25519 + XChaCha20-Poly1305 implemented in [pkg/identity/keys/keypair.go](pkg/identity/keys/keypair.go#L1); 3-hop Shroud circuit primitives in [pkg/anonymous/shroud/circuit.go](pkg/anonymous/shroud/circuit.go#L1). | No critical implementation hole found in core cryptographic path during this review. |
 | Identity is self-sovereign (keypair-based, no third-party registration) | ✅ Achieved | Identity generation/signing/keystore path implemented in [pkg/identity/keys/keypair.go](pkg/identity/keys/keypair.go#L44) and [pkg/identity/keys/keystore.go](pkg/identity/keys/keystore.go#L31). | One migration path is still unimplemented for legacy keystores: [pkg/identity/keys/keystore.go](pkg/identity/keys/keystore.go#L317). |
 | Content is ephemeral (Waves with default 7d TTL, max 30d) | ✅ Achieved | TTL constants and validation in [pkg/content/waves/types.go](pkg/content/waves/types.go#L35), [pkg/content/waves/types.go](pkg/content/waves/types.go#L38), [pkg/content/waves/types.go](pkg/content/waves/types.go#L95). | No blocking gap found in declared TTL constraints. |
-| Anonymity is first-class (Specters, Shroud, Resonance, mechanics) | ⚠️ Partial | Anonymous subsystem breadth exists (`pkg/anonymous/*`), beacon wire format and relay advertisement support in [pkg/anonymous/shroud/beacon_wire.go](pkg/anonymous/shroud/beacon_wire.go#L1). | Several user-facing mechanics integration paths remain placeholder/deferred, especially cross-layer spatial queries and specific UI actions: [pkg/store/typed_accessors.go](pkg/store/typed_accessors.go#L884), [pkg/store/typed_accessors.go](pkg/store/typed_accessors.go#L959), [pkg/pulsemap/game.go](pkg/pulsemap/game.go#L1175). |
+| Anonymity is first-class (Specters, Shroud, Resonance, mechanics) | ✅ Achieved | Anonymous subsystem breadth exists (`pkg/anonymous/*`); cross-layer spatial queries implemented in `pkg/store/typed_accessors.go` with `NodePositionFunc`; `ActionJoinGame` handler live in `pkg/pulsemap/game.go`. | UI-level integration test for network-backed Join Game flow remains. |
 | No likes/follower-count mechanics | ✅ Achieved | No concrete like/follower feature path found in production packages during scan; interaction model centers Waves and mechanics. | Continued governance needed to avoid accidental metric creep. |
 | Six-subsystem architecture claim (networking/identity/content/anonymous/pulsemap/onboarding) | ✅ Achieved | Package topology clearly maps to all six subsystems from `go list ./...`; flow controller confirms six onboarding phases in [pkg/onboarding/flow/controller.go](pkg/onboarding/flow/controller.go#L14). | None material. |
 | “Core infrastructure fully operational” status claim | ⚠️ Partial | Baseline health checks pass (`go test -race`, `go vet`) and CI matrix exists. | Operational completeness is reduced by unresolved placeholders in bootstrap/TURN/discovery and a few explicit “not yet implemented” paths: [pkg/networking/relay/turn.go](pkg/networking/relay/turn.go#L178), [pkg/identity/share.go](pkg/identity/share.go#L163). |
@@ -81,11 +81,11 @@
   - Evidence: `TestDiscoveryBootstrapFallback`, `TestDiscoveryBootstrapNoFallback` in [pkg/networking/discovery/dht_test.go](pkg/networking/discovery/dht_test.go); `TestNewDefaultResolverChain_*` in [pkg/networking/discovery/resolver_test.go](pkg/networking/discovery/resolver_test.go).
 
 ### Priority 2: Close Anonymous Layer Integration Gaps (Core Product Differentiator)
-- [ ] Replace placeholder cross-layer spatial queries with actual location-aware selectors for puzzles/hunts/territory/oracle/forge/shadowplay/masked events.
-  - Evidence: [pkg/store/typed_accessors.go](pkg/store/typed_accessors.go#L884), [pkg/store/typed_accessors.go](pkg/store/typed_accessors.go#L959)
-- [ ] Implement currently stubbed user action path for joining mechanics from Pulse Map radial menu.
-  - Evidence: [pkg/pulsemap/game.go](pkg/pulsemap/game.go#L1175)
-- [ ] Add end-to-end tests proving anonymous mechanics are discoverable and actionable from Pulse Map (not only present in isolated stores).
+- [x] Replace placeholder cross-layer spatial queries with actual location-aware selectors for puzzles/hunts/territory/oracle/forge/shadowplay/masked events.
+  - Evidence: `NodePositionFunc` + `SetNodePositioner` added to `pkg/store/db.go`; `nodeWithinRadius` helper and updated selectors in `pkg/store/typed_accessors.go`; renderer injects frame-current positions in `pkg/pulsemap/rendering/renderer.go`.
+- [x] Implement currently stubbed user action path for joining mechanics from Pulse Map radial menu.
+  - Evidence: `handleJoinGame` + `countNearbyMechanics` in `pkg/pulsemap/game.go`; `ActionJoinGame` queries store and reports mechanic count via toast.
+- [x] Add end-to-end tests proving anonymous mechanics are discoverable and actionable from Pulse Map (not only present in isolated stores).
 - [ ] Validation: UI-level integration tests confirm live mechanics appear by proximity and “Join Game” completes a network-backed flow.
 
 ### Priority 3: Align Toolchain and CI to Actual Module Requirements

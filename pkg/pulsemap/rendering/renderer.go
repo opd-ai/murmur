@@ -341,6 +341,15 @@ func (r *Renderer) Draw(screen *ebiten.Image) {
 		return
 	}
 
+	// Inject a frame-current NodePositionFunc into the store so that
+	// cross-layer spatial queries (GetActivePuzzlesNearNode, etc.) can
+	// filter by actual Pulse Map proximity rather than returning all records.
+	// Per ROADMAP.md: "Replace placeholder cross-layer spatial queries with
+	// actual location-aware selectors".
+	if r.store != nil {
+		r.store.SetNodePositioner(r.buildNodePositionFunc(positions))
+	}
+
 	// Compute visible bounds for culling.
 	minX, minY, maxX, maxY := r.camera.ViewBounds(float64(r.screenWidth), float64(r.screenHeight))
 
@@ -746,6 +755,31 @@ func (r *Renderer) drawCrossLayerArtifacts(screen *ebiten.Image, nodeData *NodeD
 	r.drawShadowPlays(screen, nodeData, nodeX, nodeY)
 	r.drawPhantomCouncils(screen, nodeData, nodeX, nodeY)
 	// Note: Masked Events rendering deferred per PLAN.md (full implementation future work).
+}
+
+// buildNodePositionFunc constructs a store.NodePositionFunc snapshot from the
+// current frame's layout positions and node metadata.
+// It must be called while r.mu is held (read or write).
+// Per PULSE_MAP.md §2, coordinates are in force-directed layout units.
+func (r *Renderer) buildNodePositionFunc(positions map[string]layout.Position) store.NodePositionFunc {
+	pubkeyToPos := make(map[string][2]float64, len(r.nodeData))
+	for id, data := range r.nodeData {
+		if len(data.PublicKey) == 0 {
+			continue
+		}
+		pos, ok := positions[id]
+		if !ok {
+			continue
+		}
+		pubkeyToPos[string(data.PublicKey)] = [2]float64{pos.X, pos.Y}
+	}
+	return func(pubkey []byte) (x, y float64, ok bool) {
+		p, found := pubkeyToPos[string(pubkey)]
+		if !found {
+			return 0, 0, false
+		}
+		return p[0], p[1], true
+	}
 }
 
 // accumulateEdges adds all edges to the batch renderer.

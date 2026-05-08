@@ -6,6 +6,7 @@ package store
 
 import (
 	"fmt"
+	"math"
 
 	pb "github.com/opd-ai/murmur/proto"
 	"google.golang.org/protobuf/proto"
@@ -881,22 +882,58 @@ func (db *DB) GetActiveGiftsForRecipient(recipientKey []byte, nowUnix int64) ([]
 	return gifts, err
 }
 
-// GetActivePuzzlesNearNode returns active puzzles (spatial query placeholder).
-// Currently returns all active puzzles; spatial filtering deferred to future work.
-func (db *DB) GetActivePuzzlesNearNode(_ []byte, _ float64) ([]*pb.CipherPuzzle, error) {
-	return db.ListActiveCipherPuzzles()
+// nodeWithinRadius returns true when the node identified by candidatePubkey is
+// within radius layout units of the node identified by anchorPubkey.
+// Falls back to true (include all) when no NodePositionFunc has been configured,
+// preserving the previous behaviour for environments without a live layout engine.
+// Per PULSE_MAP.md §2, coordinates are in force-directed layout units.
+func (db *DB) nodeWithinRadius(anchorPubkey, candidatePubkey []byte, radius float64) bool {
+	ax, ay, aok := db.getNodePosition(anchorPubkey)
+	if !aok {
+		return true // no positioner: include all
+	}
+	cx, cy, cok := db.getNodePosition(candidatePubkey)
+	if !cok {
+		return false // positioner available but candidate unknown: exclude
+	}
+	dx := ax - cx
+	dy := ay - cy
+	return math.Sqrt(dx*dx+dy*dy) <= radius
 }
 
-// GetActiveHuntsWithFragmentsNear returns active hunts (spatial query placeholder).
-// Currently returns all active hunts; spatial filtering deferred to future work.
-func (db *DB) GetActiveHuntsWithFragmentsNear(_ []byte, _ float64) ([]*pb.SpecterHunt, error) {
+// GetActivePuzzlesNearNode returns active cipher puzzles whose creator node is
+// within radius layout units of anchorPubkey on the Pulse Map.
+// When no NodePositionFunc is configured, all active puzzles are returned.
+// Per ANONYMOUS_GAME_MECHANICS.md §3.
+func (db *DB) GetActivePuzzlesNearNode(anchorPubkey []byte, radius float64) ([]*pb.CipherPuzzle, error) {
+	all, err := db.ListActiveCipherPuzzles()
+	if err != nil {
+		return nil, err
+	}
+	result := make([]*pb.CipherPuzzle, 0, len(all))
+	for _, p := range all {
+		if db.nodeWithinRadius(anchorPubkey, p.CreatorPubkey, radius) {
+			result = append(result, p)
+		}
+	}
+	return result, nil
+}
+
+// GetActiveHuntsWithFragmentsNear returns active specter hunts whose organiser
+// node is within radius layout units of anchorPubkey on the Pulse Map.
+// When no NodePositionFunc is configured, all active hunts are returned.
+// Per ANONYMOUS_GAME_MECHANICS.md §4.
+func (db *DB) GetActiveHuntsWithFragmentsNear(anchorPubkey []byte, radius float64) ([]*pb.SpecterHunt, error) {
 	var hunts []*pb.SpecterHunt
 	err := db.ForEach(BucketHunts, func(_, value []byte) error {
 		hunt := &pb.SpecterHunt{}
 		if err := proto.Unmarshal(value, hunt); err != nil {
 			return fmt.Errorf("unmarshaling specter hunt: %w", err)
 		}
-		if hunt.State == pb.HuntState_HUNT_STATE_ACTIVE {
+		if hunt.State != pb.HuntState_HUNT_STATE_ACTIVE {
+			return nil
+		}
+		if db.nodeWithinRadius(anchorPubkey, hunt.OrganizerPubkey, radius) {
 			hunts = append(hunts, hunt)
 		}
 		return nil
@@ -904,32 +941,85 @@ func (db *DB) GetActiveHuntsWithFragmentsNear(_ []byte, _ float64) ([]*pb.Specte
 	return hunts, err
 }
 
-// GetTerritoryInfluenceAt returns territory state at a node (spatial query placeholder).
-// Currently returns the first territory; proper spatial lookup deferred to future work.
-func (db *DB) GetTerritoryInfluenceAt(_ []byte) (*pb.Territory, error) {
+// GetTerritoryInfluenceAt returns the territory whose controller or any
+// contender is the node identified by nodeID.  If no such territory exists,
+// the territory with the highest influence is returned as a fallback.
+// Per ANONYMOUS_GAME_MECHANICS.md §5.
+func (db *DB) GetTerritoryInfluenceAt(nodeID []byte) (*pb.Territory, error) {
 	territories, err := db.ListTerritories()
 	if err != nil || len(territories) == 0 {
 		return nil, err
 	}
-	return territories[0], nil
+	if t := db.territoryForNode(territories, string(nodeID)); t != nil {
+		return t, nil
+	}
+	return db.maxInfluenceTerritory(territories), nil
 }
 
-// GetActiveOraclePoolsNearNode returns open oracle pools (spatial query placeholder).
-// Currently returns all open pools; spatial filtering deferred to future work.
-func (db *DB) GetActiveOraclePoolsNearNode(_ []byte, _ float64) ([]*pb.OraclePool, error) {
-	return db.ListOpenOraclePools()
+// territoryForNode returns the first territory in which nodeKey is controller or contender.
+func (db *DB) territoryForNode(territories []*pb.Territory, nodeKey string) *pb.Territory {
+	for _, t := range territories {
+		if string(t.ControllerPubkey) == nodeKey || db.isContender(t, nodeKey) {
+			return t
+		}
+	}
+	return nil
 }
 
-// GetActiveForgeEventsNearNode returns active forge projects (spatial query placeholder).
-// Currently returns all collecting projects; spatial filtering deferred to future work.
-func (db *DB) GetActiveForgeEventsNearNode(_ []byte, _ float64) ([]*pb.ForgeProject, error) {
+// isContender reports whether nodeKey is listed as a contender in territory t.
+func (db *DB) isContender(t *pb.Territory, nodeKey string) bool {
+	for _, c := range t.Contenders {
+		if string(c.SpecterPubkey) == nodeKey {
+			return true
+		}
+	}
+	return false
+}
+
+// maxInfluenceTerritory returns the territory with the highest Influence field.
+func (db *DB) maxInfluenceTerritory(territories []*pb.Territory) *pb.Territory {
+	best := territories[0]
+	for _, t := range territories[1:] {
+		if t.Influence > best.Influence {
+			best = t
+		}
+	}
+	return best
+}
+
+// GetActiveOraclePoolsNearNode returns open oracle pools whose creator node is
+// within radius layout units of anchorPubkey on the Pulse Map.
+// When no NodePositionFunc is configured, all open pools are returned.
+// Per ANONYMOUS_GAME_MECHANICS.md §6.
+func (db *DB) GetActiveOraclePoolsNearNode(anchorPubkey []byte, radius float64) ([]*pb.OraclePool, error) {
+	all, err := db.ListOpenOraclePools()
+	if err != nil {
+		return nil, err
+	}
+	result := make([]*pb.OraclePool, 0, len(all))
+	for _, p := range all {
+		if db.nodeWithinRadius(anchorPubkey, p.CreatorPubkey, radius) {
+			result = append(result, p)
+		}
+	}
+	return result, nil
+}
+
+// GetActiveForgeEventsNearNode returns active forge projects whose creator
+// node is within radius layout units of anchorPubkey on the Pulse Map.
+// When no NodePositionFunc is configured, all collecting projects are returned.
+// Per ANONYMOUS_GAME_MECHANICS.md §7.
+func (db *DB) GetActiveForgeEventsNearNode(anchorPubkey []byte, radius float64) ([]*pb.ForgeProject, error) {
 	var projects []*pb.ForgeProject
 	err := db.ForEach(BucketForge, func(_, value []byte) error {
 		project := &pb.ForgeProject{}
 		if err := proto.Unmarshal(value, project); err != nil {
 			return fmt.Errorf("unmarshaling forge project: %w", err)
 		}
-		if project.State == pb.ForgeState_FORGE_STATE_COLLECTING {
+		if project.State != pb.ForgeState_FORGE_STATE_COLLECTING {
+			return nil
+		}
+		if db.nodeWithinRadius(anchorPubkey, project.CreatorPubkey, radius) {
 			projects = append(projects, project)
 		}
 		return nil
@@ -937,16 +1027,21 @@ func (db *DB) GetActiveForgeEventsNearNode(_ []byte, _ float64) ([]*pb.ForgeProj
 	return projects, err
 }
 
-// GetActiveShadowPlayNearNode returns active shadow plays (spatial query placeholder).
-// Currently returns all performing plays; spatial filtering deferred to future work.
-func (db *DB) GetActiveShadowPlayNearNode(_ []byte, _ float64) ([]*pb.ShadowPlay, error) {
+// GetActiveShadowPlayNearNode returns live shadow plays whose director node
+// is within radius layout units of anchorPubkey on the Pulse Map.
+// When no NodePositionFunc is configured, all performing plays are returned.
+// Per ANONYMOUS_GAME_MECHANICS.md §8.
+func (db *DB) GetActiveShadowPlayNearNode(anchorPubkey []byte, radius float64) ([]*pb.ShadowPlay, error) {
 	var plays []*pb.ShadowPlay
 	err := db.ForEach(BucketShadowPlay, func(_, value []byte) error {
 		play := &pb.ShadowPlay{}
 		if err := proto.Unmarshal(value, play); err != nil {
 			return fmt.Errorf("unmarshaling shadow play: %w", err)
 		}
-		if play.State == pb.ShadowPlayState_SHADOW_PLAY_STATE_PERFORMING {
+		if play.State != pb.ShadowPlayState_SHADOW_PLAY_STATE_PERFORMING {
+			return nil
+		}
+		if db.nodeWithinRadius(anchorPubkey, play.DirectorPubkey, radius) {
 			plays = append(plays, play)
 		}
 		return nil
@@ -954,12 +1049,23 @@ func (db *DB) GetActiveShadowPlayNearNode(_ []byte, _ float64) ([]*pb.ShadowPlay
 	return plays, err
 }
 
-// GetMaskedEventsNearNode returns masked events (spatial query placeholder).
-// Masked events use custom StoredMaskedEvent type; use MaskedEventStore for queries.
-// This method is a placeholder for cross-layer rendering integration.
-func (db *DB) GetMaskedEventsNearNode(_ []byte, _ float64) ([]StoredMaskedEvent, error) {
-	// Placeholder: return empty slice. Masked events require MaskedEventStore for proper access.
-	return []StoredMaskedEvent{}, nil
+// GetMaskedEventsNearNode returns active masked events whose creator Specter
+// key is within radius layout units of anchorPubkey on the Pulse Map.
+// When no NodePositionFunc is configured, all active masked events are returned.
+// Per ANONYMOUS_GAME_MECHANICS.md §9.
+func (db *DB) GetMaskedEventsNearNode(anchorPubkey []byte, radius float64) ([]StoredMaskedEvent, error) {
+	mes := NewMaskedEventStore(db)
+	all, err := mes.ListActiveEvents()
+	if err != nil {
+		return nil, err
+	}
+	result := make([]StoredMaskedEvent, 0, len(all))
+	for _, e := range all {
+		if e != nil && db.nodeWithinRadius(anchorPubkey, e.CreatorSpecterKey[:], radius) {
+			result = append(result, *e)
+		}
+	}
+	return result, nil
 }
 
 // GetCouncilsWithMember returns councils containing a specific member.
