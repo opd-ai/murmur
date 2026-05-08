@@ -24,8 +24,13 @@ import (
 
 // PEX protocol constants per NETWORK_ARCHITECTURE.md.
 const (
-	// PEXProtocolID is the protocol identifier for peer exchange.
+	// PEXProtocolID is the v1 protocol identifier for peer exchange.
 	PEXProtocolID = protocol.ID("/murmur/peer-exchange/1")
+
+	// PEXProtocolIDV2 is the v2 peer-exchange protocol introduced for the
+	// rolling version upgrade.  Both v1 and v2 handlers are registered during
+	// the migration window.  Per PLAN.md multistream-select task.
+	PEXProtocolIDV2 = protocol.ID("/murmur/peer-exchange/2")
 
 	// PEXInterval is how often peer exchange is performed.
 	// Per NETWORK_ARCHITECTURE.md: "Every 5 minutes, each node sends a random sample."
@@ -82,8 +87,10 @@ func (p *PEX) Start(ctx context.Context) error {
 		return nil
 	}
 
-	// Register stream handler for incoming PEX requests.
+	// Register stream handlers for both v1 and v2 peer exchange protocols.
+	// libp2p multistream-select negotiates the highest mutually supported version.
 	p.h.SetStreamHandler(PEXProtocolID, p.handleStream)
+	p.h.SetStreamHandler(PEXProtocolIDV2, p.handleStream)
 
 	// Start periodic exchange loop.
 	ctx, cancel := context.WithCancel(ctx)
@@ -105,6 +112,7 @@ func (p *PEX) Stop() error {
 	}
 
 	p.h.RemoveStreamHandler(PEXProtocolID)
+	p.h.RemoveStreamHandler(PEXProtocolIDV2)
 	if p.cancel != nil {
 		p.cancel()
 		p.cancel = nil
@@ -217,7 +225,7 @@ func (p *PEX) sendToPeer(ctx context.Context, peerID peer.ID, peers []PeerInfo) 
 	ctx, cancel := context.WithTimeout(ctx, PEXWriteTimeout)
 	defer cancel()
 
-	s, err := p.h.NewStream(ctx, peerID, PEXProtocolID)
+	s, err := p.h.NewStream(ctx, peerID, PEXProtocolIDV2, PEXProtocolID)
 	if err != nil {
 		return // Silently ignore connection failures
 	}
@@ -260,7 +268,7 @@ func (p *PEX) ExchangeWithPeer(ctx context.Context, peerID peer.ID) ([]PeerInfo,
 	ctx, cancel := context.WithTimeout(ctx, PEXWriteTimeout+PEXReadTimeout)
 	defer cancel()
 
-	s, err := p.h.NewStream(ctx, peerID, PEXProtocolID)
+	s, err := p.h.NewStream(ctx, peerID, PEXProtocolIDV2, PEXProtocolID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open stream: %w", err)
 	}

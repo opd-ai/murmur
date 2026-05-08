@@ -204,7 +204,9 @@ func (sc *SyncClient) notifyError(p peer.ID, err error) {
 
 // executeRequest performs the actual stream communication.
 func (sc *SyncClient) executeRequest(ctx context.Context, p peer.ID, payload []byte) (*SyncResponse, error) {
-	s, err := sc.h.NewStream(ctx, p, WaveSyncProtocol)
+	// Prefer v2 protocol; libp2p multistream-select falls back to v1 if the
+	// remote peer hasn't upgraded yet.
+	s, err := sc.h.NewStream(ctx, p, WaveSyncProtocolV2, WaveSyncProtocol)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open stream: %w", err)
 	}

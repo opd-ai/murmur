@@ -10,6 +10,8 @@ import (
 	"time"
 )
 
+// BeaconWave is the wire format for Shroud relay advertisement broadcasts.
+// Nodes publish a BeaconWave on /murmur/shroud/1 to announce relay capacity.
 type BeaconWave struct {
 	// Version is the beacon wave protocol version.
 	Version byte

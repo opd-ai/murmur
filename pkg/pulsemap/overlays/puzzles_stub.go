@@ -12,6 +12,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
+// PuzzleInfo holds the display data for a single Cipher Puzzle on the Pulse Map overlay.
 type PuzzleInfo struct {
 	PuzzleID  [32]byte
 	Type      PuzzleType
@@ -22,6 +23,7 @@ type PuzzleInfo struct {
 	Progress  float32
 }
 
+// PuzzleType identifies the variant of a Cipher Puzzle per ANONYMOUS_GAME_MECHANICS.md.
 type PuzzleType uint8
 
 const (
@@ -30,6 +32,7 @@ const (
 	PuzzleCascade
 )
 
+// PuzzleState represents the lifecycle state of a Cipher Puzzle for overlay rendering.
 type PuzzleState uint8
 
 const (
@@ -38,11 +41,13 @@ const (
 	PuzzleExpired
 )
 
+// PuzzlesOverlay renders active Cipher Puzzle indicators on the Pulse Map.
 type PuzzlesOverlay struct {
 	visible bool
 	puzzles map[[32]byte]*PuzzleInfo
 }
 
+// NewPuzzlesOverlay creates an empty, visible PuzzlesOverlay.
 func NewPuzzlesOverlay() *PuzzlesOverlay {
 	return &PuzzlesOverlay{
 		visible: true,

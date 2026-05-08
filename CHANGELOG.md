@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (2026-05-08 — backlog execution session)
+- **Wave TTL E2E tests**: Added six lifecycle tests covering creation, expiry verification, early pruning, boundary TTL, GC sweep and persistence round-trip (`pkg/content/storage/ttl_e2e_test.go`).
+- **Mini-game network propagation E2E tests**: Full hunt lifecycle propagation tests (`pkg/anonymous/mechanics/hunts/network_propagation_e2e_test.go`).
+- **Ebitengine headless screenshot tests**: `TestMain` harness + 4 pixel-comparison tests in `pkg/pulsemap/rendering/screenshot_comparison_test.go`.
+- **API documentation**: Added missing doc comments to 13 previously undocumented exported identifiers across `pkg/anonymous/shroud/`, `pkg/anonymous/mechanics/oracle/`, and `pkg/pulsemap/overlays/`.
+- **Architecture Decision Records D-011–D-015**: Added to `docs/DECISIONS.md` covering crypto primitives, Protocol Buffers, BBolt, Ebitengine, and `pkg/` layout choices.
+- **Version upgrade protocol**: `DualTopicManager` with `SubscribeBoth`/`PublishVersioned`, v2 topic constants and `topicUpgradePairs` map in `pkg/networking/gossip/version_upgrade.go`.
+- **MurmurEnvelope version range validation**: `MinSupportedVersion`/`MaxSupportedVersion` range check (v1–v2) replaces single-version equality check in `pkg/app/handlers.go`.
+- **Multistream-select protocol negotiation**: `WaveSyncProtocolV2`/`PEXProtocolIDV2` constants; both v1 and v2 handlers registered at startup; clients prefer v2 with automatic v1 fallback.
+- **Resonance-gated access to all privileged actions**: `GiftStoreGated`, `MarkStoreGated` and `NewPhantomCouncilGated` added for gifts, marks, and councils (oracle/puzzles/shadowplay/masked_events already gated).
+- **Connection pruning with strike counter**: `LowScoreStrikeLimit` (3 consecutive rounds at LowScoreThreshold = −50.0) before peer is disconnected; `LowScoreStrikes` field on `PeerState` in `pkg/networking/mesh/manager.go`.
+- **Sybil defense — linear PoW scaling**: `ScaledIdentityPoWDifficulty`, `ComputePoWScaled`, `VerifyPoWScaled` in `pkg/identity/declarations/profile.go`. Each additional identity from the same device adds one PoW bit (base 18, capped at 28).
+- **Breaking change consensus tracker**: `VersionConsensusTracker` with 10-minute sliding window and 90% v2-readiness threshold in `pkg/networking/gossip/consensus_tracker.go`.
+- **Help button UI component**: `HelpButton` in `pkg/ui/help_button.go` — `?`-key or click reopens onboarding tutorial hints.
+- **Status bar UI component**: `StatusBar` in `pkg/ui/status_bar.go` — shows peer count, Shroud circuit state, identity publication state, and PoW progress.
+
 ### Fixed
 - **gomobile entrypoint package detection (2026-05-08)**: Added a dedicated `cmd/murmur-mobile` entrypoint for Android/iOS builds and blank-imported `golang.org/x/mobile/app` behind mobile build tags so `gomobile` recognizes the app package. Updated `scripts/build-mobile.sh` to build `github.com/opd-ai/murmur/cmd/murmur-mobile`.
 - **WASM boot.js freeze on "Starting runtime..." (2026-05-07)**: Resolved deadlock in browser initialization flow where `boot.js` awaited `go.run()` indefinitely. Root cause: `go.run()` never returns because `cmd/wasm/main.go` ends with blocking `select {}` to keep the runtime alive for event handling. Solution: Implemented proper event-driven callback mechanism. Go runtime now calls `window.murmur.onRuntimeReady()` after successful initialization, signaling boot.js to complete loading sequence without blocking Go execution. Changes: (1) `cmd/wasm/main.go` now calls `triggerReadyCallback()` after `runtime.Run()` succeeds, (2) `web/boot.js` and `web-dist/boot.js` now create a Promise, set up callback, call `go.run()` without await, and await the Promise for proper async coordination. (3) Upgraded `github.com/pion/webrtc/v4` v4.1.2 → v4.2.12 to resolve transitive dependency compatibility with go-libp2p v0.48.0. WASM binary builds successfully.

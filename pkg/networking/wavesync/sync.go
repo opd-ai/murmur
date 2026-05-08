@@ -19,8 +19,14 @@ import (
 
 // Protocol constants.
 const (
-	// WaveSyncProtocol is the protocol ID for Wave sync.
+	// WaveSyncProtocol is the v1 protocol ID for Wave sync.
 	WaveSyncProtocol = protocol.ID("/murmur/wave-sync/1")
+
+	// WaveSyncProtocolV2 is the v2 protocol ID introduced for the rolling
+	// version upgrade.  Nodes register BOTH handlers during the migration
+	// window so peers on either version can connect successfully.
+	// Per PLAN.md: "Protocol negotiation via multistream-select".
+	WaveSyncProtocolV2 = protocol.ID("/murmur/wave-sync/2")
 
 	// MaxMessagesPerRequest limits Waves per sync request.
 	MaxMessagesPerRequest = 1000
@@ -121,8 +127,11 @@ func NewSyncHandler(h host.Host, provider WaveProvider) *SyncHandler {
 		rateLimiter: newRateLimiter(RateLimitPerSecond),
 	}
 
-	// Register stream handler
+	// Register stream handlers for both v1 and v2 so peers on either version
+	// can connect.  Both versions use the same handler logic; the protocol ID
+	// is used only for negotiation.  Per PLAN.md multistream-select task.
 	h.SetStreamHandler(WaveSyncProtocol, sh.handleStream)
+	h.SetStreamHandler(WaveSyncProtocolV2, sh.handleStream)
 
 	return sh
 }

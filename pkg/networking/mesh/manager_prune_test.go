@@ -78,8 +78,10 @@ func TestManager_ScorePruning(t *testing.T) {
 	}
 	m.SetScoreFunc(scoreFunc)
 
-	// Trigger pruning
-	m.pruneByScore()
+	// Trigger pruning LowScoreStrikeLimit times to hit the consistently-low threshold.
+	for i := 0; i < LowScoreStrikeLimit; i++ {
+		m.pruneByScore()
+	}
 
 	// Verify results
 	m.mu.RLock()
