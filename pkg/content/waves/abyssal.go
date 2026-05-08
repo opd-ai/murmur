@@ -18,6 +18,7 @@ import (
 	"io"
 	"time"
 
+	"github.com/opd-ai/murmur/pkg/identity/keys"
 	pb "github.com/opd-ai/murmur/proto"
 	"github.com/zeebo/blake3"
 	"golang.org/x/crypto/hkdf"
@@ -88,10 +89,8 @@ func deriveAbyssalKeypairFromNonce(specterPrivateKey []byte, nonce [32]byte) (ed
 	h.Write(nonce[:])
 	seed := h.Sum(nil)
 
-	// Zero the master key immediately after use.
-	for i := range master {
-		master[i] = 0
-	}
+	// Zero the master key immediately after use using the hardened ZeroBytes helper.
+	keys.ZeroBytes(master[:])
 
 	privateKey := ed25519.NewKeyFromSeed(seed)
 	publicKey := privateKey.Public().(ed25519.PublicKey)

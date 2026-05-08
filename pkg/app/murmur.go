@@ -80,6 +80,11 @@ type Config struct {
 	// Only relevant if EnableHealthEndpoint is true. Defaults to 8080.
 	HealthEndpointPort int
 
+	// HealthBindAll binds the health endpoint on all interfaces (0.0.0.0) instead of
+	// loopback only. Per AUDIT.md MEDIUM finding, default is false (loopback only).
+	// Bootstrap node operators who expose metrics externally should set this to true.
+	HealthBindAll bool
+
 	// InvitationURI is an optional invitation to accept during onboarding.
 	// Format: murmur://invite/[Base64]. If provided, onboarding will use
 	// the invitation for warm-start bootstrap.

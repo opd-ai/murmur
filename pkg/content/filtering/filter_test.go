@@ -91,7 +91,6 @@ func TestFilterMuteKeywordLimit(t *testing.T) {
 	}
 }
 
-
 func TestFilterShouldFilterByAuthor(t *testing.T) {
 	f := NewFilter()
 

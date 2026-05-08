@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"errors"
+	"fmt"
 	"io"
 	"math/big"
 	"sync"
@@ -589,7 +590,10 @@ func (b *Beacon) performKeyAgreementsWithEphemeral(circuit *Circuit, relays [Cir
 			return ErrRelayNotFound
 		}
 
-		sharedKey := b.deriveHopKey(relay, i, ephemeralSecretKey, ephemeralPublicKey)
+		sharedKey, err := b.deriveHopKey(relay, i, ephemeralSecretKey, ephemeralPublicKey)
+		if err != nil {
+			return fmt.Errorf("deriving hop key for hop %d: %w", i, err)
+		}
 		copy(circuit.sharedKeys[i][:], sharedKey[:32])
 		b.zeroSensitiveData(sharedKey)
 	}
@@ -600,7 +604,7 @@ func (b *Beacon) performKeyAgreementsWithEphemeral(circuit *Circuit, relays [Cir
 // Per TECHNICAL_IMPLEMENTATION.md key derivation table and AUDIT.md finding,
 // key derivation from DH shared secrets uses HKDF-SHA-256 (not BLAKE3).
 // Info encodes the hop index and ephemeral public key for per-hop domain separation.
-func (b *Beacon) deriveHopKey(relay *RelayInfo, hopIndex int, ephemeralSecretKey, ephemeralPublicKey [32]byte) []byte {
+func (b *Beacon) deriveHopKey(relay *RelayInfo, hopIndex int, ephemeralSecretKey, ephemeralPublicKey [32]byte) ([]byte, error) {
 	var shared [32]byte
 	curve25519.ScalarMult(&shared, &ephemeralSecretKey, &relay.PublicKey)
 
@@ -612,10 +616,13 @@ func (b *Beacon) deriveHopKey(relay *RelayInfo, hopIndex int, ephemeralSecretKey
 
 	var key [32]byte
 	kdf := hkdf.New(sha256.New, shared[:], nil, info)
-	io.ReadFull(kdf, key[:]) //nolint:errcheck // hkdf.Read never returns an error for fixed-size reads
+	if _, err := io.ReadFull(kdf, key[:]); err != nil {
+		b.zeroSensitiveData(shared[:])
+		return nil, fmt.Errorf("HKDF key derivation for hop %d: %w", hopIndex, err)
+	}
 
 	b.zeroSensitiveData(shared[:])
-	return key[:]
+	return key[:], nil
 }
 
 // zeroSensitiveData overwrites key material before GC.
