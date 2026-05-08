@@ -211,3 +211,88 @@ func TestAcceptInvitationSigned(t *testing.T) {
 		t.Fatalf("signed invitation did not preserve bootstrap addresses")
 	}
 }
+
+// TestIsBareP2PAddr verifies the IsBareP2PAddr helper correctly identifies
+// bare /p2p/<peerID> addresses vs fully-dialable multiaddreses.
+func TestIsBareP2PAddr(t *testing.T) {
+tests := []struct {
+addr string
+want bool
+}{
+{"/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp", true},
+{"/ip4/127.0.0.1/tcp/4001/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp", false},
+{"/ip6/::1/tcp/4001/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp", false},
+{"", false},
+{"  /p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp  ", true},
+}
+
+for _, tc := range tests {
+got := IsBareP2PAddr(tc.addr)
+if got != tc.want {
+t.Errorf("IsBareP2PAddr(%q) = %v, want %v", tc.addr, got, tc.want)
+}
+}
+}
+
+// TestBuildBootstrapAddrFallbackIsBare verifies the fallback for unsigned invitations
+// produces a bare /p2p/ address that callers can detect via IsBareP2PAddr.
+func TestBuildBootstrapAddrFallbackIsBare(t *testing.T) {
+pub, _, err := ed25519.GenerateKey(rand.Reader)
+if err != nil {
+t.Fatalf("generating keypair: %v", err)
+}
+peerID, err := peer.Decode("12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp")
+if err != nil {
+t.Fatalf("creating peer ID: %v", err)
+}
+
+// Unsigned invitation — no bootstrap addresses.
+inv, err := identity.GenerateInvitation(peerID, pub, "")
+if err != nil {
+t.Fatalf("generating invitation: %v", err)
+}
+
+addr := BuildBootstrapAddrFromInvitation(inv)
+if !IsBareP2PAddr(addr) {
+t.Errorf("expected bare /p2p addr for unsigned invitation, got %q", addr)
+}
+
+addrs := BuildBootstrapAddrsFromInvitation(inv)
+if len(addrs) != 1 {
+t.Fatalf("expected one fallback address, got %d", len(addrs))
+}
+if !IsBareP2PAddr(addrs[0]) {
+t.Errorf("expected bare /p2p addr in addrs slice, got %q", addrs[0])
+}
+}
+
+// TestBuildBootstrapAddrSignedIsDialable verifies that signed invitations with
+// explicit bootstrap addresses return dialable (non-bare) multiaddreses.
+func TestBuildBootstrapAddrSignedIsDialable(t *testing.T) {
+pub, priv, err := ed25519.GenerateKey(rand.Reader)
+if err != nil {
+t.Fatalf("generating keypair: %v", err)
+}
+peerID, err := peer.Decode("12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp")
+if err != nil {
+t.Fatalf("creating peer ID: %v", err)
+}
+
+dialableAddr := "/ip4/198.51.100.1/tcp/4001/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp"
+inv, err := identity.GenerateSignedInvitation(peerID, pub, priv, identity.SignedInvitationOptions{
+BootstrapAddrs: []string{dialableAddr},
+WelcomeMessage: "",
+TTL:            5 * time.Minute,
+})
+if err != nil {
+t.Fatalf("generating signed invitation: %v", err)
+}
+
+addr := BuildBootstrapAddrFromInvitation(inv)
+if IsBareP2PAddr(addr) {
+t.Errorf("signed invitation should return a dialable address, got bare: %q", addr)
+}
+if addr != dialableAddr {
+t.Errorf("got %q, want %q", addr, dialableAddr)
+}
+}

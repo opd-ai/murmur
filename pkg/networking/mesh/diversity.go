@@ -28,10 +28,11 @@ const (
 type Region string
 
 const (
-	RegionUnknown Region = "unknown"
-	RegionLocal   Region = "local"   // 127.0.0.0/8, ::1
-	RegionPrivate Region = "private" // RFC1918, RFC4193
-	RegionNAT64   Region = "nat64"   // 64:ff9b::/96
+	RegionUnknown    Region = "unknown"
+	RegionLocal      Region = "local"      // 127.0.0.0/8, ::1
+	RegionPrivate    Region = "private"    // RFC1918, RFC4193
+	RegionNAT64      Region = "nat64"      // 64:ff9b::/96
+	RegionDatacenter Region = "datacenter" // Cloud / hosting provider IP range.
 )
 
 // RegionDiversityManager ensures peer connections span multiple regions.
@@ -249,11 +250,19 @@ func extractIP(addr ma.Multiaddr) net.IP {
 	return nil
 }
 
-// deriveRegionFromIP derives a region identifier from an IP address.
-// Uses the first octet/prefix as a simple region approximation.
+// deriveRegionFromIP derives a region identifier from a public IP address.
+// Datacenter IPs (cloud / hosting) are grouped into RegionDatacenter so that
+// diversity scoring can limit their share per SECURITY_PRIVACY.md.
+// For residential IPs, a broad prefix-based region approximation is used.
 func deriveRegionFromIP(ip net.IP) Region {
 	if ip == nil {
 		return RegionUnknown
+	}
+
+	// Classify datacenter / cloud provider IPs.
+	var ic IPClassification
+	if ic.IsDatacenter(ip) {
+		return RegionDatacenter
 	}
 
 	// Use first octet for IPv4, or first 16 bits for IPv6
@@ -297,9 +306,108 @@ func (ic *IPClassification) IsAnycasted(ip net.IP) bool {
 	return false
 }
 
-// IsDatacenter returns true if the IP appears to be from a datacenter.
-// Note: Production would use a datacenter IP database.
+// IsDatacenter returns true if the IP appears to originate from a datacenter
+// or cloud provider network.  The classification uses a curated list of CIDR
+// ranges for major cloud providers (AWS, GCP, Azure, Cloudflare, Hetzner,
+// DigitalOcean, OVH, Linode/Akamai) and large hosting networks.
+//
+// This heuristic is conservative: it only classifies IPs with known mappings
+// and returns false when uncertain.  Per SECURITY_PRIVACY.md, datacenter peers
+// are deprioritised in diversity scoring to reduce reliance on centralised
+// infrastructure.
 func (ic *IPClassification) IsDatacenter(ip net.IP) bool {
-	// Simplified heuristic - would use real datacenter IP lists in production
+	if ip == nil {
+		return false
+	}
+
+	for _, cidr := range datacenterCIDRs {
+		_, network, err := net.ParseCIDR(cidr)
+		if err == nil && network.Contains(ip) {
+			return true
+		}
+	}
 	return false
+}
+
+// datacenterCIDRs is a curated set of CIDR ranges used by major cloud
+// providers and hosting companies.  Sourced from public provider IP lists.
+// Intentionally conservative — prefer false negatives over false positives.
+var datacenterCIDRs = []string{
+	// Cloudflare (CDN / Workers / WARP)
+	"103.21.244.0/22",
+	"103.22.200.0/22",
+	"103.31.4.0/22",
+	"104.16.0.0/13",
+	"104.24.0.0/14",
+	"108.162.192.0/18",
+	"131.0.72.0/22",
+	"141.101.64.0/18",
+	"162.158.0.0/15",
+	"172.64.0.0/13",
+	"173.245.48.0/20",
+	"188.114.96.0/20",
+	"190.93.240.0/20",
+	"197.234.240.0/22",
+	"198.41.128.0/17",
+
+	// Amazon AWS (representative / commonly seen blocks)
+	"3.0.0.0/9",
+	"13.32.0.0/15",
+	"13.224.0.0/14",
+	"18.64.0.0/10",
+	"34.192.0.0/10",
+	"35.160.0.0/11",
+	"52.0.0.0/11",
+	"54.64.0.0/11",
+
+	// Google Cloud Platform
+	"34.64.0.0/10",
+	"34.128.0.0/10",
+	"35.184.0.0/13",
+	"35.192.0.0/14",
+	"35.228.0.0/14",
+
+	// Microsoft Azure
+	"13.64.0.0/11",
+	"13.96.0.0/13",
+	"20.0.0.0/11",
+	"20.32.0.0/11",
+	"40.64.0.0/10",
+	"52.128.0.0/9",
+
+	// DigitalOcean
+	"45.55.0.0/16",
+	"67.205.0.0/16",
+	"104.131.0.0/16",
+	"104.236.0.0/16",
+	"107.170.0.0/16",
+	"138.68.0.0/15",
+	"159.203.0.0/16",
+	"165.227.0.0/16",
+
+	// Hetzner
+	"5.9.0.0/16",
+	"78.46.0.0/15",
+	"88.99.0.0/16",
+	"95.216.0.0/16",
+	"116.202.0.0/15",
+	"135.181.0.0/16",
+	"136.243.0.0/16",
+	"157.90.0.0/16",
+
+	// Linode / Akamai
+	"45.33.0.0/17",
+	"45.56.0.0/21",
+	"45.79.0.0/16",
+	"50.116.0.0/16",
+	"69.164.192.0/18",
+	"72.14.176.0/20",
+
+	// OVH / OVHcloud
+	"5.135.0.0/16",
+	"51.68.0.0/16",
+	"51.77.0.0/16",
+	"54.38.0.0/16",
+	"91.134.0.0/16",
+	"178.32.0.0/15",
 }

@@ -5,13 +5,17 @@
 package waves
 
 import (
+	"crypto/rand"
+	"crypto/sha256"
 	"errors"
+	"io"
 	"time"
 
 	"github.com/opd-ai/murmur/pkg/content/pow"
 	pb "github.com/opd-ai/murmur/proto"
-	"github.com/zeebo/blake3"
 	"golang.org/x/crypto/chacha20poly1305"
+	"golang.org/x/crypto/curve25519"
+	"golang.org/x/crypto/hkdf"
 )
 
 // Veiled Wave constants.
@@ -45,8 +49,12 @@ var (
 // SpecterSigner is an interface for Specter-specific signing operations.
 type SpecterSigner interface {
 	Signer
-	// SpecterPublicKey returns the Specter's public key (32 bytes).
+	// SpecterPublicKey returns the Specter's Curve25519 public key (32 bytes).
 	SpecterPublicKey() []byte
+	// ComputeDHSecret performs X25519 key exchange with peerPubKey and returns
+	// the shared secret. Used for key wrapping in Veiled Wave encryption.
+	// Per TECHNICAL_IMPLEMENTATION.md, uses Curve25519 for Anonymous Layer.
+	ComputeDHSecret(peerPubKey []byte) ([]byte, error)
 }
 
 // VeiledOptions configures Veiled Wave creation.
@@ -120,7 +128,7 @@ func buildVeiledWave(content []byte, specter SpecterSigner, opts VeiledOptions) 
 	if opts.Encrypted && len(opts.RecipientPubKey) > 0 {
 		encContent, nonce, wrappedKey, err := encryptVeiledContent(
 			content,
-			specter.SpecterPublicKey(),
+			specter,
 			opts.RecipientPubKey,
 		)
 		if err != nil {
@@ -147,22 +155,17 @@ func buildVeiledWave(content []byte, specter SpecterSigner, opts VeiledOptions) 
 }
 
 // encryptVeiledContent encrypts content using XChaCha20-Poly1305.
+// The symmetric key is wrapped using X25519 DH + HKDF-SHA-256, so only
+// the holder of the recipient's Curve25519 private key can unwrap it.
+// Per TECHNICAL_IMPLEMENTATION.md, uses Curve25519 for Anonymous Layer
+// key exchange and HKDF-SHA-256 for key derivation.
 // Returns encrypted content, nonce, and wrapped symmetric key.
-func encryptVeiledContent(content, authorPubKey, recipientPubKey []byte) ([]byte, []byte, []byte, error) {
-	// Generate a random symmetric key using BLAKE3 with author's key as domain separator.
-	keyMaterial := make([]byte, 0, len(authorPubKey)+len(recipientPubKey)+8)
-	keyMaterial = append(keyMaterial, authorPubKey...)
-	keyMaterial = append(keyMaterial, recipientPubKey...)
-
-	// Add timestamp for uniqueness.
-	ts := time.Now().UnixNano()
-	for i := 0; i < 8; i++ {
-		keyMaterial = append(keyMaterial, byte(ts>>(i*8)))
+func encryptVeiledContent(content []byte, specter SpecterSigner, recipientPubKey []byte) ([]byte, []byte, []byte, error) {
+	// Generate a random symmetric key.
+	symmetricKey := make([]byte, SymmetricKeySize)
+	if _, err := rand.Read(symmetricKey); err != nil {
+		return nil, nil, nil, err
 	}
-
-	h := blake3.New()
-	h.Write(keyMaterial)
-	symmetricKey := h.Sum(nil)[:SymmetricKeySize]
 
 	// Create XChaCha20-Poly1305 cipher.
 	aead, err := chacha20poly1305.NewX(symmetricKey)
@@ -170,66 +173,79 @@ func encryptVeiledContent(content, authorPubKey, recipientPubKey []byte) ([]byte
 		return nil, nil, nil, err
 	}
 
-	// Generate nonce.
+	// Generate random nonce.
 	nonce := make([]byte, chacha20poly1305.NonceSizeX)
-	nonceHash := blake3.New()
-	nonceHash.Write(symmetricKey)
-	nonceHash.Write(content[:min(32, len(content))])
-	copy(nonce, nonceHash.Sum(nil))
+	if _, err := rand.Read(nonce); err != nil {
+		return nil, nil, nil, err
+	}
 
-	// Encrypt content.
-	encrypted := aead.Seal(nil, nonce, content, authorPubKey)
+	// Encrypt content with author public key as additional data.
+	encrypted := aead.Seal(nil, nonce, content, specter.SpecterPublicKey())
 
-	// Wrap the symmetric key (XOR with derived key from both public keys).
-	// This is a simplified key wrapping - production would use proper X25519 DH.
-	wrappedKey := wrapSymmetricKey(symmetricKey, authorPubKey, recipientPubKey)
+	// Wrap symmetric key with DH-derived wrap key.
+	// sharedSecret = X25519(senderPrivKey, recipientPubKey)
+	sharedSecret, err := specter.ComputeDHSecret(recipientPubKey)
+	if err != nil {
+		return nil, nil, nil, err
+	}
 
+	wrapKey, err := deriveVeiledWrapKey(sharedSecret)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	wrappedKey := xorBytes(symmetricKey, wrapKey)
 	return encrypted, nonce, wrappedKey, nil
 }
 
-// wrapSymmetricKey wraps a symmetric key using both public keys.
-// This creates a key wrapping that can be unwrapped by the recipient.
-func wrapSymmetricKey(symmetricKey, authorPubKey, recipientPubKey []byte) []byte {
-	wrapKey := deriveVeiledWrapKey(authorPubKey, recipientPubKey)
-
-	// XOR the symmetric key with the wrap key.
-	wrapped := make([]byte, len(symmetricKey))
-	for i := range symmetricKey {
-		wrapped[i] = symmetricKey[i] ^ wrapKey[i]
+// deriveVeiledWrapKey derives a 32-byte wrap key from a DH shared secret
+// using HKDF-SHA-256 with the "murmur-veil-wrap-v1" info string.
+// Per TECHNICAL_IMPLEMENTATION.md, HKDF-SHA-256 is used for key derivation.
+func deriveVeiledWrapKey(dhSharedSecret []byte) ([]byte, error) {
+	kdf := hkdf.New(sha256.New, dhSharedSecret, nil, []byte("murmur-veil-wrap-v1"))
+	key := make([]byte, SymmetricKeySize)
+	if _, err := io.ReadFull(kdf, key); err != nil {
+		return nil, err
 	}
-
-	return wrapped
+	return key, nil
 }
 
-// deriveVeiledWrapKey derives a wrapping key from both public keys.
-// Consolidated helper for wrapSymmetricKey and UnwrapSymmetricKey.
-func deriveVeiledWrapKey(authorPubKey, recipientPubKey []byte) []byte {
-	h := blake3.New()
-	h.Write([]byte("murmur-veiled-wrap-v1"))
-	h.Write(authorPubKey)
-	h.Write(recipientPubKey)
-	return h.Sum(nil)[:SymmetricKeySize]
+// xorBytes XORs two equal-length byte slices into a new slice.
+func xorBytes(a, b []byte) []byte {
+	out := make([]byte, len(a))
+	for i := range a {
+		out[i] = a[i] ^ b[i]
+	}
+	return out
 }
 
-// UnwrapSymmetricKey unwraps a symmetric key for decryption.
-func UnwrapSymmetricKey(wrappedKey, authorPubKey, recipientPubKey []byte) ([]byte, error) {
+// UnwrapSymmetricKey unwraps a symmetric key using X25519 DH + HKDF-SHA-256.
+// The recipient uses their Curve25519 private key and the author's public key
+// to reproduce the same shared secret and derive the wrap key.
+// Per TECHNICAL_IMPLEMENTATION.md, uses Curve25519 for Anonymous Layer.
+func UnwrapSymmetricKey(wrappedKey, authorPubKey, recipientPrivKey []byte) ([]byte, error) {
 	if len(wrappedKey) != SymmetricKeySize {
 		return nil, ErrInvalidWrappedKey
 	}
 
-	wrapKey := deriveVeiledWrapKey(authorPubKey, recipientPubKey)
-
-	// XOR to unwrap.
-	symmetricKey := make([]byte, len(wrappedKey))
-	for i := range wrappedKey {
-		symmetricKey[i] = wrappedKey[i] ^ wrapKey[i]
+	// sharedSecret = X25519(recipientPrivKey, authorPubKey)
+	sharedSecret, err := curve25519.X25519(recipientPrivKey, authorPubKey)
+	if err != nil {
+		return nil, ErrInvalidWrappedKey
 	}
 
-	return symmetricKey, nil
+	wrapKey, err := deriveVeiledWrapKey(sharedSecret)
+	if err != nil {
+		return nil, ErrInvalidWrappedKey
+	}
+
+	return xorBytes(wrappedKey, wrapKey), nil
 }
 
 // DecryptVeiledContent decrypts a Veiled Wave's content.
-func DecryptVeiledContent(wave *pb.Wave, recipientPubKey []byte) ([]byte, error) {
+// recipientPrivKey is the recipient's Curve25519 private key (32 bytes),
+// used with the wave's AuthorPubkey to derive the symmetric wrap key via DH.
+func DecryptVeiledContent(wave *pb.Wave, recipientPrivKey []byte) ([]byte, error) {
 	if wave == nil {
 		return nil, errors.New("wave is nil")
 	}
@@ -243,7 +259,7 @@ func DecryptVeiledContent(wave *pb.Wave, recipientPubKey []byte) ([]byte, error)
 		return nil, err
 	}
 
-	symmetricKey, err := UnwrapSymmetricKey(wrappedKey, wave.AuthorPubkey, recipientPubKey)
+	symmetricKey, err := UnwrapSymmetricKey(wrappedKey, wave.AuthorPubkey, recipientPrivKey)
 	if err != nil {
 		return nil, err
 	}

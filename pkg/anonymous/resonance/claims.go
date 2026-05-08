@@ -1,6 +1,17 @@
 // Package resonance provides Zero-Knowledge Resonance claims using Pedersen commitments.
 // Per SECURITY_PRIVACY.md §Pedersen Commitments and Bulletproofs, ZK Claims allow
 // proving Resonance exceeds a threshold without revealing the exact value.
+//
+// # Claim path architecture
+//
+// The canonical production claim path uses Ristretto-based Pedersen commitments and
+// Schnorr-style sigma proofs, implemented in pedersen.go.  Use [NewZKClaim] to create
+// claims and [ZKClaim.Verify] (or [RistrettoClaimVerifier]) to verify them.
+//
+// The legacy [ClaimGenerator] / [ClaimVerifier] types in this file use a simplified
+// arithmetic approximation (XOR of Curve25519 scalar-mult results) that does NOT
+// provide the security guarantees documented in SECURITY_PRIVACY.md.  They are
+// retained only for API stability while dependents migrate; new code MUST NOT use them.
 package resonance
 
 import (
@@ -69,6 +80,11 @@ type Claim struct {
 }
 
 // ClaimGenerator creates ZK claims for Resonance thresholds.
+//
+// Deprecated: ClaimGenerator uses a simplified XOR-based approximation for Pedersen
+// commitments and does not provide the cryptographic guarantees described in
+// SECURITY_PRIVACY.md.  Use [NewZKClaim] with the Ristretto-backed implementation
+// in pedersen.go instead.
 type ClaimGenerator struct {
 	// Pedersen commitment parameters (generator points).
 	g [32]byte // Primary generator.
@@ -77,6 +93,8 @@ type ClaimGenerator struct {
 
 // NewClaimGenerator creates a new claim generator with secure parameters.
 // Per SECURITY_PRIVACY.md, uses Curve25519 for Pedersen commitments.
+//
+// Deprecated: Use [NewRistrettoClaimGenerator] (pedersen.go) instead.
 func NewClaimGenerator() *ClaimGenerator {
 	gen := &ClaimGenerator{}
 
@@ -194,12 +212,18 @@ func (cg *ClaimGenerator) generateThresholdProof(value, threshold int, blind, co
 }
 
 // ClaimVerifier verifies ZK claims without access to the actual score.
+//
+// Deprecated: ClaimVerifier is the companion to the deprecated [ClaimGenerator] and
+// shares the same simplified-arithmetic limitations.  Use [NewRistrettoClaimVerifier]
+// (pedersen.go) or [ZKClaim.Verify] instead.
 type ClaimVerifier struct {
 	gen      *ClaimGenerator
 	seenOnce map[[NonceSize]byte]int64 // nonce -> timestamp for replay detection.
 }
 
 // NewClaimVerifier creates a new claim verifier.
+//
+// Deprecated: Use [NewRistrettoClaimVerifier] (pedersen.go) instead.
 func NewClaimVerifier() *ClaimVerifier {
 	return &ClaimVerifier{
 		gen:      NewClaimGenerator(),
