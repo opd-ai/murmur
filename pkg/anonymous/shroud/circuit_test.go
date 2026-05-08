@@ -374,6 +374,40 @@ func TestCircuitID(t *testing.T) {
 	}
 }
 
+func TestBuildCircuitUsesEphemeralInitiatorKey(t *testing.T) {
+	beacon, _ := NewBeacon()
+
+	var relays [CircuitLength]*RelayInfo
+	for i := 0; i < CircuitLength; i++ {
+		relayBeacon, _ := NewBeacon()
+		relays[i] = &RelayInfo{
+			PeerID:    string(rune('a' + i)),
+			PublicKey: relayBeacon.PublicKey(),
+		}
+	}
+
+	circuit1, err := beacon.BuildCircuit(relays)
+	if err != nil {
+		t.Fatalf("BuildCircuit circuit1 failed: %v", err)
+	}
+	circuit2, err := beacon.BuildCircuit(relays)
+	if err != nil {
+		t.Fatalf("BuildCircuit circuit2 failed: %v", err)
+	}
+
+	keysDiffer := false
+	for i := 0; i < CircuitLength; i++ {
+		if circuit1.sharedKeys[i] != circuit2.sharedKeys[i] {
+			keysDiffer = true
+			break
+		}
+	}
+
+	if !keysDiffer {
+		t.Fatal("shared keys reused across circuits; expected per-circuit ephemeral key agreement")
+	}
+}
+
 func TestCreateDestroyCell(t *testing.T) {
 	beacon, _ := NewBeacon()
 
