@@ -1,6 +1,6 @@
-// Package onramp_i2p provides a libp2p transport adapter for I2P using go-i2p/onramp.
+// Package onrampi2p provides a libp2p transport adapter for I2P using go-i2p/onramp.
 // Per PLAN.md §5.4: Wrap onramp.Garlic to provide libp2p transport interface.
-package onramp_i2p
+package onrampi2p
 
 import (
 	"context"

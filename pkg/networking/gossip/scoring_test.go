@@ -5,7 +5,11 @@ import (
 	"testing"
 	"time"
 
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	pubsub_pb "github.com/libp2p/go-libp2p-pubsub/pb"
 	"github.com/libp2p/go-libp2p/core/peer"
+	pb "github.com/opd-ai/murmur/proto"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestPeerScoreTracker_RecordValidMessage(t *testing.T) {
@@ -309,5 +313,167 @@ func TestPeerScoreTracker_ConcurrentAccess(t *testing.T) {
 	valid, _, _, _ := tracker.GetStats(testPeer)
 	if valid != 1000 {
 		t.Errorf("expected 1000 valid messages, got %d", valid)
+	}
+}
+
+type recordingWaveHandler struct {
+	called bool
+	msg    *pb.GossipMessage
+}
+
+func (h *recordingWaveHandler) HandleWave(_ context.Context, _ *Envelope, msg *pb.GossipMessage) error {
+	h.called = true
+	h.msg = msg
+	return nil
+}
+
+type recordingIdentityHandler struct {
+	called bool
+	msg    *pb.GossipMessage
+}
+
+func (h *recordingIdentityHandler) HandleIdentity(_ context.Context, _ *Envelope, msg *pb.GossipMessage) error {
+	h.called = true
+	h.msg = msg
+	return nil
+}
+
+type recordingShroudHandler struct {
+	called bool
+	msg    *pb.GossipMessage
+}
+
+func (h *recordingShroudHandler) HandleShroud(_ context.Context, _ *Envelope, msg *pb.GossipMessage) error {
+	h.called = true
+	h.msg = msg
+	return nil
+}
+
+type recordingPulseHandler struct {
+	called bool
+	msg    *pb.GossipMessage
+}
+
+func (h *recordingPulseHandler) HandlePulse(_ context.Context, _ *Envelope, msg *pb.GossipMessage) error {
+	h.called = true
+	h.msg = msg
+	return nil
+}
+
+func TestValidatingMessageHandlers_DispatchesParsedMessageToHandlers(t *testing.T) {
+	now := time.Now()
+
+	tests := []struct {
+		name       string
+		topic      string
+		msg        *pb.GossipMessage
+		setHandler func(*ValidatingMessageHandlers) func() (bool, *pb.GossipMessage)
+	}{
+		{
+			name:  "wave",
+			topic: TopicWaves,
+			msg: &pb.GossipMessage{
+				Content: &pb.GossipMessage_Wave{
+					Wave: &pb.Wave{
+						WaveType:     pb.WaveType_WAVE_TYPE_SURFACE,
+						Content:      []byte("wave"),
+						AuthorPubkey: make([]byte, 32),
+						CreatedAt:    now.Unix(),
+						TtlSeconds:   3600,
+					},
+				},
+			},
+			setHandler: func(h *ValidatingMessageHandlers) func() (bool, *pb.GossipMessage) {
+				handler := &recordingWaveHandler{}
+				h.SetWaveHandler(handler)
+				return func() (bool, *pb.GossipMessage) { return handler.called, handler.msg }
+			},
+		},
+		{
+			name:  "identity",
+			topic: TopicIdentity,
+			msg: &pb.GossipMessage{
+				Content: &pb.GossipMessage_IdentityDeclaration{
+					IdentityDeclaration: &pb.IdentityDeclaration{
+						PublicKey:   make([]byte, 32),
+						DisplayName: "Test User",
+						CreatedAt:   now.Unix(),
+						Signature:   make([]byte, 64),
+					},
+				},
+			},
+			setHandler: func(h *ValidatingMessageHandlers) func() (bool, *pb.GossipMessage) {
+				handler := &recordingIdentityHandler{}
+				h.SetIdentityHandler(handler)
+				return func() (bool, *pb.GossipMessage) { return handler.called, handler.msg }
+			},
+		},
+		{
+			name:  "shroud",
+			topic: TopicShroud,
+			msg: &pb.GossipMessage{
+				Content: &pb.GossipMessage_RelayAdvertisement{
+					RelayAdvertisement: &pb.RelayAdvertisement{
+						Curve25519Pubkey: make([]byte, 32),
+						Ed25519Pubkey:    make([]byte, 32),
+						Timestamp:        now.Unix(),
+						Signature:        make([]byte, 64),
+					},
+				},
+			},
+			setHandler: func(h *ValidatingMessageHandlers) func() (bool, *pb.GossipMessage) {
+				handler := &recordingShroudHandler{}
+				h.SetShroudHandler(handler)
+				return func() (bool, *pb.GossipMessage) { return handler.called, handler.msg }
+			},
+		},
+		{
+			name:  "pulse",
+			topic: TopicPulse,
+			msg: &pb.GossipMessage{
+				Content: &pb.GossipMessage_Heartbeat{
+					Heartbeat: &pb.Heartbeat{
+						PeerId:    "QmTestPeer",
+						PublicKey: make([]byte, 32),
+						Timestamp: now.Unix(),
+						Signature: make([]byte, 64),
+						Sequence:  1,
+					},
+				},
+			},
+			setHandler: func(h *ValidatingMessageHandlers) func() (bool, *pb.GossipMessage) {
+				handler := &recordingPulseHandler{}
+				h.SetPulseHandler(handler)
+				return func() (bool, *pb.GossipMessage) { return handler.called, handler.msg }
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			handlers := NewValidatingMessageHandlers(NewPeerScoreTracker())
+			getState := tc.setHandler(handlers)
+
+			msgBytes, err := proto.Marshal(tc.msg)
+			if err != nil {
+				t.Fatalf("marshal failed: %v", err)
+			}
+
+			psMsg := &pubsub.Message{
+				Message: &pubsub_pb.Message{Data: msgBytes},
+			}
+
+			if err := handlers.HandleMessage(context.Background(), tc.topic, psMsg); err != nil {
+				t.Fatalf("handle message failed: %v", err)
+			}
+
+			called, parsed := getState()
+			if !called {
+				t.Fatalf("expected %s handler to be called", tc.topic)
+			}
+			if parsed == nil {
+				t.Fatalf("expected non-nil parsed message for %s", tc.topic)
+			}
+		})
 	}
 }

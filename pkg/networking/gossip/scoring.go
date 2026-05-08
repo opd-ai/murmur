@@ -11,6 +11,8 @@ import (
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/peer"
+	pb "github.com/opd-ai/murmur/proto"
+	"google.golang.org/protobuf/proto"
 )
 
 // PeerScoreWeights defines weights for scoring behaviors.
@@ -308,83 +310,24 @@ func (vh *ValidatingMessageHandlers) CreateValidatingTopicHandler(topic string) 
 // handleMessageWithEnvelope dispatches to topic handlers with pre-validated envelope.
 func (h *MessageHandlers) handleMessageWithEnvelope(ctx context.Context, topic string, msg *pubsub.Message, env *Envelope) error {
 	// Parse GossipMessage
-	var gossipMsg GossipMessage
-	if err := unmarshalGossipMessage(msg.Data, &gossipMsg); err != nil {
+	var gossipMsg pb.GossipMessage
+	if err := proto.Unmarshal(msg.Data, &gossipMsg); err != nil {
 		return ErrInvalidPayload
 	}
 
 	// Dispatch to appropriate handler based on topic
 	switch topic {
 	case TopicWaves:
-		return h.handleWaveTopicWithMsg(ctx, env, &gossipMsg)
+		return h.handleWaveTopic(ctx, env, &gossipMsg)
 	case TopicIdentity:
-		return h.handleIdentityTopicWithMsg(ctx, env, &gossipMsg)
+		return h.handleIdentityTopic(ctx, env, &gossipMsg)
 	case TopicShroud:
-		return h.handleShroudTopicWithMsg(ctx, env, &gossipMsg)
+		return h.handleShroudTopic(ctx, env, &gossipMsg)
 	case TopicPulse:
-		return h.handlePulseTopicWithMsg(ctx, env, &gossipMsg)
+		return h.handlePulseTopic(ctx, env, &gossipMsg)
 	default:
 		return ErrInvalidPayload
 	}
-}
-
-// GossipMessage is an interface to avoid import cycle with proto package.
-type GossipMessage interface{}
-
-// unmarshalGossipMessage unmarshals raw data into a GossipMessage.
-func unmarshalGossipMessage(data []byte, msg *GossipMessage) error {
-	// The actual implementation uses proto.Unmarshal
-	// This is a placeholder to avoid import cycles
-	return nil
-}
-
-// handleWaveTopicWithMsg handles wave topic with parsed message.
-func (h *MessageHandlers) handleWaveTopicWithMsg(ctx context.Context, env *Envelope, _ *GossipMessage) error {
-	h.mu.RLock()
-	handler := h.waveHandler
-	h.mu.RUnlock()
-
-	if handler == nil {
-		return nil
-	}
-	// Note: In full implementation, pass parsed proto message
-	return handler.HandleWave(ctx, env, nil)
-}
-
-// handleIdentityTopicWithMsg handles identity topic with parsed message.
-func (h *MessageHandlers) handleIdentityTopicWithMsg(ctx context.Context, env *Envelope, _ *GossipMessage) error {
-	h.mu.RLock()
-	handler := h.identityHandler
-	h.mu.RUnlock()
-
-	if handler == nil {
-		return nil
-	}
-	return handler.HandleIdentity(ctx, env, nil)
-}
-
-// handleShroudTopicWithMsg handles shroud topic with parsed message.
-func (h *MessageHandlers) handleShroudTopicWithMsg(ctx context.Context, env *Envelope, _ *GossipMessage) error {
-	h.mu.RLock()
-	handler := h.shroudHandler
-	h.mu.RUnlock()
-
-	if handler == nil {
-		return nil
-	}
-	return handler.HandleShroud(ctx, env, nil)
-}
-
-// handlePulseTopicWithMsg handles pulse topic with parsed message.
-func (h *MessageHandlers) handlePulseTopicWithMsg(ctx context.Context, env *Envelope, _ *GossipMessage) error {
-	h.mu.RLock()
-	handler := h.pulseHandler
-	h.mu.RUnlock()
-
-	if handler == nil {
-		return nil
-	}
-	return handler.HandlePulse(ctx, env, nil)
 }
 
 // AppSpecificScoreFunc returns a GossipSub app-specific score function.

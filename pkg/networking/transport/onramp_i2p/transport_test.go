@@ -1,4 +1,4 @@
-package onramp_i2p
+package onrampi2p
 
 import (
 	"context"

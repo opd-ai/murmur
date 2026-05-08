@@ -1,4 +1,4 @@
-package onramp_tor
+package onramptor
 
 import (
 	"context"
