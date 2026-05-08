@@ -9,8 +9,8 @@
 - **Terminal UI track**: feature matrix now reports all P0/P1/P2 rows as implemented (`done`) with terminal-native equivalents for visual-only effects.
 - **Module/dependency footprint**: module `github.com/opd-ai/murmur`, `go 1.25.7`, 29 direct + 128 indirect dependencies (`go.mod`).
 - **Existing CI/quality gates**:
-  - Linux PR/push quality gates (`go vet`, `xvfb-run go test -race`) in [.github/workflows/ci.yml](.github/workflows/ci.yml)
-  - go-stats regression checks via `.github/workflows/ci.yml` against the PR/push baseline commit
+  - Linux PR/push quality gates (`go vet`, `xvfb-run go test -race`, go-stats regression) in [.github/workflows/ci.yml](.github/workflows/ci.yml)
+  - Security/dependency gates in [.github/workflows/security.yml](.github/workflows/security.yml)
   - Cross-platform artifact builds in [.github/workflows/build.yml](.github/workflows/build.yml)
   - Release creation step in [.github/workflows/build.yml](.github/workflows/build.yml) now uses `ncipollo/release-action@v1`
   - WASM Pages deployment in [.github/workflows/pages-wasm.yml](.github/workflows/pages-wasm.yml)

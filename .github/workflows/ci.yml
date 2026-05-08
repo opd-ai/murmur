@@ -88,14 +88,20 @@ jobs:
         run: |
           set -euo pipefail
 
+          sections="functions,duplication,documentation"
+          stats_bin_dir="$(go env GOBIN)"
+          if [ -z "${stats_bin_dir}" ]; then
+            stats_bin_dir="$(go env GOPATH)/bin"
+          fi
+          export PATH="${stats_bin_dir}:${PATH}"
+
           worktree_dir="$(mktemp -d /tmp/murmur-base-XXXXXX)"
           trap 'git worktree remove --force "${worktree_dir}" >/dev/null 2>&1 || true' EXIT
 
           git worktree add --detach "${worktree_dir}" "${{ steps.baseline.outputs.base_sha }}"
 
-          export PATH="$(go env GOPATH)/bin:${PATH}"
-          go-stats-generator analyze "${worktree_dir}" --skip-tests --format json --sections functions,duplication,documentation > baseline.json
-          go-stats-generator analyze . --skip-tests --format json --sections functions,duplication,documentation > current.json
+          go-stats-generator analyze "${worktree_dir}" --skip-tests --format json --sections "${sections}" > baseline.json
+          go-stats-generator analyze . --skip-tests --format json --sections "${sections}" > current.json
           go-stats-generator diff baseline.json current.json | tee diff.txt
 
           {
