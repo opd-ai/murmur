@@ -468,158 +468,138 @@ func TestScorerConcurrency(t *testing.T) {
 	}
 }
 
-// Claims tests
+// Claims tests — these use the canonical Ristretto-backed ZKClaim path.
+// The legacy ClaimGenerator/ClaimVerifier types are deprecated; see claims.go.
 
-func TestNewClaimGenerator(t *testing.T) {
-	gen := NewClaimGenerator()
-	if gen == nil {
-		t.Fatal("NewClaimGenerator returned nil")
-	}
-
-	// Generator points should not be zero.
-	var zero [32]byte
-	if gen.g == zero {
-		t.Error("generator g is zero")
-	}
-	if gen.h == zero {
-		t.Error("generator h is zero")
-	}
-}
-
-func TestGenerateClaim(t *testing.T) {
-	gen := NewClaimGenerator()
-
-	// Generate claim for score 100, threshold 50.
-	claim, err := gen.GenerateClaim("specter-1", 100, 50)
+func TestZKClaimGenerateAndVerify(t *testing.T) {
+	claim, _, err := NewZKClaim(ZKClaimResonanceRange, "specter-1", 100, 50)
 	if err != nil {
-		t.Fatalf("GenerateClaim failed: %v", err)
+		t.Fatalf("NewZKClaim failed: %v", err)
 	}
-
 	if claim == nil {
 		t.Fatal("claim is nil")
 	}
-
-	if claim.Type != ClaimThreshold {
-		t.Errorf("claim type = %d, want %d", claim.Type, ClaimThreshold)
+	if claim.Type != ZKClaimResonanceRange {
+		t.Errorf("claim type = %v, want ZKClaimResonanceRange", claim.Type)
 	}
-
 	if claim.SpecterID != "specter-1" {
 		t.Errorf("specter ID = %s, want specter-1", claim.SpecterID)
 	}
-
 	if claim.Threshold != 50 {
 		t.Errorf("threshold = %d, want 50", claim.Threshold)
 	}
-
-	if len(claim.Proof) == 0 {
-		t.Error("proof should not be empty")
+	if err := claim.Verify(); err != nil {
+		t.Errorf("Verify failed: %v", err)
 	}
 }
 
-func TestGenerateClaimThresholdNotMet(t *testing.T) {
-	gen := NewClaimGenerator()
-
-	// Try to claim 100 when actual score is 50.
-	_, err := gen.GenerateClaim("specter-1", 50, 100)
+func TestZKClaimThresholdNotMet(t *testing.T) {
+	_, _, err := NewZKClaim(ZKClaimResonanceRange, "specter-1", 50, 100)
 	if err != ErrThresholdNotMet {
 		t.Errorf("expected ErrThresholdNotMet, got %v", err)
 	}
 }
 
-func TestVerifyClaim(t *testing.T) {
-	gen := NewClaimGenerator()
-	verifier := NewClaimVerifier()
-
-	claim, _ := gen.GenerateClaim("specter-1", 100, 50)
-
-	err := verifier.Verify(claim)
+func TestZKClaimExpired(t *testing.T) {
+	claim, _, err := NewZKClaim(ZKClaimResonanceRange, "specter-1", 100, 50)
 	if err != nil {
-		t.Errorf("Verify failed: %v", err)
+		t.Fatalf("NewZKClaim failed: %v", err)
 	}
-}
+	claim.Proof.Timestamp = time.Now().Add(-10 * time.Minute).Unix()
 
-func TestVerifyClaimNil(t *testing.T) {
-	verifier := NewClaimVerifier()
-
-	err := verifier.Verify(nil)
-	if err != ErrInvalidClaim {
-		t.Errorf("expected ErrInvalidClaim, got %v", err)
-	}
-}
-
-func TestVerifyClaimExpired(t *testing.T) {
-	gen := NewClaimGenerator()
-	verifier := NewClaimVerifier()
-
-	claim, _ := gen.GenerateClaim("specter-1", 100, 50)
-
-	// Set timestamp to old value.
-	claim.Timestamp = time.Now().Add(-10 * time.Minute).Unix()
-
-	err := verifier.Verify(claim)
+	verifier := NewRistrettoClaimVerifier()
+	err = verifier.VerifyThresholdProof(&claim.Commitment, &claim.Proof, claim.Threshold)
 	if err != ErrClaimExpired {
 		t.Errorf("expected ErrClaimExpired, got %v", err)
 	}
 }
 
-func TestVerifyClaimReplay(t *testing.T) {
-	gen := NewClaimGenerator()
-	verifier := NewClaimVerifier()
-
-	claim, _ := gen.GenerateClaim("specter-1", 100, 50)
-
-	// First verification should succeed.
-	err := verifier.Verify(claim)
+func TestZKClaimReplay(t *testing.T) {
+	claim, _, err := NewZKClaim(ZKClaimResonanceRange, "specter-1", 100, 50)
 	if err != nil {
-		t.Fatalf("first Verify failed: %v", err)
+		t.Fatalf("NewZKClaim failed: %v", err)
 	}
 
-	// Second verification with same nonce should fail.
-	err = verifier.Verify(claim)
-	if err != ErrReplayDetected {
+	verifier := NewRistrettoClaimVerifier()
+	if err := verifier.VerifyThresholdProof(&claim.Commitment, &claim.Proof, claim.Threshold); err != nil {
+		t.Fatalf("first VerifyThresholdProof failed: %v", err)
+	}
+	if err := verifier.VerifyThresholdProof(&claim.Commitment, &claim.Proof, claim.Threshold); err != ErrReplayDetected {
 		t.Errorf("expected ErrReplayDetected, got %v", err)
 	}
 }
 
-func TestVerifyClaimInvalidProof(t *testing.T) {
-	gen := NewClaimGenerator()
-	verifier := NewClaimVerifier()
+func TestZKClaimFuture(t *testing.T) {
+	claim, _, err := NewZKClaim(ZKClaimResonanceRange, "specter-1", 100, 50)
+	if err != nil {
+		t.Fatalf("NewZKClaim failed: %v", err)
+	}
+	claim.Proof.Timestamp = time.Now().Add(5 * time.Minute).Unix()
 
-	claim, _ := gen.GenerateClaim("specter-1", 100, 50)
-
-	// Corrupt the proof.
-	claim.Proof = []byte{0x00}
-
-	err := verifier.Verify(claim)
-	if err != ErrInvalidProof {
-		t.Errorf("expected ErrInvalidProof, got %v", err)
+	verifier := NewRistrettoClaimVerifier()
+	err = verifier.VerifyThresholdProof(&claim.Commitment, &claim.Proof, claim.Threshold)
+	if err != ErrInvalidClaim {
+		t.Errorf("expected ErrInvalidClaim for future claim, got %v", err)
 	}
 }
 
-func TestClaimVerifierCleanExpired(t *testing.T) {
-	verifier := NewClaimVerifier()
+func TestZKClaimVerifierCleanExpired(t *testing.T) {
+	verifier := NewRistrettoClaimVerifier()
 
-	// Add some old entries to seenOnce.
 	oldTimestamp := time.Now().Add(-10 * time.Minute).Unix()
-	var oldNonce [NonceSize]byte
+	var oldNonce [32]byte
 	copy(oldNonce[:], []byte("old-nonce"))
 	verifier.seenOnce[oldNonce] = oldTimestamp
 
-	// Add a recent entry.
 	recentTimestamp := time.Now().Unix()
-	var recentNonce [NonceSize]byte
+	var recentNonce [32]byte
 	copy(recentNonce[:], []byte("recent-nonce"))
 	verifier.seenOnce[recentNonce] = recentTimestamp
 
-	// Clean expired.
-	verifier.CleanExpired()
+	verifier.CleanExpiredNonces()
 
 	if _, exists := verifier.seenOnce[oldNonce]; exists {
 		t.Error("old nonce should be cleaned")
 	}
-
 	if _, exists := verifier.seenOnce[recentNonce]; !exists {
 		t.Error("recent nonce should not be cleaned")
+	}
+}
+
+func TestZKClaimInvalidProof(t *testing.T) {
+	claim, _, err := NewZKClaim(ZKClaimResonanceRange, "specter-1", 100, 50)
+	if err != nil {
+		t.Fatalf("NewZKClaim failed: %v", err)
+	}
+	// Corrupt the challenge scalar.
+	var zero [32]byte
+	claim.Proof.Challenge.SetBytes(&zero)
+
+	verifier := NewRistrettoClaimVerifier()
+	err = verifier.VerifyThresholdProof(&claim.Commitment, &claim.Proof, claim.Threshold)
+	if err == nil {
+		t.Error("expected error for corrupted proof")
+	}
+}
+
+func TestZKClaimMilestones(t *testing.T) {
+	milestones := []int64{
+		int64(MilestoneShade),
+		int64(MilestoneWraith),
+		int64(MilestoneShadeWraith),
+		int64(MilestonePhantom),
+		int64(MilestoneCouncil),
+		int64(MilestoneAbyss),
+	}
+
+	for _, m := range milestones {
+		claim, _, err := NewZKClaim(ZKClaimResonanceRange, "specter", m, m)
+		if err != nil {
+			t.Errorf("failed to claim milestone %d: %v", m, err)
+		}
+		if claim.Threshold != m {
+			t.Errorf("claim threshold = %d, want %d", claim.Threshold, m)
+		}
 	}
 }
 
@@ -654,44 +634,5 @@ func TestCanClaimMilestone(t *testing.T) {
 
 	if CanClaimMilestone(20, MilestoneShade) {
 		t.Error("score 20 should not be able to claim Shade (25)")
-	}
-}
-
-func TestGenerateClaimMilestones(t *testing.T) {
-	gen := NewClaimGenerator()
-
-	// Test claiming each milestone with exact score.
-	milestones := []int{
-		MilestoneShade,
-		MilestoneWraith,
-		MilestoneShadeWraith,
-		MilestonePhantom,
-		MilestoneCouncil,
-		MilestoneAbyss,
-	}
-
-	for _, m := range milestones {
-		claim, err := gen.GenerateClaim("specter", m, m)
-		if err != nil {
-			t.Errorf("failed to claim milestone %d: %v", m, err)
-		}
-		if claim.Threshold != m {
-			t.Errorf("claim threshold = %d, want %d", claim.Threshold, m)
-		}
-	}
-}
-
-func TestClaimFutureClaim(t *testing.T) {
-	gen := NewClaimGenerator()
-	verifier := NewClaimVerifier()
-
-	claim, _ := gen.GenerateClaim("specter-1", 100, 50)
-
-	// Set timestamp to future.
-	claim.Timestamp = time.Now().Add(5 * time.Minute).Unix()
-
-	err := verifier.Verify(claim)
-	if err != ErrInvalidClaim {
-		t.Errorf("expected ErrInvalidClaim for future claim, got %v", err)
 	}
 }

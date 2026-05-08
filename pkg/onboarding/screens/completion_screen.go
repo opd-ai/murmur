@@ -15,6 +15,9 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/vector"
+	libp2pcrypto "github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/opd-ai/murmur/pkg/identity"
 	"github.com/opd-ai/murmur/pkg/identity/keys"
 	"github.com/opd-ai/murmur/pkg/identity/modes"
 )
@@ -44,6 +47,7 @@ type CompletionScreen struct {
 	peersConnected int
 
 	// Invitation
+	peerID          peer.ID // Set by the app after network initialisation.
 	inviteGenerated bool
 	inviteCode      string
 
@@ -305,6 +309,13 @@ func (s *CompletionScreen) handleInviteClick(x, y, centerX int) {
 	}
 }
 
+// SetPeerID provides the local node's peer ID so that generated invitations
+// include the proper libp2p peer ID for bootstrap bypass.
+// The host application MUST call this after the libp2p host is started.
+func (s *CompletionScreen) SetPeerID(id peer.ID) {
+	s.peerID = id
+}
+
 // handleInviteCodeClick handles the generate/copy invite code button.
 func (s *CompletionScreen) handleInviteCodeClick() {
 	if s.inviteCode == "" {
@@ -322,14 +333,53 @@ func (s *CompletionScreen) handleDoneClick(x, y, centerX int) {
 }
 
 func (s *CompletionScreen) generateInvite() {
-	// Generate a simple invite code from public key
-	if s.surfaceKeypair != nil {
-		s.inviteCode = generateInviteCode(s.surfaceKeypair.PublicKey)
-	} else {
+	if s.surfaceKeypair == nil {
 		s.inviteCode = "MURMUR-XXXX-YYYY"
+		s.inviteGenerated = true
+		s.notifyInviteGenerated()
+		return
 	}
-	s.inviteGenerated = true
 
+	// Resolve the peer ID. Use the pre-set value if available; otherwise
+	// derive it from the Ed25519 public key (requires no network access).
+	peerID := s.peerID
+	if peerID == "" {
+		peerID = derivePeerIDFromPubKey(s.surfaceKeypair.PublicKey)
+	}
+
+	// Generate a proper murmur:// invitation URI.
+	inv, err := identity.GenerateInvitation(peerID, s.surfaceKeypair.PublicKey, "")
+	if err == nil {
+		if uri, err := inv.EncodeURI(); err == nil {
+			s.inviteCode = uri
+			s.inviteGenerated = true
+			s.notifyInviteGenerated()
+			return
+		}
+	}
+
+	// Fallback: encode a basic code from the public key prefix.
+	s.inviteCode = generateInviteCode(s.surfaceKeypair.PublicKey)
+	s.inviteGenerated = true
+	s.notifyInviteGenerated()
+}
+
+// derivePeerIDFromPubKey derives a libp2p peer.ID from an Ed25519 public key.
+// This does not require a running network host.
+func derivePeerIDFromPubKey(pubKey []byte) peer.ID {
+	libp2pPub, err := libp2pcrypto.UnmarshalEd25519PublicKey(pubKey)
+	if err != nil {
+		return ""
+	}
+	id, err := peer.IDFromPublicKey(libp2pPub)
+	if err != nil {
+		return ""
+	}
+	return id
+}
+
+// notifyInviteGenerated fires the OnInviteGenerated callback if registered.
+func (s *CompletionScreen) notifyInviteGenerated() {
 	if s.callbacks.OnInviteGenerated != nil {
 		s.callbacks.OnInviteGenerated(s.inviteCode)
 	}

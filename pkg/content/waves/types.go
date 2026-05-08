@@ -13,6 +13,7 @@ import (
 	"github.com/opd-ai/murmur/pkg/identity/keys"
 	pb "github.com/opd-ai/murmur/proto"
 	"github.com/zeebo/blake3"
+	"golang.org/x/crypto/curve25519"
 )
 
 // WaveType represents the type of a Wave message.
@@ -105,10 +106,19 @@ func createSpecializedWave(waveType WaveType, content []byte, kp *keys.KeyPair, 
 		if err := validateCreateParams(kp, content, opts); err != nil {
 			return nil, true, err
 		}
+		// Generate an ephemeral Curve25519 keypair for the DH key exchange.
+		// Ephemeral keys are never reused or stored, providing per-Wave forward secrecy:
+		// even if a long-term key is later compromised it cannot decrypt past Veiled Waves.
+		// Per SECURITY_PRIVACY.md §Veiled Wave encryption.
+		anonKP, err := keys.GenerateAnonymousKeyPair()
+		if err != nil {
+			return nil, true, fmt.Errorf("generating anonymous keypair for Veiled Wave: %w", err)
+		}
 		veiledOpts := DefaultVeiledOptions()
 		veiledOpts.TTL = opts.TTL
 		veiledOpts.Difficulty = opts.Difficulty
-		wave, err := CreateVeiled(content, keyPairSpecterSigner{kp: kp}, veiledOpts)
+		signer := keyPairSpecterSigner{kp: kp, dhPrivKey: anonKP.PrivateKey}
+		wave, err := CreateVeiled(content, signer, veiledOpts)
 		return wave, true, err
 	case TypeAbyssal:
 		if err := validateCreateParams(kp, content, opts); err != nil {
@@ -151,7 +161,8 @@ func createSpecializedWave(waveType WaveType, content []byte, kp *keys.KeyPair, 
 const defaultMaskedEventID = "masked-submit"
 
 type keyPairSpecterSigner struct {
-	kp *keys.KeyPair
+	kp        *keys.KeyPair
+	dhPrivKey [32]byte // Curve25519 private key for DH key exchange.
 }
 
 func (s keyPairSpecterSigner) Sign(data []byte) []byte {
@@ -159,7 +170,15 @@ func (s keyPairSpecterSigner) Sign(data []byte) []byte {
 }
 
 func (s keyPairSpecterSigner) SpecterPublicKey() []byte {
-	return s.kp.PublicKey
+	var pub [32]byte
+	curve25519.ScalarBaseMult(&pub, &s.dhPrivKey)
+	return pub[:]
+}
+
+// ComputeDHSecret performs X25519 key exchange with peerPubKey.
+// Returns the shared secret for use in key wrapping.
+func (s keyPairSpecterSigner) ComputeDHSecret(peerPubKey []byte) ([]byte, error) {
+	return curve25519.X25519(s.dhPrivKey[:], peerPubKey)
 }
 
 // validateCreateParams checks prerequisites for Wave creation.

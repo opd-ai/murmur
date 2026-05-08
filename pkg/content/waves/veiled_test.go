@@ -6,25 +6,42 @@ import (
 	"time"
 
 	pb "github.com/opd-ai/murmur/proto"
+	"golang.org/x/crypto/curve25519"
 )
 
-// mockSpecterSigner implements SpecterSigner for testing.
+// mockSpecterSigner implements SpecterSigner for testing using real Curve25519 keys.
 type mockSpecterSigner struct {
 	pubKey  []byte
 	privKey []byte
 }
 
 func newMockSpecterSigner() *mockSpecterSigner {
-	// Generate deterministic keys for testing.
-	pubKey := make([]byte, 32)
-	privKey := make([]byte, 64)
-	for i := range pubKey {
-		pubKey[i] = byte(i + 1)
+	// Generate a real Curve25519 keypair for tests.
+	priv, pub := genCurve25519KeyPair()
+	return &mockSpecterSigner{pubKey: pub, privKey: priv}
+}
+
+// genCurve25519KeyPair generates a deterministic Curve25519 keypair for testing.
+// Uses seed byte 0x01 (i+1 pattern). For distinct parties, use genCurve25519KeyPairWithSeed.
+func genCurve25519KeyPair() (priv, pub []byte) {
+	return genCurve25519KeyPairWithSeed(1)
+}
+
+// genCurve25519KeyPairWithSeed generates a deterministic Curve25519 keypair using
+// the given seed byte for each key byte (offset by index). Use distinct seed values
+// to simulate different parties in encryption round-trip tests.
+func genCurve25519KeyPairWithSeed(seed byte) (priv, pub []byte) {
+	var privArr [32]byte
+	for i := range privArr {
+		privArr[i] = byte(int(seed) + i)
 	}
-	for i := range privKey {
-		privKey[i] = byte(i + 100)
-	}
-	return &mockSpecterSigner{pubKey: pubKey, privKey: privKey}
+	// Clamp per Curve25519 spec.
+	privArr[0] &= 248
+	privArr[31] &= 127
+	privArr[31] |= 64
+	var pubArr [32]byte
+	curve25519.ScalarBaseMult(&pubArr, &privArr)
+	return privArr[:], pubArr[:]
 }
 
 func (m *mockSpecterSigner) Sign(data []byte) []byte {
@@ -38,6 +55,11 @@ func (m *mockSpecterSigner) Sign(data []byte) []byte {
 
 func (m *mockSpecterSigner) SpecterPublicKey() []byte {
 	return m.pubKey
+}
+
+// ComputeDHSecret performs X25519 key exchange with peerPubKey.
+func (m *mockSpecterSigner) ComputeDHSecret(peerPubKey []byte) ([]byte, error) {
+	return curve25519.X25519(m.privKey, peerPubKey)
 }
 
 func TestCreateVeiled(t *testing.T) {
@@ -127,10 +149,9 @@ func TestCreateVeiledEncrypted(t *testing.T) {
 	specter := newMockSpecterSigner()
 	content := []byte("Secret veiled content")
 
-	recipientPubKey := make([]byte, 32)
-	for i := range recipientPubKey {
-		recipientPubKey[i] = byte(i + 50)
-	}
+	// Generate a proper Curve25519 keypair for the recipient.
+	// The private key is not needed for this test (we only test encryption, not decryption).
+	_, recipientPubKey := genCurve25519KeyPair()
 
 	opts := VeiledOptions{
 		TTL:             DefaultTTL,
@@ -171,10 +192,8 @@ func TestDecryptVeiledContent(t *testing.T) {
 	specter := newMockSpecterSigner()
 	content := []byte("Secret message for recipient")
 
-	recipientPubKey := make([]byte, 32)
-	for i := range recipientPubKey {
-		recipientPubKey[i] = byte(i + 50)
-	}
+	// Use seed 50 for the recipient to simulate a distinct party from the sender (seed 1).
+	recipientPrivKey, recipientPubKey := genCurve25519KeyPairWithSeed(50)
 
 	opts := VeiledOptions{
 		TTL:             DefaultTTL,
@@ -188,8 +207,8 @@ func TestDecryptVeiledContent(t *testing.T) {
 		t.Fatalf("CreateVeiled() error = %v", err)
 	}
 
-	// Decrypt the content.
-	decrypted, err := DecryptVeiledContent(wave, recipientPubKey)
+	// Decrypt with the recipient's private key.
+	decrypted, err := DecryptVeiledContent(wave, recipientPrivKey)
 	if err != nil {
 		t.Fatalf("DecryptVeiledContent() error = %v", err)
 	}
@@ -257,7 +276,8 @@ func TestIsVeiled(t *testing.T) {
 
 func TestIsEncryptedVeiled(t *testing.T) {
 	specter := newMockSpecterSigner()
-	recipientPubKey := make([]byte, 32)
+	// Use seed 50 for the recipient (distinct from sender seed 1) to simulate distinct parties.
+	_, recipientPubKey := genCurve25519KeyPairWithSeed(50)
 
 	// Create encrypted veiled wave.
 	encOpts := VeiledOptions{
@@ -291,28 +311,50 @@ func TestIsEncryptedVeiled(t *testing.T) {
 }
 
 func TestWrapUnwrapSymmetricKey(t *testing.T) {
+	// Generate proper Curve25519 keypairs for author (sender) and recipient.
+	authorPrivKey, authorPubKey := genCurve25519KeyPair()
+
+	var recipPrivArr [32]byte
+	for i := range recipPrivArr {
+		recipPrivArr[i] = byte(i + 50)
+	}
+	recipPrivArr[0] &= 248
+	recipPrivArr[31] &= 127
+	recipPrivArr[31] |= 64
+	var recipPubArr [32]byte
+	curve25519.ScalarBaseMult(&recipPubArr, &recipPrivArr)
+	recipientPrivKey := recipPrivArr[:]
+	recipientPubKey := recipPubArr[:]
+
+	// Create a mock sender that uses the author keypair.
+	var authorPrivArr [32]byte
+	copy(authorPrivArr[:], authorPrivKey)
+	sender := &mockSpecterSigner{pubKey: authorPubKey, privKey: authorPrivArr[:]}
+
+	// Generate a random symmetric key.
 	symmetricKey := make([]byte, SymmetricKeySize)
 	for i := range symmetricKey {
 		symmetricKey[i] = byte(i * 3)
 	}
 
-	authorPubKey := make([]byte, 32)
-	recipientPubKey := make([]byte, 32)
-	for i := range authorPubKey {
-		authorPubKey[i] = byte(i + 1)
-		recipientPubKey[i] = byte(i + 50)
+	// Wrap using sender's DH with recipient's public key.
+	sharedSend, err := sender.ComputeDHSecret(recipientPubKey)
+	if err != nil {
+		t.Fatalf("ComputeDHSecret() error = %v", err)
 	}
-
-	// Wrap the key.
-	wrapped := wrapSymmetricKey(symmetricKey, authorPubKey, recipientPubKey)
+	wrapKey, err := deriveVeiledWrapKey(sharedSend)
+	if err != nil {
+		t.Fatalf("deriveVeiledWrapKey() error = %v", err)
+	}
+	wrapped := xorBytes(symmetricKey, wrapKey)
 
 	// Wrapped should be different from original.
 	if bytes.Equal(wrapped, symmetricKey) {
 		t.Error("Wrapped key should be different from original")
 	}
 
-	// Unwrap the key.
-	unwrapped, err := UnwrapSymmetricKey(wrapped, authorPubKey, recipientPubKey)
+	// Unwrap using recipient's private key and author's public key.
+	unwrapped, err := UnwrapSymmetricKey(wrapped, authorPubKey, recipientPrivKey)
 	if err != nil {
 		t.Fatalf("UnwrapSymmetricKey() error = %v", err)
 	}

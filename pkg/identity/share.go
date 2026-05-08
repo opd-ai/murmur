@@ -150,17 +150,8 @@ func (inv *Invitation) OpenSystemShare(opts ShareOptions) error {
 
 	// Platform-specific sharing invocation.
 	switch runtime.GOOS {
-	case "linux":
+	case "linux", "darwin", "windows", "android", "ios":
 		return openSystemShareImpl(content, opts)
-	case "darwin":
-		return openSystemShareImpl(content, opts)
-	case "windows":
-		return openSystemShareImpl(content, opts)
-	case "android", "ios":
-		// On mobile platforms built with Gomobile, this would invoke
-		// the native share sheet. For now, we return an error indicating
-		// that mobile share sheet integration requires platform bindings.
-		return fmt.Errorf("mobile share sheet requires platform bindings (not yet implemented)")
 	default:
 		return fmt.Errorf("unsupported platform: %s", runtime.GOOS)
 	}
