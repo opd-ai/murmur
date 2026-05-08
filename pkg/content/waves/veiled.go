@@ -201,8 +201,9 @@ func encryptVeiledContent(content []byte, specter SpecterSigner, recipientPubKey
 // deriveVeiledWrapKey derives a 32-byte wrap key from a DH shared secret
 // using HKDF-SHA-256 with the "murmur-veil-wrap-v1" info string.
 // Per TECHNICAL_IMPLEMENTATION.md, HKDF-SHA-256 is used for key derivation.
+// A fixed domain-separator salt is used per AUDIT.md LOW finding (auditability).
 func deriveVeiledWrapKey(dhSharedSecret []byte) ([]byte, error) {
-	kdf := hkdf.New(sha256.New, dhSharedSecret, nil, []byte("murmur-veil-wrap-v1"))
+	kdf := hkdf.New(sha256.New, dhSharedSecret, []byte("murmur-veil-salt-v1"), []byte("murmur-veil-wrap-v1"))
 	key := make([]byte, SymmetricKeySize)
 	if _, err := io.ReadFull(kdf, key); err != nil {
 		return nil, err

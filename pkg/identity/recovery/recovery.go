@@ -68,7 +68,8 @@ func deriveSharedSecret(privateKey, publicKey []byte) ([]byte, error) {
 		return nil, fmt.Errorf("X25519 key exchange failed: %w", err)
 	}
 
-	hkdfReader := hkdf.New(sha256.New, shared, nil, []byte("murmur-recovery-share-v1"))
+	// Per AUDIT.md LOW finding, use a fixed domain-separator salt for HKDF auditability.
+	hkdfReader := hkdf.New(sha256.New, shared, []byte("murmur-recovery-salt-v1"), []byte("murmur-recovery-share-v1"))
 	key := make([]byte, chacha20poly1305.KeySize)
 	if _, err := hkdfReader.Read(key); err != nil {
 		return nil, fmt.Errorf("HKDF derivation failed: %w", err)

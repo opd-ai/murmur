@@ -26,7 +26,7 @@ func TestHealthServer(t *testing.T) {
 
 	// Start server on a random available port
 	port := 18080
-	err = server.Start(ctx, port)
+	err = server.Start(ctx, port, false)
 	require.NoError(t, err)
 
 	// Give server time to start
@@ -71,11 +71,11 @@ func TestHealthServerMultipleStarts(t *testing.T) {
 	defer cancel()
 
 	// Start server
-	err = server.Start(ctx, 18081)
+	err = server.Start(ctx, 18081, false)
 	require.NoError(t, err)
 
 	// Try to start again - should fail
-	err = server.Start(ctx, 18081)
+	err = server.Start(ctx, 18081, false)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "already started")
 

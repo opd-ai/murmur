@@ -24,6 +24,7 @@ type Config struct {
 	RelayBandwidth       uint64
 	EnableHealthEndpoint bool          // Enable HTTP health check endpoint (default false for privacy)
 	HealthEndpointPort   int           // Port for health check endpoint (default 8080)
+	HealthBindAll        bool          // Bind health endpoint on all interfaces instead of loopback (default false)
 	HeartbeatInterval    time.Duration // Interval for sending heartbeat pings (default 30s)
 	EnableTor            bool          // Enable Tor transport adapter for /onion3 addresses
 	EnableI2P            bool          // Enable I2P transport adapter for /garlic64 addresses
@@ -48,6 +49,7 @@ func LoadConfig(overrides Config) (*Config, error) {
 		RelayBandwidth:       overrides.RelayBandwidth,
 		EnableHealthEndpoint: overrides.EnableHealthEndpoint,
 		HealthEndpointPort:   overrides.HealthEndpointPort,
+		HealthBindAll:        overrides.HealthBindAll,
 		HeartbeatInterval:    overrides.HeartbeatInterval,
 		EnableTor:            overrides.EnableTor,
 		EnableI2P:            overrides.EnableI2P,

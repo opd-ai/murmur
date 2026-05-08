@@ -48,10 +48,14 @@ func NewServer(host host.Host, pubsub *gossip.PubSub) *Server {
 }
 
 // Start begins listening on the specified port.
+// bindAll controls the listen address: false (default) binds to 127.0.0.1 only;
+// true binds to 0.0.0.0 for bootstrap node operators who explicitly opt in.
+// Per AUDIT.md MEDIUM finding, binding to loopback by default prevents
+// external enumeration of PeerID and network topology.
 // Returns an error if the server fails to start.
 // The server runs in a background goroutine and can be stopped via ctx.
-func (s *Server) Start(ctx context.Context, port int) error {
-	if err := s.initializeServer(port); err != nil {
+func (s *Server) Start(ctx context.Context, port int, bindAll bool) error {
+	if err := s.initializeServer(port, bindAll); err != nil {
 		return err
 	}
 
@@ -63,7 +67,7 @@ func (s *Server) Start(ctx context.Context, port int) error {
 }
 
 // initializeServer checks for duplicate start and creates the HTTP server.
-func (s *Server) initializeServer(port int) error {
+func (s *Server) initializeServer(port int, bindAll bool) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -75,8 +79,13 @@ func (s *Server) initializeServer(port int) error {
 	mux.HandleFunc("/health", s.handleHealth)
 	mux.Handle("/metrics", promhttp.Handler())
 
+	bindHost := "127.0.0.1"
+	if bindAll {
+		bindHost = "0.0.0.0"
+	}
+
 	s.httpServer = &http.Server{
-		Addr:         fmt.Sprintf(":%d", port),
+		Addr:         fmt.Sprintf("%s:%d", bindHost, port),
 		Handler:      mux,
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 10 * time.Second,

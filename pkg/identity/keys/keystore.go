@@ -336,10 +336,20 @@ func MigrateLegacyKeystore(legacyPath, passphrase string, newPaths KeystorePaths
 
 // renameLegacyFile renames a legacy keystore to ".bak" after successful migration.
 // The original file is preserved as a backup for manual recovery if needed.
+// Per AUDIT.md LOW finding: a user-visible warning is printed so the operator knows
+// to delete the .bak file once they have verified the new keystores load correctly.
 func renameLegacyFile(path string) error {
-	if err := os.Rename(path, path+".bak"); err != nil {
+	bakPath := path + ".bak"
+	if err := os.Rename(path, bakPath); err != nil {
 		return fmt.Errorf("migrated successfully but could not rename legacy file: %w", err)
 	}
+	fmt.Printf(
+		"[MURMUR SECURITY WARNING] Legacy keystore migrated.\n"+
+			"  A backup file was retained at: %s\n"+
+			"  This file contains encrypted key material. Delete it once you have\n"+
+			"  verified that your new keystores load correctly.\n",
+		bakPath,
+	)
 	return nil
 }
 

@@ -6,15 +6,19 @@ package shroud
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"errors"
+	"fmt"
+	"io"
+	"math/big"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/opd-ai/murmur/pkg/networking/metrics"
-	"github.com/zeebo/blake3"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/curve25519"
+	"golang.org/x/crypto/hkdf"
 )
 
 // CircuitLength is the number of hops in a Shroud circuit.
@@ -495,30 +499,27 @@ func buildExclusionSet(excludePeers []string) map[string]bool {
 	return excluded
 }
 
-// selectRandomRelays picks CircuitLength relays without replacement.
+// selectRandomRelays picks CircuitLength relays without replacement using an
+// unbiased Fisher-Yates shuffle seeded with crypto/rand (per AUDIT.md MEDIUM finding).
 func selectRandomRelays(eligible []*RelayInfo) ([CircuitLength]*RelayInfo, error) {
-	var selected [CircuitLength]*RelayInfo
-	used := make(map[int]bool)
+	shuffled := make([]*RelayInfo, len(eligible))
+	copy(shuffled, eligible)
 
+	for i := len(shuffled) - 1; i > 0; i-- {
+		n, err := rand.Int(rand.Reader, big.NewInt(int64(i+1)))
+		if err != nil {
+			return [CircuitLength]*RelayInfo{}, err
+		}
+		j := int(n.Int64())
+		shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
+	}
+
+	var selected [CircuitLength]*RelayInfo
 	for i := 0; i < CircuitLength; i++ {
-		idx := pickRandomUnusedIndex(len(eligible), used)
-		used[idx] = true
-		selected[i] = eligible[idx]
+		selected[i] = shuffled[i]
 	}
 
 	return selected, nil
-}
-
-// pickRandomUnusedIndex selects a random index not in the used set.
-func pickRandomUnusedIndex(max int, used map[int]bool) int {
-	var randomBytes [1]byte
-	rand.Read(randomBytes[:])
-
-	idx := int(randomBytes[0]) % max
-	for used[idx] {
-		idx = (idx + 1) % max
-	}
-	return idx
 }
 
 // BuildCircuit creates a new Shroud circuit through the selected relays.
@@ -589,7 +590,10 @@ func (b *Beacon) performKeyAgreementsWithEphemeral(circuit *Circuit, relays [Cir
 			return ErrRelayNotFound
 		}
 
-		sharedKey := b.deriveHopKey(relay, i, ephemeralSecretKey, ephemeralPublicKey)
+		sharedKey, err := b.deriveHopKey(relay, i, ephemeralSecretKey, ephemeralPublicKey)
+		if err != nil {
+			return fmt.Errorf("deriving hop key for hop %d: %w", i, err)
+		}
 		copy(circuit.sharedKeys[i][:], sharedKey[:32])
 		b.zeroSensitiveData(sharedKey)
 	}
@@ -597,21 +601,28 @@ func (b *Beacon) performKeyAgreementsWithEphemeral(circuit *Circuit, relays [Cir
 }
 
 // deriveHopKey performs X25519 key agreement and derives the hop encryption key.
-func (b *Beacon) deriveHopKey(relay *RelayInfo, hopIndex int, ephemeralSecretKey, ephemeralPublicKey [32]byte) []byte {
+// Per TECHNICAL_IMPLEMENTATION.md key derivation table and AUDIT.md finding,
+// key derivation from DH shared secrets uses HKDF-SHA-256 (not BLAKE3).
+// Info encodes the hop index and ephemeral public key for per-hop domain separation.
+func (b *Beacon) deriveHopKey(relay *RelayInfo, hopIndex int, ephemeralSecretKey, ephemeralPublicKey [32]byte) ([]byte, error) {
 	var shared [32]byte
 	curve25519.ScalarMult(&shared, &ephemeralSecretKey, &relay.PublicKey)
 
-	h := blake3.New()
-	h.Write(shared[:])
-	h.Write(ephemeralPublicKey[:])
-	// TODO: Switch hop-key derivation from BLAKE3 to HKDF-SHA-256 per AUDIT.md finding
-	// "Shroud Hop Key Uses BLAKE3 Instead of Spec-Required HKDF-SHA-256".
-	h.Write([]byte("shroud-hop-key"))
-	h.Write([]byte{byte(hopIndex)})
-	key := h.Sum(nil)
+	// info = "murmur-shroud-hop-v1" || hopIndex byte || ephemeralPublicKey
+	info := make([]byte, 0, 21+1+32)
+	info = append(info, []byte("murmur-shroud-hop-v1")...)
+	info = append(info, byte(hopIndex))
+	info = append(info, ephemeralPublicKey[:]...)
+
+	var key [32]byte
+	kdf := hkdf.New(sha256.New, shared[:], nil, info)
+	if _, err := io.ReadFull(kdf, key[:]); err != nil {
+		b.zeroSensitiveData(shared[:])
+		return nil, fmt.Errorf("HKDF key derivation for hop %d: %w", hopIndex, err)
+	}
 
 	b.zeroSensitiveData(shared[:])
-	return key
+	return key[:], nil
 }
 
 // zeroSensitiveData overwrites key material before GC.

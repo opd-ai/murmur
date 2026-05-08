@@ -52,20 +52,28 @@ func TestValidateTimestamp(t *testing.T) {
 	now := time.Now()
 
 	// Valid - within range
-	err := validateTimestamp(now.Unix(), now)
+	err := validateTimestamp(now.Unix(), 0, now)
 	assert.NoError(t, err)
 
 	// Valid - slight drift
-	err = validateTimestamp(now.Add(-100*time.Second).Unix(), now)
+	err = validateTimestamp(now.Add(-100*time.Second).Unix(), 0, now)
 	assert.NoError(t, err)
 
 	// Invalid - too far in the future
-	err = validateTimestamp(now.Add(400*time.Second).Unix(), now)
+	err = validateTimestamp(now.Add(400*time.Second).Unix(), 0, now)
 	assert.Error(t, err)
 	assert.Equal(t, ErrInvalidTimestamp, err)
 
-	// Invalid - too far in the past
-	err = validateTimestamp(now.Add(-400*time.Second).Unix(), now)
+	// Invalid - too far in the past (no TTL)
+	err = validateTimestamp(now.Add(-400*time.Second).Unix(), 0, now)
+	assert.Error(t, err)
+
+	// Valid - 400s old but Wave has 3600s TTL
+	err = validateTimestamp(now.Add(-400*time.Second).Unix(), 3600, now)
+	assert.NoError(t, err)
+
+	// Invalid - older than Wave TTL
+	err = validateTimestamp(now.Add(-7200*time.Second).Unix(), 3600, now)
 	assert.Error(t, err)
 }
 
