@@ -82,6 +82,7 @@ jobs:
           # No additional packages required
 
       - name: Build binary
+        shell: bash
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
