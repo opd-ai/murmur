@@ -18,6 +18,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+const unauthorizedResponse = "HTTP/1.1 401 Unauthorized\r\nContent-Type: text/plain\r\n\r\nUnauthorized\n"
+
 type operatorSession struct {
 	conn net.Conn
 	mu   sync.Mutex
@@ -74,8 +76,8 @@ func (r *Relay) acceptLoop(ctx context.Context) {
 	}
 }
 
-// handleConnection reads the first line to determine if this is a
-// tunnel registration (REGISTER/UNREGISTER) or a client request.
+// handleConnection reads the first byte to determine if this is framed operator
+// traffic or an HTTP client request.
 func (r *Relay) handleConnection(ctx context.Context, conn net.Conn) {
 	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	firstByte := make([]byte, 1)
@@ -99,7 +101,7 @@ func (r *Relay) handleConnection(ctx context.Context, conn net.Conn) {
 	firstLine = strings.TrimSpace(firstLine)
 
 	if strings.HasPrefix(firstLine, "UNREGISTER ") {
-		r.handleUnregister(firstLine)
+		_, _ = conn.Write([]byte(unauthorizedResponse))
 		return
 	}
 
@@ -124,7 +126,7 @@ func (r *Relay) handleFramedOperator(ctx context.Context, conn net.Conn) {
 		return
 	}
 
-	tunnelID := tunneling.TunnelID(cell.TunnelId)
+	tunnelID := tunneling.TunnelID(string(cell.TunnelId))
 	if err := tunnelID.Validate(); err != nil {
 		conn.Close()
 		return
@@ -152,20 +154,15 @@ func (r *Relay) handleFramedOperator(ctx context.Context, conn net.Conn) {
 	}
 }
 
-// handleUnregister removes a tunnel registration.
-func (r *Relay) handleUnregister(msg string) {
-	parts := strings.Fields(msg)
-	if len(parts) != 2 {
-		return
+func (r *Relay) handleTeardownCell(payload []byte, expectedTunnelID tunneling.TunnelID) bool {
+	cell := &pb.TunnelTeardownCell{}
+	if err := proto.Unmarshal(payload, cell); err != nil {
+		return false
 	}
-
-	tunnelID := tunneling.TunnelID(parts[1])
-	r.mu.Lock()
-	if session, ok := r.tunnels[tunnelID]; ok {
-		session.conn.Close()
-		delete(r.tunnels, tunnelID)
+	if tunneling.TunnelID(string(cell.TunnelId)) != expectedTunnelID {
+		return false
 	}
-	r.mu.Unlock()
+	return true
 }
 
 // handleClientRequest forwards a client's HTTP request to the tunnel operator.
@@ -258,6 +255,7 @@ func (r *Relay) forwardRequestToOperator(session *operatorSession, tunnelID tunn
 	}
 
 	if err := protocol.WriteFrame(session.conn, protocol.FrameTypeData, payload); err != nil {
+		r.removeTunnel(tunnelID, session)
 		clientConn.Write([]byte("HTTP/1.1 502 Bad Gateway\r\n\r\n"))
 		return false
 	}
@@ -270,6 +268,16 @@ func (r *Relay) forwardResponseToClient(session *operatorSession, tunnelID tunne
 	session.conn.SetReadDeadline(time.Now().Add(10 * time.Second))
 	frameType, payload, err := protocol.ReadFrame(session.conn)
 	if err != nil {
+		r.removeTunnel(tunnelID, session)
+		clientConn.Write([]byte("HTTP/1.1 502 Bad Gateway\r\n\r\n"))
+		return
+	}
+	if frameType == protocol.FrameTypeTeardown {
+		if !r.handleTeardownCell(payload, tunnelID) {
+			clientConn.Write([]byte("HTTP/1.1 502 Bad Gateway\r\n\r\n"))
+			return
+		}
+		r.removeTunnel(tunnelID, session)
 		clientConn.Write([]byte("HTTP/1.1 502 Bad Gateway\r\n\r\n"))
 		return
 	}
@@ -289,6 +297,17 @@ func (r *Relay) forwardResponseToClient(session *operatorSession, tunnelID tunne
 	}
 
 	_, _ = clientConn.Write(respCell.Payload)
+}
+
+func (r *Relay) removeTunnel(tunnelID tunneling.TunnelID, expectedSession *operatorSession) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	session, ok := r.tunnels[tunnelID]
+	if !ok || session != expectedSession {
+		return
+	}
+	_ = session.conn.Close()
+	delete(r.tunnels, tunnelID)
 }
 
 // Stop gracefully shuts down the relay.

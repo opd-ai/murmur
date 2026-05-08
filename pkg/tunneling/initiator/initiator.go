@@ -320,10 +320,7 @@ func (i *Initiator) Stop(ctx context.Context) error {
 
 	_ = i.sendTeardown(pb.TeardownReason_OPERATOR_REQUEST, "operator requested shutdown")
 
-	// Send unregister message for backward compatibility with existing relays.
 	if i.exitConn != nil {
-		unregMsg := fmt.Sprintf("UNREGISTER %s\n", string(i.tunnelID))
-		i.exitConn.Write([]byte(unregMsg))
 		i.exitConn.Close()
 	}
 
