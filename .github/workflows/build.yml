@@ -131,6 +131,8 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           name: latest
+          makeLatest: true
           artifacts: artifacts/**/*
           draft: true
           generateReleaseNotes: true
+          removeArtifacts: true
