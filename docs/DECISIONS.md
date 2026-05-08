@@ -231,6 +231,118 @@ A record of major reversible decisions made in the MURMUR project. Each decision
 
 ---
 
+## D-011: Cryptographic Primitives Selection
+
+**Date**: 2026-Q1
+**Decision**: Use specific algorithm-per-use-case mapping:
+- Ed25519 for Surface Layer identity signing and Wave signatures
+- Curve25519 / X25519 for Anonymous Layer key exchange (Shroud circuits)
+- XChaCha20-Poly1305 for all symmetric encryption (keystore, Shroud layers, councils)
+- SHA-256 for Proof of Work and content addressing (Wave IDs)
+- BLAKE3 for identity hashing (sigils, pseudonyms, message_id in envelopes)
+- Argon2id (time=3, memory=64 MiB, threads=4) for passphrase-based key derivation
+- HKDF-SHA-256 for deriving symmetric keys from DH shared secrets
+
+**Rationale**:
+- Ed25519 provides fast, compact signatures (64 bytes) suitable for high-frequency Wave signing
+- Curve25519 is the standard for ephemeral Diffie-Hellman; established in Noise XX protocol
+- XChaCha20-Poly1305 offers authenticated encryption with large 192-bit nonces (no nonce reuse risk)
+- SHA-256 is universally available, well-audited, and sufficient for PoW difficulty adjustment
+- BLAKE3 is faster than SHA-256 for identity hashing with better parallelism, appropriate for sigil generation
+- Argon2id is memory-hard, resisting GPU/ASIC brute-force on encrypted keystores
+- No algorithm substitution is permitted without a new decision record
+
+**Alternatives Considered**:
+- AES-GCM: rejected (nonce reuse danger in high-volume contexts, performance advantage lost with AES-NI unavailable on some ARM)
+- SHA-3 for identity hashing: rejected (BLAKE3 is faster and equally secure for non-cryptographic-commitment use cases)
+- bcrypt/scrypt for key derivation: rejected (Argon2id won PHC and provides better GPU resistance)
+
+**Revisit By**: 2028-Q1 (cryptanalysis advances or NIST PQC standard finalization)
+
+---
+
+## D-012: Protocol Buffers (proto3) over JSON for All Wire and Storage Formats
+
+**Date**: 2026-Q1
+**Decision**: All inter-node messages and all database-stored records use Protocol Buffers proto3. JSON is explicitly prohibited on the wire and in storage.
+
+**Rationale**:
+- Compact binary encoding reduces Wave size (≤2048 bytes budget is tight with JSON)
+- Schema enforcement: field renaming/addition is backward-compatible without parser changes
+- Language-neutral: Go, future mobile clients, and relay-only nodes can share the same .proto files
+- Deterministic serialization aids content-addressing (SHA-256 / BLAKE3 of proto bytes as Wave ID)
+
+**Alternatives Considered**:
+- JSON: human-readable but verbose; non-deterministic key ordering breaks content addressing
+- MessagePack: no official schema; cross-language support fragmented
+- CBOR: considered, but ecosystem tooling is weaker than protobuf for Go
+
+**Revisit By**: 2027-Q1 (if alternative binary schema formats mature significantly)
+
+---
+
+## D-013: BBolt for Embedded Persistent Storage
+
+**Date**: 2026-Q1
+**Decision**: Use `go.etcd.io/bbolt` as the single embedded key-value store for all subsystems.
+
+**Rationale**:
+- Single-file database requires no separate server process
+- ACID transactions via B-tree with memory-mapped reads
+- Pure Go, zero CGo, ensuring cross-compilation for all target platforms
+- Bucket-per-subsystem model maps cleanly to MURMUR domains (identity, waves, peers, etc.)
+- Small code footprint; well-audited; used in production by etcd
+
+**Alternatives Considered**:
+- SQLite (via go-sqlite3): CGo dependency breaks cross-compilation; schema migrations add complexity
+- LevelDB / Pebble: LSM-tree writes are faster but reads are slower; no ACID transactions without extra wrapper
+- BadgerDB: more complex API; larger binary footprint
+
+**Revisit By**: 2027-Q1 (if BBolt shows performance bottleneck at >50 MiB DB size)
+
+---
+
+## D-014: Ebitengine for Rendering (Not Immediate-Mode GUI or Web)
+
+**Date**: 2026-Q1
+**Decision**: Use Ebitengine v2 as the single cross-platform rendering engine for the Pulse Map and all UI.
+
+**Rationale**:
+- 2D game engine with 60fps target matches the Pulse Map's force-directed graph animation requirements
+- Kage shader language enables glow, ripple, and spectra visual effects without raw OpenGL/Metal
+- Single binary per platform via `go build` (no Electron, no browser runtime)
+- Ebitengine handles OS window management, input events, and audio—reducing dependency count
+- Active maintenance and stable v2 API
+
+**Alternatives Considered**:
+- Fyne: immediate-mode widget toolkit; insufficient for custom force-directed graph rendering
+- Gio: GPU-accelerated but lacks shader support for Kage-equivalent effects
+- Electron/Wails: browser runtime adds 60–100 MB; contradicts offline-first self-sovereign goal
+- Raw OpenGL: too much boilerplate; platform-specific shader compilation
+
+**Revisit By**: 2027-Q1 (if Ebitengine drops support for a target platform, or if WebAssembly becomes a first-class target)
+
+---
+
+## D-015: pkg/ Package Layout (Not internal/)
+
+**Date**: 2026-Q1
+**Decision**: All subsystem packages live under `pkg/`, not `internal/`. The `internal/` directory is not used.
+
+**Rationale**:
+- Downstream projects (relay operators, game SDK consumers) need to import subsystem packages
+- `internal/` would prohibit such imports; `pkg/` makes them explicit and stable
+- Interface-based subsystem boundaries (e.g., `store.WaveStore`, `mechanics.Publisher`) provide the encapsulation that `internal/` would otherwise enforce
+- The project is open-source; hiding implementation details via `internal/` adds friction without security benefit
+
+**Alternatives Considered**:
+- `internal/` for all packages: rejected (blocks downstream use of SDK and relay operator tooling)
+- Mix of `pkg/` and `internal/`: rejected (inconsistency; unclear policy for new packages)
+
+**Revisit By**: Never (structural decision; reversing it requires renaming all import paths)
+
+---
+
 ## How to Propose a New Decision
 
 1. **Document the choice**: What are you deciding?
@@ -241,5 +353,5 @@ A record of major reversible decisions made in the MURMUR project. Each decision
 
 ---
 
-**Last Updated**: 2026-05-07  
+**Last Updated**: 2026-05-08  
 **Maintained By**: MURMUR Core Team
