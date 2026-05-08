@@ -1250,8 +1250,9 @@ This milestone validates code quality and test coverage using complexity metrics
    - Privacy guarantee validation
    - Third-party penetration testing
 
-**Updated**: 2026-05-06  
+**Updated**: 2026-05-07  
 **Test Classification Report**: TEST_CLASSIFICATION_COMPLETE_2026-05-06.md (comprehensive workflow execution)  
 **Performance Analysis**: PERFORMANCE_ANALYSIS_1000NODE.md, LAYOUT_BOTTLENECK_ANALYSIS.md  
 **Planning Documents Updated**: CHANGELOG.md, AUDIT.md, PLAN.md, ROADMAP.md  
+**CI Policy**: Native per-OS executable builds in CI (no cross-compilation matrix for release artifacts).  
 

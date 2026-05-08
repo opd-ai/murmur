@@ -74,3 +74,18 @@ Scope: Ebitengine UI/UX remediation from latest audit findings.
     - windows/amd64
 - WASM build:
   - `GOOS=js GOARCH=wasm CGO_ENABLED=0 go build ./cmd/wasm` passed.
+
+## Update - 2026-05-07 (CI Native GUI Build Policy)
+
+### Change Summary
+- Updated CI artifact matrix to run native builds on each platform runner (`ubuntu-latest`, `macos-latest`, `windows-latest`).
+- Removed cross-compilation in the CI matrix (`GOOS/GOARCH` target overrides removed).
+- Removed `noebiten` build path from artifact packaging; executables are now built from `./cmd/murmur` with Ebitengine GUI enabled (`CGO_ENABLED=1`).
+
+### Security/Operational Impact
+- Improves release confidence by validating real platform toolchains and GUI-linked builds instead of headless/cross-compiled substitutes.
+- Reduces mismatch risk between released binaries and runtime graphics/input dependencies.
+- Linux runner explicitly installs required GUI system libraries to ensure deterministic desktop build success.
+
+### Follow-up
+- Keep wasm publishing in dedicated web workflows; CI executable artifact matrix remains native desktop only.
