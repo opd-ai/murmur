@@ -149,5 +149,5 @@ jobs:
           artifacts: artifacts/**/*
           draft: true
           prerelease: true
-          bodyFile: CHANGELOG.md
+          bodyFile: README.md
           removeArtifacts: true
