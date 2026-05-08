@@ -1,176 +1,78 @@
-# AUDIT
+# IMPLEMENTATION GAP AUDIT — 2026-05-07
 
-# BREAKING BUG AUDIT — 2026-05-07
+## Project Architecture Overview
+MURMUR is intended to be a decentralized dual-layer social network (Surface + Anonymous Layer) with six major subsystems: networking, identity, content, anonymous mechanics, Pulse Map UI, and onboarding. The planned architecture is documented in README, docs/TECHNICAL_IMPLEMENTATION.md, docs/DESIGN_DOCUMENT.md, ROADMAP.md, and PLAN.md.
 
-## Observed Failure
-`go run ./cmd/desktop` on a valid first-run configuration started normally, completed onboarding, printed `Onboarding complete, transitioning to Pulse Map...`, and then shut down the process instead of leaving the user in a usable Pulse Map session. The user-visible symptom included repeated onboarding completion logs followed by subsystem shutdown lines such as `[SHUTDOWN] Event bus goroutine exited` with no persistent UI.
+Phase-0 mapping and baseline evidence collected:
+- Module path: github.com/opd-ai/murmur (Go 1.25.7, toolchain go1.25.9)
+- Package inventory: 78 packages from go list ./...
+- Dependency graph size: 906 transitive packages from go list -deps ./...
+- go-stats overview (skip-tests): 55,083 LOC, 1,610 functions, 5,103 methods, 844 structs, 51 interfaces, 74 packages, 367 files
+- go-stats documentation coverage: overall 81.54% (functions 92.52%, methods 77.23%, types 84.90%)
+- Build baseline: go build ./... passed
+- Vet baseline: go vet ./... passed
 
-## Root Cause
-`pkg/app/ui.go:105` and `pkg/app/ui.go:130-134`, `runOnboardingUI`: the onboarding callback only logged the intended Pulse Map transition, but the actual code path returned from `ebiten.RunGame()` into unconditional app cancellation. On first run, the desktop path therefore exited instead of handing off into the Pulse Map.
+Online research (<=10 min) on github.com/opd-ai/murmur:
+- Open issues: 0
+- Open pull requests: 0 (5 closed)
+- Open projects: 0
+- Milestones listed on repository navigation: 0
 
-## Fix Applied
-Updated `pkg/app/ui.go` so first-run onboarding performs an in-loop handoff into the Pulse Map: it now persists `first_run_complete` and swaps from the onboarding game to the Pulse Map game inside the same `ebiten.RunGame()` session, avoiding forced termination/restart behavior.
+## Gap Summary
+| Category | Count | Critical | High | Medium | Low |
+|----------|-------|----------|------|--------|-----|
+| Stubs/TODOs | 6 | 1 | 2 | 2 | 1 |
+| Dead Code | 3 | 0 | 2 | 1 | 0 |
+| Partially Wired | 6 | 1 | 3 | 2 | 0 |
+| Interface Gaps | 1 | 0 | 0 | 1 | 0 |
+| Dependency Gaps | 0 | 0 | 0 | 0 | 0 |
 
-## Verification
-- `go test ./pkg/app/murmur_test.go ./pkg/app/ui_test.go`
-- `go build ./...`
-- `go test -race ./...`
-- `go-stats-generator analyze . --skip-tests --format json --output post-fix.json --sections functions,patterns`
-- `go-stats-generator diff baseline.json post-fix.json`
+## Implementation Completeness by Package
+| Package | Exported Functions | Implemented | Stubs | Dead | Coverage |
+|---------|--------------------|-------------|-------|------|----------|
+| pkg/game | 7 | 6 | 1 | 0 | N/A (skip-tests run) |
+| pkg/app | 51 | 46 | 4 | 1 | N/A (skip-tests run) |
+| pkg/networking/discovery | 58 | 52 | 1 | 2 | N/A (skip-tests run) |
+| pkg/networking/transport | 30 | 26 | 2 | 2 | N/A (skip-tests run) |
+| pkg/networking/metrics | 0 (functions), 19 exported vars | 12 wired | 0 | 7 unwired vars | N/A (skip-tests run) |
+| pkg/networking/gossip | 90 | 88 | 0 | 0 | N/A (skip-tests run) |
+| pkg/pulsemap | 17 | 15 | 2 | 0 | N/A (skip-tests run) |
+| pkg/content/waves | 117 | 117 | 0 | 0 | N/A (skip-tests run) |
 
-All targeted and full-suite tests passed. Full interactive first-run GUI validation could not be automated end-to-end in this session because the desktop binary has no scripted onboarding driver; the fix was validated by the repaired execution path plus the passing build and race suite.
+## Findings
+### CRITICAL
+- [ ] WASM runtime main path is still a placeholder and does not initialize Pulse Map/UI loop — pkg/game/runtime_wasm.go:129, pkg/game/runtime_wasm.go:138 — browser/WASM runtime cannot fulfill stated browser deployment goal in README and PLAN — **Remediation:** Implement wasmApp.Run to construct and run the actual game/UI runtime (same core flow as desktop runtime selection), including input loop, rendering startup, and shutdown path; add js/wasm integration test that asserts runtime reaches usable state; validate with go build ./... and js/wasm smoke execution.
+- [ ] Anonymous mechanics topic handling acknowledges messages but does not parse, route, verify, persist, or emit events — pkg/app/handlers.go:370 — blocks Anonymous Layer mechanics from being operational on inbound gossip path — **Remediation:** Replace placeholder block with real GossipMessage decode + mechanic type dispatch (gifts/marks/puzzles/hunts/etc.), signature/ZK validation, store write, and EventBus emission; add handler tests per mechanic type and malformed payloads; validate with go test ./pkg/app -run Anonymous and go build ./....
 
-## Other Blocking Bugs Found
-- [x] Returning-user continuation callback now one-shot and transition-safe.
-- [x] Onboarding key/specter generation no longer re-enters from Draw().
-- [x] Pulse Map global shortcuts now blocked while modal UI is active.
-- [x] `Ctrl+N` compose toggle conflict with network recenter resolved.
-- [x] UTF-8 backspace correctness restored for onboarding/settings text inputs.
-- [x] Minimap static content now cached instead of fully redrawn each frame.
+### HIGH
+- [ ] Bootstrap peer-list signature verification is effectively bypassable because verification key is unset and empty-key path returns success — pkg/networking/discovery/verify_key.go:14, pkg/networking/discovery/http_resolver.go:65 — blocks documented trust model for signed bootstrap lists — **Remediation:** Provision and embed real 32-byte Ed25519 public key, wire BootstrapVerifyKey into resolver construction, and fail closed for signed sources when key is required; add tests for invalid signature rejection; validate with go test ./pkg/networking/discovery and go vet ./....
+- [ ] Discovery remote resolvers are not connected to runtime bootstrap path (constructors only defined, not used in production wiring) — pkg/networking/discovery/pages_resolver.go:23, pkg/networking/discovery/gist_resolver.go:23, pkg/networking/discovery/ipfs_gateway_resolver.go:31, pkg/networking/discovery/resolver.go:33 — feature set exists structurally but is unreachable from main execution path — **Remediation:** Instantiate ResolverChain in app/network bootstrap wiring with ordered resolvers (user/static/pages/gist/ipfs fallback), pass verification key and timeouts, and integrate result into dial flow; add integration test proving at least one remote resolver path is exercised.
+- [ ] Legacy browser_host transport path contains explicit TODO no-op networking methods and is not wired from runtime — pkg/networking/transport/browser_host.go:80, pkg/networking/transport/browser_host.go:91, pkg/networking/transport/browser_host.go:25, pkg/networking/transport/browser_host.go:103 — creates dead/partial browser transport surface and maintenance risk — **Remediation:** Either remove/deprecate this path in favor of pkg/network adapter path, or fully implement relay/WebRTC connect + stream handler registration and wire from runtime; add coverage for connect/subscribe/publish over browser transport.
+- [ ] Identity private key is stored unencrypted in first-run init path — pkg/app/murmur.go:368 — diverges from technical spec requirement for encrypted keystore handling and weakens at-rest protection — **Remediation:** Replace raw storage Put with keystore encryption path (Argon2id + XChaCha20-Poly1305 using passphrase flow), include migration for legacy cleartext key entries, and add round-trip and migration tests; validate with go test ./pkg/identity/keys ./pkg/app.
 
-## 2026-05-07 — Ebitengine UI Transition/Input Remediation
+### MEDIUM
+- [ ] Nudge subsystem is not event-bus integrated; it prints to stdout even when EventBus exists — pkg/app/nudges.go:156 — partially wired user-facing feature (no UI delivery contract) — **Remediation:** Define NudgeEvent in pkg/app/eventbus.go, emit via EventBus, and subscribe/render in UI layer; add eventbus delivery test and UI-side consumer test.
+- [ ] Onboarding display name callback is not persisted into identity declarations — pkg/app/ui.go:102 — onboarding captures data but does not complete identity declaration path — **Remediation:** Persist display name into declaration storage/publisher flow in onboarding callback; add test verifying declaration contains entered display name post-onboarding.
+- [ ] Several Prometheus metrics are defined but not used in production paths (only declaration/tests): ShroudCircuitsActiveGauge, DHTBootstrapAttemptsTotal, DHTBootstrapSuccessesTotal, MemoryAllocatedBytesGauge, WaveCacheEntriesGauge, PeerScoreGauge, RateLimitDropsTotal — pkg/networking/metrics/metrics.go:89, pkg/networking/metrics/metrics.go:107, pkg/networking/metrics/metrics.go:115, pkg/networking/metrics/metrics.go:123, pkg/networking/metrics/metrics.go:131, pkg/networking/metrics/metrics.go:140, pkg/networking/metrics/metrics.go:150 — observability surface is partially wired — **Remediation:** instrument these counters/gauges in actual lifecycle paths (bootstrap, shroud maintenance, cache manager, scoring, rate limiter) and assert increments in integration tests.
+- [ ] App-level subsystem interfaces are documented as implemented but currently unused/unimplemented in production code paths — pkg/app/interfaces.go:15, pkg/app/interfaces.go:34, pkg/app/interfaces.go:51, pkg/app/interfaces.go:64 — abstraction layer exists without concrete wiring — **Remediation:** either wire interfaces into App dependencies and adapters, or remove stale interfaces and comments to match real architecture; validate by building App with injected mock implementations in tests.
 
-- Fixed a CRITICAL returning-screen transition hazard where the continuation callback could fire every frame and close an already-closed channel in the app handoff path.
-- Removed Draw-path goroutine spawning for onboarding identity/specter generation and moved generation trigger logic to one-shot Update guards.
-- Hardened Pulse Map input-mode isolation by blocking global shortcuts while modal UI is visible and deconflicting `Ctrl+N` from plain `N` network-view behavior.
-- Fixed rune/UTF-8 deletion correctness in onboarding and settings text entry backspace handling.
-- Eliminated read-lock mutation patterns in compose/passphrase draw paths by using write locks for geometry cache updates.
-- Added minimap static-layer caching to reduce per-frame redraw work and transition-time hitch risk.
+### LOW
+- [ ] Beacon-wave handler defers full PoW verification due missing nonce in beacon format — pkg/app/handlers.go:401 — non-critical correctness/security debt in anonymous beacon path — **Remediation:** extend beacon schema to carry nonce/difficulty evidence, verify before registry add, and add invalid-PoW rejection tests.
+- [ ] Pulse Map still has TODO placeholders for display name/pseudonym fields in node details — pkg/pulsemap/game.go:480, pkg/pulsemap/game.go:1194 — minor UX completeness gap — **Remediation:** extend node data model with pseudonym/display-name sourcing and update render path + tests.
 
-Verification:
-- `go test ./pkg/app ./pkg/onboarding/screens ./pkg/pulsemap ./pkg/pulsemap/overlays ./pkg/ui`
+## False Positives Considered and Rejected
+| Candidate Finding | Reason Rejected |
+|-------------------|----------------|
+| return nil patterns in proto/*.pb.go | Generated protobuf code; expected and not implementation stubs. |
+| TODOs in *_test.go (e.g., pkg/content/storage/cache_test.go:398) | Test-scope debt, not production execution gap. |
+| *_stub.go files under build tags (test/js/wasm splits) | Intentional build-constraint stubs to support cross-target compilation/tests. |
+| Extension interfaces with zero in-repo implementations (e.g., pkg/content/waves/extensions.go) | Intentional extension contract surface; designed for downstream plugins. |
+| Exported functions with no internal callers in adapter packages | May be public API for external consumers; not flagged without contradictory spec/tests. |
 
-## 2026-05-07 — UI Audit Follow-up Fixes
-
-- Fixed returning-user RunGame lifecycle race by removing asynchronous RunGame handoff in `pkg/app/ui.go` and running the welcome screen synchronously before Pulse Map startup.
-- Reduced stale-target action risk by resolving radial-menu targets from pointer/touch hit-test positions in `pkg/pulsemap/game.go` via `Renderer.NodeAtScreen`, with selected-node fallback.
-- Preserved transition continuity by continuing renderer/world tick updates while modal UI consumes input, while explicitly resetting drag/touch transient state to prevent input leakage.
-- Made onboarding first-wave backspace rune-safe (`pkg/onboarding/screens/bootstrap_screen.go`) to avoid UTF-8 corruption.
-- Made Search caret blink deterministic using update ticks instead of static TPS-derived gating (`pkg/ui/search.go`).
-- Updated camera interpolation/momentum integration to be time-based in `pkg/pulsemap/interaction/input.go` for more consistent motion under frame-rate variance.
-
-Verification:
-- `go test ./pkg/app ./pkg/pulsemap ./pkg/pulsemap/interaction ./pkg/onboarding/screens ./pkg/ui`
-
-## 2026-05-07 — Transition/Input Audit Resolution Pass
-
-- Resolved onboarding transition continuity issue by sequencing active onboarding UI by controller phase in `pkg/app/ui.go` (`Screen` -> `ModeScreen` -> `BootstrapScreen`) and transitioning to Pulse Map only once `flow.Controller.IsComplete()` is true.
-- Hardened input isolation for search overlay: `SearchBar.Update()` now consumes input whenever visible to prevent click-through pan/selection in the Pulse Map.
-- Removed per-frame minimap projection allocation in `pkg/pulsemap/game.go` by reusing a `minimapNodes` scratch buffer.
-- Fixed ComposePanel click-hit race window by recomputing panel origin in `Update()` before mouse hit-testing (no longer dependent on prior `Draw()` cache timing).
-- Made RecoveryScreen controls responsive to current viewport dimensions (dynamic center/box/button placement and matching hit-test coordinates) instead of fixed 800x600 anchors.
-
-Verification:
-- `go test ./pkg/app ./pkg/pulsemap/... ./pkg/ui ./pkg/onboarding/screens`
-
-## 2026-05-07 — Transition/Input Closure Follow-up
-
-- Resolved node-detail continuity issue by clearing `lastSelectedNode` on panel close, allowing same-node reopen without forced intermediate selection.
-- Eliminated SearchBar stale-ghost transition state by zeroing opacity on hide/toggle-off so Draw cannot keep rendering a non-interactive overlay.
-- Added display-name focus guard in onboarding identity flow so Enter does not advance phases while text input is active.
-- Converted mode-selection cards to responsive layout logic shared across draw/click/hover paths (4-column desktop, 2-column narrow viewports) to prevent card clipping and mismatched hit targets.
-- Hardened touch reset logic to clear deferred pending-tap debounce state, preventing stale tap emission after modal/state transitions.
-- Added full-frame background clear in RecoveryScreen Draw path to prevent stale previous-frame artifacts during recovery state transitions.
-- Switched onboarding shared text helper to scalable GoText face source and honoring requested text size for improved legibility and consistent typographic intent.
-- Reduced transition-time frame hitch risk by limiting expensive cross-layer artifact store queries to Micro zoom where artifact detail is actually visible.
-
-Verification:
-- `go test ./pkg/pulsemap/... ./pkg/ui ./pkg/onboarding/screens ./pkg/app`
-
-## 2026-05-07 — UI Clarity Remediation Batch
-
-- Completed direct remediation of remaining high-friction Ebitengine UX paths identified in the static clarity audit.
-- Restored full pointer-based interaction in device management (`pkg/ui/device_management.go`) for add-device, revoke-device, and confirmation dialog flows.
-- Improved settings readability (`pkg/ui/settings.go`) by rendering row labels/descriptions and displaying live slider/select/text values.
-- Reconnected Pulse Map orientation aid by integrating minimap initialization/update/draw in active game flow (`pkg/pulsemap/game.go`).
-- Removed returning-screen forced auto-continue and required explicit user progression with visible prompt (`pkg/onboarding/screens/returning_screen.go`).
-- Added keyboard parity across onboarding phases (`pkg/onboarding/screens/identity.go`, `pkg/onboarding/screens/mode_screen.go`, `pkg/onboarding/screens/bootstrap_screen.go`, `pkg/onboarding/screens/completion_screen.go`) via Enter/Space progression and Escape back-step where appropriate.
-- Improved node-inspection feedback by replacing silent placeholders with explicit informational rows and connection rendering (`pkg/pulsemap/game.go`, `pkg/ui/node_detail.go`).
-- Replaced radial-menu placeholder dots with actual configured glyph icon rendering (`pkg/ui/radial_menu.go`).
-- Changed wave-result enqueue semantics in Pulse Map to avoid silent feedback loss under full-channel pressure (`pkg/pulsemap/game.go`).
-
-Verification:
-- `go test ./pkg/ui ./pkg/pulsemap/... ./pkg/onboarding/screens`
-- `go vet ./pkg/ui ./pkg/pulsemap/... ./pkg/onboarding/screens`
-
-## Discarded Candidates
-| Candidate | Reason Discarded |
-|-----------|-----------------|
-| Repeated `Onboarding: Phase Identity Creation complete` logging | User-visible noise, but not the blocking bug. Basic utility was blocked by the missing onboarding-to-Pulse-Map handoff and unconditional cancellation path. |
-
-## 2026-05-07
-
-- Bootstrap Docker build hardening for DNS-constrained environments (`Dockerfile.bootstrap`, `docker-compose.bootstrap.example.yml`, `docs/BOOTSTRAP_OPERATION.md`).
-- Security impact: low. Changes affect build-time dependency resolution only; runtime networking and trust boundaries are unchanged.
-- Verification: `docker compose -f docker-compose.bootstrap.example.yml config` after compose update.
-
-- Transport integration test repair in `pkg/networking/transport/integration_test.go`.
-- Security impact: none. Changes are test-only and do not modify runtime transport, cryptography, or trust boundaries.
-- Verification: compiled package with integration build tag and ran daemon-independent protocol parsing test.
-
-- Added `UI_AUDIT.md`, a documentation-only audit prompt for Ebitengine UI review with emphasis on discoverability, onboarding clarity, Pulse Map navigation, and first-time user comprehension.
-- Security impact: none. This change adds no runtime code, protocol changes, or trust-boundary modifications.
-- Verification: file creation and content diff review.
-
-## 2026-05-07 — WASM Boot Sequence Event-Driven Callback Implementation
-
-**Observed Issue**: WASM browser build froze on "Starting runtime..." during boot.js initialization sequence.
-
-**Root Cause**: Architectural deadlock between boot.js and cmd/wasm/main.go:
-- boot.js called `await go.run()` expecting the function to return after Go initialization
-- cmd/wasm/main.go ended with `select {}` (blocking forever to keep runtime alive for event handling)
-- go.run() wraps the Go main() function and cannot return until main() completes
-- Therefore, the await in boot.js stalled indefinitely, never reaching "Runtime started." message
-
-**Implementation**: Replaced synchronous await model with proper event-driven callback architecture:
-1. web/boot.js and web-dist/boot.js now create a Promise before calling go.run()
-2. Setup window.murmur.onRuntimeReady callback that resolves the Promise
-3. Call go.run() without awaiting (fire-and-forget pattern)
-4. Await the Promise to complete the loading sequence
-5. cmd/wasm/main.go now calls triggerReadyCallback(success, errMsg) after runtime.Run() completes
-6. triggerReadyCallback() invokes window.murmur.onRuntimeReady() if set, allowing boot.js to proceed
-
-**Security Impact**: None. This is a boot-sequence bug fix. No cryptography, protocol, or trust boundaries affected. The callback mechanism is uncontested initialization synchronization.
-
-**Verification**:
-- WASM binary compiles without errors: `GOOS=js GOARCH=wasm go build -v ./cmd/wasm`
-- No blocking code in init() functions detected
-- wasm_exec.js matches Go 1.25.9 toolchain version (575 lines, valid syntax)
-- Callback flows correctly: successful init → onRuntimeReady() invoked → Promise resolves → "Runtime started." displayed
-- Error cases handled: if runtime.Run() fails, errMsg passed to callback
-- Graceful degradation: if callback not set (boot.js not loaded), Go runtime continues normally
-
-**Files Modified**:
-- cmd/wasm/main.go: Added triggerReadyCallback() function, modified main() to call it after initialization
-- web/boot.js: Event-driven Promise + callback pattern instead of await
-- web-dist/boot.js: Same pattern (deployed version)
-
-## 2026-05-07 — WASM Architecture Assessment and Deferred Full Integration
-
-**Finding**: After resolving the boot.js freeze (via event-driven callback), investigated full app parity between WASM and desktop builds. Attempted to instantiate `app.New()` in the WASM runtime in parallel with desktop.
-
-**Blockers Identified**:
-1. **Storage Layer** — bbolt (embedded key-value database) requires Unix syscalls (`Flock`, `Mmap`, PROT_READ, MAP_SHARED) that are unavailable in WebAssembly. WASM has no file system access beyond localStorage/IndexedDB.
-2. **Networking Layer** — libp2p's native TCP/UDP transports cannot function in a browser. WebRTC is available but requires a different networking abstraction (no listenable multiaddrs, relay-only, WebRTC DataChannels as the only transport).
-3. **Dependency Constraints** — go-libp2p v0.48.0 expects these changes as core architecture; downgrading would lose NAT traversal and discovery features. Upgrading dependencies was attempted but pion/webrtc v4.2.12 was required to unblock builds.
-
-**Decision**: WASM support is deferred to a future architecture phase. Current implementation:
-- ✅ Boot.js loads and initializes the Go runtime successfully (event-driven callback)
-- ✅ WASM binary builds cleanly with pion/webrtc v4.2.12 upgrade
-- ✅ Displays "WASM build: work in progress" status message in boot.js
-- ✅ Desktop and WASM continue to build independently without breaking each other
-- ⏸️ Full UI parity will require custom storage adapter (localStorage/IndexedDB), browser-native networking (WebRTC relay client), and WASM-specific app architecture
-
-**Files Modified**:
-- pkg/game/runtime_wasm.go: Reverted full app instantiation to metadata-only setup + TODO comment
-- web/boot.js, web-dist/boot.js: Updated status message to "WASM build: work in progress"
-- go.mod: Upgraded pion/webrtc v4.1.2 → v4.2.12 to unblock builds (transitive via go-libp2p v0.48.0)
-
-**Security Impact**: None. WASM runtime correctly declines to instantiate unavailable subsystems. Storage and networking remain unreachable from untrusted browser context.
-
-**Next Steps** (Future Phase): 
-- Design browser-native storage adapter (localStorage → Bbolt interface shim)
-- Implement WebRTC relay client (browser → relay peer → network)
-- Create WASM-specific App variant with these adapters
-- Add WASM-specific tests and integration workflow
-
+## Evidence and Commands Executed
+- Prerequisite: which go-stats-generator || go install github.com/opd-ai/go-stats-generator@latest
+- Baseline metrics: go-stats-generator analyze . --skip-tests --format json --sections functions,documentation,packages,patterns,interfaces,structs,duplication
+- Baseline validation: go build ./... ; go vet ./...
+- Package graph: go list ./... ; go list -deps ./...
+- Gap scans: rg TODO/FIXME/HACK/XXX + targeted placeholder and wiring searches
+- Dependency check: go mod why -m for all direct dependencies (no unused direct module found)
