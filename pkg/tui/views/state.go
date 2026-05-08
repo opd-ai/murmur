@@ -14,6 +14,15 @@ type SessionState struct {
 	ModeManager *modes.Manager
 	Specters    []*specters.Specter
 	CreatedAt   time.Time
+	Settings    SettingsState
+	Actions     []string
+}
+
+// SettingsState stores cross-view runtime settings.
+type SettingsState struct {
+	ShowSettings  bool
+	LayerBlend    float64
+	AnonymousOnly bool
 }
 
 // NewSessionState creates default session state.
@@ -21,5 +30,8 @@ func NewSessionState() *SessionState {
 	return &SessionState{
 		ModeManager: modes.NewManager(),
 		CreatedAt:   time.Now(),
+		Settings: SettingsState{
+			LayerBlend: 0.5,
+		},
 	}
 }

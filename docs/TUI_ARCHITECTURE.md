@@ -24,6 +24,7 @@ Shared state:
 ## Event bridge
 
 - `pkg/tui/bridge/eventbus.go` provides an event-stream abstraction that feeds external events into `tea.Msg`.
+- The bridge also exposes an output stream for UI-origin action events (`UserAction` payloads) emitted from root/model interactions.
 - Root model consumes bridge messages and applies them to networking/UI state.
 
 ## Update/View flow
@@ -32,5 +33,4 @@ Shared state:
 2. Global keys handled first (quit/help/tab routing)
 3. Message routed to active sub-model
 4. Sub-model returns updated state and optional `tea.Cmd`
-5. Root renders tabs + active panel + status/help overlays
-
+5. Root renders tabs + active panel + settings/help overlays

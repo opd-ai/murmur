@@ -4,8 +4,10 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/opd-ai/murmur/pkg/tui"
+	"github.com/opd-ai/murmur/pkg/tui/bridge"
 )
 
 var (
@@ -22,7 +24,19 @@ func main() {
 		return
 	}
 
-	program := tui.NewProgram(tui.Config{})
+	inbound := make(chan bridge.EventMsg, 64)
+	go func() {
+		ticker := time.NewTicker(2 * time.Second)
+		defer ticker.Stop()
+		for range ticker.C {
+			inbound <- bridge.EventMsg{Type: "HeartbeatReceived"}
+			inbound <- bridge.EventMsg{Type: "WaveReceived"}
+		}
+	}()
+
+	program := tui.NewProgram(tui.Config{
+		EventStream: bridge.NewEventStream(inbound, func() {}),
+	})
 	if _, err := program.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "murmur-tui: %v\n", err)
 		os.Exit(1)

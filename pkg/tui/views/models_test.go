@@ -7,7 +7,7 @@ import (
 )
 
 func TestPulseMapModelUpdate_Table(t *testing.T) {
-	m := NewPulseMapModel()
+	m := NewPulseMapModel(NewSessionState())
 	tests := []struct {
 		name  string
 		msg   tea.Msg
@@ -122,7 +122,7 @@ func TestAnonymousModelUpdate_Table(t *testing.T) {
 }
 
 func TestOnboardingModelUpdate_Table(t *testing.T) {
-	m := NewOnboardingModel()
+	m := NewOnboardingModel(NewSessionState())
 	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	if got.Controller.OverallProgress() <= 0 {
 		t.Fatal("expected onboarding progress to advance")

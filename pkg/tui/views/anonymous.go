@@ -16,6 +16,9 @@ type AnonymousModel struct {
 	Score      *resonance.Score
 	Status     string
 	Shroud     string
+	HasPrimary bool
+	HasBackup  bool
+	CircuitAge string
 	Milestones []string
 }
 
@@ -65,6 +68,12 @@ func (m AnonymousModel) Update(msg tea.Msg) (AnonymousModel, tea.Cmd) {
 	case "p":
 		m.Status = "mini-games menu opened (puzzles/hunts/oracle/forge/shadowplay/councils)"
 		m.Score.AddGameResult(true)
+	case "c":
+		m.HasPrimary = true
+		m.HasBackup = true
+		m.CircuitAge = "0m"
+		m.Shroud = "circuit: active | relays: 3 | route: primary+backup"
+		m.Status = "shroud circuit established"
 	}
 	return m, nil
 }
@@ -77,5 +86,6 @@ func (m AnonymousModel) View(width int) string {
 	}
 	score := m.Score.Compute()
 	rank := resonance.RankFromScore(score).String()
-	return fmt.Sprintf("Active Specter: %s\nSpecter count: %d\nShroud: %s\nResonance: %d (%s)\n\nMilestones:\n%s\n\nStatus: %s", active, len(m.Session.Specters), m.Shroud, score, rank, strings.Join(m.Milestones, "\n"), m.Status)
+	echo := m.Score.EchoIndex()
+	return fmt.Sprintf("Active Specter: %s\nSpecter count: %d\nShroud: %s\nShroud health: primary=%t backup=%t age=%s\nResonance: %d (%s)\nEcho Index: %.2f\n\nMilestones:\n%s\n\nStatus: %s", active, len(m.Session.Specters), m.Shroud, m.HasPrimary, m.HasBackup, m.CircuitAge, score, rank, echo, strings.Join(m.Milestones, "\n"), m.Status)
 }

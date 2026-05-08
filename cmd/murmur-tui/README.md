@@ -28,11 +28,13 @@ go build ./cmd/murmur-tui
 
 - Global: `q`/`Ctrl+C` quit, `?` help, `Tab`/`Shift+Tab` cycle views, `1-6` jump views
 - Pulse Map: `h/j/k/l` or arrows pan, `+/-` zoom, `n` fit/reset, `Enter` select
+- Pulse Map: `/` search, `m` actions menu, `Ctrl+B` bookmark, `Ctrl+1..9` bookmark jump
 - Identity: `g` generate keypair+mnemonic, `1-4` privacy mode
 - Waves: `c` compose, `1-8` Wave type, `Enter` submit
 - Anonymous: `n` new Specter, `s` switch, `g` gift, `m` mark, `p` mini-games menu
 - Onboarding: `Enter` advance phase, `Space` skip onboarding
 - Networking: `d` DHT refresh indicator, `r` rate-limit reset indicator
+- Settings: `Ctrl+,` toggle settings modal, numeric controls for mode/blend
 
 ## Mouse
 

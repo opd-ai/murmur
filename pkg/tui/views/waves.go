@@ -26,6 +26,8 @@ type WavesModel struct {
 	LastWave      *pb.Wave
 	Status        string
 	ThreadPreview []string
+	WaveLog       []*pb.Wave
+	ReplyToLast   bool
 }
 
 var waveTypes = []waves.WaveType{
@@ -45,8 +47,8 @@ func NewWavesModel(session *SessionState) WavesModel {
 		Session:       session,
 		TTL:           waves.DefaultTTL,
 		Difficulty:    waves.DefaultDifficulty,
-		Status:        "c: compose, 1-8: wave type, enter: submit",
-		ThreadPreview: []string{"root-wave", "└─ reply-wave", "   └─ nested-reply"},
+		Status:        "c: compose, 1-8 type, t/T TTL, y toggle reply, enter submit",
+		ThreadPreview: []string{"<empty thread>"},
 	}
 }
 
@@ -59,9 +61,11 @@ func (m WavesModel) Update(msg tea.Msg) (WavesModel, tea.Cmd) {
 			return m, nil
 		}
 		m.LastWave = t.wave
+		m.WaveLog = append(m.WaveLog, t.wave)
+		m.ThreadPreview = buildThreadPreview(m.WaveLog)
 		m.Content = ""
 		m.Compose = false
-		m.Status = fmt.Sprintf("wave created: type=%d ttl=%ds", t.wave.WaveType, t.wave.TtlSeconds)
+		m.Status = fmt.Sprintf("wave created: type=%d ttl=%ds nonce=%d", t.wave.WaveType, t.wave.TtlSeconds, t.wave.PowNonce)
 		return m, nil
 	case tea.KeyMsg:
 		s := t.String()
@@ -70,6 +74,23 @@ func (m WavesModel) Update(msg tea.Msg) (WavesModel, tea.Cmd) {
 			m.Compose = !m.Compose
 			if m.Compose {
 				m.Status = "compose enabled"
+			}
+		case "y":
+			m.ReplyToLast = !m.ReplyToLast
+			if m.ReplyToLast {
+				m.Status = "reply mode enabled"
+			} else {
+				m.Status = "reply mode disabled"
+			}
+		case "t":
+			m.TTL -= time.Hour
+			if m.TTL < time.Hour {
+				m.TTL = time.Hour
+			}
+		case "T":
+			m.TTL += time.Hour
+			if m.TTL > waves.MaxTTL {
+				m.TTL = waves.MaxTTL
 			}
 		case "enter":
 			if m.Compose {
@@ -86,6 +107,10 @@ func (m WavesModel) Update(msg tea.Msg) (WavesModel, tea.Cmd) {
 				opts := waves.DefaultCreateOptions()
 				opts.TTL = m.TTL
 				opts.Difficulty = m.Difficulty
+				if m.ReplyToLast && m.LastWave != nil {
+					opts.ParentHash = m.LastWave.WaveId
+					wt = waves.TypeReply
+				}
 				return m, func() tea.Msg {
 					w, err := waves.Create(wt, []byte(content), m.Session.KeyPair, opts)
 					return waveCreatedMsg{wave: w, err: err}
@@ -120,5 +145,24 @@ func (m WavesModel) View(width int) string {
 	if m.Compose {
 		composeState = "on"
 	}
-	return fmt.Sprintf("Compose: %s\nWave type: %d (%v)\nTTL: %s\nDifficulty: %d\nDraft: %s\n\nThread preview:\n%s\n\nLast wave: %s\nStatus: %s", composeState, m.TypeIndex+1, currentType, m.TTL, m.Difficulty, m.Content, strings.Join(m.ThreadPreview, "\n"), last, m.Status)
+	reply := "off"
+	if m.ReplyToLast {
+		reply = "on"
+	}
+	return fmt.Sprintf("Compose: %s\nReply-to-last: %s\nWave type: %d (%v)\nTTL: %s\nDifficulty: %d\nDraft: %s\n\nThread view:\n%s\n\nLast wave: %s\nStatus: %s", composeState, reply, m.TypeIndex+1, currentType, m.TTL, m.Difficulty, m.Content, strings.Join(m.ThreadPreview, "\n"), last, m.Status)
+}
+
+func buildThreadPreview(log []*pb.Wave) []string {
+	if len(log) == 0 {
+		return []string{"<empty thread>"}
+	}
+	lines := make([]string, 0, len(log))
+	for _, w := range log {
+		prefix := "•"
+		if len(w.ParentHash) > 0 {
+			prefix = "└─"
+		}
+		lines = append(lines, fmt.Sprintf("%s type=%d id=%x", prefix, w.WaveType, w.WaveId[:3]))
+	}
+	return lines
 }

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/opd-ai/murmur/pkg/identity/modes"
 	"github.com/opd-ai/murmur/pkg/tui/bridge"
 	"github.com/opd-ai/murmur/pkg/tui/components"
 	"github.com/opd-ai/murmur/pkg/tui/input"
@@ -63,11 +64,11 @@ func NewModel(cfg Config) Model {
 		theme:      styles.NewTheme(),
 		keys:       input.NewKeyMap(),
 		session:    session,
-		pulse:      views.NewPulseMapModel(),
+		pulse:      views.NewPulseMapModel(session),
 		identity:   views.NewIdentityModel(session),
 		waves:      views.NewWavesModel(session),
 		anonymous:  views.NewAnonymousModel(session),
-		onboarding: views.NewOnboardingModel(),
+		onboarding: views.NewOnboardingModel(session),
 		networking: views.NewNetworkingModel(),
 		stream:     stream,
 	}
@@ -81,10 +82,12 @@ func NewProgram(cfg Config) *tea.Program {
 
 // Init starts asynchronous subscriptions.
 func (m Model) Init() tea.Cmd {
-	if m.stream == nil {
-		return nil
+	cmds := make([]tea.Cmd, 0, 2)
+	cmds = append(cmds, m.pulse.InitCmd())
+	if m.stream != nil {
+		cmds = append(cmds, m.stream.WaitCmd(m.ctx))
 	}
-	return m.stream.WaitCmd(m.ctx)
+	return tea.Batch(cmds...)
 }
 
 // Update handles root-level messages and routes to active views.
@@ -111,6 +114,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "?":
 			m.showHelp = !m.showHelp
 			return m, nil
+		case "ctrl+,":
+			m.session.Settings.ShowSettings = !m.session.Settings.ShowSettings
+			return m, m.emitActionCmd("toggle_settings", map[string]any{"visible": m.session.Settings.ShowSettings})
 		case "tab":
 			m.active = (m.active + 1) % len(tabNames)
 			return m, nil
@@ -118,6 +124,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.active = (m.active - 1 + len(tabNames)) % len(tabNames)
 			return m, nil
 		case "1", "2", "3", "4", "5", "6":
+			if m.session.Settings.ShowSettings {
+				return m, m.applySettingKey(t.String())
+			}
 			m.active = int(t.String()[0] - '1')
 			if m.active >= len(tabNames) {
 				m.active = 0
@@ -179,17 +188,70 @@ func (m Model) View() string {
 	status := components.StatusBar(m.theme, "tab: cycle views | 1-6 jump views | ?: help", fmt.Sprintf("view=%s", tabNames[m.active]))
 
 	parts := []string{header, m.theme.Panel.Render(body), status}
+	if m.session.Settings.ShowSettings {
+		parts = append(parts, components.HelpOverlay(m.theme, []string{
+			fmt.Sprintf("Settings modal (Ctrl+, to close)"),
+			fmt.Sprintf("1-4 privacy mode  | current=%s", m.session.ModeManager.Current().String()),
+			fmt.Sprintf("5 blend down      | blend=%.0f%%", m.session.Settings.LayerBlend*100),
+			fmt.Sprintf("6 blend up        | anonymous-only=%t", m.session.Settings.AnonymousOnly),
+		}))
+	}
 	if m.showHelp {
 		parts = append(parts, components.HelpOverlay(m.theme, []string{
 			"Global: q/Ctrl+C quit, Tab/Shift+Tab switch views, 1-6 jump view",
-			"Pulse Map: hjkl/arrows pan, +/- zoom, n fit/reset, enter/click select",
+			"Pulse Map: hjkl/arrows pan, +/- zoom, n/home fit-reset, / search, enter/click detail, m actions",
 			"Identity: g generate keypair+mnemonic, 1-4 privacy mode",
-			"Waves: c compose, 1-8 wave type, enter submit",
-			"Anonymous: n new specter, s switch specter, g gift, m mark, p mini-games",
+			"Waves: c compose, y reply-to-last toggle, 1-8 wave type, t/T TTL, enter submit",
+			"Anonymous: n new specter, s switch specter, c build shroud, g gift, m mark, p mini-games",
 			"Onboarding: enter advance phase, space skip",
-			"Networking: d refresh dht, r reset rate-limit indicator",
+			"Networking: d refresh dht, g simulate gossip, r reset rate-limit indicator",
+			"Settings: Ctrl+, toggle modal, 1-4 mode, 5/6 layer blend",
 		}))
 	}
 
 	return strings.Join(parts, "\n\n")
+}
+
+func (m Model) applySettingKey(key string) tea.Cmd {
+	switch key {
+	case "1":
+		_ = m.session.ModeManager.Transition(modes.Open)
+		m.session.Settings.AnonymousOnly = false
+	case "2":
+		m.session.ModeManager.SetSpecterAvailable(true)
+		_ = m.session.ModeManager.Transition(modes.Hybrid)
+		m.session.Settings.AnonymousOnly = false
+	case "3":
+		m.session.ModeManager.SetSpecterAvailable(true)
+		_ = m.session.ModeManager.Transition(modes.Guarded)
+		m.session.Settings.AnonymousOnly = false
+	case "4":
+		m.session.ModeManager.SetSpecterAvailable(true)
+		m.session.ModeManager.SetShroudAvailable(true)
+		_ = m.session.ModeManager.Transition(modes.Fortress)
+		m.session.Settings.AnonymousOnly = true
+	case "5":
+		m.session.Settings.LayerBlend -= 0.1
+		if m.session.Settings.LayerBlend < 0 {
+			m.session.Settings.LayerBlend = 0
+		}
+	case "6":
+		m.session.Settings.LayerBlend += 0.1
+		if m.session.Settings.LayerBlend > 1 {
+			m.session.Settings.LayerBlend = 1
+		}
+	}
+	return m.emitActionCmd("settings_changed", map[string]any{
+		"mode":             m.session.ModeManager.Current().String(),
+		"layer_blend":      m.session.Settings.LayerBlend,
+		"anonymous_only":   m.session.Settings.AnonymousOnly,
+		"settings_visible": m.session.Settings.ShowSettings,
+	})
+}
+
+func (m Model) emitActionCmd(action string, payload map[string]any) tea.Cmd {
+	if m.stream == nil {
+		return nil
+	}
+	return m.stream.EmitCmd("UserAction", map[string]any{"action": action, "payload": payload})
 }

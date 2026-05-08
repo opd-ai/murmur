@@ -14,6 +14,8 @@ type KeyMap struct {
 	PanRight key.Binding
 	ZoomIn   key.Binding
 	ZoomOut  key.Binding
+	Settings key.Binding
+	Search   key.Binding
 }
 
 // NewKeyMap creates default key bindings.
@@ -29,5 +31,7 @@ func NewKeyMap() KeyMap {
 		PanRight: key.NewBinding(key.WithKeys("l", "right"), key.WithHelp("l/→", "pan right")),
 		ZoomIn:   key.NewBinding(key.WithKeys("+", "="), key.WithHelp("+", "zoom in")),
 		ZoomOut:  key.NewBinding(key.WithKeys("-"), key.WithHelp("-", "zoom out")),
+		Settings: key.NewBinding(key.WithKeys("ctrl+,"), key.WithHelp("ctrl+,", "settings")),
+		Search:   key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "search")),
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image/color"
 	"strings"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/opd-ai/murmur/pkg/identity/keys"
@@ -17,12 +18,13 @@ type IdentityModel struct {
 	Session      *SessionState
 	Mnemonic     string
 	RecoveryText string
+	RecoverMode  bool
 	Status       string
 }
 
 // NewIdentityModel creates the identity view model.
 func NewIdentityModel(session *SessionState) IdentityModel {
-	return IdentityModel{Session: session, Status: "g: generate keypair, 1-4: mode, r: validate recovery mnemonic"}
+	return IdentityModel{Session: session, Status: "g: generate keypair, 1-4: mode, R: recovery mode, r: validate recovery mnemonic"}
 }
 
 // Update handles identity interactions.
@@ -69,6 +71,13 @@ func (m IdentityModel) Update(msg tea.Msg) (IdentityModel, tea.Cmd) {
 		} else {
 			m.Status = "recovery mnemonic invalid"
 		}
+	case "R":
+		m.RecoverMode = !m.RecoverMode
+		if m.RecoverMode {
+			m.Status = "recovery mode enabled (enter mnemonic and press r)"
+		} else {
+			m.Status = "recovery mode disabled"
+		}
 	case "backspace":
 		if len(m.RecoveryText) > 0 {
 			m.RecoveryText = m.RecoveryText[:len(m.RecoveryText)-1]
@@ -94,10 +103,19 @@ func (m IdentityModel) View(width int) string {
 	mode := m.Session.ModeManager.Current().String()
 	pub := "<not-generated>"
 	sigilPreview := ""
+	fingerprint := "<none>"
+	inviteCode := "<none>"
 	if m.Session.KeyPair != nil {
 		pub = fmt.Sprintf("%x", m.Session.KeyPair.PublicKey)
 		if len(pub) > 16 {
 			pub = pub[:16] + "..."
+		}
+		full := fmt.Sprintf("%x", m.Session.KeyPair.PublicKey)
+		if len(full) >= 8 {
+			fingerprint = full[:8]
+		}
+		if len(full) >= 12 {
+			inviteCode = "MURMUR-" + full[:6] + "-" + full[6:12]
 		}
 		sigilPreview = renderANSISigil(m.Session.KeyPair.PublicKey)
 	}
@@ -105,7 +123,20 @@ func (m IdentityModel) View(width int) string {
 	if mnemonic == "" {
 		mnemonic = "<not-generated>"
 	}
-	return fmt.Sprintf("Mode: %s\nPublic key: %s\nMnemonic: %s\n\nSigil:\n%s\nRecovery input: %s\nStatus: %s", mode, pub, mnemonic, sigilPreview, m.RecoveryText, m.Status)
+	return fmt.Sprintf(
+		"Mode: %s\nCooldown remaining: %s\nTraffic padding: %t\nPublic key: %s\nFingerprint: %s\nInvite code: %s\nMnemonic: %s\n\nSigil:\n%s\nRecovery mode: %t\nRecovery input: %s\nStatus: %s",
+		mode,
+		m.Session.ModeManager.CooldownRemaining().Round(time.Second),
+		m.Session.ModeManager.IsTrafficPaddingEnabled(),
+		pub,
+		fingerprint,
+		inviteCode,
+		mnemonic,
+		sigilPreview,
+		m.RecoverMode,
+		m.RecoveryText,
+		m.Status,
+	)
 }
 
 func renderANSISigil(pub []byte) string {
