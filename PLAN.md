@@ -1,6 +1,6 @@
 # PLAN
 
-Last updated: 2026-05-07
+Last updated: 2026-05-08
 
 ## Scope
 
@@ -24,6 +24,7 @@ This file tracks only incomplete items pulled from ROADMAP.md.
 - [ ] Bootstrap node infrastructure (8–12 community-operated nodes)
 - [ ] Docker container image for bootstrap/relay operators
 - [ ] Platform-specific binary releases (linux/amd64, linux/arm64, darwin/amd64, darwin/arm64, windows/amd64)
+  - [x] CI release publishing action migrated to `ncipollo/release-action` in `.github/workflows/build.yml` (2026-05-08)
 - [ ] Android APK distribution
 - [ ] iOS xcframework distribution
 - [ ] Version upgrade protocol — dual-subscription migration (v1 + v2 topics)

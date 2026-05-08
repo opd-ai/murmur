@@ -128,9 +128,9 @@ jobs:
           find . -type f -name 'murmur-*' -exec sh -c 'sha256sum "{}" > "{}".sha256' \;
 
       - name: Create release
-        uses: softprops/action-gh-release@v3
+        uses: ncipollo/release-action@v1
         with:
           name: latest
-          files: artifacts/**/*
+          artifacts: artifacts/**/*
           draft: true
-          generate_release_notes: true
+          generateReleaseNotes: true

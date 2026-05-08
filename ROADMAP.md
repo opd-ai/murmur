@@ -10,6 +10,7 @@
   - Complexity regression gates via go-stats-generator in [.github/workflows/ci.yml](.github/workflows/ci.yml)
   - Coverage job with critical-package thresholds in [.github/workflows/ci.yml](.github/workflows/ci.yml)
   - Cross-platform artifact builds in [.github/workflows/build.yml](.github/workflows/build.yml)
+  - Release creation step in [.github/workflows/build.yml](.github/workflows/build.yml) now uses `ncipollo/release-action@v1`
   - WASM Pages deployment in [.github/workflows/pages-wasm.yml](.github/workflows/pages-wasm.yml)
   - Mobile build pipeline in [.github/workflows/mobile.yml](.github/workflows/mobile.yml)
 
