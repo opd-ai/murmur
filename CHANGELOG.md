@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Security (2026-05-08 — AUDIT.md remediation)
+- **Tunnel relay UNREGISTER hardening** (`pkg/tunneling/relay/relay.go`, `pkg/tunneling/initiator/initiator.go`, `pkg/tunneling/relay/relay_test.go`): removed plaintext unauthenticated tunnel teardown behavior. Relay now returns `401 Unauthorized` for plaintext `UNREGISTER` attempts and only accepts teardown through framed operator protocol on the authenticated operator connection. Initiator shutdown no longer sends legacy plaintext `UNREGISTER`. Added `TestPlaintextUnregisterIsRejected` to verify unauthorized teardown attempts cannot remove active tunnel registrations.
+
+### Security (2026-05-08 — AUDIT.md remediation)
 - **Bounded bootstrap HTTP response reads** (`pkg/networking/discovery/http_resolver.go`, `ipfs_gateway_resolver.go`): replaced unbounded `io.ReadAll(resp.Body)` with `io.LimitReader`-capped reads (1 MiB) in `fetchPeerListBody`, `IPFSGatewayResolver.fetchURL`, and `IPFSGatewayResolver.fetchCID`. Responses exceeding the cap are rejected before JSON parsing, preventing memory-exhaustion DoS from malicious or oversized bootstrap endpoints. Added `maxBootstrapResponseBytes` constant (1 MiB). Tests: `TestFetchPeerListBody_OversizedResponse`, `TestIPFSGatewayResolver_OversizedPeerList`, `TestIPFSGatewayResolver_OversizedCID` in `pkg/networking/discovery/http_resolver_test.go`.
 - **Bootstrap CORS/health metadata hardening** (`cmd/bootstrap/main.go`): changed `--allow-origin` default from `"*"` to `""` (opt-in, not opt-out); removed `state_dir` filesystem path from the `healthResponse` struct and `HealthInfo()` JSON output. Bootstrap operators who need CORS must now explicitly pass `--allow-origin`; health responses no longer expose local filesystem layout to unauthenticated callers.
 

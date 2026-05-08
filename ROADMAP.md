@@ -49,6 +49,7 @@
 - **Executed checks**:
   - `go test -race ./...`: pass, no race reports
   - `go vet ./...`: clean
+  - `pkg/tunneling/relay` hardening validation: plaintext `UNREGISTER` now rejected with `401 Unauthorized`; teardown accepted only via framed operator path (`TestPlaintextUnregisterIsRejected`).
 
 ## Goal-Achievement Summary
 | Stated Goal | Status | Evidence | Gap Description |

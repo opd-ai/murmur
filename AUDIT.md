@@ -58,7 +58,7 @@ server. Nodes expose:
 
 ### HIGH
 
-- [ ] **Unauthenticated Tunnel UNREGISTER — Remote Tunnel Teardown**
+- [x] **Unauthenticated Tunnel UNREGISTER — Remote Tunnel Teardown**
   — `pkg/tunneling/relay/relay.go:155-169`
   — **Vector:** Any TCP connection to the relay port. The relay's `handleConnection`
   discriminates on the first byte: if it is not `0x7F` (FrameMagic) it falls into the
