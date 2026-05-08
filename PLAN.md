@@ -53,6 +53,10 @@ This file tracks only incomplete items pulled from ROADMAP.md.
 - [ ] Help button — reopen onboarding tutorials at any time
 - [ ] Modal dialogs — confirmations and warnings for destructive actions
 - [ ] Status indicators — identity publication, Shroud circuit, connection count, PoW progress
+- [x] Bubble Tea terminal UI baseline scaffold (`cmd/murmur-tui`) with tabbed domain views, key/mouse navigation, and feature matrix artifact (2026-05-08)
+- [x] Bubble Tea terminal parity expansion for key P0 surfaces: Pulse Map search/detail/minimap, onboarding bootstrap progress, Waves thread/reply preview, settings/layer blend controls (2026-05-08)
+- [x] Bubble Tea terminal parity closure: all remaining P1 matrix rows implemented and marked done, including anonymous mechanics boards, onboarding hint/resume branches, and overlay/config surfaces (2026-05-08)
+- [x] Bubble Tea terminal parity completion: all P2 matrix rows implemented with terminal-safe equivalents; no remaining parity gaps in `docs/TUI_FEATURE_MATRIX.md` (2026-05-08)
 
 ## Release Candidate Follow-Up
 

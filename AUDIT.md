@@ -108,3 +108,65 @@ Scope: Ebitengine UI/UX remediation from latest audit findings.
 - Workflow syntax validated post-change:
   - `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/build.yml")'` passed.
 - Note: The baseline lint/test/build failures above are environment-specific (missing Linux X11 development headers for Ebitengine native GUI compilation) and are unrelated to the release-action migration itself.
+
+## Update - 2026-05-08 (Bubble Tea TUI Introduction)
+
+### Change Summary
+- Added a standalone terminal UI binary at `cmd/murmur-tui`.
+- Added `pkg/tui/{views,components,styles,input,bridge}` implementing a Bubble Tea root model with tabbed domain views (Pulse Map, Identity, Waves, Anonymous, Onboarding, Networking), centralized keymap/theme, and generic event-stream bridge.
+- Added Phase 0 discovery artifact `docs/TUI_FEATURE_MATRIX.md` and architecture/user docs (`docs/TUI_ARCHITECTURE.md`, `cmd/murmur-tui/README.md`).
+
+### Security/Operational Impact
+- No cryptographic primitive substitutions; TUI uses existing domain packages for identity/waves/specters/modes/onboarding state transitions.
+- TUI package avoids direct Ebitengine coupling, reducing GUI runtime dependency for terminal operation.
+- New third-party dependencies added: Bubble Tea, Bubbles, Lipgloss (advisory database check: no known vulnerabilities at selected versions).
+
+### Validation Status
+- `go test ./pkg/tui/... ./cmd/murmur-tui` passed.
+- Repository-wide native GUI checks remain environment-limited here by missing Linux X11 headers (`X11/Xlib.h`) for Ebitengine-linked packages.
+
+## Update - 2026-05-08 (TUI Parity Expansion)
+
+### Change Summary
+- Expanded terminal parity surfaces in `pkg/tui/views`:
+  - Pulse Map now consumes `pkg/pulsemap/layout` for layout-driven node coordinates and provides search, node detail, minimap summary, edge rendering, bookmark hotkeys, and radial-action equivalent menu.
+  - Onboarding now tracks bootstrap progress via `pkg/onboarding/bootstrap` manager integration with a connector abstraction.
+  - Identity now surfaces recovery validation mode, privacy cooldown feedback, traffic-padding status, fingerprint, and invite code summary.
+  - Waves now provide thread-style reconstruction preview and reply-to-last compose flow.
+  - Anonymous view now includes explicit Shroud circuit health and Echo Index display.
+- Added root settings modal controls (`Ctrl+,`) with privacy mode and cross-layer blend toggles; emits UI action events through the TUI bridge output stream.
+
+### Security/Operational Impact
+- No changes to cryptographic algorithms or network protocol semantics.
+- TUI continues to call existing domain packages for state transitions and message creation; no direct substitution of core subsystem logic.
+
+### Validation Status
+- `go test ./pkg/tui/... ./cmd/murmur-tui` passed after parity expansion changes.
+
+## Update - 2026-05-08 (TUI P1 Parity Closure)
+
+### Change Summary
+- Completed remaining P1-facing terminal parity surfaces and marked all P0/P1 matrix rows done in `docs/TUI_FEATURE_MATRIX.md`.
+- Added additional user-facing state for declarations, amplification, relay discovery, whisper routing, mini-games boards, onboarding hints/resume branches, relay diagnostics, peer activity feed, and cross-layer overlay indicators.
+
+### Security/Operational Impact
+- No changes to cryptographic primitive selection or protocol wire format.
+- TUI features continue to consume existing package APIs; no Ebitengine behavior or domain package public API contracts were changed.
+
+### Validation Status
+- `go build ./cmd/murmur-tui`, `go vet ./pkg/tui/... ./cmd/murmur-tui`, and `go test -race ./pkg/tui/... ./cmd/murmur-tui` all passed.
+- Full repo `go test -tags test -race ./...` remains environment-limited by missing Linux X11 headers for Ebitengine-linked packages (`X11/Xlib.h`), unchanged by this TUI-only update.
+
+## Update - 2026-05-08 (TUI P2 Parity Completion)
+
+### Change Summary
+- Implemented terminal equivalents for all remaining P2 parity rows and marked the matrix fully complete (no `todo`/`deferred` statuses).
+- Added Pulse Map terminal effect equivalents (glow/ripple/particle counters, dynamic background blocks, contrast-mode substitute for blur/composite), Anonymous Sparks/Pulse Beats surfaces, protocol reference visibility, theme cycling, and wordlist source/regenerate controls.
+
+### Security/Operational Impact
+- No new external dependencies or cryptographic/protocol changes.
+- Added UI-only state and controls; all features remain constrained to TUI view/model layers and existing domain interfaces.
+
+### Validation Status
+- TUI build/vet/tests/race checks pass.
+- Full repository race test run still blocked by environment-level Ebitengine X11 header availability for non-TUI packages.
