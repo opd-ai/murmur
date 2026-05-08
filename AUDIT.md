@@ -107,3 +107,4 @@ Scope: Ebitengine UI/UX remediation from latest audit findings.
   - `make build` failed for the same missing X11 development headers.
 - Workflow syntax validated post-change:
   - `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/build.yml")'` passed.
+- Note: The baseline lint/test/build failures above are environment-specific (missing Linux X11 development headers for Ebitengine native GUI compilation) and are unrelated to the release-action migration itself.
