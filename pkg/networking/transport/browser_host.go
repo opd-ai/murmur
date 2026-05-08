@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"sync"
 
+	libcrypto "github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
 )
@@ -25,7 +26,12 @@ type BrowserHost struct {
 // NewBrowserHost creates a new browser-compatible host.
 func NewBrowserHost(privKey ed25519.PrivateKey) (*Host, error) {
 	// Derive peer ID from the private key
-	peerID, err := peer.IDFromPrivateKey(privKey)
+	libp2pKey, err := libcrypto.UnmarshalEd25519PrivateKey(privKey)
+	if err != nil {
+		return nil, fmt.Errorf("unmarshal browser private key: %w", err)
+	}
+
+	peerID, err := peer.IDFromPrivateKey(libp2pKey)
 	if err != nil {
 		return nil, fmt.Errorf("deriving peer ID: %w", err)
 	}

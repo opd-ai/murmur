@@ -1,3 +1,5 @@
+//go:build !js
+
 // Package transport provides libp2p host construction and transport configuration.
 // Per NETWORK_ARCHITECTURE.md, the transport layer uses Noise XX encryption,
 // QUIC and TCP transports, and yamux for stream multiplexing.
