@@ -46,9 +46,9 @@ type peerVersionRecord struct {
 //	// call tracker.Observe(peerID, TopicVersionV2) for each v2 message received
 //	ready, ratio := tracker.GetReadiness()
 type VersionConsensusTracker struct {
-	mu      sync.RWMutex
-	peers   map[peer.ID]*peerVersionRecord
-	window  time.Duration
+	mu     sync.RWMutex
+	peers  map[peer.ID]*peerVersionRecord
+	window time.Duration
 }
 
 // NewVersionConsensusTracker creates a tracker with the default observation window.

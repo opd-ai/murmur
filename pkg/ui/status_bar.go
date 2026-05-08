@@ -25,11 +25,11 @@ type StatusBar struct {
 	theme  Theme
 
 	// Status fields – updated by the caller each frame or on change.
-	PeerCount      int  // Live network peer count
-	ShroudActive   bool // True when a Shroud circuit is established
-	IdentityPublished bool // True once identity declaration is propagated
-	PowBusy        bool // True while PoW is being computed in background
-	PowProgress    float32 // 0.0–1.0; only meaningful when PowBusy is true
+	PeerCount         int     // Live network peer count
+	ShroudActive      bool    // True when a Shroud circuit is established
+	IdentityPublished bool    // True once identity declaration is propagated
+	PowBusy           bool    // True while PoW is being computed in background
+	PowProgress       float32 // 0.0–1.0; only meaningful when PowBusy is true
 }
 
 // NewStatusBar creates a StatusBar at the given position with given dimensions.
