@@ -7,7 +7,6 @@ import (
 	"crypto/ed25519"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -82,6 +81,7 @@ func (i *IPFSGatewayResolver) fetchSignedPeerList(ctx context.Context, url strin
 }
 
 // fetchURL performs an HTTP GET request and returns the body.
+// Responses exceeding maxBootstrapResponseBytes are rejected to prevent DoS.
 func (i *IPFSGatewayResolver) fetchURL(ctx context.Context, url string, client *http.Client) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -98,7 +98,7 @@ func (i *IPFSGatewayResolver) fetchURL(ctx context.Context, url string, client *
 		return nil, fmt.Errorf("fetch failed: status %d", resp.StatusCode)
 	}
 
-	return io.ReadAll(resp.Body)
+	return readLimitedBody(resp.Body, "ipfs")
 }
 
 // verifySignature checks the peer list signature if a verification key is configured.
@@ -113,6 +113,7 @@ func (i *IPFSGatewayResolver) verifySignature(signedList *SignedPeerList) error 
 }
 
 // fetchCID fetches the IPFS CID from the cid.txt file on GitHub Pages.
+// The response is capped at maxBootstrapResponseBytes to prevent DoS.
 func (i *IPFSGatewayResolver) fetchCID(ctx context.Context) (string, error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", i.cidURL, nil)
 	if err != nil {
@@ -129,9 +130,9 @@ func (i *IPFSGatewayResolver) fetchCID(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("cid fetch failed: status %d", resp.StatusCode)
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readLimitedBody(resp.Body, "cid")
 	if err != nil {
-		return "", fmt.Errorf("read cid: %w", err)
+		return "", err
 	}
 
 	// Trim whitespace and return

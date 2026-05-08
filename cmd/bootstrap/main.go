@@ -83,7 +83,6 @@ type healthResponse struct {
 	PeerID       string `json:"peer_id"`
 	KnownPeers   int    `json:"known_peers"`
 	HTTPListen   string `json:"http_listen"`
-	StateDir     string `json:"state_dir"`
 	P2PListeners int    `json:"p2p_listeners"`
 }
 
@@ -100,7 +99,6 @@ type bootstrapRuntime struct {
 	announceAddrs []multiaddr.Multiaddr
 	peerMaxAge    time.Duration
 	httpListen    string
-	stateDir      string
 }
 
 type peerTracker struct {
@@ -165,7 +163,7 @@ func parseFlags() appConfig {
 	flag.StringVar(&cfg.announceAddrs, "announce-addrs", "", "Optional comma-separated public multiaddrs to advertise instead of local listen addrs")
 	flag.DurationVar(&cfg.peerMaxAge, "peer-max-age", defaultPeerMaxAge, "Maximum age for peers retained in the distributed bundle")
 	flag.IntVar(&cfg.peerLimit, "peer-limit", defaultPeerLimit, "Maximum number of peers to distribute to new clients")
-	flag.StringVar(&cfg.allowOrigin, "allow-origin", "*", "Value for Access-Control-Allow-Origin header")
+	flag.StringVar(&cfg.allowOrigin, "allow-origin", "", "Value for Access-Control-Allow-Origin header (empty = header omitted; use '*' to allow all origins — opt-in only for security)")
 
 	flag.BoolVar(&cfg.ngrokEnabled, "ngrok", false, "Enable ngrok HTTP listener")
 	flag.StringVar(&cfg.ngrokDomain, "ngrok-domain", "", "ngrok custom domain for the bootstrap HTTP endpoint (optional)")
@@ -232,7 +230,6 @@ func startBootstrapRuntime(ctx context.Context, cfg appConfig) (*bootstrapRuntim
 		announceAddrs: announceAddrs,
 		peerMaxAge:    cfg.peerMaxAge,
 		httpListen:    cfg.listenAddr,
-		stateDir:      cfg.stateDir,
 	}
 
 	runtime.observePeer(runtime.advertisedAddrInfo())
@@ -617,7 +614,6 @@ func (r *bootstrapRuntime) HealthInfo() healthResponse {
 		PeerID:       r.host.PeerID().String(),
 		KnownPeers:   r.tracker.Count(),
 		HTTPListen:   r.httpListen,
-		StateDir:     r.stateDir,
 		P2PListeners: len(r.advertisedAddrInfo().Addrs),
 	}
 }

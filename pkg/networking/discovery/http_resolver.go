@@ -12,6 +12,25 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 )
 
+// maxBootstrapResponseBytes is the maximum number of bytes read from a remote
+// bootstrap response.  Responses exceeding this limit are rejected to prevent
+// memory-exhaustion DoS from malicious or oversized bootstrap endpoints.
+const maxBootstrapResponseBytes = 1 << 20 // 1 MiB
+
+// readLimitedBody reads at most maxBootstrapResponseBytes from r.
+// It returns an error if the response body exceeds that limit.
+func readLimitedBody(r io.Reader, label string) ([]byte, error) {
+	limited := io.LimitReader(r, maxBootstrapResponseBytes+1)
+	data, err := io.ReadAll(limited)
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", label, err)
+	}
+	if int64(len(data)) > maxBootstrapResponseBytes {
+		return nil, fmt.Errorf("%s response exceeds %d-byte limit", label, maxBootstrapResponseBytes)
+	}
+	return data, nil
+}
+
 // fetchAndVerifyPeerList fetches a signed peer list from an HTTP URL and verifies it.
 // Returns the verified peer.AddrInfo slice or an error.
 func fetchAndVerifyPeerList(ctx context.Context, client *http.Client, url string, verifyKey []byte, source string) ([]peer.AddrInfo, error) {
@@ -49,7 +68,7 @@ func fetchPeerListBody(ctx context.Context, client *http.Client, url, source str
 		return nil, fmt.Errorf("%s fetch failed: status %d", source, resp.StatusCode)
 	}
 
-	return io.ReadAll(resp.Body)
+	return readLimitedBody(resp.Body, source)
 }
 
 // parsePeerList unmarshals JSON into a SignedPeerList.
