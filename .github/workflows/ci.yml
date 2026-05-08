@@ -85,8 +85,6 @@ jobs:
           echo "base_sha=${base_sha}" >> "${GITHUB_OUTPUT}"
 
       - name: Compare go-stats metrics
-        env:
-          PATH: ${{ env.PATH }}:${{ github.workspace }}/../go/bin:${{ runner.tool_cache }}/go/bin:${{ env.GOPATH }}/bin
         run: |
           set -euo pipefail
 
