@@ -6,6 +6,7 @@ package relay
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
@@ -185,11 +186,12 @@ func (d *DCUtRService) getHolePunchService() *holepunch.Service {
 func (d *DCUtRService) attemptHolePunchWithRetries(ctx context.Context, peerID peer.ID, hps *holepunch.Service) (HolePunchResult, error) {
 	var lastErr error
 	for i := 0; i < DCUtRRetries; i++ {
-		if result, err := d.tryDirectConnect(ctx, peerID, hps); result != HolePunchFailed || err == context.Canceled {
+		// F-ERR-3 fix: Use errors.Is for context.Canceled check instead of direct comparison.
+		result, err := d.tryDirectConnect(ctx, peerID, hps)
+		if result != HolePunchFailed || errors.Is(err, context.Canceled) {
 			return result, err
-		} else {
-			lastErr = err
 		}
+		lastErr = err
 
 		if ctx.Err() != nil {
 			d.recordResult(peerID, HolePunchTimeout)

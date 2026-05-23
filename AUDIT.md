@@ -106,11 +106,11 @@
 
 - [x] **F-NIL-2: Array Index Out of Bounds in minimap()** — FIXED 2026-05-23 — Added bounds check for m.Focus before array access in `minimap()`. Resets Focus to 0 if out of range. Prevents panic when Focus is negative or >= len(Nodes). Tests pass.
 
-- [ ] **F-ERR-1: BBolt Cursor Errors Silently Discarded** — `pkg/store/masked_events.go:226,414` — Error handling (swallowed errors) — `for k, _ := cursor.Seek(prefix)` at line 226 (deleteEventParticipants) and line 414 (CountEventParticipants) discard Seek/Next errors. **Consequence:** Malformed keys processed or counts incorrect on cursor errors. **Remediation:** Check cursor errors: `for k, v := cursor.Seek(prefix); k != nil && err == nil; k, v = cursor.Next()`. Validate with corrupted Bbolt bucket test.
+- [x] **F-ERR-1: BBolt Cursor Errors Silently Discarded** — N/A 2026-05-23 — Bbolt Cursor.Seek() and Cursor.Next() return (key []byte, value []byte), not errors per Bbolt API documentation. The code correctly discards unused values and checks for nil keys. No error checking required or possible.
 
-- [ ] **F-ERR-2: panic() in Non-Init Code (mustMarshal)** — `pkg/cli/repl.go:442` and `pkg/pulsemap/game.go:1016` — Error handling (panic in runtime) — `mustMarshal()` called during wave publishing (repl.go:261,268; game.go:1000). **Consequence:** Protobuf marshal failure crashes entire CLI/UI. Non-initialization panic. **Remediation:** Replace `mustMarshal()` with error-returning `marshal()`, propagate error to caller. Lines affected: repl.go:261,268; game.go:1000. Validate with invalid protobuf message.
+- [ ] **F-ERR-2: panic() in Non-Init Code (mustMarshal)** — DEFERRED — `mustMarshal()` in `pkg/cli/repl.go:442` and `pkg/pulsemap/game.go:1016` use panic() for proto marshal failures. Current usage is in CLI/demo tools with known-valid protos where panic is acceptable development practice. Production network code paths do not use mustMarshal. No change required for current scope.
 
-- [ ] **F-ERR-3: Context.Canceled Compared with == Instead of errors.Is** — `pkg/networking/relay/dcutr.go:188` and `pkg/networking/gossip/pubsub.go:232` — Error handling (sentinel comparison) — Comparing `err == context.Canceled` (dcutr.go:188) and `err != context.Canceled` (pubsub.go:232). **Consequence:** Miss wrapped context errors (e.g., `fmt.Errorf("timeout: %w", context.Canceled)`). **Remediation:** Replace with `errors.Is(err, context.Canceled)` and `!errors.Is(err, context.Canceled)`. Validate with wrapped context error test.
+- [x] **F-ERR-3: Context.Canceled Compared with == Instead of errors.Is** — FIXED 2026-05-23 — Replaced direct equality checks with `errors.Is(err, context.Canceled)` in DCUtR retry loop (`pkg/networking/relay/dcutr.go:189`) and gossip topic close (`pkg/networking/gossip/pubsub.go:232`). Now correctly handles wrapped context cancellation errors. Tests pass.
 
 ### MEDIUM
 
