@@ -356,7 +356,6 @@ func unmarshalV2(raw []byte) (*Invitation, []byte, []byte, error) {
 		addrs = append(addrs, addr)
 	}
 
-	payloadLen := len(raw) - r.Len()
 	if r.Len() < 2 {
 		return nil, nil, nil, errors.New("missing signature length")
 	}
@@ -365,6 +364,10 @@ func unmarshalV2(raw []byte) (*Invitation, []byte, []byte, error) {
 	if err := binary.Read(r, binary.BigEndian, &sigLen); err != nil {
 		return nil, nil, nil, fmt.Errorf("reading signature length: %w", err)
 	}
+	// F-LOGIC-2 fix: Calculate payloadLen AFTER reading sigLen.
+	// Payload excludes the 2-byte sigLen field and the signature itself.
+	payloadLen := len(raw) - int(sigLen) - 2
+
 	if sigLen != ed25519.SignatureSize {
 		return nil, nil, nil, errors.New("invalid signature size")
 	}
