@@ -78,9 +78,9 @@
 
 ### CRITICAL
 
-- [ ] **F-CONC-1: EventBus Unsynchronized Channel Access** — `pkg/app/eventbus.go:417-471` — Concurrency (race condition) — Multiple goroutines access `eb.inbound` channel without synchronization after releasing `mu.RLock()` at line 422. Concurrent length checks at line 449-450 (`len(eb.inbound)`, `cap(eb.inbound)`) and sends at line 441, 471 cause data races. **Consequence:** Panics, lost events, or incorrect capacity calculations under concurrent load. **Remediation:** Protect all `inbound` channel operations with `mu` lock, or use atomic operations for length/capacity. Validate with `go test -race ./pkg/app/...`.
+- [x] **F-CONC-1: EventBus Unsynchronized Channel Access** — FIXED 2026-05-23 — Protected all channel operations (len/cap/send) with RLock in shouldDropEvent(), emitCritical(), and emitNonBlocking(). Validated with `go test -race ./pkg/app/...` (pass).
 
-- [ ] **F-CONC-2: EventBus TOCTOU Race on Closed Flag** — `pkg/app/eventbus.go:416-424` — Concurrency (check-then-act) — `Emit()` checks `eb.closed` at line 418, releases lock at line 422, then sends to `eb.inbound` without protection. **Consequence:** Send on closed channel panic if `Stop()` is called between check and send. **Remediation:** Hold `mu.RLock()` across entire emit operation, or use atomic flag. Validate with concurrent `Emit()` + `Stop()` test.
+- [x] **F-CONC-2: EventBus TOCTOU Race on Closed Flag** — FIXED 2026-05-23 — Moved closed flag check into emitCritical() and emitNonBlocking() under RLock, eliminating check-then-act race. Validated with race detector (pass).
 
 - [ ] **F-CRYPTO-1: BIP-39 Insufficient Key Derivation (No Passphrase)** — `pkg/identity/keys/backup.go:39,67` — Security (weak KDF) — Mnemonic-to-seed derivation uses empty passphrase: `bip39.NewSeed(mnemonic, "")`. **Consequence:** Adversary who obtains 24-word mnemonic can directly derive keypair without passphrase challenge. No additional entropy layer. **Remediation:** Require user-supplied passphrase (recommend 12+ chars) and pass to `bip39.NewSeed(mnemonic, passphrase)`. Update `ExportMnemonic()` and `RestoreFromMnemonic()` to accept passphrase parameter. Validate with BIP-39 test vectors that include passphrase.
 
