@@ -346,7 +346,11 @@ func TestWrapUnwrapSymmetricKey(t *testing.T) {
 	if err != nil {
 		t.Fatalf("deriveVeiledWrapKey() error = %v", err)
 	}
-	wrapped := xorBytes(symmetricKey, wrapKey)
+	// F-CRYPTO-2: Use authenticated key wrapping instead of XOR.
+	wrapped, err := wrapSymmetricKey(symmetricKey, wrapKey)
+	if err != nil {
+		t.Fatalf("wrapSymmetricKey() error = %v", err)
+	}
 
 	// Wrapped should be different from original.
 	if bytes.Equal(wrapped, symmetricKey) {

@@ -182,7 +182,8 @@ func encryptVeiledContent(content []byte, specter SpecterSigner, recipientPubKey
 	// Encrypt content with author public key as additional data.
 	encrypted := aead.Seal(nil, nonce, content, specter.SpecterPublicKey())
 
-	// Wrap symmetric key with DH-derived wrap key.
+	// Wrap symmetric key with DH-derived wrap key using AEAD.
+	// F-CRYPTO-2 fix: Replace unauthenticated XOR with XChaCha20-Poly1305.
 	// sharedSecret = X25519(senderPrivKey, recipientPubKey)
 	sharedSecret, err := specter.ComputeDHSecret(recipientPubKey)
 	if err != nil {
@@ -194,7 +195,11 @@ func encryptVeiledContent(content []byte, specter SpecterSigner, recipientPubKey
 		return nil, nil, nil, err
 	}
 
-	wrappedKey := xorBytes(symmetricKey, wrapKey)
+	wrappedKey, err := wrapSymmetricKey(symmetricKey, wrapKey)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
 	return encrypted, nonce, wrappedKey, nil
 }
 
@@ -211,7 +216,68 @@ func deriveVeiledWrapKey(dhSharedSecret []byte) ([]byte, error) {
 	return key, nil
 }
 
+// wrapSymmetricKey wraps a symmetric key using XChaCha20-Poly1305 AEAD.
+// F-CRYPTO-2 fix: Replaces unauthenticated XOR with authenticated encryption.
+// Returns wrappedKey = nonce || ciphertext || tag (24+32+16=72 bytes).
+func wrapSymmetricKey(symmetricKey, wrapKey []byte) ([]byte, error) {
+	if len(wrapKey) != SymmetricKeySize {
+		return nil, errors.New("invalid wrap key size")
+	}
+
+	// Create XChaCha20-Poly1305 AEAD cipher.
+	aead, err := chacha20poly1305.NewX(wrapKey)
+	if err != nil {
+		return nil, err
+	}
+
+	// Generate random nonce (24 bytes for XChaCha20).
+	nonce := make([]byte, aead.NonceSize())
+	if _, err := rand.Read(nonce); err != nil {
+		return nil, err
+	}
+
+	// Encrypt symmetric key with authentication.
+	// Format: nonce || ciphertext+tag
+	ciphertext := aead.Seal(nil, nonce, symmetricKey, nil)
+	wrapped := append(nonce, ciphertext...)
+	return wrapped, nil
+}
+
+// unwrapSymmetricKey unwraps a symmetric key using XChaCha20-Poly1305 AEAD.
+// F-CRYPTO-2 fix: Replaces unauthenticated XOR with authenticated decryption.
+// wrappedKey format: nonce || ciphertext || tag (24+32+16=72 bytes).
+func unwrapSymmetricKey(wrappedKey, wrapKey []byte) ([]byte, error) {
+	if len(wrapKey) != SymmetricKeySize {
+		return nil, errors.New("invalid wrap key size")
+	}
+
+	// Create XChaCha20-Poly1305 AEAD cipher.
+	aead, err := chacha20poly1305.NewX(wrapKey)
+	if err != nil {
+		return nil, ErrInvalidWrappedKey
+	}
+
+	// Wrapped key must be: nonce (24) + ciphertext (32) + tag (16) = 72 bytes.
+	nonceSize := aead.NonceSize()
+	if len(wrappedKey) < nonceSize+SymmetricKeySize+aead.Overhead() {
+		return nil, ErrInvalidWrappedKey
+	}
+
+	// Split nonce and ciphertext+tag.
+	nonce := wrappedKey[:nonceSize]
+	ciphertext := wrappedKey[nonceSize:]
+
+	// Decrypt and verify authentication tag.
+	plaintext, err := aead.Open(nil, nonce, ciphertext, nil)
+	if err != nil {
+		return nil, ErrInvalidWrappedKey
+	}
+
+	return plaintext, nil
+}
+
 // xorBytes XORs two equal-length byte slices into a new slice.
+// DEPRECATED: Use wrapSymmetricKey/unwrapSymmetricKey instead (F-CRYPTO-2).
 func xorBytes(a, b []byte) []byte {
 	out := make([]byte, len(a))
 	for i := range a {
@@ -220,12 +286,15 @@ func xorBytes(a, b []byte) []byte {
 	return out
 }
 
-// UnwrapSymmetricKey unwraps a symmetric key using X25519 DH + HKDF-SHA-256.
+// UnwrapSymmetricKey unwraps a symmetric key using X25519 DH + HKDF-SHA-256 + XChaCha20-Poly1305.
 // The recipient uses their Curve25519 private key and the author's public key
 // to reproduce the same shared secret and derive the wrap key.
+// F-CRYPTO-2 fix: Uses authenticated encryption instead of XOR.
 // Per TECHNICAL_IMPLEMENTATION.md, uses Curve25519 for Anonymous Layer.
 func UnwrapSymmetricKey(wrappedKey, authorPubKey, recipientPrivKey []byte) ([]byte, error) {
-	if len(wrappedKey) != SymmetricKeySize {
+	// Wrapped key is now: nonce (24) + ciphertext (32) + tag (16) = 72 bytes.
+	expectedSize := 24 + SymmetricKeySize + 16
+	if len(wrappedKey) != expectedSize {
 		return nil, ErrInvalidWrappedKey
 	}
 
@@ -240,7 +309,7 @@ func UnwrapSymmetricKey(wrappedKey, authorPubKey, recipientPrivKey []byte) ([]by
 		return nil, ErrInvalidWrappedKey
 	}
 
-	return xorBytes(wrappedKey, wrapKey), nil
+	return unwrapSymmetricKey(wrappedKey, wrapKey)
 }
 
 // DecryptVeiledContent decrypts a Veiled Wave's content.
