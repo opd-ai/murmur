@@ -19,6 +19,7 @@
 **Total Functions Inspected:** 1,667 functions + 5,213 methods  
 **Files Analyzed:** 393 Go source files (383 non-test)  
 **Analysis Time:** 2026-05-23 (Phase 0–4 complete)
+**Package Count Note:** `go-stats-generator` reports distinct package count (79), while this audit tracks audited package paths (86) that include wildcard groups such as `pkg/tui/**` plus `cmd/**` and `proto/**`.
 
 **go-stats-generator Metrics:**
 - Total Lines: 57,390
@@ -158,8 +159,8 @@
 | Duplication ratio | 0.46% |
 | Clone pairs | 37 |
 | Duplicated lines | 552 |
-| Test pass rate | CI runs `xvfb-run --auto-servernum --server-args='-screen 0 1024x768x24' go test -race ./...` (`.github/workflows/ci.yml`) |
-| go vet warnings | CI runs `go vet ./...` (`.github/workflows/ci.yml`) |
+| Test pass rate | See Notes (CI runs `xvfb-run --auto-servernum --server-args='-screen 0 1024x768x24' go test -race ./...`) |
+| go vet warnings | See Notes (CI runs `go vet ./...`) |
 
 ## False Positives Considered and Rejected
 
@@ -192,7 +193,7 @@
 
 ## Notes
 
-- **Testing:** Full `go test -race ./...` and `go vet ./...` require X11/GLFW dev headers (Ebitengine dependency). CI installs these dependencies and executes both commands (`.github/workflows/ci.yml`); local audit runtime execution may still depend on host environment setup.
+- **Testing:** Full `go test -race ./...` and `go vet ./...` require X11/GLFW dev headers (Ebitengine dependency). CI installs these dependencies and executes both commands (`.github/workflows/ci.yml`). This audit document reports findings from source analysis and CI workflow verification; it does not record per-run local pass/fail counts.
 - **Cryptography:** All algorithm usage (Ed25519, Curve25519, ChaCha20-Poly1305, SHA-256, BLAKE3, Argon2id) is correct per specification. Vulnerabilities are implementation issues (timing, key zeroing, authentication), not algorithm choice.
 - **Performance:** No confirmed hot-path performance issues. Force-directed layout uses Barnes-Hut for >500 nodes per spec. No O(n²) algorithms detected on user-facing paths.
 - **go-stats-generator Limitations:** Tool reports doc coverage as 0% because analysis ran with `--skip-tests` flag. Actual documentation coverage not measured in this audit.

@@ -1,6 +1,6 @@
 # Implementation Gaps — 2026-05-23
 
-This document identifies gaps between MURMUR's stated capabilities and actual implementation, based on comprehensive code audit of 393 Go source files across 86 packages.
+This document identifies gaps between MURMUR's stated capabilities and actual implementation, based on comprehensive code audit of 393 Go source files across 86 audited package paths.
 
 ---
 
