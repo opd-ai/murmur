@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/opd-ai/murmur/pkg/content/pow"
+	"github.com/opd-ai/murmur/pkg/identity/keys"
 	pb "github.com/opd-ai/murmur/proto"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/curve25519"
@@ -166,6 +167,8 @@ func encryptVeiledContent(content []byte, specter SpecterSigner, recipientPubKey
 	if _, err := rand.Read(symmetricKey); err != nil {
 		return nil, nil, nil, err
 	}
+	// F-CRYPTO-6 fix: Zero symmetric key after wrapping.
+	defer keys.ZeroBytes(symmetricKey)
 
 	// Create XChaCha20-Poly1305 cipher.
 	aead, err := chacha20poly1305.NewX(symmetricKey)
@@ -189,11 +192,15 @@ func encryptVeiledContent(content []byte, specter SpecterSigner, recipientPubKey
 	if err != nil {
 		return nil, nil, nil, err
 	}
+	// F-CRYPTO-6 fix: Zero shared secret after deriving wrap key.
+	defer keys.ZeroBytes(sharedSecret)
 
 	wrapKey, err := deriveVeiledWrapKey(sharedSecret)
 	if err != nil {
 		return nil, nil, nil, err
 	}
+	// F-CRYPTO-6 fix: Zero wrap key after use.
+	defer keys.ZeroBytes(wrapKey)
 
 	wrappedKey, err := wrapSymmetricKey(symmetricKey, wrapKey)
 	if err != nil {
@@ -303,11 +310,15 @@ func UnwrapSymmetricKey(wrappedKey, authorPubKey, recipientPrivKey []byte) ([]by
 	if err != nil {
 		return nil, ErrInvalidWrappedKey
 	}
+	// F-CRYPTO-7 fix: Zero shared secret after deriving wrap key.
+	defer keys.ZeroBytes(sharedSecret)
 
 	wrapKey, err := deriveVeiledWrapKey(sharedSecret)
 	if err != nil {
 		return nil, ErrInvalidWrappedKey
 	}
+	// F-CRYPTO-7 fix: Zero wrap key after use.
+	defer keys.ZeroBytes(wrapKey)
 
 	return unwrapSymmetricKey(wrappedKey, wrapKey)
 }

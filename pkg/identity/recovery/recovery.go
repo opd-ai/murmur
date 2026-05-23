@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/opd-ai/murmur/pkg/identity/keys"
 	"github.com/opd-ai/murmur/proto"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/curve25519"
@@ -67,6 +68,8 @@ func deriveSharedSecret(privateKey, publicKey []byte) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("X25519 key exchange failed: %w", err)
 	}
+	// F-CRYPTO-5 fix: Zero shared secret before returning.
+	defer keys.ZeroBytes(shared)
 
 	// Per AUDIT.md LOW finding, use a fixed domain-separator salt for HKDF auditability.
 	hkdfReader := hkdf.New(sha256.New, shared, []byte("murmur-recovery-salt-v1"), []byte("murmur-recovery-share-v1"))
