@@ -55,8 +55,9 @@ func TestRecoveryScreenReset(t *testing.T) {
 
 // TestMnemonicRecovery validates mnemonic-based recovery.
 func TestMnemonicRecovery(t *testing.T) {
+	passphrase := "test-passphrase-secure-12345"
 	// Generate a keypair with mnemonic.
-	_, backup, err := keys.GenerateBackup()
+	_, backup, err := keys.GenerateBackup(passphrase)
 	if err != nil {
 		t.Fatalf("failed to generate backup: %v", err)
 	}
@@ -64,6 +65,7 @@ func TestMnemonicRecovery(t *testing.T) {
 	screen := NewRecoveryScreen()
 	screen.method = RecoveryMethodMnemonic
 	screen.mnemonicText = backup.Mnemonic
+	screen.passphrase = passphrase
 
 	// Attempt recovery.
 	screen.attemptRecovery()
@@ -84,9 +86,11 @@ func TestMnemonicRecovery(t *testing.T) {
 
 // TestInvalidMnemonicRecovery validates error handling for invalid mnemonic.
 func TestInvalidMnemonicRecovery(t *testing.T) {
+	passphrase := "test-passphrase-secure-12345"
 	screen := NewRecoveryScreen()
 	screen.method = RecoveryMethodMnemonic
 	screen.mnemonicText = "invalid mnemonic phrase that should fail"
+	screen.passphrase = passphrase
 
 	// Attempt recovery.
 	screen.attemptRecovery()

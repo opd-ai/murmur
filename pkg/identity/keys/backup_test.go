@@ -6,7 +6,8 @@ import (
 )
 
 func TestGenerateBackup(t *testing.T) {
-	kp, backup, err := GenerateBackup()
+	passphrase := "test-passphrase-secure-12345"
+	kp, backup, err := GenerateBackup(passphrase)
 	if err != nil {
 		t.Fatalf("GenerateBackup failed: %v", err)
 	}
@@ -34,14 +35,15 @@ func TestGenerateBackup(t *testing.T) {
 }
 
 func TestRestoreFromMnemonic(t *testing.T) {
+	passphrase := "test-passphrase-secure-12345"
 	// Generate a keypair with backup.
-	original, backup, err := GenerateBackup()
+	original, backup, err := GenerateBackup(passphrase)
 	if err != nil {
 		t.Fatalf("GenerateBackup failed: %v", err)
 	}
 
 	// Restore from mnemonic.
-	restored, err := RestoreFromMnemonic(backup.Mnemonic)
+	restored, err := RestoreFromMnemonic(backup.Mnemonic, passphrase)
 	if err != nil {
 		t.Fatalf("RestoreFromMnemonic failed: %v", err)
 	}
@@ -56,7 +58,8 @@ func TestRestoreFromMnemonic(t *testing.T) {
 }
 
 func TestRestoreFromMnemonicInvalid(t *testing.T) {
-	_, err := RestoreFromMnemonic("invalid mnemonic phrase")
+	passphrase := "test-passphrase-secure-12345"
+	_, err := RestoreFromMnemonic("invalid mnemonic phrase", passphrase)
 	if err == nil {
 		t.Error("expected error for invalid mnemonic")
 	}
@@ -94,7 +97,8 @@ func TestValidateMnemonic(t *testing.T) {
 	}
 
 	// Generate and validate a real mnemonic.
-	_, backup, err := GenerateBackup()
+	passphrase := "test-passphrase-secure-12345"
+	_, backup, err := GenerateBackup(passphrase)
 	if err != nil {
 		t.Fatalf("GenerateBackup failed: %v", err)
 	}
@@ -145,9 +149,69 @@ func TestImportKeyPairInvalidSize(t *testing.T) {
 	}
 }
 
+// TestGenerateBackupShortPassphrase validates passphrase length enforcement.
+func TestGenerateBackupShortPassphrase(t *testing.T) {
+	shortPassphrase := "short"
+	_, _, err := GenerateBackup(shortPassphrase)
+	if err == nil {
+		t.Error("expected error for passphrase shorter than 12 characters")
+	}
+	if err != nil && err.Error() != "passphrase must be at least 12 characters" {
+		t.Errorf("unexpected error message: %v", err)
+	}
+}
+
+// TestRestoreFromMnemonicShortPassphrase validates passphrase length enforcement.
+func TestRestoreFromMnemonicShortPassphrase(t *testing.T) {
+	// Generate a valid mnemonic first
+	passphrase := "test-passphrase-secure-12345"
+	_, backup, err := GenerateBackup(passphrase)
+	if err != nil {
+		t.Fatalf("GenerateBackup failed: %v", err)
+	}
+
+	// Attempt restore with short passphrase
+	shortPassphrase := "short"
+	_, err = RestoreFromMnemonic(backup.Mnemonic, shortPassphrase)
+	if err == nil {
+		t.Error("expected error for passphrase shorter than 12 characters")
+	}
+	if err != nil && err.Error() != "passphrase must be at least 12 characters" {
+		t.Errorf("unexpected error message: %v", err)
+	}
+}
+
+// TestBackupWithPassphraseDifferentKeys validates that different passphrases produce different keys.
+func TestBackupWithPassphraseDifferentKeys(t *testing.T) {
+	// Generate with first passphrase
+	passphrase1 := "test-passphrase-secure-12345"
+	_, backup, err := GenerateBackup(passphrase1)
+	if err != nil {
+		t.Fatalf("GenerateBackup failed: %v", err)
+	}
+
+	// Restore with different passphrase
+	passphrase2 := "different-passphrase-67890"
+	kp1, err := RestoreFromMnemonic(backup.Mnemonic, passphrase1)
+	if err != nil {
+		t.Fatalf("RestoreFromMnemonic with passphrase1 failed: %v", err)
+	}
+
+	kp2, err := RestoreFromMnemonic(backup.Mnemonic, passphrase2)
+	if err != nil {
+		t.Fatalf("RestoreFromMnemonic with passphrase2 failed: %v", err)
+	}
+
+	// Keys should be different
+	if bytes.Equal(kp1.PublicKey, kp2.PublicKey) {
+		t.Error("different passphrases should produce different keys")
+	}
+}
+
 func TestBackupSigningRoundTrip(t *testing.T) {
+	passphrase := "test-passphrase-secure-12345"
 	// Generate keypair with backup.
-	original, backup, err := GenerateBackup()
+	original, backup, err := GenerateBackup(passphrase)
 	if err != nil {
 		t.Fatalf("GenerateBackup failed: %v", err)
 	}
@@ -157,7 +221,7 @@ func TestBackupSigningRoundTrip(t *testing.T) {
 	signature := original.Sign(message)
 
 	// Restore keypair from mnemonic.
-	restored, err := RestoreFromMnemonic(backup.Mnemonic)
+	restored, err := RestoreFromMnemonic(backup.Mnemonic, passphrase)
 	if err != nil {
 		t.Fatalf("RestoreFromMnemonic failed: %v", err)
 	}

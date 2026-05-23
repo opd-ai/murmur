@@ -219,8 +219,14 @@ func (s *RecoveryScreen) attemptRecovery() {
 		return
 	}
 
-	// Attempt to restore keypair.
-	kp, err := keys.RestoreFromMnemonic(mnemonic)
+	// Validate passphrase length (minimum 12 characters per F-CRYPTO-1).
+	if len(s.passphrase) < 12 {
+		s.errorMsg = "Passphrase must be at least 12 characters"
+		return
+	}
+
+	// Attempt to restore keypair with passphrase.
+	kp, err := keys.RestoreFromMnemonic(mnemonic, s.passphrase)
 	if err != nil {
 		s.errorMsg = "Invalid recovery phrase. Please check and try again."
 		return
