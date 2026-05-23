@@ -6,7 +6,7 @@ This document identifies gaps between MURMUR's stated capabilities and actual im
 
 ## Gap 1: BIP-39 Recovery Requires User-Supplied Passphrase
 
-- **Stated Goal**: "BIP-39 recovery" with "Argon2id keystore encryption" (README.md line 102)
+- **Stated Goal**: "BIP-39 recovery" with "Argon2id keystore encryption" (README.md line 103)
 - **Current State**: BIP-39 mnemonic-to-seed derivation uses **empty passphrase**: `bip39.NewSeed(mnemonic, "")` in `pkg/identity/keys/backup.go:39,67`
 - **Impact**: 
   - Adversary who obtains 24-word mnemonic can directly derive keypair without additional challenge
@@ -118,7 +118,7 @@ This document identifies gaps between MURMUR's stated capabilities and actual im
 
 ## Gap 7: BBolt Cursor Errors Ignored
 
-- **Stated Goal**: "Storage: Bbolt with 7 canonical buckets, typed accessors" (README.md line 107)
+- **Stated Goal**: "Storage: Bbolt with 7 canonical buckets, typed accessors" (README.md line 108)
 - **Current State**: `pkg/store/masked_events.go` discards BBolt cursor errors with `_, _ := cursor.Seek(...)` pattern:
   - Line 226: `deleteEventParticipants()` — malformed keys processed on error
   - Line 414: `CountEventParticipants()` — incorrect counts on error
@@ -136,7 +136,7 @@ This document identifies gaps between MURMUR's stated capabilities and actual im
 
 ## Gap 8: Goroutine Lifecycle Not Tracked
 
-- **Stated Goal**: "~8 persistent goroutines" with "event bus goroutine (fan-out)" (COPILOT_INSTRUCTIONS line 213)
+- **Stated Goal**: "~8 persistent goroutines" with "event bus goroutine (fan-out)" (docs/TECHNICAL_IMPLEMENTATION.md lines 277,291)
 - **Current State**: 
   - **GossipSub message handlers** (`pkg/networking/gossip/pubsub.go:165-183`): goroutines spawned without `sync.WaitGroup` tracking
   - **Relay acceptLoop** (`pkg/tunneling/relay/relay.go:60-77`): `listener.Accept()` blocks indefinitely even after context cancellation
@@ -156,7 +156,7 @@ This document identifies gaps between MURMUR's stated capabilities and actual im
 
 ## Gap 9: Sentinel Errors Compared with == Instead of errors.Is
 
-- **Stated Goal**: Go 1.22+ with modern error handling (implied by `go.mod` version)
+- **Stated Goal**: Go 1.25.7 with modern error handling (`go.mod` line 3)
 - **Current State**: Multiple sentinel error comparisons use `==` or `!=` instead of `errors.Is()`:
   - `pkg/content/propagation/bridge_test.go:297`: `if err == ErrRateLimited`
   - `pkg/content/propagation/relay_test.go:131`: `if err != ErrInvalidWave`
@@ -171,7 +171,7 @@ This document identifies gaps between MURMUR's stated capabilities and actual im
   2. Replace all `err != sentinel` with `!errors.Is(err, sentinel)`
   3. Audit entire codebase for sentinel comparisons: `grep -r "== Err" pkg/`
   4. Update tests to verify wrapped error handling: wrap sentinel, ensure `errors.Is()` still detects
-  5. Add linter rule (staticcheck ST1005) to enforce `errors.Is()` usage
+  5. Add `errorlint` (via golangci-lint) to flag direct sentinel comparisons and enforce `errors.Is()`/`errors.As()` usage
 
 ---
 
