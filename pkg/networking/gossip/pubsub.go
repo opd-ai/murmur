@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -35,9 +34,9 @@ type PubSub struct {
 	rateLimiters map[peer.ID]*rate.Limiter
 	rateMu       sync.RWMutex
 	lastCleanup  time.Time
-	closed       atomic.Bool
+	closed       bool
+	lifecycleMu  sync.Mutex
 	wg           sync.WaitGroup // Track message handler goroutines
-	wgMu         sync.Mutex
 }
 
 // MessageHandler is called for each received message on a topic.
@@ -169,10 +168,10 @@ func (p *PubSub) registerSubscription(topicName string, topic *pubsub.Topic) (*p
 
 // startMessageHandler launches a goroutine to process incoming messages.
 func (p *PubSub) startMessageHandler(ctx context.Context, sub *pubsub.Subscription, handler MessageHandler) {
-	p.wgMu.Lock()
-	defer p.wgMu.Unlock()
+	p.lifecycleMu.Lock()
+	defer p.lifecycleMu.Unlock()
 
-	if p.closed.Load() {
+	if p.closed {
 		return
 	}
 
@@ -233,7 +232,9 @@ func (p *PubSub) TopicPeers(topicName string) []peer.ID {
 // Close closes all subscriptions and topics.
 // Context cancellation errors during shutdown are ignored as they are expected.
 func (p *PubSub) Close() error {
-	p.closed.Store(true)
+	p.lifecycleMu.Lock()
+	p.closed = true
+	p.lifecycleMu.Unlock()
 
 	p.mu.Lock()
 
@@ -256,9 +257,7 @@ func (p *PubSub) Close() error {
 	p.mu.Unlock()
 
 	// F-CONC-3 fix: Wait for all message handler goroutines to exit
-	p.wgMu.Lock()
 	p.wg.Wait()
-	p.wgMu.Unlock()
 
 	return closeErr
 }
