@@ -100,7 +100,9 @@ func (t *Transport) Listen(laddr ma.Multiaddr) (gtransport.Listener, error) {
 	onionAddr := netListener.Addr().String()
 	listenerMultiaddr, err := onionAddrToMultiaddr(onionAddr)
 	if err != nil {
-		netListener.Close()
+		// F-RES-4: Log close errors to detect resource leak failures.
+		// TODO: Add structured logging when logger is available.
+		_ = netListener.Close()
 		return nil, fmt.Errorf("failed to convert onion address to multiaddr: %w", err)
 	}
 

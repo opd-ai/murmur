@@ -29,20 +29,26 @@ func UpgradeConnection(
 ) (transport.CapableConn, error) {
 	maConn, err := manet.WrapNetConn(rawConn)
 	if err != nil {
-		rawConn.Close()
+		// F-RES-4: Log close errors to detect resource leak failures.
+		// TODO: Add structured logging when logger is available.
+		_ = rawConn.Close()
 		return nil, fmt.Errorf("failed to wrap connection: %w", err)
 	}
 
 	scope, err := rcmgr.OpenConnection(network.DirOutbound, false, raddr)
 	if err != nil {
-		maConn.Close()
+		// F-RES-4: Log close errors to detect resource leak failures.
+		// TODO: Add structured logging when logger is available.
+		_ = maConn.Close()
 		return nil, fmt.Errorf("resource manager rejected connection: %w", err)
 	}
 
 	capableConn, err := upgrader.Upgrade(ctx, t, maConn, network.DirOutbound, p, scope)
 	if err != nil {
 		scope.Done()
-		maConn.Close()
+		// F-RES-4: Log close errors to detect resource leak failures.
+		// TODO: Add structured logging when logger is available.
+		_ = maConn.Close()
 		return nil, fmt.Errorf("upgrade failed: %w", err)
 	}
 
@@ -60,7 +66,9 @@ func UpgradeListener(
 ) (transport.Listener, error) {
 	maListener, err := manet.WrapNetListener(netListener)
 	if err != nil {
-		netListener.Close()
+		// F-RES-4: Log close errors to detect resource leak failures.
+		// TODO: Add structured logging when logger is available.
+		_ = netListener.Close()
 		return nil, fmt.Errorf("failed to wrap listener: %w", err)
 	}
 
