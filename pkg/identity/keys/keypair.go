@@ -7,6 +7,7 @@ package keys
 import (
 	"crypto/ed25519"
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -336,16 +337,12 @@ func (ib *IdentityBundle) ValidateIndependence() bool {
 }
 
 // keysMatch checks if two public keys are identical.
+// F-CRYPTO-4 fix: Use constant-time comparison to prevent timing attacks.
 func keysMatch(a, b []byte) bool {
 	if len(a) != len(b) {
 		return false
 	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
+	return subtle.ConstantTimeCompare(a, b) == 1
 }
 
 // RotateKeyPair generates a new Ed25519 keypair and constructs a ContinuityDeclaration

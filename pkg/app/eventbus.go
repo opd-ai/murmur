@@ -413,14 +413,8 @@ func (eb *EventBus) unsubscribe(sub *subscription) {
 // Emit sends an event to the event bus for dispatch.
 // Per AUDIT.md M1: Critical events (circuit failures, replies) bypass the buffer
 // and block until delivered. High/Normal priority events are non-blocking.
+// F-CONC-2 fix: Hold lock across entire emit to prevent send on closed channel.
 func (eb *EventBus) Emit(event Event) {
-	eb.mu.RLock()
-	if eb.closed {
-		eb.mu.RUnlock()
-		return
-	}
-	eb.mu.RUnlock()
-
 	event.priority = priorityFor(event.Type)
 
 	if event.priority == PriorityCritical {
@@ -436,7 +430,15 @@ func (eb *EventBus) Emit(event Event) {
 }
 
 // emitCritical sends critical events with blocking semantics.
+// F-CONC-1, F-CONC-2 fix: Check closed flag with lock before sending.
 func (eb *EventBus) emitCritical(event Event) {
+	eb.mu.RLock()
+	defer eb.mu.RUnlock()
+
+	if eb.closed {
+		return
+	}
+
 	select {
 	case eb.inbound <- event:
 	case <-time.After(5 * time.Second):
@@ -445,9 +447,13 @@ func (eb *EventBus) emitCritical(event Event) {
 }
 
 // shouldDropEvent checks backpressure and determines if event should be dropped.
+// F-CONC-1 fix: Protect channel len/cap operations with read lock.
 func (eb *EventBus) shouldDropEvent(event Event) bool {
+	eb.mu.RLock()
 	bufLen := len(eb.inbound)
 	bufCap := cap(eb.inbound)
+	eb.mu.RUnlock()
+
 	fullness := float64(bufLen) / float64(bufCap)
 
 	if fullness < eb.backpressureThreshold {
@@ -466,7 +472,15 @@ func (eb *EventBus) shouldDropEvent(event Event) bool {
 }
 
 // emitNonBlocking attempts non-blocking send for high/normal priority events.
+// F-CONC-1, F-CONC-2 fix: Check closed flag with lock before sending.
 func (eb *EventBus) emitNonBlocking(event Event) {
+	eb.mu.RLock()
+	defer eb.mu.RUnlock()
+
+	if eb.closed {
+		return
+	}
+
 	select {
 	case eb.inbound <- event:
 	default:

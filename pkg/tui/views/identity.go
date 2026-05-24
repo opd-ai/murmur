@@ -230,7 +230,13 @@ func renderANSISigilFromSigil(s *sigils.Sigil) string {
 	stepY := max(1, bounds.Dy()/8)
 	for y := bounds.Min.Y; y < bounds.Max.Y; y += stepY {
 		for x := bounds.Min.X; x < bounds.Max.X; x += stepX {
-			c := color.RGBAModel.Convert(s.Image.At(x, y)).(color.RGBA)
+			// F-NIL-1 fix: Use two-value type assertion to prevent panic.
+			colorVal := color.RGBAModel.Convert(s.Image.At(x, y))
+			c, ok := colorVal.(color.RGBA)
+			if !ok {
+				// Fallback: use gray value if not RGBA.
+				c = color.RGBA{R: 128, G: 128, B: 128, A: 255}
+			}
 			l := int(c.R) + int(c.G) + int(c.B)
 			switch {
 			case l > 550:

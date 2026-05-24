@@ -346,7 +346,11 @@ func TestWrapUnwrapSymmetricKey(t *testing.T) {
 	if err != nil {
 		t.Fatalf("deriveVeiledWrapKey() error = %v", err)
 	}
-	wrapped := xorBytes(symmetricKey, wrapKey)
+	// F-CRYPTO-2: Use authenticated key wrapping instead of XOR.
+	wrapped, err := wrapSymmetricKey(symmetricKey, wrapKey)
+	if err != nil {
+		t.Fatalf("wrapSymmetricKey() error = %v", err)
+	}
 
 	// Wrapped should be different from original.
 	if bytes.Equal(wrapped, symmetricKey) {
@@ -370,6 +374,14 @@ func TestUnwrapSymmetricKeyInvalid(t *testing.T) {
 	_, err := UnwrapSymmetricKey([]byte("short"), nil, nil)
 	if err != ErrInvalidWrappedKey {
 		t.Errorf("Expected ErrInvalidWrappedKey, got %v", err)
+	}
+}
+
+func TestWrapSymmetricKeyInvalidSize(t *testing.T) {
+	wrapKey := make([]byte, SymmetricKeySize)
+	_, err := wrapSymmetricKey([]byte("short"), wrapKey)
+	if err == nil {
+		t.Fatal("expected error for invalid symmetric key size")
 	}
 }
 

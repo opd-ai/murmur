@@ -5,6 +5,7 @@ package gossip
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -228,8 +229,9 @@ func (p *PubSub) Close() error {
 
 	for _, topic := range p.topics {
 		if err := topic.Close(); err != nil {
+			// F-ERR-3 fix: Use errors.Is to check for context.Canceled (handles wrapped errors).
 			// Ignore context.Canceled errors during shutdown - this is expected.
-			if err != context.Canceled {
+			if !errors.Is(err, context.Canceled) {
 				return fmt.Errorf("failed to close topic: %w", err)
 			}
 		}

@@ -117,12 +117,14 @@ func (m PulseMapModel) Update(msg tea.Msg) (PulseMapModel, tea.Cmd) {
 		case "-":
 			m.Zoom = clampZoom(m.Zoom / 1.1)
 		case "enter":
-			if len(m.Nodes) > 0 {
-				m.Focus = (m.Focus + 1) % len(m.Nodes)
-				m.showDetail = true
-				m.status = "Node detail opened: " + m.Nodes[m.Focus].ID
-				m.lastSelectAt = time.Now()
+			// F-LOGIC-1 fix: Check for empty nodes before modulo to prevent divide-by-zero.
+			if len(m.Nodes) == 0 {
+				break
 			}
+			m.Focus = (m.Focus + 1) % len(m.Nodes)
+			m.showDetail = true
+			m.status = "Node detail opened: " + m.Nodes[m.Focus].ID
+			m.lastSelectAt = time.Now()
 		case "z":
 			m.centerOnFocus()
 			m.Zoom = clampZoom(m.Zoom * 1.2)
@@ -360,6 +362,10 @@ func (m PulseMapModel) nodeDetail() string {
 func (m PulseMapModel) minimap() string {
 	if len(m.Nodes) == 0 {
 		return "<empty>"
+	}
+	// F-NIL-2 fix: Validate Focus bounds before array access.
+	if m.Focus < 0 || m.Focus >= len(m.Nodes) {
+		m.Focus = 0
 	}
 	xs := make([]float64, 0, len(m.Nodes))
 	ys := make([]float64, 0, len(m.Nodes))

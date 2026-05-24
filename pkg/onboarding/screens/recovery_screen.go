@@ -35,6 +35,7 @@ type RecoveryScreen struct {
 	keyFileData    []byte
 	passphrase     string
 	passphraseMode bool // True when entering passphrase for key file
+	mnemonicPass   bool // True when entering passphrase for mnemonic recovery
 	cursorPos      int
 	errorMsg       string
 	completed      bool
@@ -134,13 +135,23 @@ func (s *RecoveryScreen) handleMethodClick(x, y int) {
 
 // updateMnemonicEntry handles mnemonic phrase text input.
 func (s *RecoveryScreen) updateMnemonicEntry() {
-	// Append typed characters to mnemonic text.
-	s.mnemonicText = appendTypedText(s.mnemonicText)
+	// Tab toggles between mnemonic and passphrase entry fields.
+	if inpututil.IsKeyJustPressed(ebiten.KeyTab) {
+		s.mnemonicPass = !s.mnemonicPass
+	}
 
-	// Handle backspace.
-	if inpututil.IsKeyJustPressed(ebiten.KeyBackspace) && len(s.mnemonicText) > 0 {
-		runes := []rune(s.mnemonicText)
-		s.mnemonicText = string(runes[:len(runes)-1])
+	if s.mnemonicPass {
+		s.appendPassphraseInput()
+		s.handlePassphraseBackspace()
+	} else {
+		// Append typed characters to mnemonic text.
+		s.mnemonicText = appendTypedText(s.mnemonicText)
+
+		// Handle backspace.
+		if inpututil.IsKeyJustPressed(ebiten.KeyBackspace) && len(s.mnemonicText) > 0 {
+			runes := []rune(s.mnemonicText)
+			s.mnemonicText = string(runes[:len(runes)-1])
+		}
 	}
 
 	// Handle Enter to attempt recovery.
@@ -155,6 +166,8 @@ func (s *RecoveryScreen) updateMnemonicEntry() {
 		if isInButton(float32(x), float32(y), backX, backY, recoveryBackButtonWidth, recoveryBackButtonHeight) {
 			s.method = RecoveryMethodNone
 			s.mnemonicText = ""
+			s.passphrase = ""
+			s.mnemonicPass = false
 			s.errorMsg = ""
 		}
 	}
@@ -219,8 +232,14 @@ func (s *RecoveryScreen) attemptRecovery() {
 		return
 	}
 
-	// Attempt to restore keypair.
-	kp, err := keys.RestoreFromMnemonic(mnemonic)
+	// Validate passphrase length (minimum 12 characters per F-CRYPTO-1).
+	if len(s.passphrase) < 12 {
+		s.errorMsg = "Passphrase must be at least 12 characters"
+		return
+	}
+
+	// Attempt to restore keypair with passphrase.
+	kp, err := keys.RestoreFromMnemonic(mnemonic, s.passphrase)
 	if err != nil {
 		s.errorMsg = "Invalid recovery phrase. Please check and try again."
 		return
@@ -325,10 +344,12 @@ func (s *RecoveryScreen) drawMnemonicEntry(screen *ebiten.Image) {
 	if boxWidth > maxW {
 		boxWidth = maxW
 	}
-	boxHeight := float32(120)
+	mnemonicBoxHeight := float32(120)
 	boxX := centerX - boxWidth/2
-	boxY := float32(200)
-	errorY := boxY + boxHeight + 20
+	mnemonicBoxY := float32(200)
+	passphraseBoxY := mnemonicBoxY + mnemonicBoxHeight + 30
+	passphraseBoxHeight := float32(40)
+	errorY := passphraseBoxY + passphraseBoxHeight + 20
 	instructionY := errorY + 40
 	backX, backY := s.backButtonCenter()
 
@@ -339,10 +360,17 @@ func (s *RecoveryScreen) drawMnemonicEntry(screen *ebiten.Image) {
 	DrawCenteredText(screen, "Enter your 24-word recovery phrase", centerX, 130, 14, color.RGBA{200, 200, 210, 255})
 	DrawCenteredText(screen, "Separate words with spaces", centerX, 155, 12, color.RGBA{150, 150, 160, 255})
 
-	drawInputBox(screen, boxX, boxY, boxWidth, boxHeight)
+	drawInputBox(screen, boxX, mnemonicBoxY, boxWidth, mnemonicBoxHeight)
 
 	// Draw entered text (with wrapping).
-	drawWrappedText(screen, s.mnemonicText, boxX+10, boxY+10, boxWidth-20, 14, color.RGBA{220, 220, 230, 255})
+	drawWrappedText(screen, s.mnemonicText, boxX+10, mnemonicBoxY+10, boxWidth-20, 14, color.RGBA{220, 220, 230, 255})
+
+	// Passphrase entry.
+	DrawCenteredText(screen, "Recovery Passphrase (minimum 12 characters)", centerX, passphraseBoxY-12, 12, color.RGBA{180, 180, 190, 255})
+	drawInputBox(screen, boxX, passphraseBoxY, boxWidth, passphraseBoxHeight)
+	masked := strings.Repeat("*", len([]rune(s.passphrase)))
+	masked = clipTextWithEllipsis(masked, float64(boxWidth-20))
+	DrawCenteredText(screen, masked, centerX, passphraseBoxY+15, 14, color.RGBA{220, 220, 230, 255})
 
 	// Error message.
 	if s.errorMsg != "" {
@@ -350,7 +378,7 @@ func (s *RecoveryScreen) drawMnemonicEntry(screen *ebiten.Image) {
 	}
 
 	// Instructions.
-	DrawCenteredText(screen, "Press Enter to recover", centerX, instructionY, 12, color.RGBA{150, 150, 160, 255})
+	DrawCenteredText(screen, "Press Tab to switch input · Press Enter to recover", centerX, instructionY, 12, color.RGBA{150, 150, 160, 255})
 
 	// Back button (click is handled in Update, not here).
 	style := DefaultButtonStyle()
@@ -372,6 +400,9 @@ func (s *RecoveryScreen) GetRecoveredKey() *keys.KeyPair {
 func (s *RecoveryScreen) Reset() {
 	s.method = RecoveryMethodNone
 	s.mnemonicText = ""
+	s.passphrase = ""
+	s.passphraseMode = false
+	s.mnemonicPass = false
 	s.errorMsg = ""
 	s.completed = false
 	s.recoveredKey = nil

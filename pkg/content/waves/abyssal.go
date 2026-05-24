@@ -14,6 +14,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/subtle"
 	"errors"
 	"io"
 	"time"
@@ -271,14 +272,13 @@ func CanProveAuthorship(
 	}
 
 	// Check if derived public key matches Wave author.
+	// F-CRYPTO-3 fix: Use constant-time comparison to prevent timing attacks.
 	if len(wave.AuthorPubkey) != len(publicKey) {
 		return false
 	}
 
-	for i := range publicKey {
-		if publicKey[i] != wave.AuthorPubkey[i] {
-			return false
-		}
+	if subtle.ConstantTimeCompare(publicKey, wave.AuthorPubkey) == 0 {
+		return false
 	}
 
 	return true
