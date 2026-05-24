@@ -227,6 +227,9 @@ func deriveVeiledWrapKey(dhSharedSecret []byte) ([]byte, error) {
 // F-CRYPTO-2 fix: Replaces unauthenticated XOR with authenticated encryption.
 // Returns wrappedKey = nonce || ciphertext || tag (24+32+16=72 bytes).
 func wrapSymmetricKey(symmetricKey, wrapKey []byte) ([]byte, error) {
+	if len(symmetricKey) != SymmetricKeySize {
+		return nil, errors.New("invalid symmetric key size")
+	}
 	if len(wrapKey) != SymmetricKeySize {
 		return nil, errors.New("invalid wrap key size")
 	}

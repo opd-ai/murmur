@@ -377,6 +377,14 @@ func TestUnwrapSymmetricKeyInvalid(t *testing.T) {
 	}
 }
 
+func TestWrapSymmetricKeyInvalidSize(t *testing.T) {
+	wrapKey := make([]byte, SymmetricKeySize)
+	_, err := wrapSymmetricKey([]byte("short"), wrapKey)
+	if err == nil {
+		t.Fatal("expected error for invalid symmetric key size")
+	}
+}
+
 func TestValidateVeiled(t *testing.T) {
 	specter := newMockSpecterSigner()
 	opts := DefaultVeiledOptions()
