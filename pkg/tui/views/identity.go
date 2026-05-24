@@ -100,7 +100,10 @@ func (m IdentityModel) Update(msg tea.Msg) (IdentityModel, tea.Cmd) {
 			m.Status = "declaration create failed: " + err.Error()
 			return m, nil
 		}
-		_ = decl.SetBio(strings.TrimSpace(m.Bio))
+		if err := decl.SetBio(strings.TrimSpace(m.Bio)); err != nil {
+			m.Status = "Error: " + err.Error()
+			return m, nil
+		}
 		decl.SetPrivacyMode(m.Session.ModeManager.Current())
 		if err := decl.Sign(m.Session.KeyPair); err != nil {
 			m.Status = "declaration sign failed: " + err.Error()

@@ -114,9 +114,9 @@
 
 ### MEDIUM
 
-- [ ] **F-LOGIC-3: SetBio Error Swallowed** — `pkg/tui/views/identity.go:103` — Error handling — Declaration bio setting error silently discarded: `_ = decl.SetBio(...)`. **Consequence:** Invalid bio data silently accepted, no user feedback. **Remediation:** Check error and update status message: `if err := decl.SetBio(...); err != nil { m.status = "Error: " + err.Error() }` at line 103. Validate with SetBio returning error.
+- [x] **F-LOGIC-3: SetBio Error Swallowed** — FIXED 2026-05-24 — Added error check for `decl.SetBio()` in `pkg/tui/views/identity.go:103`. Now displays error message to user if bio validation fails. Tests pass.
 
-- [ ] **F-LOGIC-4: Cursor Rendering Edge Case** — `pkg/ui/compose.go:499` — Boolean logic — Condition `cursorDrawLine >= 0 && cursorDrawLine < maxVisible` masks issue: if `cursorLine == -1` (from line 469 when cursorLines empty), then `cursorDrawLine = -1 - startLine` could be negative despite check. **Consequence:** Cursor renders at incorrect position or not at all. **Remediation:** Add explicit check at line 469: `if len(cursorLines) == 0 { cursorLine = 0 }`. Validate with empty text area + cursor move.
+- [x] **F-LOGIC-4: Cursor Rendering Edge Case** — VERIFIED 2026-05-24 — Already fixed in code. Lines 470-472 of `pkg/ui/compose.go` contain explicit check: `if cursorLine < 0 { cursorLine = 0 }` immediately after computing `cursorLine = len(cursorLines) - 1`. This prevents negative cursorLine value when cursorLines is empty. No code change required.
 
 - [ ] **F-NIL-3: Concurrent Access to searchMatches** — `pkg/tui/views/pulsemap.go:249` — Nil/Boundary (race) — `applySearch()` checks `len(m.searchMatches) > 0` at line 245, then accesses `m.searchMatches[0]` at line 249. **Consequence:** Panic `index out of range` if concurrent message handler clears `searchMatches` between check and use. **Remediation:** Copy slice or add mutex protection. In Bubble Tea, ensure state updates are serialized through message queue. Validate with concurrent Update() calls.
 
