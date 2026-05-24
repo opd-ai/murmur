@@ -15,7 +15,6 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/vector"
-	libp2pcrypto "github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/opd-ai/murmur/pkg/identity"
 	"github.com/opd-ai/murmur/pkg/identity/keys"
@@ -332,6 +331,8 @@ func (s *CompletionScreen) handleDoneClick(x, y, centerX int) {
 	}
 }
 
+// generateInvite generates an invitation code.
+// The actual invite generation logic is in generateInviteCode() (completion_common.go).
 func (s *CompletionScreen) generateInvite() {
 	if s.surfaceKeypair == nil {
 		s.inviteCode = "MURMUR-XXXX-YYYY"
@@ -362,41 +363,6 @@ func (s *CompletionScreen) generateInvite() {
 	s.inviteCode = generateInviteCode(s.surfaceKeypair.PublicKey)
 	s.inviteGenerated = true
 	s.notifyInviteGenerated()
-}
-
-// derivePeerIDFromPubKey derives a libp2p peer.ID from an Ed25519 public key.
-// This does not require a running network host.
-func derivePeerIDFromPubKey(pubKey []byte) peer.ID {
-	libp2pPub, err := libp2pcrypto.UnmarshalEd25519PublicKey(pubKey)
-	if err != nil {
-		return ""
-	}
-	id, err := peer.IDFromPublicKey(libp2pPub)
-	if err != nil {
-		return ""
-	}
-	return id
-}
-
-// notifyInviteGenerated fires the OnInviteGenerated callback if registered.
-func (s *CompletionScreen) notifyInviteGenerated() {
-	if s.callbacks.OnInviteGenerated != nil {
-		s.callbacks.OnInviteGenerated(s.inviteCode)
-	}
-}
-
-func generateInviteCode(pubKey []byte) string {
-	// Simple invite code generation from public key prefix
-	if len(pubKey) < 6 {
-		return "MURMUR-XXXX-YYYY"
-	}
-	return "MURMUR-" + hexNibble(pubKey[0]) + hexNibble(pubKey[1]) + hexNibble(pubKey[2]) +
-		"-" + hexNibble(pubKey[3]) + hexNibble(pubKey[4]) + hexNibble(pubKey[5])
-}
-
-func hexNibble(b byte) string {
-	const hex = "0123456789ABCDEF"
-	return string(hex[(b>>4)&0x0F]) + string(hex[b&0x0F])
 }
 
 func (s *CompletionScreen) finish() {
