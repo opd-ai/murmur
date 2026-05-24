@@ -228,10 +228,10 @@ func deriveVeiledWrapKey(dhSharedSecret []byte) ([]byte, error) {
 // Returns wrappedKey = nonce || ciphertext || tag (24+32+16=72 bytes).
 func wrapSymmetricKey(symmetricKey, wrapKey []byte) ([]byte, error) {
 	if len(symmetricKey) != SymmetricKeySize {
-		return nil, errors.New("invalid symmetric key size")
+		return nil, errors.New("invalid symmetric key size: expected 32 bytes")
 	}
 	if len(wrapKey) != SymmetricKeySize {
-		return nil, errors.New("invalid wrap key size")
+		return nil, errors.New("invalid wrap key size: expected 32 bytes")
 	}
 
 	// Create XChaCha20-Poly1305 AEAD cipher.
@@ -258,7 +258,7 @@ func wrapSymmetricKey(symmetricKey, wrapKey []byte) ([]byte, error) {
 // wrappedKey format: nonce || ciphertext || tag (24+32+16=72 bytes).
 func unwrapSymmetricKey(wrappedKey, wrapKey []byte) ([]byte, error) {
 	if len(wrapKey) != SymmetricKeySize {
-		return nil, errors.New("invalid wrap key size")
+		return nil, errors.New("invalid wrap key size: expected 32 bytes")
 	}
 
 	// Create XChaCha20-Poly1305 AEAD cipher.
