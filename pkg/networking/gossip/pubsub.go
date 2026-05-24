@@ -166,7 +166,10 @@ func (p *PubSub) registerSubscription(topicName string, topic *pubsub.Topic) (*p
 
 // startMessageHandler launches a goroutine to process incoming messages.
 func (p *PubSub) startMessageHandler(ctx context.Context, sub *pubsub.Subscription, handler MessageHandler) {
+	p.mu.Lock()
 	p.wg.Add(1)
+	p.mu.Unlock()
+
 	go func() {
 		defer p.wg.Done()
 		for {
@@ -223,30 +226,29 @@ func (p *PubSub) TopicPeers(topicName string) []peer.ID {
 // Context cancellation errors during shutdown are ignored as they are expected.
 func (p *PubSub) Close() error {
 	p.mu.Lock()
-	
+
 	for _, sub := range p.subs {
 		sub.Cancel()
 	}
 	p.subs = make(map[string]*pubsub.Subscription)
 
+	var closeErr error
 	for _, topic := range p.topics {
 		if err := topic.Close(); err != nil {
 			// F-ERR-3 fix: Use errors.Is to check for context.Canceled (handles wrapped errors).
 			// Ignore context.Canceled errors during shutdown - this is expected.
-			if !errors.Is(err, context.Canceled) {
-				p.mu.Unlock()
-				return fmt.Errorf("failed to close topic: %w", err)
+			if !errors.Is(err, context.Canceled) && closeErr == nil {
+				closeErr = fmt.Errorf("failed to close topic: %w", err)
 			}
 		}
 	}
 	p.topics = make(map[string]*pubsub.Topic)
 
-	p.mu.Unlock()
-	
 	// F-CONC-3 fix: Wait for all message handler goroutines to exit
 	p.wg.Wait()
+	p.mu.Unlock()
 
-	return nil
+	return closeErr
 }
 
 // allowMessage checks if a message from the given peer should be processed.

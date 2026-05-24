@@ -70,9 +70,9 @@ func (r *Relay) acceptLoop(ctx context.Context) {
 		// F-RES-2 fix: Set accept deadline to prevent blocking indefinitely after context cancellation.
 		// Type-assert to *net.TCPListener to access SetDeadline.
 		if tcpListener, ok := r.listener.(*net.TCPListener); ok {
-			tcpListener.SetDeadline(time.Now().Add(1 * time.Second))
+			_ = tcpListener.SetDeadline(time.Now().Add(1 * time.Second))
 		}
-		
+
 		conn, err := r.listener.Accept()
 		if err != nil {
 			// Check if this is a timeout error (expected during shutdown)
