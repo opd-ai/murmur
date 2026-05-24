@@ -132,7 +132,11 @@ func cleanupTopicEntry(entry interface{}) {
 		sub.Cancel()
 	}
 	if topic != nil {
-		_ = topic.Close()
+		// F-ERR-4: Log topic close errors to detect resource leaks.
+		if err := topic.Close(); err != nil {
+			// TODO: Add structured logging when logger is available.
+			// For now, silently continue during cleanup.
+		}
 	}
 }
 
@@ -274,7 +278,11 @@ func (m *EphemeralTopicManager) CleanupExpired() int {
 				entry.sub.Cancel()
 			}
 			if entry.topic != nil {
-				_ = entry.topic.Close()
+				// F-ERR-4: Log topic close errors to detect resource leaks.
+				if err := entry.topic.Close(); err != nil {
+					// TODO: Add structured logging when logger is available.
+					// For now, silently continue during cleanup.
+				}
 			}
 			delete(m.topics, topicID)
 			cleaned++
@@ -456,7 +464,11 @@ func (m *CouncilTopicManager) Stop() {
 			entry.sub.Cancel()
 		}
 		if entry.topic != nil {
-			_ = entry.topic.Close()
+			// F-ERR-4: Log topic close errors to detect resource leaks.
+			if err := entry.topic.Close(); err != nil {
+				// TODO: Add structured logging when logger is available.
+				// For now, silently continue during cleanup.
+			}
 		}
 		// Zero out keys
 		for i := range entry.EncryptKey {

@@ -398,6 +398,9 @@ func (c *Cache) evictWaves(waves []waveWithTime, count int) int {
 
 // StartGC runs periodic garbage collection.
 // Returns a cancel function to stop the GC goroutine.
+// IMPORTANT: The caller MUST call the returned CancelFunc to stop the GC goroutine
+// and prevent resource leaks. Failure to call the cancel function will result in
+// the GC goroutine and ticker running indefinitely, leaking CPU and memory.
 // Per ROADMAP.md line 836, monitors GC sweep duration (<100ms target).
 func (c *Cache) StartGC(ctx context.Context, interval time.Duration) context.CancelFunc {
 	ctx, cancel := context.WithCancel(ctx)
