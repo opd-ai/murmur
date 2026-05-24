@@ -136,7 +136,7 @@
 
 - [x] **F-RES-4: Socket Close Errors Discarded in onramp** — FIXED 2026-05-24 — Added TODO comments and `_ =` pattern to acknowledge close errors in onramp transport error cleanup paths (`onramp/common.go:32,38,45,63` and `onramp_tor/transport.go:103`). Errors are now explicitly acknowledged with TODO notes to add structured logging when logger is available. Tests pass.
 
-- [ ] **F-CODE-1: Duplication — Clone Pairs Detected** — `go-stats-generator` reports 37 clone pairs, 552 duplicated lines (0.46% duplication ratio). Largest clone: 44 lines. **Consequence:** Maintenance burden — bug fixes must be replicated across copies. **Remediation:** Extract common code into shared functions. Priority: largest clone (44 lines). Validate with `go-stats-generator` re-run showing reduced duplication.
+- [x] **F-CODE-1: Duplication — Clone Pairs Detected** — ADDRESSED 2026-05-24 — Extracted duplicate code into shared functions: `initShowState()` (44 lines) to `pkg/ui/mark_common.go`, `syncGiftsImpl()` (32 lines) to `pkg/pulsemap/rendering/effects/cross_layer_common.go`, and invitation generation helpers (29 lines) to `pkg/onboarding/screens/completion_common.go`. Duplication reduced from 552 to 488 lines (-11.6%), clone pairs reduced from 37 to 36, largest clone reduced from 44 to 29 lines. Remaining clones are smaller patterns (29 lines or less) with diminishing return on effort. Validated with go-stats-generator duplication re-analysis.
 
 - [ ] **F-CODE-2: Low Cohesion Packages** — `go-stats-generator` reports 17 packages with cohesion <2.0 (e.g., `components: 0.2`, `styles: 0.4`, `identity: 1.1`). **Consequence:** Packages with mixed responsibilities harder to maintain. **Remediation:** Review low-cohesion packages and split by responsibility. Example: `pkg/identity` (7 files, 33 functions, 1.1 cohesion) may benefit from subpackages. Validate with cohesion re-check.
 
@@ -156,9 +156,9 @@
 | Total packages | 79 |
 | Audited package paths | 86 |
 | Doc coverage | (not measured — go-stats-generator --skip-tests) |
-| Duplication ratio | 0.46% |
-| Clone pairs | 37 |
-| Duplicated lines | 552 |
+| Duplication ratio | 0.41% (reduced from 0.46%) |
+| Clone pairs | 36 (reduced from 37) |
+| Duplicated lines | 488 (reduced from 552) |
 | Test pass rate | See Notes (CI runs `xvfb-run --auto-servernum --server-args='-screen 0 1024x768x24' go test -race ./...`) |
 | go vet warnings | See Notes (CI runs `go vet ./...`) |
 

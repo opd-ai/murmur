@@ -43,40 +43,9 @@ func NewCrossLayerGiftBridge(giftStore *gifts.GiftStore, renderer *GiftRenderer)
 }
 
 // SyncGifts synchronizes gift effects from the Anonymous Layer to the Surface Layer.
+// The actual synchronization logic is in syncGiftsImpl() (cross_layer_common.go).
 func (b *CrossLayerGiftBridge) SyncGifts() {
 	b.syncGiftsImpl()
-}
-
-// syncGiftsImpl implements the gift synchronization logic.
-// Shared between cross_layer.go and cross_layer_stub.go.
-func (b *CrossLayerGiftBridge) syncGiftsImpl() {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	now := time.Now()
-	if now.Sub(b.lastUpdate) < b.updateMinimum {
-		return
-	}
-	b.lastUpdate = now
-
-	if b.giftStore == nil || b.renderer == nil {
-		return
-	}
-
-	activeRecipients := b.giftStore.GetAllActiveRecipients()
-
-	for recipientHex := range b.visibleRecipients {
-		if !b.contains(activeRecipients, recipientHex) {
-			b.renderer.SetActiveGifts(recipientHex, nil)
-			delete(b.visibleRecipients, recipientHex)
-		}
-	}
-
-	for _, recipientHex := range activeRecipients {
-		gifts := b.giftStore.GetGiftsByRecipientHex(recipientHex)
-		b.renderer.SetActiveGifts(recipientHex, gifts)
-		b.visibleRecipients[recipientHex] = true
-	}
 }
 
 // contains checks if a slice contains a string.

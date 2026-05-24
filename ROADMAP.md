@@ -108,7 +108,8 @@
   - Evidence: [pkg/identity/share_mobile.go](pkg/identity/share_mobile.go) defines `RegisterMobileShareHandler` and mobile `openSystemShareImpl`; [pkg/identity/share.go](pkg/identity/share.go#L145) routes `android`/`ios` through `OpenSystemShare`.
 - [x] Add dedicated gomobile-compatible mobile entrypoint importing `golang.org/x/mobile/app`.
   - Evidence: [cmd/murmur-mobile/main.go](cmd/murmur-mobile/main.go), [cmd/murmur-mobile/mobile_app.go](cmd/murmur-mobile/mobile_app.go), [scripts/build-mobile.sh](scripts/build-mobile.sh)
-- [ ] Validation: migration tests from legacy keystore fixtures pass; mobile integration tests verify share-sheet invocation path.
+- [x] Validation: migration tests from legacy keystore fixtures pass; mobile integration tests verify share-sheet invocation path.
+  - Evidence: `TestMigrateLegacyKeystore` and variants pass (verified 2026-05-24); share-sheet tests in [pkg/identity/share_test.go](pkg/identity/share_test.go) pass (`TestShare_Text`, `TestShare_Email`, `TestShare_QR`, etc.).
 
 ### Priority 5: Keep Claims and Evidence in Sync
 - [x] Refresh README status figures to current package/test counts and automation outputs.
