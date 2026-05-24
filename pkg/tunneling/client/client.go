@@ -34,11 +34,13 @@ func NewClient(tunnelAddr, relayAddr string) (*Client, error) {
 }
 
 // Get sends a GET request through the tunnel.
+// The caller must call resp.Body.Close() after reading the response to prevent resource leaks.
 func (c *Client) Get(ctx context.Context, path string) (*http.Response, error) {
 	return c.do(ctx, "GET", path, nil)
 }
 
 // Post sends a POST request through the tunnel.
+// The caller must call resp.Body.Close() after reading the response to prevent resource leaks.
 func (c *Client) Post(ctx context.Context, path string, body io.Reader) (*http.Response, error) {
 	return c.do(ctx, "POST", path, body)
 }

@@ -2,6 +2,7 @@ package propagation
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -294,7 +295,8 @@ func TestBridgeRateLimiting(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		wave := createTestVeiledWave("rate-test-" + string(rune('0'+i)))
 		err := bridge.InjectToSurface(context.Background(), wave)
-		if err == ErrRateLimited {
+		// F-ERR-5 fix: Use errors.Is instead of == for sentinel error comparison
+		if errors.Is(err, ErrRateLimited) {
 			rateLimited++
 		}
 	}

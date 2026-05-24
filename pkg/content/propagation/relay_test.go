@@ -2,6 +2,7 @@ package propagation
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -128,7 +129,8 @@ func TestRelayReceiveNil(t *testing.T) {
 	r := NewRelay()
 
 	_, err := r.Receive(nil)
-	if err != ErrInvalidWave {
+	// F-ERR-5 fix: Use errors.Is instead of != for sentinel error comparison
+	if !errors.Is(err, ErrInvalidWave) {
 		t.Errorf("expected ErrInvalidWave, got %v", err)
 	}
 }

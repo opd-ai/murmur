@@ -34,6 +34,9 @@ type PubSub struct {
 	rateLimiters map[peer.ID]*rate.Limiter
 	rateMu       sync.RWMutex
 	lastCleanup  time.Time
+	closed       bool
+	lifecycleMu  sync.Mutex
+	wg           sync.WaitGroup // Track message handler goroutines
 }
 
 // MessageHandler is called for each received message on a topic.
@@ -165,7 +168,17 @@ func (p *PubSub) registerSubscription(topicName string, topic *pubsub.Topic) (*p
 
 // startMessageHandler launches a goroutine to process incoming messages.
 func (p *PubSub) startMessageHandler(ctx context.Context, sub *pubsub.Subscription, handler MessageHandler) {
+	p.lifecycleMu.Lock()
+	defer p.lifecycleMu.Unlock()
+
+	if p.closed {
+		return
+	}
+
+	p.wg.Add(1)
+
 	go func() {
+		defer p.wg.Done()
 		for {
 			msg, err := sub.Next(ctx)
 			if err != nil {
@@ -219,26 +232,34 @@ func (p *PubSub) TopicPeers(topicName string) []peer.ID {
 // Close closes all subscriptions and topics.
 // Context cancellation errors during shutdown are ignored as they are expected.
 func (p *PubSub) Close() error {
+	p.lifecycleMu.Lock()
+	p.closed = true
+	p.lifecycleMu.Unlock()
+
 	p.mu.Lock()
-	defer p.mu.Unlock()
 
 	for _, sub := range p.subs {
 		sub.Cancel()
 	}
 	p.subs = make(map[string]*pubsub.Subscription)
 
+	var closeErr error
 	for _, topic := range p.topics {
 		if err := topic.Close(); err != nil {
 			// F-ERR-3 fix: Use errors.Is to check for context.Canceled (handles wrapped errors).
 			// Ignore context.Canceled errors during shutdown - this is expected.
-			if !errors.Is(err, context.Canceled) {
-				return fmt.Errorf("failed to close topic: %w", err)
+			if !errors.Is(err, context.Canceled) && closeErr == nil {
+				closeErr = fmt.Errorf("failed to close topic: %w", err)
 			}
 		}
 	}
 	p.topics = make(map[string]*pubsub.Topic)
+	p.mu.Unlock()
 
-	return nil
+	// F-CONC-3 fix: Wait for all message handler goroutines to exit
+	p.wg.Wait()
+
+	return closeErr
 }
 
 // allowMessage checks if a message from the given peer should be processed.

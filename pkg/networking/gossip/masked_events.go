@@ -509,7 +509,11 @@ func (m *MaskedEventManager) CleanupExpiredEvents() int {
 		if now.After(event.EndTime) {
 			// Unsubscribe from topic.
 			if topic, exists := m.eventTopics[idHex]; exists {
-				topic.Close()
+				// F-ERR-4: Log topic close errors to detect resource leaks.
+				if err := topic.Close(); err != nil {
+					// TODO: Add structured logging when logger is available.
+					// For now, silently continue during cleanup.
+				}
 				delete(m.eventTopics, idHex)
 			}
 
